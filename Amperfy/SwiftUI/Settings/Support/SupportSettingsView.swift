@@ -28,6 +28,11 @@ import SwiftUI
 struct SupportSettingsView: View {
   enum Destination: Hashable {
     case eventLog
+    case license
+    case xcallback
+    #if DEBUG
+      case developer
+    #endif
   }
 
   let splitPercentage = 0.15
@@ -78,7 +83,30 @@ struct SupportSettingsView: View {
           NavigationLink(value: Destination.eventLog) {
             Text(L10n.tr("Event Log"))
           }
+          NavigationLink(value: Destination.license) {
+            Text(L10n.tr("Third-Party Licenses"))
+          }
+          NavigationLink(value: Destination.xcallback) {
+            Text(L10n.tr("X-Callback URL"))
+          }
+          #if DEBUG
+            NavigationLink(value: Destination.developer) {
+              Text(L10n.tr("Developer Tools"))
+            }
+          #endif
         }
+
+        SettingsSection(
+          content: {
+            SettingsRow(title: L10n.tr("Version")) {
+              SecondaryText(AppDelegate.version)
+            }
+            SettingsRow(title: L10n.tr("Build Number")) {
+              SecondaryText(AppDelegate.buildNumber)
+            }
+          },
+          header: L10n.tr("About")
+        )
       }
       .sheet(isPresented: $isShowingMailView) {
         MailView(
@@ -96,11 +124,16 @@ struct SupportSettingsView: View {
         )
       }
     }
-    .navigationTitle(L10n.tr("Support"))
+    .navigationTitle(L10n.tr("Support & About"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {
       case .eventLog: EventLogSettingsView()
+      case .license: LicenseSettingsView()
+      case .xcallback: XCallbackURLsSetttingsView()
+      #if DEBUG
+        case .developer: DeveloperView()
+      #endif
       }
     }
     .onAppear {

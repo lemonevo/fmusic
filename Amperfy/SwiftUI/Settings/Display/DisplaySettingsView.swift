@@ -25,6 +25,10 @@ import SwiftUI
 // MARK: - DisplaySettingsView
 
 struct DisplaySettingsView: View {
+  enum Destination: Hashable {
+    case swipe
+  }
+
   @EnvironmentObject
   private var settings: Settings
 
@@ -95,37 +99,6 @@ struct DisplaySettingsView: View {
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: L10n.tr("Music Player Skip Buttons"),
-              isOn: $settings.isShowMusicPlayerSkipButtons
-            )
-          },
-          footer:
-          L10n.tr(
-            "Add skip forward and skip backward buttons to the music player, along with the previous/next buttons."
-          )
-        )
-
-        if let activeAccountInfo = settings.activeAccountInfo,
-           let credentials = appDelegate.storage.settings.accounts.getSetting(activeAccountInfo)
-           .read.loginCredentials,
-           credentials.backendApi.asServerApiType != .ampache {
-          SettingsSection(
-            content: {
-              SettingsCheckBoxRow(
-                title: L10n.tr("Lyrics Smooth Scrolling"),
-                isOn: $settings.isLyricsSmoothScrolling
-              )
-            },
-            footer:
-            L10n.tr(
-              "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
-            )
-          )
-        }
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
               title: L10n.tr("Detailed Information"),
               isOn: $settings.isShowDetailedInfo
             )
@@ -180,39 +153,20 @@ struct DisplaySettingsView: View {
           L10n.tr("Display star rating in song cells and the currently playing view.")
         )
 
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
-              title: L10n.tr("Disable Player Shuffle Button"),
-              isOn: Binding<Bool>(
-                get: { !settings.isPlayerShuffleButtonEnabled },
-                set: {
-                  settings.isPlayerShuffleButtonEnabled = !$0
-                  UIMenuSystem.main.setNeedsRebuild()
-                }
-              )
-            )
-          },
-          footer:
-          L10n.tr("The player shuffle button is displayed but non-interactive.")
-        )
-
-        #if !targetEnvironment(macCatalyst)
-          SettingsSection(
-            content: {
-              SettingsCheckBoxRow(
-                title: L10n.tr("Collapse Toolbar Player"),
-                isOn: $settings.isToolbarPlayerAutoCollapse
-              )
-            },
-            footer:
-            L10n.tr("Collapse the toolbar player into a compact view when scrolling")
-          )
-        #endif
+        SettingsSection {
+          NavigationLink(value: Destination.swipe) {
+            Text(L10n.tr("Swipe Actions"))
+          }
+        }
       }
     }
     .navigationTitle(L10n.tr("Display"))
     .navigationBarTitleDisplayMode(.inline)
+    .navigationDestination(for: Destination.self) { destination in
+      switch destination {
+      case .swipe: SwipeSettingsView()
+      }
+    }
   }
 }
 

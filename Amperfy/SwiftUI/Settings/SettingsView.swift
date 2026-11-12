@@ -28,6 +28,23 @@ struct SettingsView: View {
   @EnvironmentObject
   private var settings: Settings
 
+  @State
+  private var isShowingLanguageAlert = false
+
+  private var languageName: String {
+    switch settings.appLanguage {
+    case .system: L10n.tr("Match System")
+    case .english: "English"
+    case .simplifiedChinese: L10n.tr("Simplified Chinese")
+    }
+  }
+
+  private func setAppLanguage(_ language: AppLanguage) {
+    guard settings.appLanguage != language else { return }
+    settings.appLanguage = language
+    isShowingLanguageAlert = true
+  }
+
   func screenLockPreventionOffPressed() {
     settings.screenLockPreventionPreference = .never
     UIDevice.current.isBatteryMonitoringEnabled = false
@@ -55,14 +72,18 @@ struct SettingsView: View {
   var body: some View {
     let list =
       SettingsList {
-        SettingsSection {
-          SettingsRow(title: L10n.tr("Version")) {
-            SecondaryText(AppDelegate.version)
-          }
-          SettingsRow(title: L10n.tr("Build Number")) {
-            SecondaryText(AppDelegate.buildNumber)
-          }
-        }
+        SettingsSection(
+          content: {
+            SettingsRow(title: L10n.tr("Language")) {
+              Menu(languageName) {
+                Button(L10n.tr("Match System")) { setAppLanguage(.system) }
+                Button(L10n.tr("Simplified Chinese")) { setAppLanguage(.simplifiedChinese) }
+                Button("English") { setAppLanguage(.english) }
+              }
+            }
+          },
+          footer: L10n.tr("Language changes take effect after restarting Amperfy.")
+        )
 
         SettingsSection(
           content: {
@@ -98,25 +119,18 @@ struct SettingsView: View {
 
         #if !targetEnvironment(macCatalyst) // ok
           SettingsSection {
-            navigationLink(.account)
-            navigationLink(.displayAndInteraction)
-            navigationLink(.library)
-            navigationLink(.player)
-            navigationLink(.equalizer)
-            navigationLink(.swipe)
-            navigationLink(.artwork)
-          }
-
-          SettingsSection {
-            navigationLink(.support)
-            navigationLink(.license)
-            navigationLink(.xcallback)
-
-            #if DEBUG
-              navigationLink(.developer)
-            #endif
+            ForEach(NavigationTarget.sidebarItems.filter { $0 != .general }, id: \.self) {
+              navigationLink($0)
+            }
           }
         #endif
+      }
+      .alert(isPresented: $isShowingLanguageAlert) {
+        Alert(
+          title: Text(L10n.tr("Language")),
+          message: Text(L10n.tr("Restart Amperfy to apply the new language.")),
+          dismissButton: .default(Text(L10n.tr("OK")))
+        )
       }
 
     #if targetEnvironment(macCatalyst) // ok

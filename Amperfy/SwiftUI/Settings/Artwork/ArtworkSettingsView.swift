@@ -182,7 +182,7 @@ struct ArtworkSettingsView: View {
         }
       }
     }
-    .navigationTitle(L10n.tr("Artwork"))
+    .navigationTitle(L10n.tr("Artwork & Cache"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {

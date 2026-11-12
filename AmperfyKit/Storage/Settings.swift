@@ -52,6 +52,12 @@ public struct AppSettings: Sendable, Codable {
 
 // MARK: - UserSettings
 
+public enum AppLanguage: String, Sendable, Codable, CaseIterable {
+  case system
+  case english
+  case simplifiedChinese
+}
+
 public struct UserSettings: Sendable, Codable {
   private var _isShowDetailedInfo: Bool = false
   public var isShowDetailedInfo: Bool {
@@ -217,6 +223,12 @@ public struct UserSettings: Sendable, Codable {
   public var appearanceMode: UIUserInterfaceStyle {
     get { _appearanceMode }
     set { _appearanceMode = newValue }
+  }
+
+  private var _appLanguage: AppLanguage = .system
+  public var appLanguage: AppLanguage {
+    get { _appLanguage }
+    set { _appLanguage = newValue }
   }
 
   /// In-app text size, nil: system text size (iOS) / default text size (macOS, no Dynamic Type)

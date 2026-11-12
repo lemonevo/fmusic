@@ -25,6 +25,10 @@ import SwiftUI
 // MARK: - PlayerSettingsView
 
 struct PlayerSettingsView: View {
+  enum Destination: Hashable {
+    case equalizer
+  }
+
   @EnvironmentObject
   private var settings: Settings
 
@@ -87,10 +91,82 @@ struct PlayerSettingsView: View {
           },
           footer: L10n.tr("When the queue ends, automatically continue playback using Instant Mix to find similar songs.")
         )
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Music Player Skip Buttons"),
+              isOn: $settings.isShowMusicPlayerSkipButtons
+            )
+          },
+          footer:
+          L10n.tr(
+            "Add skip forward and skip backward buttons to the music player, along with the previous/next buttons."
+          )
+        )
+
+        if let activeAccountInfo = settings.activeAccountInfo,
+           let credentials = appDelegate.storage.settings.accounts.getSetting(activeAccountInfo)
+           .read.loginCredentials,
+           credentials.backendApi.asServerApiType != .ampache {
+          SettingsSection(
+            content: {
+              SettingsCheckBoxRow(
+                title: L10n.tr("Lyrics Smooth Scrolling"),
+                isOn: $settings.isLyricsSmoothScrolling
+              )
+            },
+            footer:
+            L10n.tr(
+              "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
+            )
+          )
+        }
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Disable Player Shuffle Button"),
+              isOn: Binding<Bool>(
+                get: { !settings.isPlayerShuffleButtonEnabled },
+                set: {
+                  settings.isPlayerShuffleButtonEnabled = !$0
+                  UIMenuSystem.main.setNeedsRebuild()
+                }
+              )
+            )
+          },
+          footer:
+          L10n.tr("The player shuffle button is displayed but non-interactive.")
+        )
+
+        #if !targetEnvironment(macCatalyst)
+          SettingsSection(
+            content: {
+              SettingsCheckBoxRow(
+                title: L10n.tr("Collapse Toolbar Player"),
+                isOn: $settings.isToolbarPlayerAutoCollapse
+              )
+            },
+            footer:
+            L10n.tr("Collapse the toolbar player into a compact view when scrolling")
+          )
+        #endif
+
+        SettingsSection {
+          NavigationLink(value: Destination.equalizer) {
+            Text(L10n.tr("Equalizer"))
+          }
+        }
       }
     }
-    .navigationTitle(L10n.tr("Player & Stream"))
+    .navigationTitle(L10n.tr("Playback"))
     .navigationBarTitleDisplayMode(.inline)
+    .navigationDestination(for: Destination.self) { destination in
+      switch destination {
+      case .equalizer: EqualizerSettingsView()
+      }
+    }
     .onAppear {
       appDelegate.userStatistics.visited(.settingsPlayer)
     }

@@ -28,6 +28,7 @@ import SwiftUI
 struct LibrarySettingsView: View {
   enum Destination: Hashable {
     case cacheSizeLimit
+    case artwork
   }
 
   @EnvironmentObject
@@ -248,6 +249,12 @@ struct LibrarySettingsView: View {
             }
           }
         }, header: L10n.tr("Cache"))
+
+        SettingsSection {
+          NavigationLink(value: Destination.artwork) {
+            Text(L10n.tr("Artwork & Cache"))
+          }
+        }
       }
     }
     .navigationTitle(L10n.tr("Library"))
@@ -260,6 +267,7 @@ struct LibrarySettingsView: View {
           selection: $cacheSelection
         )
         .navigationTitle(L10n.tr("Cache Size Limit"))
+      case .artwork: ArtworkSettingsView()
       }
     }
     .onAppear {

@@ -69,6 +69,8 @@ final class Settings: ObservableObject {
   @Published
   var appearanceMode: UIUserInterfaceStyle = .unspecified
   @Published
+  var appLanguage: AppLanguage = .system
+  @Published
   var textSize: UIContentSizeCategory?
 
   @Published

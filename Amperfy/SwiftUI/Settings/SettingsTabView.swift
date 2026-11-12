@@ -70,7 +70,7 @@ struct SettingsTabView: View {
           .animation(.easeOut(duration: 0.1), value: isBackRowHovered)
         }
 
-        ForEach(NavigationTarget.allCases, id: \.self) { menuElement in
+        ForEach(NavigationTarget.sidebarItems, id: \.self) { menuElement in
           HStack(spacing: 10) {
             Image(uiImage: menuElement.icon)
               .foregroundStyle(Color.accentColor)

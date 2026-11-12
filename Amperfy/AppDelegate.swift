@@ -382,6 +382,19 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
   }
 
+  /// The app reads `AppleLanguages` while launching, so the new language only shows up after a
+  /// restart. Keeping the override in the app's own defaults leaves the system language alone.
+  func applyAppLanguage(_ language: AppLanguage) {
+    switch language {
+    case .system:
+      UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+    case .english:
+      UserDefaults.standard.set(["en"], forKey: "AppleLanguages")
+    case .simplifiedChinese:
+      UserDefaults.standard.set(["zh-Hans"], forKey: "AppleLanguages")
+    }
+  }
+
   /// Applies the in-app text size (see `TextScaling`) to the app and all windows
   func applyTextSize() {
     let textSize = storage.settings.user.textSize

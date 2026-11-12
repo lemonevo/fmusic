@@ -40,6 +40,19 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
 
   var id: String { rawValue }
 
+  /// Sidebar entries. The remaining targets are pushed from these pages so the sidebar
+  /// stays short (e.g. Equalizer lives inside Playback).
+  static var sidebarItems: [NavigationTarget] {
+    [
+      .general,
+      .account,
+      .player,
+      .displayAndInteraction,
+      .library,
+      .support,
+    ]
+  }
+
   func view() -> any View {
     switch self {
     case .general: SettingsView()
@@ -62,18 +75,18 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
   var displayName: String {
     switch self {
     case .general: L10n.tr("General")
-    case .displayAndInteraction: L10n.tr("Display & Interaction")
+    case .displayAndInteraction: L10n.tr("Display")
     case .account: L10n.tr("Account")
     case .library: L10n.tr("Library")
-    case .swipe: L10n.tr("Swipe")
-    case .artwork: L10n.tr("Artwork")
-    case .support: L10n.tr("Support")
-    case .license: L10n.tr("License")
+    case .swipe: L10n.tr("Swipe Actions")
+    case .artwork: L10n.tr("Artwork & Cache")
+    case .support: L10n.tr("Support & About")
+    case .license: L10n.tr("Third-Party Licenses")
     case .equalizer: L10n.tr("Equalizer")
-    case .player: L10n.tr("Player & Stream")
-    case .xcallback: L10n.tr("X-Callback-URL Documentation")
+    case .player: L10n.tr("Playback")
+    case .xcallback: L10n.tr("X-Callback URL")
     #if DEBUG
-      case .developer: L10n.tr("Developer")
+      case .developer: L10n.tr("Developer Tools")
     #endif
     }
   }
@@ -100,7 +113,7 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     case .equalizer: "chart.bar.fill"
     case .swipe: "arrow.right.circle.fill"
     case .artwork: "photo.fill"
-    case .support: "person.crop.circle.fill"
+    case .support: "info.circle.fill"
     case .license: "doc.fill"
     case .xcallback: "arrowshape.turn.up.backward.circle.fill"
     #if DEBUG

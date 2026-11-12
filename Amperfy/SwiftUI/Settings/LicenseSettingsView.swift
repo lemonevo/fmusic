@@ -547,7 +547,7 @@ struct LicenseSettingsView: View {
           .padding([.leading, .trailing, .top, .bottom], 16)
       }
     }
-    .navigationTitle(L10n.tr("Licenses"))
+    .navigationTitle(L10n.tr("Third-Party Licenses"))
     .navigationBarTitleDisplayMode(.inline)
   }
 }

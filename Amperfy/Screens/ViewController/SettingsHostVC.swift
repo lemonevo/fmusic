@@ -252,6 +252,12 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.setAppAppearanceMode(style: newValue)
     }))
 
+    settings.appLanguage = appDelegate.storage.settings.user.appLanguage
+    changesAgent.append(settings.$appLanguage.sink(receiveValue: { newValue in
+      self.appDelegate.storage.settings.user.appLanguage = newValue
+      self.appDelegate.applyAppLanguage(newValue)
+    }))
+
     settings.textSize = appDelegate.storage.settings.user.textSize
     changesAgent.append(settings.$textSize.sink(receiveValue: { newValue in
       guard self.appDelegate.storage.settings.user.textSize != newValue else { return }
