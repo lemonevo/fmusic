@@ -303,26 +303,11 @@ class PlayerUIHandler: NSObject {
   ) {
     refreshArtwork(artworkImage: artworkImage)
     if let playableInfo = player.currentlyPlaying {
-      if playableInfo.isRadio {
-        // For radios, show stream metadata if available, otherwise show station name
-        if let radioInfo = player.currentRadioNowPlaying, !radioInfo.isEmpty {
-          titleLabel.text = radioInfo.title
-          artistLabel.text = radioInfo.artist
-        } else {
-          titleLabel.text = playableInfo.title
-          artistLabel.text = ""
-        }
-        // Show station name in album label
-        albumLabel?.text = playableInfo.title
-        albumButton?.isEnabled = false
-        albumContainerView?.isHidden = false
-      } else {
-        titleLabel.text = playableInfo.title
-        albumLabel?.text = playableInfo.asSong?.album?.name ?? ""
-        albumButton?.isEnabled = playableInfo.isSong
-        albumContainerView?.isHidden = !playableInfo.isSong
-        artistLabel.text = playableInfo.creatorName
-      }
+      titleLabel.text = playableInfo.title
+      albumLabel?.text = playableInfo.asSong?.album?.name ?? ""
+      albumButton?.isEnabled = playableInfo.isSong
+      albumContainerView?.isHidden = !playableInfo.isSong
+      artistLabel.text = playableInfo.creatorName
     } else {
       switch player.playerMode {
       case .music:
@@ -354,19 +339,17 @@ class PlayerUIHandler: NSObject {
     }
   }
 
-  func airplayButtonPushed(rootView: UIView) {
+  func airplayButtonPushed(button: UIButton) {
     appDelegate.userStatistics.usedAction(.airplay)
 
     #if targetEnvironment(macCatalyst) // ok
-      // macOS: in-app AirPlay routing only applies to AVPlayer, not to the audio unit based output
-      // of AudioStreaming. Open the system sound output settings instead.
-      if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
-        UIApplication.shared.open(url)
-      }
+      // macOS: show the system audio output devices instead of the iOS route picker.
+      AudioOutputPicker.toggle(above: button)
     #else
       let rect = CGRect(x: -100, y: 0, width: 0, height: 0)
       let airplayVolume = MPVolumeView(frame: rect)
       airplayVolume.showsVolumeSlider = false
+      let rootView = button.superview ?? button
       rootView.addSubview(airplayVolume)
       for view: UIView in airplayVolume.subviews {
         if let button = view as? UIButton {
@@ -414,69 +397,42 @@ class PlayerUIHandler: NSObject {
     playTypeIcon: UIImageView,
     liveLabel: UILabel
   ) {
-    timeSlider.preferredBehavioralStyle = .pad
+    if timeSlider.preferredBehavioralStyle != .pad {
+      timeSlider.preferredBehavioralStyle = .pad
+    }
     timeSlider.sliderStyle = .thumbless
-    if let currentlyPlaying = player.currentlyPlaying {
-      let supportTimeInteraction = !currentlyPlaying.isRadio
-      timeSlider.isEnabled = supportTimeInteraction && (style != .miniPlayeriOS)
+    if player.currentlyPlaying != nil {
+      timeSlider.isEnabled = style != .miniPlayeriOS
       timeSlider.minimumValue = 0.0
       timeSlider.maximumValue = Float(player.duration)
-      if !timeSlider.isTracking, supportTimeInteraction {
+      if !timeSlider.isTracking {
         let elapsedClockTime = ClockTime(timeInSeconds: Int(player.elapsedTime))
-        elapsedTimeLabel.text = elapsedClockTime.asShortString()
+        setTextIfChanged(elapsedTimeLabel, elapsedClockTime.asShortString())
         if let remainingTime = remainingTime {
-          remainingTimeLabel.text = ClockTime(timeInSeconds: remainingTime).asShortString()
+          setTextIfChanged(
+            remainingTimeLabel,
+            ClockTime(timeInSeconds: remainingTime).asShortString()
+          )
         } else {
-          remainingTimeLabel.text = "--:--"
+          setTextIfChanged(remainingTimeLabel, "--:--")
         }
-        timeSlider.value = Float(player.elapsedTime)
+        let elapsed = Float(player.elapsedTime)
+        if abs(timeSlider.value - elapsed) > 0.01 {
+          timeSlider.value = elapsed
+        }
       }
 
-      if !supportTimeInteraction {
-        audioInfoLabel.isHidden = true
-        playTypeIcon.isHidden = true
-        liveLabel.isHidden = false
-        timeSlider.minimumValue = 0.0
-        timeSlider.maximumValue = 1.0
-        timeSlider.value = 0.0
-
-        // make the middle part of the time slider transparent
-        let mask = CAGradientLayer()
-        mask.frame = timeSlider.bounds
-        mask.colors = [
-          UIColor.white.cgColor,
-          UIColor.white.withAlphaComponent(0).cgColor,
-          UIColor.white.withAlphaComponent(0).cgColor,
-          UIColor.white.cgColor,
-        ]
-        mask.startPoint = CGPoint(x: 0.0, y: 0.0)
-        mask.endPoint = CGPoint(x: 1.0, y: 0.0)
-        mask.locations = [
-          0.0, 0.4, 0.6, 1.0,
-        ]
-        timeSlider.layer.mask = mask
-
-        elapsedTimeLabel.text = ""
-        remainingTimeLabel.text = ""
-      } else {
-        audioInfoLabel.isHidden = false
-        playTypeIcon.isHidden = false
-        refreshAudioInfo(
-          currentlyPlaying: currentlyPlaying,
-          audioInfoLabel: audioInfoLabel,
-          playTypeIcon: playTypeIcon
-        )
-
-        liveLabel.isHidden = true
-        timeSlider.layer.mask = nil
-      }
+      audioInfoLabel.isHidden = true
+      playTypeIcon.isHidden = true
+      liveLabel.isHidden = true
+      timeSlider.layer.mask = nil
     } else {
       audioInfoLabel.isHidden = true
       playTypeIcon.isHidden = true
       liveLabel.isHidden = true
       timeSlider.layer.mask = nil
-      elapsedTimeLabel.text = "--:--"
-      remainingTimeLabel.text = "--:--"
+      setTextIfChanged(elapsedTimeLabel, "--:--")
+      setTextIfChanged(remainingTimeLabel, "--:--")
       timeSlider.isEnabled = false
       timeSlider.minimumValue = 0.0
       timeSlider.maximumValue = 1.0
@@ -484,80 +440,7 @@ class PlayerUIHandler: NSObject {
     }
   }
 
-  private func refreshAudioInfo(
-    currentlyPlaying: AbstractPlayable,
-    audioInfoLabel: UILabel,
-    playTypeIcon: UIImageView
-  ) {
-    guard let playType = player.playType else {
-      playTypeIcon.image = nil
-      playTypeIcon.isHidden = true
-      audioInfoLabel.isHidden = true
-      return
-    }
-    playTypeIcon.isHidden = false
-    audioInfoLabel.isHidden = false
-    var displayBitrateInKbps = 0
-    var formatText = ""
-
-    func getFormat(contentType: String?) -> String {
-      guard let contentType else { return "" }
-      var contentFormatText = ""
-      // Display MIME type: "audio/mp3" -> "MP3"
-      let components = contentType.split(separator: "/")
-      if components.count > 1 {
-        let format = String(components[1]).uppercased()
-        // Format for display
-        switch format {
-        case "MP3", "MPEG":
-          contentFormatText = "MP3"
-        default:
-          if format.contains("LOSSLESS") {
-            contentFormatText = "LOSSLESS"
-          } else if format.hasPrefix("X-"), format.count > "X-".count {
-            contentFormatText = String(format.dropFirst("X-".count))
-          } else {
-            contentFormatText = format
-          }
-        }
-      }
-      return contentFormatText
-    }
-
-    if playType == .cache {
-      playTypeIcon.image = UIImage.cache
-      displayBitrateInKbps = currentlyPlaying.bitrate / 1000
-      formatText = getFormat(contentType: currentlyPlaying.fileContentType)
-    } else {
-      playTypeIcon.image = UIImage.antenna
-      let streamingBitrate = player.activeStreamingBitrate
-      if let streamingBitrate {
-        if streamingBitrate == .noLimit ||
-          (streamingBitrate.rawValue > (currentlyPlaying.bitrate / 1000)) {
-          displayBitrateInKbps = currentlyPlaying.bitrate / 1000
-        } else {
-          displayBitrateInKbps = streamingBitrate.rawValue
-        }
-      } else {
-        displayBitrateInKbps = 0
-      }
-
-      let transcodingFormat = player.activeTranscodingFormat
-      if let transcodingFormat {
-        if transcodingFormat == .raw {
-          // it is the format of the streamed file
-          formatText = getFormat(contentType: currentlyPlaying.contentType)
-        } else {
-          formatText = transcodingFormat.shortInfo
-        }
-      } else {
-        formatText = ""
-      }
-    }
-
-    audioInfoLabel
-      .text = (displayBitrateInKbps > 0) ? "\(formatText) \(displayBitrateInKbps) kbps" :
-      "\(formatText)"
-    playTypeIcon.tintColor = .labelColor
+  private func setTextIfChanged(_ label: UILabel, _ text: String) {
+    if label.text != text { label.text = text }
   }
 }

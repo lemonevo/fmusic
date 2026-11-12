@@ -86,11 +86,6 @@ extension PopupPlayerVC {
         config.baseForegroundColor = appDelegate.storage.settings.user
           .isOnlineMode ? .redHeart : .label
         button.isEnabled = appDelegate.storage.settings.user.isOnlineMode
-      } else if let playableInfo = player.currentlyPlaying,
-                let radio = playableInfo.asRadio {
-        config.image = .followLink
-        config.baseForegroundColor = .label
-        button.isEnabled = radio.siteURL != nil
       } else {
         config.image = .heartEmpty
         config.baseForegroundColor = .redHeart

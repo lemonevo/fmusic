@@ -46,13 +46,12 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? ""
   }
 
-  /// Task IDs need to be added to the array in Info.list under: <key>BGTaskSchedulerPermittedIdentifiers</key>
-  static let refreshTaskId = "de.familie-zimba.Amperfy.RefreshTask"
-
   static let maxPlayablesDownloadsToAddAtOnceWithoutWarning = 200
 
   var window: UIWindow?
   var focusedWindowTitle: String?
+  var accountSwitcherDismissHandler: (() -> ())?
+  var audioOutputPickerDismissHandler: (() -> ())?
 
   lazy var player: PlayerFacade = {
     UIApplication.shared.beginReceivingRemoteControlEvents()
@@ -81,10 +80,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   public lazy var userStatistics = {
     AmperKit.shared.userStatistics
-  }()
-
-  public lazy var localNotificationManager = {
-    AmperKit.shared.localNotificationManager
   }()
 
   public func getMeta(_ accountInfo: AccountInfo) -> MetaManager {
@@ -123,7 +118,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     )
   }()
 
-  var settingsSceneSession: UISceneSession?
   var miniPlayerSceneSession: UISceneSession?
 
   var sleepTimer: Timer?
@@ -172,56 +166,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     os_log("Lock Screen Prevention: %s", log: self.log, type: .info, isKeepScreenAlive.description)
   }
 
-  func configureBackgroundFetch() {
-    BGTaskScheduler.shared.register(
-      forTaskWithIdentifier: Self.refreshTaskId,
-      using: DispatchQueue.main
-    ) { bgTask in
-      Task { @MainActor in
-        await self.performBackgroundFetchTask(bgTask: bgTask)
-      }
-    }
-  }
-
-  @MainActor
-  private func performBackgroundFetchTask(bgTask: BGTask) async {
-    os_log("Perform task: %s", log: self.log, type: .info, Self.refreshTaskId)
-    var success = true
-    for accountInfo in storage.settings.accounts.allAccounts {
-      do {
-        try await getMeta(accountInfo).backgroundFetchTriggeredSyncer.syncAndNotifyPodcastEpisodes()
-      } catch {
-        success = false
-        eventLogger.error(
-          topic: "Background Task",
-          statusCode: .connectionError,
-          message: error.localizedDescription,
-          displayPopup: false
-        )
-      }
-    }
-    bgTask.setTaskCompleted(success: success)
-    userStatistics.backgroundFetchPerformed(result: UIBackgroundFetchResult.newData)
-    scheduleAppRefresh()
-  }
-
-  func scheduleAppRefresh() {
-    let request = BGAppRefreshTaskRequest(identifier: Self.refreshTaskId)
-    request.earliestBeginDate = Date(timeIntervalSinceNow: 45 * 60) // Refresh after 45 minutes.
-    do {
-      // Submit only succeeds on real devices. On simulator it will always throw an error.
-      try BGTaskScheduler.shared.submit(request)
-    } catch {
-      os_log(
-        "Could not schedule app refresh task (%s) with error: %s",
-        log: self.log,
-        type: .error,
-        Self.refreshTaskId,
-        error.localizedDescription
-      )
-    }
-  }
-
   func initEventLogger() {
     AmperKit.shared.eventLogger.alertDisplayer = self
   }
@@ -233,18 +177,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }
 
   // deprecated
-  func restartByUser() {
-    Task {
-      await localNotificationManager.notifyDebugAndWait(
-        title: "Amperfy Restart",
-        body: "Tap to reopen Amperfy"
-      )
-      stopForInit()
-      // close Amperfy
-      exit(0)
-    }
-  }
-
   var isNormalInteraction: Bool {
     storage.settings.accounts.active != nil && !libraryUpdater
       .isVisualUpadateNeeded
@@ -277,8 +209,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     configureDefaultNavigationBarStyle()
     configureBatteryMonitoring()
-    configureBackgroundFetch()
-    configureNotificationHandling()
     initEventLogger()
 
     guard let activeAccountInfo = appDelegate.storage.settings.accounts.active else {
@@ -371,6 +301,53 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         vc: AppStoryboard.Main
           .segueToMainWindow(account: account)
       )
+  }
+
+  func removeAccount(accountInfo: AccountInfo) {
+    closeAllButActiveMainTabs()
+    if storage.settings.accounts.allAccounts.count <= 1 {
+      stopForInit()
+    }
+
+    let meta = getMeta(accountInfo)
+    meta.stopManager()
+    resetMeta(accountInfo)
+
+    // delete cached files
+    CacheFileManager.shared.deleteAccountCache(accountInfo: accountInfo)
+    // reset login credentials -> at new start the login view is presented to auth and resync library
+    storage.settings.accounts.logout(accountInfo)
+    notificationHandler.post(name: .accountDeleted, object: nil, userInfo: nil)
+    notificationHandler.post(name: .accountActiveChanged, object: nil, userInfo: nil)
+
+    // reset quick actions
+    quickActionsManager.configureQuickActions()
+    configureMainMenu()
+
+    storage.settings.user.isOfflineMode = false
+    let account = storage.main.library.getAccount(info: accountInfo)
+    player.logout(account: account)
+    if let newActiveAccountInfo = storage.settings.accounts.active {
+      let newActiveAccount = storage.main.library.getAccount(info: newActiveAccountInfo)
+      closeAllButActiveMainTabs()
+      setAppTheme(
+        color: storage.settings.accounts.getSetting(newActiveAccountInfo)
+          .read.themePreference.asColor
+      )
+      applyAppThemeToAlreadyLoadedViews()
+      guard let mainScene = AppDelegate.mainSceneDelegate else { return }
+      mainScene
+        .replaceMainRootViewController(
+          vc: AppStoryboard.Main
+            .segueToMainWindow(account: newActiveAccount)
+        )
+    } else {
+      // No other account: Behave like initial App start
+      // force resync after login
+      storage.settings.app.isLibrarySynced = false
+      let loginVC = AppStoryboard.Main.segueToLogin()
+      AppDelegate.mainSceneDelegate?.replaceMainRootViewController(vc: loginVC)
+    }
   }
 
   func switchOnlineOfflineMode(isOfflineMode: Bool) {

@@ -39,13 +39,27 @@ struct SettingsSection<Content: View>: View {
 
   var body: some View {
     if let footer = footer, let header = header {
-      Section(content: content, header: { Text(header) }, footer: { Text(footer) })
+      Section(content: content, header: { headerText(header) }, footer: { footerText(footer) })
     } else if let header = header {
-      Section(content: content, header: { Text(header) })
+      Section(content: content, header: { headerText(header) })
     } else if let footer = footer {
-      Section(content: content, footer: { Text(footer) })
+      Section(content: content, footer: { footerText(footer) })
     } else {
       Section(content: content)
     }
+  }
+
+  /// Same section header as the main sidebar: 11 pt semibold, secondary, uppercase.
+  private func headerText(_ text: String) -> some View {
+    Text(text)
+      .font(.system(size: 11, weight: .semibold))
+      .foregroundStyle(Color.secondaryLabel)
+      .textCase(.uppercase)
+  }
+
+  private func footerText(_ text: String) -> some View {
+    Text(text)
+      .font(.system(size: 11))
+      .foregroundStyle(Color.secondaryLabel)
   }
 }

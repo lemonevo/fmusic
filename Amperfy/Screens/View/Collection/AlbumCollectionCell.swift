@@ -63,6 +63,11 @@ class AlbumCollectionCell: BasicCollectionCell {
     super.awakeFromNib()
     // This must be called in Main thread
     MainActor.assumeIsolated {
+      #if targetEnvironment(macCatalyst)
+        // Compact macOS typography, matching the sidebar and settings (13/11 pt).
+        titleLabel?.font = .systemFont(ofSize: 13)
+        subtitleLabel?.font = .systemFont(ofSize: 11)
+      #endif
       maximumContentSizeCategory = Self.maxContentSizeCategory
       let heightConstraint = textStackView.heightAnchor
         .constraint(equalToConstant: Self.textHeight(for: traitCollection))

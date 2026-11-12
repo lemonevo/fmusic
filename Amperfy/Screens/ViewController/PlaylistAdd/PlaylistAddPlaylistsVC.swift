@@ -53,7 +53,7 @@ class PlaylistAddPlaylistsDiffableDataSource: BasicUITableViewDiffableDataSource
 
 class PlaylistAddPlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO>,
   PlaylistVCAddable {
-  override var sceneTitle: String? { "Playlists" }
+  override var sceneTitle: String? { L10n.tr("Playlists") }
 
   public var addToPlaylistManager = AddToPlaylistManager()
 
@@ -107,7 +107,7 @@ class PlaylistAddPlaylistsVC: SingleSnapshotFetchedResultsTableViewController<Pl
       searchTiles = ["All", "Cached"]
     }
     configureSearchController(
-      placeholder: "Search in \"Playlists\"",
+      placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Playlists")),
       scopeButtonTitles: searchTiles
     )
     tableView.register(nibName: PlaylistTableCell.typeName)

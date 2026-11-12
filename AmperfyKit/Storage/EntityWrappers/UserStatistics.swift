@@ -56,8 +56,6 @@ public enum ViewToVisit {
     playlistDetail,
     playlists,
     playlistSelector,
-    podcasts,
-    podcastDetail,
     popupPlayer,
     search,
     settings,
@@ -66,8 +64,7 @@ public enum ViewToVisit {
     settingsPlayerSongTab,
     settingsServer,
     settingsSupport,
-    songs,
-    radios
+    songs
 }
 
 // MARK: - UserStatistics
@@ -152,10 +149,6 @@ public class UserStatistics {
       managedObject.visitedPlaylistsCount += 1
     case .playlistSelector:
       managedObject.visitedPlaylistSelectorCount += 1
-    case .podcasts:
-      managedObject.visitedPodcastsCount += 1
-    case .podcastDetail:
-      managedObject.visitedPodcastDetailCount += 1
     case .popupPlayer:
       managedObject.visitedPopupPlayerCount += 1
     case .search:
@@ -174,8 +167,6 @@ public class UserStatistics {
       managedObject.visitedSettingsSupportCount += 1
     case .songs:
       managedObject.visitedSongsCount += 1
-    case .radios:
-      managedObject.visitedRadiosCount += 1
     }
 
     library.saveContext()

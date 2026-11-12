@@ -105,6 +105,10 @@ enum FileSourceLibraryWriter {
       let album: Album
       if let existing = albumsByID[item.albumID] {
         album = existing
+        // The album identity is derived from the tag or folder path, so its name is stable too.
+        if album.name != item.albumName {
+          album.name = item.albumName
+        }
       } else {
         let created = library.createAlbum(account: account)
         created.id = item.albumID

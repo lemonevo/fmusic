@@ -38,7 +38,7 @@ public class Genre: AbstractLibraryEntity {
   }
 
   public var name: String {
-    get { managedObject.name ?? "Unknown Genre" }
+    get { L10n.trPlaceholder(managedObject.name ?? "Unknown Genre") }
     set {
       if managedObject.name != newValue {
         managedObject.name = newValue

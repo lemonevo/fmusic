@@ -32,6 +32,8 @@ public class NowPlayingInfoCenterHandler {
   private var nowPlayingInfoCenter: MPNowPlayingInfoCenter
   private let getArtworkDownloaderCB: GetArtworkDownloadManagerCallback
   private var accountNotificationHandler: AccountNotificationHandler?
+  /// Last position pushed to the system; the full metadata/artwork push is expensive.
+  private var lastPushedElapsedTime: Double = .nan
 
   init(
     musicPlayer: AudioPlayer,
@@ -90,6 +92,7 @@ public class NowPlayingInfoCenterHandler {
     }
 
     let concurrentSafeArtworkImage = artworkImage
+    let elapsedTime = backendAudioPlayer.elapsedTime
     nowPlayingInfoCenter.nowPlayingInfo = [
       MPNowPlayingInfoPropertyMediaType: NSNumber(value: MPNowPlayingInfoMediaType.audio.rawValue),
       MPNowPlayingInfoPropertyServiceIdentifier: AmperKit.name,
@@ -100,7 +103,7 @@ public class NowPlayingInfoCenterHandler {
       MPMediaItemPropertyArtist: nowPlaying.artist,
 
       MPMediaItemPropertyPlaybackDuration: backendAudioPlayer.duration,
-      MPNowPlayingInfoPropertyElapsedPlaybackTime: backendAudioPlayer.elapsedTime,
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: elapsedTime,
       MPNowPlayingInfoPropertyIsLiveStream: playable.isRadio,
 
       MPNowPlayingInfoPropertyDefaultPlaybackRate: NSNumber(value: 1.0),
@@ -117,6 +120,7 @@ public class NowPlayingInfoCenterHandler {
         }
       ),
     ]
+    lastPushedElapsedTime = elapsedTime
   }
 
   private func displayNowPlayingInfo(for playable: AbstractPlayable) -> RadioNowPlayingInfo {
@@ -172,9 +176,26 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
   }
 
   public func didElapsedTimeChange() {
-    if let curPlayable = musicPlayer.currentlyPlaying {
+    pushElapsedTime(force: false)
+  }
+
+  /// Updates only the position/rate keys; the system interpolates the position itself.
+  private func pushElapsedTime(force: Bool) {
+    guard let curPlayable = musicPlayer.currentlyPlaying else { return }
+    guard var info = nowPlayingInfoCenter.nowPlayingInfo else {
       updateNowPlayingInfo(playable: curPlayable)
+      return
     }
+    // Refreshing the whole metadata and artwork every tick only burns CPU
+    // (MediaRemote even re-encodes the artwork image).
+    let elapsed = backendAudioPlayer.elapsedTime
+    guard elapsed.isFinite, force || abs(elapsed - lastPushedElapsedTime) >= 1.0 else { return }
+    info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = elapsed
+    info[MPNowPlayingInfoPropertyPlaybackRate] = NSNumber(
+      value: backendAudioPlayer.playbackRate.asDouble
+    )
+    nowPlayingInfoCenter.nowPlayingInfo = info
+    lastPushedElapsedTime = elapsed
   }
 
   public func didPlaylistChange() {}
@@ -191,5 +212,7 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
 
   public func didRepeatChange() {}
 
-  public func didPlaybackRateChange() {}
+  public func didPlaybackRateChange() {
+    pushElapsedTime(force: true)
+  }
 }

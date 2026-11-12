@@ -53,36 +53,6 @@ public struct AppSettings: Sendable, Codable {
 // MARK: - UserSettings
 
 public struct UserSettings: Sendable, Codable {
-  private var _streamingMaxBitrateWifiPreference: StreamingMaxBitratePreference = .defaultValue
-  public var streamingMaxBitrateWifiPreference: StreamingMaxBitratePreference {
-    get { _streamingMaxBitrateWifiPreference }
-    set { _streamingMaxBitrateWifiPreference = newValue }
-  }
-
-  private var _streamingMaxBitrateCellularPreference: StreamingMaxBitratePreference = .defaultValue
-  public var streamingMaxBitrateCellularPreference: StreamingMaxBitratePreference {
-    get { _streamingMaxBitrateCellularPreference }
-    set { _streamingMaxBitrateCellularPreference = newValue }
-  }
-
-  private var _streamingFormatWifiPreference: StreamingFormatPreference = .defaultValue
-  public var streamingFormatWifiPreference: StreamingFormatPreference {
-    get { _streamingFormatWifiPreference }
-    set { _streamingFormatWifiPreference = newValue }
-  }
-
-  private var _streamingFormatCellularPreference: StreamingFormatPreference = .defaultValue
-  public var streamingFormatCellularPreference: StreamingFormatPreference {
-    get { _streamingFormatCellularPreference }
-    set { _streamingFormatCellularPreference = newValue }
-  }
-
-  private var _cacheTranscodingFormatPreference: CacheTranscodingFormatPreference = .defaultValue
-  public var cacheTranscodingFormatPreference: CacheTranscodingFormatPreference {
-    get { _cacheTranscodingFormatPreference }
-    set { _cacheTranscodingFormatPreference = newValue }
-  }
-
   private var _isShowDetailedInfo: Bool = false
   public var isShowDetailedInfo: Bool {
     get { _isShowDetailedInfo }
@@ -356,7 +326,7 @@ public struct AccountSetting: Sendable, Codable {
   // ordered visible Home Sections
   private var _homeSections: [HomeSection] = HomeSection.defaultValue
   public var homeSections: [HomeSection] {
-    get { _homeSections }
+    get { _homeSections.filter(HomeSection.supportedCases.contains) }
     set { _homeSections = newValue }
   }
 
@@ -364,7 +334,11 @@ public struct AccountSetting: Sendable, Codable {
   // optional: settings stored before this property existed must still decode
   private var _homeSectionOrder: [HomeSection]?
   public var homeSectionOrder: [HomeSection] {
-    get { (_homeSectionOrder ?? _homeSections).completingOrder(with: HomeSection.allCases) }
+    get {
+      (_homeSectionOrder ?? _homeSections)
+        .filter(HomeSection.supportedCases.contains)
+        .completingOrder(with: HomeSection.supportedCases)
+    }
     set { _homeSectionOrder = newValue }
   }
 
@@ -374,11 +348,6 @@ public struct AccountSetting: Sendable, Codable {
     set { _initialSyncCompletionStatus = newValue }
   }
 
-  private var _isAutoDownloadLatestPodcastEpisodesActive: Bool = false
-  public var isAutoDownloadLatestPodcastEpisodesActive: Bool {
-    get { _isAutoDownloadLatestPodcastEpisodesActive }
-    set { _isAutoDownloadLatestPodcastEpisodesActive = newValue }
-  }
 
   private var _isAutoDownloadLatestSongsActive: Bool = false
   public var isAutoDownloadLatestSongsActive: Bool {
@@ -537,18 +506,22 @@ public struct AmperfySettings: Sendable, Codable {
     return try decoder.decode(type, from: JSONSerialization.data(withJSONObject: merged))
   }
 
+  /// Decoded settings are cached per stored blob: the getters run for every list cell and on
+  /// every playback tick, and decoding the JSON plus hashing the credentials there is expensive.
+  /// The cache is keyed by the raw `Data` so copies of this struct still see later changes.
+  private static let decodeCache = SettingsDecodeCache()
+
+  private static func settingsData(for key: PersistentStorage.UserDefaultsKey) -> Data? {
+    UserDefaults.standard.data(forKey: key.rawValue)
+  }
+
   private var _appSettings: AppSettings = .init()
   public var app: AppSettings {
     get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue)
-      else { return _appSettings }
-      do {
-        return try Self.decodeFillingMissingKeys(AppSettings.self, from: data, defaults: .init())
-      } catch {
-        os_log("Decoding app settings failed: %s", type: .error, String(describing: error))
-        return _appSettings
-      }
+      guard let data = Self.settingsData(for: .SettingsApp) else { return _appSettings }
+      return Self.decodeCache.value(key: .SettingsApp, data: data) {
+        try Self.decodeFillingMissingKeys(AppSettings.self, from: $0, defaults: .init())
+      } ?? _appSettings
     }
     set {
       _appSettings = newValue
@@ -558,6 +531,7 @@ public struct AmperfySettings: Sendable, Codable {
           data,
           forKey: PersistentStorage.UserDefaultsKey.SettingsApp.rawValue
         )
+        Self.decodeCache.store(key: .SettingsApp, data: data, value: newValue)
       } catch {}
     }
   }
@@ -565,15 +539,10 @@ public struct AmperfySettings: Sendable, Codable {
   private var _userSettings: UserSettings = .init()
   public var user: UserSettings {
     get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue)
-      else { return _userSettings }
-      do {
-        return try Self.decodeFillingMissingKeys(UserSettings.self, from: data, defaults: .init())
-      } catch {
-        os_log("Decoding user settings failed: %s", type: .error, String(describing: error))
-        return _userSettings
-      }
+      guard let data = Self.settingsData(for: .SettingsUser) else { return _userSettings }
+      return Self.decodeCache.value(key: .SettingsUser, data: data) {
+        try Self.decodeFillingMissingKeys(UserSettings.self, from: $0, defaults: .init())
+      } ?? _userSettings
     }
     set {
       _userSettings = newValue
@@ -583,6 +552,7 @@ public struct AmperfySettings: Sendable, Codable {
           data,
           forKey: PersistentStorage.UserDefaultsKey.SettingsUser.rawValue
         )
+        Self.decodeCache.store(key: .SettingsUser, data: data, value: newValue)
       } catch {}
     }
   }
@@ -590,14 +560,10 @@ public struct AmperfySettings: Sendable, Codable {
   private var _accountSettings: AccountSettings = .init()
   public var accounts: AccountSettings {
     get {
-      guard let data = UserDefaults.standard
-        .data(forKey: PersistentStorage.UserDefaultsKey.SettingsAccount.rawValue)
-      else { return _accountSettings }
-      do {
-        return try Self.decoder.decode(AccountSettings.self, from: data)
-      } catch {
-        return _accountSettings
-      }
+      guard let data = Self.settingsData(for: .SettingsAccount) else { return _accountSettings }
+      return Self.decodeCache.value(key: .SettingsAccount, data: data) {
+        try Self.decoder.decode(AccountSettings.self, from: $0)
+      } ?? _accountSettings
     }
     set {
       _accountSettings = newValue
@@ -607,7 +573,36 @@ public struct AmperfySettings: Sendable, Codable {
           data,
           forKey: PersistentStorage.UserDefaultsKey.SettingsAccount.rawValue
         )
+        Self.decodeCache.store(key: .SettingsAccount, data: data, value: newValue)
       } catch {}
     }
+  }
+}
+
+private final class SettingsDecodeCache: @unchecked Sendable {
+  private let lock = NSLock()
+  private var entries: [PersistentStorage.UserDefaultsKey: (data: Data, value: Any)] = [:]
+
+  func value<T>(
+    key: PersistentStorage.UserDefaultsKey,
+    data: Data,
+    decode: (Data) throws -> T
+  )
+    -> T? {
+    lock.lock()
+    if let entry = entries[key], entry.data == data, let cached = entry.value as? T {
+      lock.unlock()
+      return cached
+    }
+    lock.unlock()
+    guard let decoded = try? decode(data) else { return nil }
+    store(key: key, data: data, value: decoded)
+    return decoded
+  }
+
+  func store(key: PersistentStorage.UserDefaultsKey, data: Data, value: Any) {
+    lock.lock()
+    entries[key] = (data, value)
+    lock.unlock()
   }
 }

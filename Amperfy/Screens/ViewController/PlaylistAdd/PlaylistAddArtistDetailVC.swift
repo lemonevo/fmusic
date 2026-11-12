@@ -70,7 +70,10 @@ class PlaylistAddArtistDetailVC: MultiSourceTableViewController, PlaylistVCAddab
     tableView.sectionFooterHeight = 0.0
     tableView.estimatedSectionFooterHeight = 0.0
 
-    configureSearchController(placeholder: "Albums and Songs", scopeButtonTitles: ["All", "Cached"])
+    configureSearchController(
+      placeholder: L10n.tr("Albums and Songs"),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
+    )
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -131,9 +134,9 @@ class PlaylistAddArtistDetailVC: MultiSourceTableViewController, PlaylistVCAddab
     -> String? {
     switch section + 2 {
     case LibraryElement.Album.rawValue:
-      return "Albums"
+      return L10n.tr("Albums")
     case LibraryElement.Song.rawValue:
-      return "Songs"
+      return L10n.tr("Songs")
     default:
       return ""
     }

@@ -22,13 +22,13 @@ public enum LocalFolderError: LocalizedError, Sendable {
   public var errorDescription: String? {
     switch self {
     case .noFolderSelected:
-      return "No music folder selected."
+      return L10n.tr("No music folder selected.")
     case .bookmarkResolutionFailed:
-      return "The selected music folder can not be restored."
+      return L10n.tr("The selected music folder can not be restored.")
     case .accessDenied:
-      return "Access to the selected music folder was denied."
+      return L10n.tr("Access to the selected music folder was denied.")
     case let .folderNotReadable(path):
-      return "The music folder is not readable: \(path)"
+      return L10n.tr("The music folder is not readable: %@", path)
     }
   }
 }

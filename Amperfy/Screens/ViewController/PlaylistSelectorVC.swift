@@ -42,7 +42,7 @@ class PlaylistsSelectorDiffableDataSource: BasicUITableViewDiffableDataSource {
 // MARK: - PlaylistSelectorVC
 
 class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
-  override var sceneTitle: String? { "Playlists" }
+  override var sceneTitle: String? { L10n.tr("Playlists") }
 
   let itemsToAdd: [Song]
   private var selectedPlaylits = [Playlist: [Song]]()
@@ -90,12 +90,12 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
     appDelegate.userStatistics.visited(.playlistSelector)
     setNavBarTitle(
       title: ((itemsToAdd.count) > 1) ?
-        "Add \(itemsToAdd.count) Songs to Playlist" : "Add to Playlist"
+        L10n.tr("Add %d Songs to Playlist", itemsToAdd.count) : L10n.tr("Add to Playlist")
     )
 
     change(sortType: appDelegate.storage.settings.user.playlistsSortSetting)
 
-    configureSearchController(placeholder: "Search in \"Playlists\"")
+    configureSearchController(placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Playlists")))
     tableView.register(nibName: PlaylistTableCell.typeName)
     tableView.reloadOnTextSizeChange { PlaylistTableCell.rowHeight }
     tableView.sectionFooterHeight = 0.0
@@ -127,7 +127,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       action: nil
     )
     selectBarButton = UIBarButtonItem(
-      title: "Select",
+      title: L10n.tr("Select"),
       style: .plain,
       target: self,
       action: #selector(selectBarButtonPressed)
@@ -226,7 +226,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
 
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
-      title: "Name",
+      title: L10n.tr("Name"),
       image: sortType == .name ? .check : nil,
       handler: { _ in
         self.change(sortType: .name)
@@ -239,7 +239,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       }
     )
     let sortByLastTimePlayed = UIAction(
-      title: "Last time played",
+      title: L10n.tr("Last time played"),
       image: sortType == .lastPlayed ? .check : nil,
       handler: { _ in
         self.change(sortType: .lastPlayed)
@@ -252,7 +252,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       }
     )
     let sortByChangeDate = UIAction(
-      title: "Change date",
+      title: L10n.tr("Change date"),
       image: sortType == .lastChanged ? .check : nil,
       handler: { _ in
         self.change(sortType: .lastChanged)
@@ -265,7 +265,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       }
     )
     let sortByDuration = UIAction(
-      title: "Duration",
+      title: L10n.tr("Duration"),
       image: sortType == .duration ? .check : nil,
       handler: { _ in
         self.change(sortType: .duration)
@@ -278,7 +278,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       }
     )
     return UIMenu(
-      title: "Sort",
+      title: L10n.tr("Sort"),
       image: .sort,
       options: [],
       children: [sortByName, sortByLastTimePlayed, sortByChangeDate, sortByDuration]
@@ -361,16 +361,16 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       if itemsNotContained.count != itemsToAdd.count {
         let alert = UIAlertController(
           title: nil,
-          message: "Some Songs are already in this Playlist.",
+          message: L10n.tr("Some Songs are already in this Playlist."),
           preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: "Add Duplicates", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: L10n.tr("Add Duplicates"), style: .default, handler: { _ in
           handleSuccessfullSelection(playables: self.itemsToAdd)
         }))
-        alert.addAction(UIAlertAction(title: "Skip Duplicates", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: L10n.tr("Skip Duplicates"), style: .default, handler: { _ in
           handleSuccessfullSelection(playables: Array(itemsNotContained))
         }))
-        alert.addAction(UIAlertAction(title: "Cancel", style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .default, handler: { _ in
           // do nothing
         }))
         present(alert, animated: true, completion: nil)

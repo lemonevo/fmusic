@@ -120,15 +120,15 @@ class PlayerControlView: UIView {
 
     // Keep the play control clearly dominant, like Apple Music, but not oversized.
     playButton.setPreferredSymbolConfiguration(
-      UIImage.SymbolConfiguration(pointSize: 30),
+      UIImage.SymbolConfiguration(pointSize: 27),
       forImageIn: .normal
     )
     previousButton.setPreferredSymbolConfiguration(
-      UIImage.SymbolConfiguration(pointSize: 22),
+      UIImage.SymbolConfiguration(pointSize: 21),
       forImageIn: .normal
     )
     nextButton.setPreferredSymbolConfiguration(
-      UIImage.SymbolConfiguration(pointSize: 22),
+      UIImage.SymbolConfiguration(pointSize: 21),
       forImageIn: .normal
     )
   }
@@ -136,13 +136,17 @@ class PlayerControlView: UIView {
   private func makeToggleButton(imageName: String) -> UIButton {
     let button = UIButton(type: .system)
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.tintColor = .label
-    button.setPreferredSymbolConfiguration(
-      UIImage.SymbolConfiguration(pointSize: 17, weight: .regular),
-      forImageIn: .normal
-    )
-    button.setImage(UIImage(systemName: imageName), for: .normal)
+    button.setImage(Self.toggleIcon(imageName, tint: Self.iconTintColor), for: .normal)
     return button
+  }
+
+  // The outline toggles are small enough that a tinted template image renders weaker than the
+  // filled transport glyphs, so bake the color in and give them a heavier stroke.
+  private static func toggleIcon(_ systemName: String, tint: UIColor) -> UIImage? {
+    UIImage(
+      systemName: systemName,
+      withConfiguration: UIImage.SymbolConfiguration(pointSize: 19, weight: .bold)
+    )?.withTintColor(tint, renderingMode: .alwaysOriginal)
   }
 
   private func configureUtilityCluster() {
@@ -200,19 +204,26 @@ class PlayerControlView: UIView {
     refreshTransportToggles()
   }
 
+  private static let iconTintColor = UIColor.label.withAlphaComponent(0.85)
+
   private func refreshTransportToggles() {
     let shuffleEnabled = appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     shuffleButton?.isEnabled = shuffleEnabled
     shuffleButton?.alpha = shuffleEnabled ? 1 : 0.35
-    shuffleButton?.tintColor = player.isShuffle ? .tintColor : .label
+    let accent = appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
+      .asColor
+    let shuffleTint = player.isShuffle ? accent : Self.iconTintColor
+    shuffleButton?.setImage(Self.toggleIcon("shuffle", tint: shuffleTint), for: .normal)
 
-    let repeatImage: UIImage? = switch player.repeatMode {
-    case .off: .repeatMenu
-    case .all: .repeatAll
-    case .single: .repeatOne
+    let repeatSymbolName: String = switch player.repeatMode {
+    case .off, .all: "repeat"
+    case .single: "repeat.1"
     }
-    repeatButton?.setImage(repeatImage, for: .normal)
-    repeatButton?.tintColor = player.repeatMode == .off ? .label : .tintColor
+    let repeatTint = player.repeatMode == .off ? Self.iconTintColor : accent
+    repeatButton?.setImage(
+      Self.toggleIcon(repeatSymbolName, tint: repeatTint),
+      for: .normal
+    )
   }
 
   /// Compact mode has its own header row, so the volume control only floats top-right in the
@@ -226,18 +237,19 @@ class PlayerControlView: UIView {
 
     playerHandler = PlayerUIHandler(player: player, style: .popupPlayer)
 
-    playButton.imageView?.tintColor = .label
-    previousButton.tintColor = .label
-    nextButton.tintColor = .label
-    skipBackwardButton.tintColor = .label
-    skipForwardButton.tintColor = .label
+    playButton.imageView?.tintColor = Self.iconTintColor
+    previousButton.tintColor = Self.iconTintColor
+    nextButton.tintColor = Self.iconTintColor
+    skipBackwardButton.tintColor = Self.iconTintColor
+    skipForwardButton.tintColor = Self.iconTintColor
     applyUtilityIcon(airplayButton, systemName: "airplayaudio")
     applyUtilityIcon(volumeButton, systemName: "speaker.wave.3.fill")
     applyUtilityIcon(optionsButton, systemName: "ellipsis")
-    airplayButton.tintColor = .label
-    playerModeButton.tintColor = .label
-    volumeButton.tintColor = .label
-    optionsButton.imageView?.tintColor = .label
+    airplayButton.tintColor = Self.iconTintColor
+    playerModeButton.tintColor = Self.iconTintColor
+    volumeButton.tintColor = Self.iconTintColor
+    optionsButton.imageView?.tintColor = Self.iconTintColor
+    displayPlaylistButton.tintColor = Self.iconTintColor
     configureTransportControls()
     configureUtilityCluster()
     updateVolumeControlVisibility(for: appDelegate.storage.settings.user.playerDisplayStyle)
@@ -311,7 +323,7 @@ class PlayerControlView: UIView {
 
   @IBAction
   func airplayButtonPushed(_ sender: UIButton) {
-    playerHandler?.airplayButtonPushed(rootView: self)
+    playerHandler?.airplayButtonPushed(button: sender)
   }
 
   @IBAction
@@ -373,6 +385,21 @@ class PlayerControlView: UIView {
   }
 
   func refreshPlayer() {
+    // Weak outlets can already be gone while the player UI is torn down (account removal).
+    guard playButton != nil,
+          previousButton != nil,
+          nextButton != nil,
+          timeSlider != nil,
+          elapsedTimeLabel != nil,
+          remainingTimeLabel != nil,
+          audioInfoLabel != nil,
+          playTypeIcon != nil,
+          liveLabel != nil,
+          displayPlaylistButton != nil,
+          playerModeButton != nil,
+          optionsStackView != nil
+    else { return }
+
     playerHandler?.refreshPlayButton(playButton)
     playerHandler?.refreshTimeInfo(
       timeSlider: timeSlider,
@@ -594,6 +621,7 @@ extension PlayerControlView: MusicPlayable {
   }
 
   func didStopPlaying() {
+    guard skipBackwardButton != nil, skipForwardButton != nil else { return }
     refreshPlayer()
     playerHandler?.refreshSkipButtons(
       skipBackwardButton: skipBackwardButton,
@@ -602,6 +630,13 @@ extension PlayerControlView: MusicPlayable {
   }
 
   func didElapsedTimeChange() {
+    guard timeSlider != nil,
+          elapsedTimeLabel != nil,
+          remainingTimeLabel != nil,
+          audioInfoLabel != nil,
+          playTypeIcon != nil,
+          liveLabel != nil
+    else { return }
     playerHandler?.refreshTimeInfo(
       timeSlider: timeSlider,
       elapsedTimeLabel: elapsedTimeLabel,

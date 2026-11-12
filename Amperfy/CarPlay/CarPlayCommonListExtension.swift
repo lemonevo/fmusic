@@ -102,14 +102,14 @@ extension CarPlaySceneDelegate {
     }
     if !playables.isEmpty {
       items.append(createPlayShuffledListItem(playContext: PlayContext(
-        name: "Favorite Songs",
+        name: L10n.tr("Favorite Songs"),
         playables: playables
       )))
     }
     for (index, playable) in playables.enumerated() {
       let detailTemplate = createDetailTemplate(
         for: playable,
-        playContext: PlayContext(name: "Favorite Songs", index: index, playables: playables)
+        playContext: PlayContext(name: L10n.tr("Favorite Songs"), index: index, playables: playables)
       )
       items.append(detailTemplate)
     }
@@ -140,28 +140,6 @@ extension CarPlaySceneDelegate {
       if index >= CPListTemplate.maximumItemCount - 1 {
         break
       }
-    }
-    return items
-  }
-
-  func createPodcastDetailItems(
-    from fetchedController: PodcastEpisodesFetchedResultsController
-  )
-    -> [CPListTemplateItem] {
-    let podcast = fetchedController.podcast
-    var items = [CPListItem]()
-
-    var playables = [AbstractPlayable]()
-    for index in 0 ... (CPListTemplate.maximumSectionCount - 2) {
-      guard let entity = fetchedController.getWrappedEntity(at: index) else { break }
-      playables.append(entity)
-    }
-    for (index, song) in playables.enumerated() {
-      let listItem = createDetailTemplate(
-        for: song,
-        playContext: PlayContext(containable: podcast, index: index, playables: playables)
-      )
-      items.append(listItem)
     }
     return items
   }
@@ -215,7 +193,7 @@ extension CarPlaySceneDelegate {
 
   func createDetailAllSongsTemplate(for artist: Artist, onlyCached: Bool) -> CPListItem {
     let section = CPListItem(
-      text: "All Songs",
+      text: L10n.tr("All Songs"),
       detailText: nil,
       image: UIImage.createArtwork(
         with: UIImage.musicalNotes,
@@ -353,70 +331,6 @@ extension CarPlaySceneDelegate {
     return sections
   }
 
-  func createPodcastsSections(
-    from fetchedController: BasicFetchedResultsController<PodcastMO>?,
-    onlyCached: Bool
-  )
-    -> [CPListSection] {
-    var sections = [CPListSection]()
-    var itemCount = 0
-    guard let fetchedController,
-          let fetchSections = fetchedController.sections else { return sections }
-    for fetchSection in fetchSections {
-      guard let fetchObjects = fetchSection.objects as? [PodcastMO] else { continue }
-      var items = [CPListTemplateItem]()
-
-      var indexTitle: String?
-      indexTitle = fetchObjects.first?.title?.prefix(1).uppercased()
-      if let _ = Int(indexTitle ?? "-") {
-        indexTitle = "#"
-      }
-
-      for fetchObject in fetchObjects {
-        let podcast = Podcast(managedObject: fetchObject)
-
-        let item = CPListItem(
-          text: podcast.title,
-          detailText: podcast.subtitle,
-          image: LibraryEntityImage.getImageToDisplayImmediately(
-            libraryEntity: podcast,
-            themePreference: getPreference(activeAccountInfo).theme,
-            artworkDisplayPreference: getPreference(activeAccountInfo).artworkDisplayPreference,
-            useCache: false
-          ).carPlayImage(carTraitCollection: traits),
-          accessoryImage: nil,
-          accessoryType: .disclosureIndicator
-        )
-        if let artwork = podcast.artwork, let accountInfo = artwork.account?.info {
-          appDelegate.getMeta(accountInfo).artworkDownloadManager.download(object: artwork)
-        }
-        item.userInfo = [
-          CarPlayListUserInfoKeys.artworkDownloadID.rawValue: podcast.artwork?.uniqueID as Any,
-          CarPlayListUserInfoKeys.artworkOwnerObjectID.rawValue: podcast.managedObject
-            .objectID as Any,
-          CarPlayListUserInfoKeys.artworkOwnerType.rawValue: ArtworkType.podcast as Any,
-        ]
-        item.handler = { [weak self] item, completion in
-          guard let self = self else { completion(); return }
-          let podcastDetailTemplate = CPListTemplate(title: podcast.name, sections: [
-            CPListSection(items: [CPListTemplateItem]()),
-          ])
-          podcastDetailSection = podcastDetailTemplate
-          createPodcastDetailFetchController(podcast: podcast, onlyCached: onlyCached)
-          interfaceController?.pushTemplate(podcastDetailTemplate, animated: true, completion: nil)
-          completion()
-        }
-        items.append(item)
-        itemCount += 1
-        if itemCount > CPListTemplate.maximumItemCount { break }
-      }
-      let section = CPListSection(items: items, header: nil, sectionIndexTitle: indexTitle)
-      sections.append(section)
-      if itemCount > CPListTemplate.maximumItemCount { break }
-    }
-    return sections
-  }
-
   func createGenreSections(
     from fetchedController: BasicFetchedResultsController<GenreMO>?,
     onlyCached: Bool
@@ -478,56 +392,9 @@ extension CarPlaySceneDelegate {
     return sections
   }
 
-  func createRadioSections(from fetchedController: BasicFetchedResultsController<RadioMO>?)
-    -> [CPListSection] {
-    var sections = [CPListSection]()
-    guard let fetchedController = fetchedController,
-          let fetchSections = fetchedController.sections,
-          !fetchSections.isEmpty else { return sections }
-
-    guard let fetchedRadios = fetchedController.fetchedObjects else { return sections }
-    let radios = fetchedRadios.prefix(CPListTemplate.maximumItemCount)
-      .compactMap { Radio(managedObject: $0) }
-
-    let playRandomItem = createPlayRandomListItem(playContext: PlayContext(
-      name: "Radios",
-      playables: radios
-    ))
-    let randomSection = CPListSection(items: [playRandomItem], header: nil, sectionIndexTitle: nil)
-    sections.append(randomSection)
-    var itemCount = 1
-
-    for fetchSection in fetchSections {
-      guard let fetchObjects = fetchSection.objects as? [RadioMO] else { continue }
-      var items = [CPListTemplateItem]()
-
-      var indexTitle: String?
-      indexTitle = fetchObjects.first?.title?.prefix(1).uppercased()
-      if let _ = Int(indexTitle ?? "-") {
-        indexTitle = "#"
-      }
-
-      for fetchObject in fetchObjects {
-        let radio = Radio(managedObject: fetchObject)
-        let listItem = createDetailTemplate(
-          for: radio,
-          playContext: PlayContext(name: "Radios", index: itemCount - 1, playables: Array(radios)),
-          isTrackDisplayed: false
-        )
-        items.append(listItem)
-        itemCount += 1
-        if itemCount > CPListTemplate.maximumItemCount { break }
-      }
-      let section = CPListSection(items: items, header: nil, sectionIndexTitle: indexTitle)
-      sections.append(section)
-      if itemCount > CPListTemplate.maximumItemCount { break }
-    }
-    return sections
-  }
-
   func createPlayRandomListItem(
     playContext: PlayContext,
-    text: String = "Random"
+    text: String = L10n.tr("Random")
   )
     -> CPListItem {
     let img = UIImage.createArtwork(
@@ -550,7 +417,7 @@ extension CarPlaySceneDelegate {
 
   func createPlayShuffledListItem(
     playContext: PlayContext,
-    text: String = "Shuffle"
+    text: String = L10n.tr("Shuffle")
   )
     -> CPListItem {
     let img = UIImage.createArtwork(
@@ -564,25 +431,6 @@ extension CarPlaySceneDelegate {
     listItem.handler = { [weak self] item, completion in
       guard let self = self else { completion(); return }
       appDelegate.player.playShuffled(context: playContext)
-      displayNowPlaying {
-        completion()
-      }
-    }
-    return listItem
-  }
-
-  func createDetailTemplate(for episode: PodcastEpisode) -> CPListItem {
-    let accessoryType: CPListItemAccessoryType = episode.isCached ? .cloud : .none
-    let listItem = CPListItem(
-      text: episode.title,
-      detailText: nil,
-      image: nil,
-      accessoryImage: nil,
-      accessoryType: accessoryType
-    )
-    listItem.handler = { [weak self] item, completion in
-      guard let self = self else { completion(); return }
-      appDelegate.player.play(context: PlayContext(containable: episode))
       displayNowPlaying {
         completion()
       }

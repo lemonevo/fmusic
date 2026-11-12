@@ -43,6 +43,61 @@ class GenericTableCell: BasicTableCell {
   private var container: PlayableContainable?
   private var rootView: UITableViewController?
 
+  /// Subtle pointer highlight, matching the sidebar rows and the playable song cells.
+  private lazy var hoverBackgroundView: UIView = {
+    let view = UIView()
+    view.backgroundColor = UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor.white.withAlphaComponent(0.07)
+        : UIColor.black.withAlphaComponent(0.045)
+    }
+    view.layer.cornerRadius = 6
+    view.layer.cornerCurve = .continuous
+    view.alpha = 0
+    view.isUserInteractionEnabled = false
+    return view
+  }()
+
+  override func awakeFromNib() {
+    super.awakeFromNib()
+    #if targetEnvironment(macCatalyst)
+      // Compact macOS list typography, matching the sidebar and settings (13/11 pt).
+      titleLabel?.font = .systemFont(ofSize: 13)
+      subtitleLabel?.font = .systemFont(ofSize: 11)
+      infoLabel?.font = .systemFont(ofSize: 11)
+      contentView.insertSubview(hoverBackgroundView, at: 0)
+      addGestureRecognizer(
+        UIHoverGestureRecognizer(target: self, action: #selector(handlePointerHover(_:)))
+      )
+    #endif
+  }
+
+  @objc
+  private func handlePointerHover(_ recognizer: UIHoverGestureRecognizer) {
+    let isHovering: Bool
+    switch recognizer.state {
+    case .began, .changed: isHovering = true
+    default: isHovering = false
+    }
+    UIView.animate(
+      withDuration: 0.12,
+      delay: 0,
+      options: [.beginFromCurrentState, .allowUserInteraction]
+    ) {
+      self.hoverBackgroundView.alpha = isHovering ? 1 : 0
+    }
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    hoverBackgroundView.frame = contentView.bounds.insetBy(dx: 6, dy: 2)
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    hoverBackgroundView.alpha = 0
+  }
+
   func display(container: PlayableContainable, rootView: UITableViewController) {
     self.container = container
     self.rootView = rootView
@@ -71,8 +126,6 @@ class GenericTableCell: BasicTableCell {
       infoLabelWidthConstraint.constant = 230
     } else if container is Genre {
       infoLabelWidthConstraint.constant = 260
-    } else if container is Podcast {
-      infoLabelWidthConstraint.constant = 140
     }
     accessoryType = .disclosureIndicator
     backgroundColor = .systemBackground

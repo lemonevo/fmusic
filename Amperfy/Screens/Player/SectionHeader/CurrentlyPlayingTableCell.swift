@@ -72,13 +72,11 @@ class CurrentlyPlayingTableCell: BasicTableCell {
   @IBAction
   func titlePressed(_ sender: Any) {
     rootView?.displayAlbumDetail()
-    rootView?.displayPodcastDetail()
   }
 
   @IBAction
   func artistNamePressed(_ sender: Any) {
     rootView?.displayArtistDetail()
-    rootView?.displayPodcastDetail()
   }
 
   @IBAction

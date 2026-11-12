@@ -24,7 +24,7 @@ import UIKit
     private var player: PlayerFacade?
     private weak var scene: UIWindowScene?
     private let toolbar = NSToolbar(identifier: toolbarIdentifier)
-    private let container = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    private let container = UIView()
     private let slider = VolumeSlider()
     private var savedTitleVisibility: UITitlebarTitleVisibility?
     private var savedSeparatorStyle: UITitlebarSeparatorStyle?
@@ -44,7 +44,10 @@ import UIKit
 
     private func configureVolumeView() {
       container.layer.cornerRadius = 14
-      container.clipsToBounds = true
+      container.layer.cornerCurve = .continuous
+      container.backgroundColor = UIColor.white.withAlphaComponent(0.12)
+      container.layer.borderWidth = 1.0 / UIScreen.main.scale
+      container.layer.borderColor = UIColor.white.withAlphaComponent(0.22).cgColor
       container.translatesAutoresizingMaskIntoConstraints = false
 
       let icon = UIImageView(
@@ -53,10 +56,11 @@ import UIKit
           withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
         )
       )
-      icon.tintColor = .label
+      icon.tintColor = .white
       icon.setContentHuggingPriority(.required, for: .horizontal)
       icon.setContentCompressionResistancePriority(.required, for: .horizontal)
 
+      slider.contentColor = .white
       slider.value = player?.volume ?? 1
       slider.accessibilityLabel = L10n.tr("Volume")
       slider.addTarget(self, action: #selector(volumeChanged(_:)), for: .valueChanged)
@@ -66,14 +70,14 @@ import UIKit
       stack.spacing = 7
       stack.alignment = .center
       stack.translatesAutoresizingMaskIntoConstraints = false
-      container.contentView.addSubview(stack)
+      container.addSubview(stack)
       NSLayoutConstraint.activate([
         container.widthAnchor.constraint(equalToConstant: 180),
         container.heightAnchor.constraint(equalToConstant: 28),
-        stack.leadingAnchor.constraint(equalTo: container.contentView.leadingAnchor, constant: 10),
-        stack.trailingAnchor.constraint(equalTo: container.contentView.trailingAnchor, constant: -9),
-        stack.topAnchor.constraint(equalTo: container.contentView.topAnchor),
-        stack.bottomAnchor.constraint(equalTo: container.contentView.bottomAnchor),
+        stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 10),
+        stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -9),
+        stack.topAnchor.constraint(equalTo: container.topAnchor),
+        stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
       ])
     }
 
@@ -128,9 +132,9 @@ import UIKit
       guard itemIdentifier == Self.volumeItemIdentifier else { return nil }
       let barButton = UIBarButtonItem(customView: container)
       let item = NSToolbarItem(itemIdentifier: itemIdentifier, barButtonItem: barButton)
-      item.label = "Volume"
-      item.paletteLabel = "Volume"
-      item.toolTip = "Volume"
+      item.label = L10n.tr("Volume")
+      item.paletteLabel = L10n.tr("Volume")
+      item.toolTip = L10n.tr("Volume")
       return item
     }
 

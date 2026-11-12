@@ -107,9 +107,8 @@ enum AppStoryboard: String {
     account: account
   ) }
   func segueToSearch(account: Account) -> SearchVC { SearchVC(account: account) }
-  func segueToSettings() -> SettingsHostVC { SettingsHostVC(isForOwnWindow: false) }
+  func segueToSettings() -> SettingsHostVC { SettingsHostVC(showsSidebar: false) }
   func segueToDownloads(account: Account) -> UIViewController { DownloadsVC(account: account) }
-  func segueToRadios(account: Account) -> UIViewController { RadiosVC(account: account) }
   func segueToSongs(account: Account) -> UIViewController { SongsVC(account: account) }
   func segueToFavoriteSongs(account: Account)
     -> UIViewController { let songsVC = SongsVC(account: account)
@@ -117,7 +116,6 @@ enum AppStoryboard: String {
     return songsVC
   }
 
-  func segueToPodcasts(account: Account) -> UIViewController { PodcastsVC(account: account) }
   func segueToPlaylists(account: Account) -> UIViewController { PlaylistsVC(account: account) }
   func segueToArtists(account: Account) -> UIViewController { ArtistsVC(account: account) }
   func segueToFavoriteArtists(account: Account)
@@ -174,17 +172,6 @@ enum AppStoryboard: String {
   func segueToPlaylistDetail(account: Account, playlist: Playlist) -> UIViewController {
     let playlistDetailVC = PlaylistDetailVC(account: account, playlist: playlist)
     return playlistDetailVC
-  }
-
-  func segueToPodcastDetail(
-    account: Account,
-    podcast: Podcast,
-    episodeToScrollTo: PodcastEpisode? = nil
-  )
-    -> UIViewController {
-    let podcastDetailVC = PodcastDetailVC(account: account, podcast: podcast)
-    podcastDetailVC.episodeToScrollTo = episodeToScrollTo
-    return podcastDetailVC
   }
 }
 

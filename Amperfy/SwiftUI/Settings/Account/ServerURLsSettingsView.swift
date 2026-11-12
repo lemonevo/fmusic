@@ -123,7 +123,7 @@ struct ServerURLsSettingsView: View {
         serverURLs: $serverURLs
       )
     }
-    .navigationTitle("Server URLs")
+    .navigationTitle(L10n.tr("Server URLs"))
     .toolbar {
       ToolbarItemGroup(placement: .navigationBarTrailing) {
         EditButton()

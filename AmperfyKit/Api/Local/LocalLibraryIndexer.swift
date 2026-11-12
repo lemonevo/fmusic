@@ -207,7 +207,7 @@ final class LocalLibraryIndexer: LibrarySyncer {
     let albumName = albumTag
       ?? (
         albumFolderURL.standardizedFileURL.path == rootURL.standardizedFileURL.path
-          ? rootURL.lastPathComponent
+          ? "Unknown Album"
           : albumFolderURL.lastPathComponent
       )
     let albumFolderKey = relativePath(of: albumFolderURL, rootURL: rootURL)

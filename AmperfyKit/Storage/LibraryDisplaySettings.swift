@@ -34,7 +34,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
   case genres = 3
   case directories = 4
   case playlists = 5
-  case podcasts = 6
   case downloads = 7
   case favoriteSongs = 8
   case favoriteAlbums = 9
@@ -42,7 +41,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
   // case recentSongs = 11 not used anymore
   case newestAlbums = 12
   case recentAlbums = 13
-  case radios = 14
 
   public static func createByDisplayName(name: String) -> LibraryDisplayType? {
     .allCases.first {
@@ -50,10 +48,10 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
     }
   }
 
-  /// Local folder and WebDAV sources have no server-side podcasts, radios or
-  /// music folders, so these library types stay hidden.
+  /// Local folder and WebDAV sources have no server-side music folders, so
+  /// the directories library type stays hidden.
   public static var supportedCases: [LibraryDisplayType] {
-    allCases.filter { $0 != .podcasts && $0 != .radios && $0 != .directories }
+    allCases.filter { $0 != .directories }
   }
 
   public var displayName: String {
@@ -70,8 +68,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return L10n.tr("Directories")
     case .playlists:
       return L10n.tr("Playlists")
-    case .podcasts:
-      return L10n.tr("Podcasts")
     case .downloads:
       return L10n.tr("Downloads")
     case .favoriteSongs:
@@ -84,8 +80,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return L10n.tr("Newest Albums")
     case .recentAlbums:
       return L10n.tr("Recently Played Albums")
-    case .radios:
-      return L10n.tr("Radios")
     }
   }
 
@@ -103,8 +97,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return UIImage.folder
     case .playlists:
       return UIImage.playlist
-    case .podcasts:
-      return UIImage.podcast
     case .downloads:
       return UIImage.download
     case .favoriteSongs:
@@ -117,8 +109,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return UIImage.albumNewest
     case .recentAlbums:
       return UIImage.albumRecent
-    case .radios:
-      return UIImage.radio
     }
   }
 }

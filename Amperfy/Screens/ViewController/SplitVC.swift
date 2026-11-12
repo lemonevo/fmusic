@@ -62,7 +62,10 @@ class SplitVC: UISplitViewController {
     primaryBackgroundStyle = .sidebar
 
     if appDelegate.storage.settings.user.isOfflineMode {
-      appDelegate.eventLogger.info(topic: "Reminder", message: "Offline Mode is active.")
+      appDelegate.eventLogger.info(
+        topic: "Reminder",
+        message: L10n.tr("Offline Mode is active.")
+      )
     }
 
     miniPlayer = MiniPlayerView(player: appDelegate.player)
@@ -174,7 +177,64 @@ class SplitVC: UISplitViewController {
 
   public func push(vc: UIViewController) {
     let secondaryVC = viewController(for: .secondary) as? UINavigationController
-    secondaryVC?.pushViewController(vc, animated: false)
+    // Only animate when the navigation stack is already on screen; pushing into a stack that
+    // is still being attached (e.g. a just opened main window) has to be immediate.
+    let animated = secondaryVC?.viewIfLoaded?.window != nil
+    secondaryVC?.pushViewController(vc, animated: animated)
+  }
+
+  /// Swaps the secondary column with a fade-through: the old page fades out, then the new page
+  /// fades in. Replacing the navigation controller without an animation made switching sidebar
+  /// sections snap to the new content; a direct cross-fade looked like a double exposure.
+  public func replaceSecondary(vc: UIViewController, animated: Bool = true) {
+    let newSecondary = embeddInNavigation(vc: vc)
+    guard animated,
+          viewIfLoaded?.window != nil,
+          !isCollapsed,
+          let oldView = viewController(for: .secondary)?.view,
+          oldView.superview != nil,
+          oldView.bounds.width > 1
+    else {
+      setViewController(newSecondary, for: .secondary)
+      return
+    }
+
+    let snapshot = oldView.snapshotView(afterScreenUpdates: false)
+    let snapshotFrame = view.convert(oldView.bounds, from: oldView)
+    setViewController(newSecondary, for: .secondary)
+    newSecondary.view.alpha = 0
+
+    if let snapshot {
+      snapshot.frame = snapshotFrame
+      snapshot.isUserInteractionEnabled = false
+      // Keep the floating mini player above the fading content.
+      if let glassContainer = miniPlayer?.glassContainer,
+         glassContainer.superview === view {
+        view.insertSubview(snapshot, belowSubview: glassContainer)
+      } else {
+        view.addSubview(snapshot)
+      }
+    }
+
+    UIView.animate(
+      withDuration: 0.1,
+      delay: 0,
+      options: [.curveEaseIn, .allowUserInteraction, .beginFromCurrentState]
+    ) {
+      snapshot?.alpha = 0
+    } completion: { _ in
+      // Fade the new page in from the plain background. Blending two dense grids at the same
+      // time looked like a double exposure, so the pages fade through instead of cross-fading.
+      UIView.animate(
+        withDuration: 0.14,
+        delay: 0,
+        options: [.curveEaseOut, .allowUserInteraction]
+      ) {
+        newSecondary.view.alpha = 1
+      } completion: { _ in
+        snapshot?.removeFromSuperview()
+      }
+    }
   }
 }
 
@@ -186,18 +246,17 @@ extension SplitVC: MainSceneHostingViewController {
   }
 
   public func pushLibraryCategory(vc: UIViewController) {
-    setViewController(embeddInNavigation(vc: vc), for: .secondary)
+    replaceSecondary(vc: vc)
   }
 
   func pushTabCategory(tabCategory: TabNavigatorItem) {
-    let vc = tabCategory.getController(account: account)
-    setViewController(embeddInNavigation(vc: vc), for: .secondary)
+    replaceSecondary(vc: tabCategory.getController(account: account))
   }
 
   func displaySearch() {
     visualizePopupPlayer(direction: .close, animated: true) {
       let searchVC = AppStoryboard.Main.segueToSearch(account: self.account)
-      self.setViewController(self.embeddInNavigation(vc: searchVC), for: .secondary)
+      self.replaceSecondary(vc: searchVC)
       Task {
         try await Task.sleep(nanoseconds: 500_000_000)
         searchVC.activateSearchBar()

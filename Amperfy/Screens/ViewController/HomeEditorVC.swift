@@ -49,7 +49,7 @@ final class HomeEditorVC: UICollectionViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    title = "Home Preferences"
+    title = L10n.tr("Home Preferences")
     navigationItem.rightBarButtonItems = [
       UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(doneTapped)),
     ]

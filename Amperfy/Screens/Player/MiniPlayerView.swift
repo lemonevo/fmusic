@@ -284,7 +284,7 @@ class MiniPlayerView: UIView {
 
   @IBAction
   func airplayPressed() {
-    playerHandler?.airplayButtonPushed(rootView: self)
+    playerHandler?.airplayButtonPushed(button: airplayButton)
   }
 
   fileprivate lazy var volumeButton: UIButton = {
@@ -658,10 +658,10 @@ class MiniPlayerView: UIView {
   public func openPlayerView(completion: (() -> ())? = nil) {
     guard let hostVC = AppDelegate.mainWindowHostVC as? UIViewController else { return }
     let popupPlayer = PopupPlayerVC()
-    // Apple Music swaps the library window content for the player; a full screen modal
-    // matches that in-window behavior instead of the sheet's floating panel.
+    // Apple Music-style full-window player that slides up from the bottom instead of
+    // cross-fading in place.
     popupPlayer.modalPresentationStyle = .fullScreen
-    popupPlayer.modalTransitionStyle = .crossDissolve
+    popupPlayer.modalTransitionStyle = .coverVertical
     hostVC.present(popupPlayer, animated: true, completion: completion)
   }
 

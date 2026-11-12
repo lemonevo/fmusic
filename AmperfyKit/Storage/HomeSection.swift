@@ -41,6 +41,12 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
     .newestAlbums,
   ]
 
+  /// This fork only has local and WebDAV music libraries, so the podcast and radio
+  /// sections are not offered. The cases stay in the enum to keep the persisted raw values.
+  public static var supportedCases: [HomeSection] {
+    allCases.filter { $0 != .podcasts && $0 != .radios && $0 != .newestPodcastEpisodes }
+  }
+
   public var title: String {
     switch self {
     case .recentlyPlayedAlbums: return L10n.tr("Recently Played Albums")

@@ -117,7 +117,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   func updateContentUnavailable() {
     if fetchedResultsController.fetchedObjects?.count ?? 0 == 0 {
       if fetchedResultsController.isSearchActive {
-        contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         contentUnavailableConfiguration = emptyContentConfig
       }
@@ -270,7 +270,10 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     case .rating:
       if let sectionNameInitial = super.tableView(tableView, titleForHeaderInSection: section),
          sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
-        return "\(sectionNameInitial) Star\(sectionNameInitial != "1" ? "s" : "")"
+        return L10n.tr(
+          sectionNameInitial == "1" ? "%@ Star" : "%@ Stars",
+          sectionNameInitial
+        )
       } else {
         return L10n.tr("Not rated")
       }

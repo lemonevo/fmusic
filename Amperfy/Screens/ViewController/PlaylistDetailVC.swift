@@ -160,7 +160,10 @@ class PlaylistDetailVC: SingleSnapshotFetchedResultsTableViewController<Playlist
     }
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
-      infoCB: { "\(self.playlist.songCount) Song\(self.playlist.songCount == 1 ? "" : "s")" },
+      infoCB: {
+        let count = self.playlist.songCount
+        return L10n.tr(count == 1 ? "%d Song" : "%d Songs", count)
+      },
       playContextCb: { () in PlayContext(
         containable: self.playlist,
         playables: self.fetchedResultsController

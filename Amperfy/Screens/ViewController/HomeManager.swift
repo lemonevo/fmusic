@@ -80,9 +80,6 @@ class HomeManager: NSObject {
   private var albumsRecentlyPlayedFetchController: AlbumFetchedResultsController?
   private var albumsNewestFetchController: AlbumFetchedResultsController?
   private var playlistsLastTimePlayedFetchController: PlaylistFetchedResultsController?
-  private var podcastEpisodesFetchedController: PodcastEpisodesReleaseDateFetchedResultsController?
-  private var podcastsFetchedController: PodcastFetchedResultsController?
-  private var radiosFetchedController: RadiosFetchedResultsController?
 
   init(
     account: Account,
@@ -175,46 +172,6 @@ class HomeManager: NSObject {
       playlistsLastTimePlayedFetchController?.delegate = nil
       playlistsLastTimePlayedFetchController = nil
     }
-
-    if orderedVisibleSections.contains(where: { $0 == .newestPodcastEpisodes }) {
-      podcastEpisodesFetchedController = PodcastEpisodesReleaseDateFetchedResultsController(
-        coreDataCompanion: storage.main, account: account,
-        isGroupedInAlphabeticSections: false,
-        fetchLimit: Self.sectionMaxItemCount
-      )
-      podcastEpisodesFetchedController?.delegate = self
-      podcastEpisodesFetchedController?.search(searchText: "", onlyCachedSongs: isOfflineMode)
-      updatePodcastEpisodesNewest()
-    } else {
-      podcastEpisodesFetchedController?.delegate = nil
-      podcastEpisodesFetchedController = nil
-    }
-
-    if orderedVisibleSections.contains(where: { $0 == .podcasts }) {
-      podcastsFetchedController = PodcastFetchedResultsController(
-        coreDataCompanion: storage.main, account: account,
-        isGroupedInAlphabeticSections: false
-      )
-      podcastsFetchedController?.delegate = self
-      podcastsFetchedController?.search(searchText: "", onlyCached: isOfflineMode)
-      updatePodcasts()
-    } else {
-      podcastsFetchedController?.delegate = nil
-      podcastsFetchedController = nil
-    }
-
-    if orderedVisibleSections.contains(where: { $0 == .radios }) {
-      radiosFetchedController = RadiosFetchedResultsController(
-        coreDataCompanion: storage.main, account: account,
-        isGroupedInAlphabeticSections: true
-      )
-      radiosFetchedController?.delegate = self
-      radiosFetchedController?.fetch()
-      updateRadios()
-    } else {
-      radiosFetchedController?.delegate = nil
-      radiosFetchedController = nil
-    }
   }
 
   func updateFromRemote() {
@@ -255,30 +212,6 @@ class HomeManager: NSObject {
       } catch {
         self.eventLogger.report(topic: "Playlists Sync", error: error)
       }}
-    }
-    if orderedVisibleSections.contains(where: { $0 == .newestPodcastEpisodes }) {
-      Task { @MainActor in do {
-        let _ = try await AutoDownloadLibrarySyncer(
-          storage: self.storage,
-          account: self.account,
-          librarySyncer: self.getMeta(self.account.info).librarySyncer,
-          playableDownloadManager: self.getMeta(self.account.info)
-            .playableDownloadManager
-        )
-        .syncNewestPodcastEpisodes()
-      } catch {
-        self.eventLogger.report(topic: "Podcasts Sync", error: error)
-      }}
-    }
-    if orderedVisibleSections.contains(where: { $0 == .radios }) {
-      Task { @MainActor in
-        do {
-          try await self.getMeta(self.account.info).librarySyncer
-            .syncRadios()
-        } catch {
-          self.eventLogger.report(topic: "Radios Sync", error: error)
-        }
-      }
     }
   }
 
@@ -361,37 +294,6 @@ class HomeManager: NSObject {
       applySnapshotCB?()
     }
   }
-
-  func updatePodcastEpisodesNewest() {
-    if let podcastEpisodes = podcastEpisodesFetchedController?
-      .fetchedObjects as? [PodcastEpisodeMO] {
-      data[.newestPodcastEpisodes] = podcastEpisodes.prefix(Self.sectionMaxItemCount)
-        .compactMap { PodcastEpisode(managedObject: $0) }.compactMap {
-          HomeItem(section: .newestPodcastEpisodes, playableContainable: $0)
-        }
-      applySnapshotCB?()
-    }
-  }
-
-  func updatePodcasts() {
-    if let podcasts = podcastsFetchedController?.fetchedObjects as? [PodcastMO] {
-      data[.podcasts] = podcasts.prefix(Self.sectionMaxItemCount)
-        .compactMap { Podcast(managedObject: $0) }.compactMap {
-          HomeItem(section: .podcasts, playableContainable: $0)
-        }
-      applySnapshotCB?()
-    }
-  }
-
-  func updateRadios() {
-    if let radios = radiosFetchedController?.fetchedObjects as? [RadioMO] {
-      data[.radios] = radios.prefix(Self.sectionMaxItemCount)
-        .compactMap { Radio(managedObject: $0) }.compactMap {
-          HomeItem(section: .radios, playableContainable: $0)
-        }
-      applySnapshotCB?()
-    }
-  }
 }
 
 extension HomeManager: @preconcurrency NSFetchedResultsControllerDelegate {
@@ -404,12 +306,6 @@ extension HomeManager: @preconcurrency NSFetchedResultsControllerDelegate {
         updateAlbumsNewest()
       } else if controller == playlistsLastTimePlayedFetchController?.fetchResultsController {
         updatePlaylistsLastTimePlayed()
-      } else if controller == podcastEpisodesFetchedController?.fetchResultsController {
-        updatePodcastEpisodesNewest()
-      } else if controller == podcastsFetchedController?.fetchResultsController {
-        updatePodcasts()
-      } else if controller == radiosFetchedController?.fetchResultsController {
-        updateRadios()
       }
     }
   }

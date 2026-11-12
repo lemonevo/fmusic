@@ -324,10 +324,6 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     notifierList.append(WeakMusicPlayable(notifier))
   }
 
-  func removeAllNotifier() {
-    notifierList.removeAll()
-  }
-
   func notifyItemStartedPlayingFromBeginning() {
     notifierList = notifierList.filter { $0.value != nil }
     for notifier in notifierList {
@@ -362,13 +358,6 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     notifierList = notifierList.filter { $0.value != nil }
     for notifier in notifierList {
       notifier.value?.didStopPlaying()
-    }
-  }
-
-  func notifyArtworkChanged() {
-    notifierList = notifierList.filter { $0.value != nil }
-    for notifier in notifierList {
-      notifier.value?.didArtworkChange()
     }
   }
 

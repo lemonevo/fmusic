@@ -68,6 +68,7 @@ class ContextQueueNextSectionHeader: UIView {
   }
 
   func refresh() {
+    queueNameLabel.text = L10n.tr("Next from:")
     contextNameLabel.text = "\(player.contextName)"
     refreshCurrentlyPlayingInfo()
     configureAutoplayButtonPosition()

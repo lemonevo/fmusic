@@ -33,25 +33,61 @@ extension String {
 extension UITextField {
   func configuteForLogin(image: UIImage) {
     clipsToBounds = true
-    layer.cornerRadius = 5
-    layer.borderWidth = CGFloat(0.5)
-    layer.borderColor = UIColor.label.cgColor
-
-    borderStyle = .roundedRect
+    borderStyle = .none
+    backgroundColor = .clear
     font = .systemFont(ofSize: LoginVC.fontSize)
+    textColor = .label
+    tintColor = .label
 
-    let imageView = UIImageView(frame: CGRect(x: 5, y: 0, width: 25, height: 25))
+    let leftContainerView = UIView(frame: CGRect(x: 0, y: 0, width: 38, height: 44))
+    let imageView = UIImageView(frame: CGRect(x: 11, y: 14, width: 16, height: 16))
     imageView.contentMode = .scaleAspectFit
     imageView.image = image.withRenderingMode(.alwaysTemplate)
-    imageView.tintColor = .label
-
-    let leftContainerView = UIView(frame: CGRect(x: 0, y: 0, width: 35, height: 25))
+    imageView.tintColor = .tertiaryLabel
     leftContainerView.addSubview(imageView)
 
     leftView = leftContainerView
     leftViewMode = .always
+  }
+}
 
-    backgroundColor = .clear
+// MARK: - LoginRowView
+
+/// One row of the grouped login card: fixed height plus an optional hairline separator.
+fileprivate final class LoginRowView: UIView {
+  static let height: CGFloat = 44
+
+  let content: UIView
+  private let separatorView = UIView()
+  var showsSeparator: Bool {
+    get { !separatorView.isHidden }
+    set { separatorView.isHidden = !newValue }
+  }
+
+  init(content: UIView, showsSeparator: Bool = true) {
+    self.content = content
+    super.init(frame: .zero)
+    content.translatesAutoresizingMaskIntoConstraints = false
+    separatorView.translatesAutoresizingMaskIntoConstraints = false
+    separatorView.backgroundColor = .separator
+    separatorView.isHidden = !showsSeparator
+    addSubview(content)
+    addSubview(separatorView)
+    NSLayoutConstraint.activate([
+      heightAnchor.constraint(equalToConstant: Self.height),
+      content.topAnchor.constraint(equalTo: topAnchor),
+      content.leadingAnchor.constraint(equalTo: leadingAnchor),
+      content.trailingAnchor.constraint(equalTo: trailingAnchor),
+      content.bottomAnchor.constraint(equalTo: bottomAnchor),
+      separatorView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+      separatorView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      separatorView.bottomAnchor.constraint(equalTo: bottomAnchor),
+      separatorView.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) has not been implemented")
   }
 }
 
@@ -64,35 +100,47 @@ class LoginVC: UIViewController {
   var localFolderBookmark: Data?
 
   #if targetEnvironment(macCatalyst)
-    static let fontSize: CGFloat = 14
+    static let fontSize: CGFloat = 13
   #else
     static let fontSize: CGFloat = 16
   #endif
+
+  private var themeColor: UIColor {
+    appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference.asColor
+  }
 
   fileprivate lazy var iconView: UIImageView = {
     let imageView = UIImageView()
     imageView.contentMode = .scaleAspectFit
     imageView.image = .appIconTemplate
-    imageView.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
-      .asColor
+    imageView.tintColor = themeColor
     return imageView
   }()
 
-  fileprivate lazy var amperfyLabel: UILabel = {
+  fileprivate lazy var titleLabel: UILabel = {
     let label = UILabel()
     label.text = "Amperfy"
-    label.font = .systemFont(ofSize: 50, weight: .bold)
-    label.textColor = .tintColor
-    label.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
-      .asColor
+    label.font = .systemFont(ofSize: 28, weight: .semibold)
+    label.textColor = themeColor
+    label.textAlignment = .center
     return label
   }()
 
-  fileprivate lazy var apiLabel: UILabel = {
+  fileprivate lazy var subtitleLabel: UILabel = {
     let label = UILabel()
-    label.text = L10n.tr("API:")
+    label.text = L10n.tr("Sign in to your music library")
+    label.font = .systemFont(ofSize: 13)
+    label.textColor = .secondaryLabel
+    label.textAlignment = .center
+    label.numberOfLines = 0
+    return label
+  }()
+
+  fileprivate lazy var apiRowLabel: UILabel = {
+    let label = UILabel()
+    label.text = L10n.tr("API")
     label.font = .systemFont(ofSize: Self.fontSize)
-    label.textColor = .hardLabelColor
+    label.textColor = .label
     return label
   }()
 
@@ -164,17 +212,35 @@ class LoginVC: UIViewController {
   }
 
   fileprivate lazy var apiSelectorButton: UIButton = {
-    var config = UIButton.Configuration.glass()
+    var config = UIButton.Configuration.plain()
+    config.image = UIImage(systemName: "chevron.up.chevron.down")
+    config.imagePlacement = .trailing
+    config.imagePadding = 6
+    config.baseForegroundColor = .secondaryLabel
+    config.contentInsets = .zero
+    config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+      var outgoing = incoming
+      outgoing.font = .systemFont(ofSize: Self.fontSize)
+      return outgoing
+    }
     let button = UIButton(configuration: config)
-    button.setTitle("API", for: .normal)
+    button.setTitle(L10n.tr("API"), for: .normal)
+    button.showsMenuAsPrimaryAction = true
     button.preferredBehavioralStyle = .pad
     return button
   }()
 
   fileprivate lazy var loginButton: UIButton = {
-    var config = UIButton.Configuration.prominentGlass()
-    config.image = .login
-    config.imagePadding = 20.0
+    var config = UIButton.Configuration.filled()
+    config.baseBackgroundColor = themeColor
+    config.baseForegroundColor = .white
+    config.background.cornerRadius = 8
+    config.contentInsets = NSDirectionalEdgeInsets(top: 10, leading: 16, bottom: 10, trailing: 16)
+    config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+      var outgoing = incoming
+      outgoing.font = .systemFont(ofSize: Self.fontSize, weight: .semibold)
+      return outgoing
+    }
     let button = UIButton(configuration: config)
     button.setTitle(L10n.tr("Login"), for: .normal)
     button.accessibilityLabel = L10n.tr("Login")
@@ -184,10 +250,26 @@ class LoginVC: UIViewController {
   }()
 
   fileprivate lazy var httpHeadersButton: UIButton = {
-    var config = UIButton.Configuration.glass()
+    var config = UIButton.Configuration.plain()
+    config.image = UIImage(systemName: "slider.horizontal.3")
+    config.imagePlacement = .leading
+    config.imagePadding = 10
+    config.baseForegroundColor = .secondaryLabel
+    config.preferredSymbolConfigurationForImage = UIImage.SymbolConfiguration(
+      pointSize: 15,
+      weight: .regular
+    )
+    config.contentInsets = NSDirectionalEdgeInsets(top: 0, leading: 14, bottom: 0, trailing: 14)
+    config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+      var outgoing = incoming
+      outgoing.font = .systemFont(ofSize: Self.fontSize)
+      outgoing.foregroundColor = .label
+      return outgoing
+    }
     let button = UIButton(configuration: config)
     button.setTitle(L10n.tr("Custom HTTP Headers"), for: .normal)
     button.accessibilityLabel = L10n.tr("Custom HTTP Headers")
+    button.contentHorizontalAlignment = .leading
     button.addTarget(self, action: #selector(Self.httpHeadersPressed), for: .touchUpInside)
     button.preferredBehavioralStyle = .pad
     return button
@@ -215,11 +297,14 @@ class LoginVC: UIViewController {
 
   // Close button shown when presented as a sheet/modal
   fileprivate lazy var closeButton: UIButton = {
-    var config = UIButton.Configuration.prominentGlass()
+    var config = UIButton.Configuration.plain()
     config.image = .xmark
-    config.imagePadding = 20.0
+    config.baseForegroundColor = .secondaryLabel
+    config.background.backgroundColor = .quaternarySystemFill
+    config.background.cornerRadius = 14
+    config.contentInsets = .zero
     let button = UIButton(configuration: config)
-    button.accessibilityLabel = "Close"
+    button.accessibilityLabel = L10n.tr("Close")
     button.addTarget(self, action: #selector(Self.closePressed), for: .touchUpInside)
     button.preferredBehavioralStyle = .pad
     button.isHidden = true
@@ -242,181 +327,115 @@ class LoginVC: UIViewController {
     login()
   }
 
-  public lazy var formView: UIView = {
-    self.serverUrlTF.translatesAutoresizingMaskIntoConstraints = false
-    self.usernameTF.translatesAutoresizingMaskIntoConstraints = false
-    self.passwordTF.translatesAutoresizingMaskIntoConstraints = false
-    apiLabel.translatesAutoresizingMaskIntoConstraints = false
-    self.apiSelectorButton.translatesAutoresizingMaskIntoConstraints = false
-    self.httpHeadersButton.translatesAutoresizingMaskIntoConstraints = false
+  // MARK: - Card layout
 
+  private var apiRow: LoginRowView!
+  private var serverUrlRow: LoginRowView!
+  private var usernameRow: LoginRowView!
+  private var passwordRow: LoginRowView!
+  private var httpHeadersRow: LoginRowView!
+
+  private lazy var cardView: UIView = {
     let view = UIView()
-    view.addSubview(serverUrlTF)
-    view.addSubview(usernameTF)
-    view.addSubview(passwordTF)
-    view.addSubview(apiLabel)
-    view.addSubview(apiSelectorButton)
-    view.addSubview(httpHeadersButton)
-
-    let padding: CGFloat = 0
-    let elementHeight: CGFloat = 40
-    let spaceInBetween: CGFloat = 15
-
-    NSLayoutConstraint.activate([
-      serverUrlTF.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.topAnchor,
-        constant: padding
-      ),
-      serverUrlTF.safeAreaLayoutGuide.leadingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-        constant: padding
-      ),
-      serverUrlTF.safeAreaLayoutGuide.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-        constant: -padding
-      ),
-      serverUrlTF.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      usernameTF.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: serverUrlTF.bottomAnchor,
-        constant: spaceInBetween
-      ),
-      usernameTF.safeAreaLayoutGuide.leadingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-        constant: padding
-      ),
-      usernameTF.safeAreaLayoutGuide.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-        constant: -padding
-      ),
-      usernameTF.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      passwordTF.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: usernameTF.bottomAnchor,
-        constant: spaceInBetween
-      ),
-      passwordTF.safeAreaLayoutGuide.leadingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-        constant: padding
-      ),
-      passwordTF.safeAreaLayoutGuide.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-        constant: -padding
-      ),
-      passwordTF.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      apiLabel.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: passwordTF.bottomAnchor,
-        constant: spaceInBetween
-      ),
-      apiLabel.safeAreaLayoutGuide.leadingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-        constant: padding
-      ),
-      apiLabel.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      apiSelectorButton.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: passwordTF.bottomAnchor,
-        constant: spaceInBetween
-      ),
-      apiSelectorButton.safeAreaLayoutGuide.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-        constant: -padding
-      ),
-      apiSelectorButton.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      httpHeadersButton.safeAreaLayoutGuide.topAnchor.constraint(
-        equalTo: apiSelectorButton.bottomAnchor,
-        constant: spaceInBetween
-      ),
-      httpHeadersButton.safeAreaLayoutGuide.leadingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-        constant: padding
-      ),
-      httpHeadersButton.safeAreaLayoutGuide.trailingAnchor.constraint(
-        equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-        constant: -padding
-      ),
-      httpHeadersButton.heightAnchor.constraint(equalToConstant: elementHeight),
-
-      view.heightAnchor
-        .constraint(equalToConstant: (5 * elementHeight) + (4 * spaceInBetween) + (2 * padding)),
-    ])
-
+    view.backgroundColor = .secondarySystemBackground
+    view.layer.cornerRadius = 14
+    view.layer.cornerCurve = .continuous
+    view.layer.borderWidth = 1 / UIScreen.main.scale
+    view.layer.borderColor = UIColor.separator.cgColor
+    view.layer.shadowColor = UIColor.black.cgColor
+    view.layer.shadowOpacity = 0.06
+    view.layer.shadowRadius = 16
+    view.layer.shadowOffset = CGSize(width: 0, height: 6)
     return view
   }()
 
-  var mainContainerPaddingLeadingConstraint: NSLayoutConstraint?
-  var mainContainerPaddingTrailingConstraint: NSLayoutConstraint?
-  var mainContainerPaddingTopConstraint: NSLayoutConstraint?
-  var mainContainerPaddingBottomConstraint: NSLayoutConstraint?
-  var formLeadingConstraing: NSLayoutConstraint?
-  var formTrailingConstraing: NSLayoutConstraint?
-  var formWitdhConstraing: NSLayoutConstraint?
-
-  public lazy var mainContainerView: UIView = {
-    self.formView.translatesAutoresizingMaskIntoConstraints = false
-
-    let view = UIView()
-    view.addSubview(formView)
-
-    let outerInset: CGFloat = 25
-
-    mainContainerPaddingLeadingConstraint = formView.safeAreaLayoutGuide.leadingAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-      constant: outerInset
-    )
-    mainContainerPaddingTrailingConstraint = formView.safeAreaLayoutGuide.trailingAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-      constant: -outerInset
-    )
-    mainContainerPaddingTopConstraint = formView.safeAreaLayoutGuide.topAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.topAnchor,
-      constant: outerInset
-    )
-    mainContainerPaddingBottomConstraint = formView.safeAreaLayoutGuide.bottomAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.bottomAnchor,
-      constant: -outerInset
-    )
-
+  private lazy var cardStack: UIStackView = {
+    apiRowLabel.translatesAutoresizingMaskIntoConstraints = false
+    apiSelectorButton.translatesAutoresizingMaskIntoConstraints = false
+    let apiContent = UIView()
+    apiContent.addSubview(apiRowLabel)
+    apiContent.addSubview(apiSelectorButton)
     NSLayoutConstraint.activate([
-      mainContainerPaddingLeadingConstraint!,
-      mainContainerPaddingTrailingConstraint!,
-      mainContainerPaddingTopConstraint!,
-      mainContainerPaddingBottomConstraint!,
+      apiRowLabel.leadingAnchor.constraint(equalTo: apiContent.leadingAnchor, constant: 14),
+      apiRowLabel.centerYAnchor.constraint(equalTo: apiContent.centerYAnchor),
+      apiSelectorButton.leadingAnchor.constraint(
+        greaterThanOrEqualTo: apiRowLabel.trailingAnchor,
+        constant: 12
+      ),
+      apiSelectorButton.trailingAnchor.constraint(
+        equalTo: apiContent.trailingAnchor,
+        constant: -14
+      ),
+      apiSelectorButton.centerYAnchor.constraint(equalTo: apiContent.centerYAnchor),
     ])
 
-    return view
-  }()
+    func makeFieldRow(_ textField: UITextField) -> LoginRowView {
+      textField.translatesAutoresizingMaskIntoConstraints = false
+      let content = UIView()
+      content.addSubview(textField)
+      NSLayoutConstraint.activate([
+        textField.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+        textField.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -14),
+        textField.topAnchor.constraint(equalTo: content.topAnchor),
+        textField.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+      ])
+      return LoginRowView(content: content)
+    }
 
-  public lazy var formGlassContainer: UIVisualEffectView = {
-    let container = UIVisualEffectView()
-    let glassEffect = UIGlassEffect(style: .regular)
-    glassEffect.isInteractive = false
-    glassEffect.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read
-      .themePreference.asColor
-      .withAlphaComponent(0.1)
-    container.effect = glassEffect
-    container.cornerConfiguration = .corners(radius: 20)
-    mainContainerView.translatesAutoresizingMaskIntoConstraints = false
-    container.contentView.addSubview(mainContainerView)
-
+    httpHeadersButton.translatesAutoresizingMaskIntoConstraints = false
+    let httpContent = UIView()
+    httpContent.addSubview(httpHeadersButton)
     NSLayoutConstraint.activate([
-      container.safeAreaLayoutGuide.topAnchor
-        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.topAnchor),
-      container.safeAreaLayoutGuide.leadingAnchor
-        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.leadingAnchor),
-      container.safeAreaLayoutGuide.trailingAnchor
-        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.trailingAnchor),
-      container.safeAreaLayoutGuide.bottomAnchor
-        .constraint(equalTo: mainContainerView.safeAreaLayoutGuide.bottomAnchor),
+      httpHeadersButton.leadingAnchor.constraint(equalTo: httpContent.leadingAnchor),
+      httpHeadersButton.trailingAnchor.constraint(equalTo: httpContent.trailingAnchor),
+      httpHeadersButton.topAnchor.constraint(equalTo: httpContent.topAnchor),
+      httpHeadersButton.bottomAnchor.constraint(equalTo: httpContent.bottomAnchor),
     ])
 
-    return container
+    apiRow = LoginRowView(content: apiContent)
+    serverUrlRow = makeFieldRow(serverUrlTF)
+    usernameRow = makeFieldRow(usernameTF)
+    passwordRow = makeFieldRow(passwordTF)
+    httpHeadersRow = LoginRowView(content: httpContent, showsSeparator: false)
+
+    let stack = UIStackView(arrangedSubviews: [
+      apiRow, serverUrlRow, usernameRow, passwordRow, httpHeadersRow,
+    ])
+    stack.axis = .vertical
+    stack.spacing = 0
+    return stack
   }()
 
-  public lazy var loginGlassContainer: UIView = {
-    loginButton
+  private lazy var contentStack: UIStackView = {
+    iconView.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      iconView.widthAnchor.constraint(equalToConstant: 44),
+      iconView.heightAnchor.constraint(equalToConstant: 44),
+    ])
+
+    let headerStack = UIStackView(arrangedSubviews: [iconView, titleLabel, subtitleLabel])
+    headerStack.axis = .vertical
+    headerStack.alignment = .center
+    headerStack.spacing = 8
+    headerStack.setCustomSpacing(14, after: iconView)
+
+    cardStack.translatesAutoresizingMaskIntoConstraints = false
+    cardView.addSubview(cardStack)
+    NSLayoutConstraint.activate([
+      cardStack.topAnchor.constraint(equalTo: cardView.topAnchor, constant: 2),
+      cardStack.leadingAnchor.constraint(equalTo: cardView.leadingAnchor),
+      cardStack.trailingAnchor.constraint(equalTo: cardView.trailingAnchor),
+      cardStack.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -2),
+    ])
+
+    loginButton.translatesAutoresizingMaskIntoConstraints = false
+    loginButton.heightAnchor.constraint(equalToConstant: 40).isActive = true
+
+    let stack = UIStackView(arrangedSubviews: [headerStack, cardView, loginButton])
+    stack.axis = .vertical
+    stack.spacing = 18
+    stack.setCustomSpacing(26, after: headerStack)
+    return stack
   }()
 
   func login() {
@@ -508,7 +527,7 @@ class LoginVC: UIViewController {
         if error is AuthenticationError {
           self.showErrorMsg(message: error.localizedDescription)
         } else {
-          self.showErrorMsg(message: "Not able to login!")
+          self.showErrorMsg(message: L10n.tr("Not able to login!"))
         }
         self.appDelegate.resetMeta(accountInfo)
       }
@@ -527,9 +546,7 @@ class LoginVC: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    updateApiSelectorText()
 
-    apiSelectorButton.showsMenuAsPrimaryAction = true
     apiSelectorButton.menu = UIMenu(title: L10n.tr("Select Source"), children: [
       UIAction(title: BackenApiType.local.selectorDescription, handler: { _ in
         self.selectedApiType = .local
@@ -543,109 +560,54 @@ class LoginVC: UIViewController {
 
     view.backgroundColor = .systemBackground
 
-    amperfyLabel.translatesAutoresizingMaskIntoConstraints = false
-    iconView.translatesAutoresizingMaskIntoConstraints = false
-    formGlassContainer.translatesAutoresizingMaskIntoConstraints = false
-    loginGlassContainer.translatesAutoresizingMaskIntoConstraints = false
+    contentStack.translatesAutoresizingMaskIntoConstraints = false
     closeButton.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(amperfyLabel)
-    view.addSubview(iconView)
-    view.addSubview(formGlassContainer)
-    view.addSubview(loginGlassContainer)
+    view.addSubview(contentStack)
     view.addSubview(closeButton)
 
-    formLeadingConstraing = formGlassContainer.leadingAnchor.constraint(
-      equalTo: view.leadingAnchor,
-      constant: 12
-    )
-    formLeadingConstraing?.priority = .defaultHigh
-    formTrailingConstraing = formGlassContainer.trailingAnchor.constraint(
-      equalTo: view.trailingAnchor,
-      constant: -12
-    )
-    formTrailingConstraing?.priority = .defaultHigh
-    formWitdhConstraing = formGlassContainer.widthAnchor.constraint(lessThanOrEqualToConstant: 600)
-    formWitdhConstraing?.priority = .required
+    let centerY = contentStack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+    centerY.priority = .defaultHigh
+    let width = contentStack.widthAnchor.constraint(equalToConstant: 360)
+    width.priority = UILayoutPriority(999)
 
-    iconView.addConstraint(NSLayoutConstraint(
-      item: iconView,
-      attribute: .height,
-      relatedBy: .equal,
-      toItem: iconView,
-      attribute: .width,
-      multiplier: 1.0,
-      constant: 0
-    ))
     NSLayoutConstraint.activate([
-      amperfyLabel.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
-      amperfyLabel.bottomAnchor.constraint(equalTo: formGlassContainer.topAnchor, constant: -30),
-      amperfyLabel.heightAnchor.constraint(equalToConstant: 60),
-
-      formGlassContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
-      formGlassContainer.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 0),
-      formWitdhConstraing!,
-      formLeadingConstraing!,
-      formTrailingConstraing!,
-
-      loginGlassContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
-      loginGlassContainer.topAnchor.constraint(
-        equalTo: formGlassContainer.bottomAnchor,
-        constant: 30
+      contentStack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      centerY,
+      width,
+      contentStack.widthAnchor.constraint(
+        lessThanOrEqualTo: view.safeAreaLayoutGuide.widthAnchor,
+        constant: -48
       ),
-      loginGlassContainer.widthAnchor.constraint(equalToConstant: 140),
-      loginGlassContainer.heightAnchor.constraint(equalToConstant: 40),
+      contentStack.topAnchor.constraint(
+        greaterThanOrEqualTo: view.safeAreaLayoutGuide.topAnchor,
+        constant: 24
+      ),
+      contentStack.bottomAnchor.constraint(
+        lessThanOrEqualTo: view.safeAreaLayoutGuide.bottomAnchor,
+        constant: -24
+      ),
 
-      iconView.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 0),
-      iconView.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 0),
-      iconView.heightAnchor.constraint(equalTo: formGlassContainer.heightAnchor, constant: 40),
-
-      // Close button top-right
       closeButton.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 16),
       closeButton.trailingAnchor.constraint(
         equalTo: view.safeAreaLayoutGuide.trailingAnchor,
         constant: -16
       ),
+      closeButton.widthAnchor.constraint(equalToConstant: 28),
+      closeButton.heightAnchor.constraint(equalToConstant: 28),
     ])
 
-    // Show close button only when presented as a sheet/modal
+    updateApiSelectorText()
+
     let isModal = presentingViewController != nil || navigationController?
       .presentingViewController != nil
     closeButton.isHidden = !isModal
   }
 
-  override func updateProperties() {
-    super.updateProperties()
-
-    var outerInset: CGFloat = 25
-    if traitCollection.horizontalSizeClass == .compact {
-      outerInset = 20
-    } else {
-      outerInset = 40
-    }
-
-    mainContainerPaddingLeadingConstraint?.constant = outerInset
-    mainContainerPaddingTrailingConstraint?.constant = -outerInset
-    mainContainerPaddingTopConstraint?.constant = outerInset
-    mainContainerPaddingBottomConstraint?.constant = -outerInset + 6
-  }
-
-  override func viewWillLayoutSubviews() {
-    let glassEffect = UIGlassEffect(style: .regular)
-    glassEffect.isInteractive = false
-    glassEffect.tintColor = appDelegate.storage.settings.accounts.getSetting(nil).read
-      .themePreference.asColor
-      .withAlphaComponent(0.1)
-    formGlassContainer.effect = glassEffect
-
-    if formGlassContainer.frame.width < 600 {
-      formLeadingConstraing?.priority = .required
-      formTrailingConstraing?.priority = .required
-      formWitdhConstraing?.priority = .defaultHigh
-    } else {
-      formLeadingConstraing?.priority = .defaultHigh
-      formTrailingConstraing?.priority = .defaultHigh
-      formWitdhConstraing?.priority = .required
-    }
+  override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+    super.traitCollectionDidChange(previousTraitCollection)
+    guard traitCollection.hasDifferentColorAppearance(comparedTo: previousTraitCollection)
+    else { return }
+    cardView.layer.borderColor = UIColor.separator.resolvedColor(with: traitCollection).cgColor
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -671,20 +633,21 @@ class LoginVC: UIViewController {
   }
 
   func updateApiSelectorText() {
-    apiSelectorButton.setTitle("\(selectedApiType.selectorDescription)", for: .normal)
+    apiSelectorButton.setTitle(selectedApiType.selectorDescription, for: .normal)
     updateLoginForm()
   }
 
   func updateLoginForm() {
     let isLocal = selectedApiType == .local
-    usernameTF.isHidden = isLocal
-    passwordTF.isHidden = isLocal
-    httpHeadersButton.isHidden = isLocal
+    usernameRow?.isHidden = isLocal
+    passwordRow?.isHidden = isLocal
+    httpHeadersRow?.isHidden = isLocal
+    serverUrlRow?.showsSeparator = !isLocal
     serverUrlTF.isUserInteractionEnabled = !isLocal
     serverUrlTF.placeholder = isLocal
       ? L10n.tr("Tap Login to choose a music folder")
       : "https://dav.example.com/music"
-    apiLabel.text = isLocal ? L10n.tr("Source:") : L10n.tr("API:")
+    apiRowLabel.text = isLocal ? L10n.tr("Source") : L10n.tr("API")
     if isLocal {
       serverUrlTF.text = localFolderURL?.path
     } else if serverUrlTF.text == localFolderURL?.path {

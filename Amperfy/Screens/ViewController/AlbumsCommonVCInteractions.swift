@@ -134,7 +134,7 @@ class AlbumsCommonVCInteractions {
   func updateContentUnavailable() {
     if isContentUnavailable {
       if fetchedResultsController.isSearchActive {
-        rootVC?.contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        rootVC?.contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         rootVC?.contentUnavailableConfiguration = emptyContentConfig
       }
@@ -477,15 +477,19 @@ class AlbumsCommonVCInteractions {
         let albumSongs = Array(albums.compactMap { $0.playables }.joined())
         if albumSongs.count > AppDelegate.maxPlayablesDownloadsToAddAtOnceWithoutWarning {
           let alert = UIAlertController(
-            title: "Many Songs",
-            message: "Are you sure to add \(albumSongs.count) songs from \"\(self.filterTitle)\" to download queue?",
+            title: L10n.tr("Many Songs"),
+            message: L10n.tr(
+              "Are you sure to add %d songs from \"%@\" to download queue?",
+              albumSongs.count,
+              self.filterTitle
+            ),
             preferredStyle: .alert
           )
-          alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+          alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default, handler: { _ in
             self.appDelegate.getMeta(self.account.info).playableDownloadManager
               .download(objects: albumSongs)
           }))
-          alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+          alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel))
           self.rootVC?.present(alert, animated: true, completion: nil)
         } else {
           self.appDelegate.getMeta(self.account.info).playableDownloadManager
@@ -556,7 +560,8 @@ class AlbumsCommonVCInteractions {
   func createPlayShuffleInfoConfig() -> PlayShuffleInfoConfiguration {
     PlayShuffleInfoConfiguration(
       infoCB: {
-        "\(self.fetchedResultsController.fetchedObjects?.count ?? 0) Album\((self.fetchedResultsController.fetchedObjects?.count ?? 0) == 1 ? "" : "s")"
+        let count = self.fetchedResultsController.fetchedObjects?.count ?? 0
+        return L10n.tr(count == 1 ? "%d Album" : "%d Albums", count)
       },
       playContextCb: handleHeaderPlay,
       player: appDelegate.player,

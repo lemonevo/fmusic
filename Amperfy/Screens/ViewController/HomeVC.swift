@@ -36,7 +36,7 @@ final class HomeVC: UICollectionViewController {
   private static let maximumColumns = 4
   private static let minimumItemWidth: CGFloat = 132.0
   private static let itemSpacing: CGFloat = 16.0
-  private static let sectionHorizontalInset: CGFloat = 24.0
+  private static let sectionHorizontalInset: CGFloat = 20.0
 
   private let account: Account
   private let sharedHome: HomeManager
@@ -370,29 +370,6 @@ final class HomeVC: UICollectionViewController {
       navigationController?.navigationBar.prefersLargeTitles = false
     } else if let song = playableContainer as? Song {
       appDelegate.player.play(context: PlayContext(containable: song))
-    } else if let podcastEpisode = playableContainer as? PodcastEpisode,
-              let podcast = podcastEpisode.podcast {
-      navigationController?.pushViewController(
-        AppStoryboard.Main.segueToPodcastDetail(
-          account: account,
-          podcast: podcast,
-          episodeToScrollTo: podcastEpisode
-        ),
-        animated: true
-      )
-      navigationController?.navigationBar.prefersLargeTitles = false
-    } else if let podcast = playableContainer as? Podcast {
-      navigationController?.pushViewController(
-        AppStoryboard.Main.segueToPodcastDetail(account: account, podcast: podcast),
-        animated: true
-      )
-      navigationController?.navigationBar.prefersLargeTitles = false
-    } else if let _ = playableContainer as? Radio {
-      navigationController?.pushViewController(
-        AppStoryboard.Main.segueToRadios(account: account),
-        animated: true
-      )
-      navigationController?.navigationBar.prefersLargeTitles = false
     } else if let genre = playableContainer as? Genre {
       navigationController?.pushViewController(
         AppStoryboard.Main.segueToGenreDetail(account: account, genre: genre),
@@ -539,17 +516,17 @@ final class SectionHeaderView: UICollectionReusableView {
     addSubview(titleLabel)
     addSubview(refreshButton)
     NSLayoutConstraint.activate([
-      largeTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+      largeTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
       largeTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 4),
       largeTitleHeightConstraint,
-      titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+      titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
       titleLabel.trailingAnchor.constraint(
         lessThanOrEqualTo: refreshButton.leadingAnchor,
         constant: -8
       ),
       titleLabel.topAnchor.constraint(equalTo: largeTitleLabel.bottomAnchor),
       titleLabel.bottomAnchor.constraint(equalTo: bottomAnchor),
-      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -20),
       refreshButton.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
   }

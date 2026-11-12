@@ -44,23 +44,9 @@ final class WebDAVServerApi: BackendApi, @unchecked Sendable {
     try await remoteURL(for: playableInfo)
   }
 
-  func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference
-  ) async throws
+  func generateUrl(forStreamingPlayable playableInfo: AbstractPlayableInfo) async throws
     -> URL {
     try await remoteURL(for: playableInfo)
-  }
-
-  func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference,
-    timeOffset: Int
-  ) async throws
-    -> URL {
-    throw BackendError.notSupported
   }
 
   func generateUrl(forArtwork artwork: Artwork) async throws -> URL {

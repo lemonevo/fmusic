@@ -38,13 +38,6 @@ public class CoreDataCompanion {
     library.saveContext()
   }
 
-  /// Newly created objects only have a temporary object ID, which other contexts can't resolve
-  public func getPermanentObjectIDs(of songs: [Song]) throws -> [NSManagedObjectID] {
-    let managedObjects = songs.map { $0.managedObject }
-    try context.obtainPermanentIDs(for: managedObjects)
-    return managedObjects.map { $0.objectID }
-  }
-
   public func perform(body: @escaping (_ asyncCompanion: CoreDataCompanion) -> ()) {
     context.performAndWait {
       body(self)
@@ -124,13 +117,6 @@ public class PersistentStorage {
     case ArtworkDisplayPreference = "artworkDisplayPreference"
     case SleepTimerInterval = "sleepTimerInterval" // not used anymore !!!
     case ScreenLockPreventionPreference = "screenLockPreventionPreference"
-    case StreamingMaxBitrateWifiPreference = "streamingMaxBitrateWifiPreference"
-    case StreamingMaxBitrateCellularPreference = "streamingMaxBitrateCellularPreference"
-    case StreamingFormatPreference =
-      "streamingFormatPreference" // deprecated: use Wifi and Cellular instead
-    case StreamingFormatWifiPreference = "streamingFormatWifiPreference"
-    case StreamingFormatCellularPreference = "streamingFormatCellularPreference"
-    case CacheTranscodingFormatPreference = "cacheTranscodingFormatPreference"
     case CacheLimit = "cacheLimitInBytes" // limit in byte
     case PlayerVolume = "playerVolume"
     case ShowDetailedInfo = "showDetailedInfo"
@@ -160,7 +146,6 @@ public class PersistentStorage {
     case IsPlayerVisualizerDisplayed = "isPlayerVisualizerDisplayed"
     case IsOfflineMode = "isOfflineMode"
     case IsAutoDownloadLatestSongsActive = "isAutoDownloadLatestSongsActive"
-    case IsAutoDownloadLatestPodcastEpisodesActive = "isAutoDownloadLatestPodcastEpisodesActive"
     case IsScrobbleStreamedItems = "isScrobbleStreamedItems"
     case IsPlaybackStartOnlyOnPlay = "isPlaybackStartOnlyOnPlay"
     case LibrarySyncVersion = "librarySyncVersion"

@@ -45,15 +45,9 @@ struct LibrarySettingsView: View {
   @State
   var songCount = 0
   @State
-  var podcastCount = 0
-  @State
-  var podcastEpisodeCount = 0
-  @State
   var albumWithSyncedSongsCount = 0
   @State
   var cachedSongCount = 0
-  @State
-  var cachedPodcastEpisodesCount = 0
   @State
   var completeCacheSize = ""
   @State
@@ -92,14 +86,6 @@ struct LibrarySettingsView: View {
         let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
         return asyncCompanion.library.getAlbumCount(for: accountAsync)
       }
-      podcastCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getPodcastCount(for: accountAsync)
-      }
-      podcastEpisodeCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getPodcastEpisodeCount(for: accountAsync)
-      }
       songCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
         let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
         return asyncCompanion.library.getSongCount(for: accountAsync)
@@ -121,11 +107,6 @@ struct LibrarySettingsView: View {
         let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
         return asyncCompanion.library.getCachedSongCount(for: accountAsync)
       }
-      cachedPodcastEpisodesCount = try await appDelegate.storage.async
-        .performAndGet { asyncCompanion in
-          let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-          return asyncCompanion.library.getCachedPodcastEpisodeCount(for: accountAsync)
-        }
       completeCacheSize = try await appDelegate.storage.async.performAndGet { asyncCompanion in
         let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
         let playableByteSize = fileManager.getPlayableCacheSize(for: accountAsync.info)
@@ -134,7 +115,7 @@ struct LibrarySettingsView: View {
       }
 
       let curCacheSizeLimit = Int64(settings.cacheSizeLimit)
-      cacheSizeLimit = curCacheSizeLimit > 0 ? curCacheSizeLimit.asByteString : "No Limit"
+      cacheSizeLimit = curCacheSizeLimit > 0 ? curCacheSizeLimit.asByteString : L10n.tr("No Limit")
       cacheSelection = curCacheSizeLimit > 0 ? [
         curCacheSizeLimit.asByteString.components(separatedBy: " ")[0],
         " " + curCacheSizeLimit.asByteString.components(separatedBy: " ")[1]
@@ -159,12 +140,6 @@ struct LibrarySettingsView: View {
           }
           SettingsRow(title: L10n.tr("Songs")) {
             SecondaryText(songCount.description)
-          }
-          SettingsRow(title: L10n.tr("Podcasts")) {
-            SecondaryText(podcastCount.description)
-          }
-          SettingsRow(title: L10n.tr("Podcast Episodes")) {
-            SecondaryText(podcastEpisodeCount.description)
           }
           SettingsRow(title: L10n.tr("Initial Sync")) {
             SecondaryText(
@@ -196,9 +171,6 @@ struct LibrarySettingsView: View {
           SettingsRow(title: L10n.tr("Cached Songs")) {
             SecondaryText(cachedSongCount.description)
           }
-          SettingsRow(title: L10n.tr("Cached Podcast Episodes")) {
-            SecondaryText(cachedPodcastEpisodesCount.description)
-          }
           SettingsRow(title: L10n.tr("Complete Cache Size")) {
             SecondaryText(completeCacheSize.description)
           }
@@ -207,7 +179,7 @@ struct LibrarySettingsView: View {
             // We can not present the picker in wheel style on macOS. It is not supported.
             // Instead, we use a menu style picker without a navigation link.
             MultiPickerView(
-              data: [("Cache Size Limit", byteValues), ("", [" MB", " GB"])],
+              data: [(L10n.tr("Cache Size Limit"), byteValues), ("", [" MB", " GB"])],
               selection: $cacheSelection
             )
             .onChange(of: cacheSelection, changeHandler)
@@ -249,7 +221,7 @@ struct LibrarySettingsView: View {
             }
 
             SettingsButtonRow(
-              title: L10n.tr("Delete downloaded songs and podcast episodes"),
+              title: L10n.tr("Delete downloaded songs"),
               actionType: .destructive
             ) {
               isShowDeleteCacheAlert = true
@@ -258,7 +230,7 @@ struct LibrarySettingsView: View {
                 title: Text(L10n.tr("Delete Cache")),
                 message: Text(
                   L10n.tr(
-                    "Are you sure you want to delete this account’s downloaded songs and podcast episodes?"
+                    "Are you sure you want to delete this account’s downloaded songs?"
                   )
                 ),
                 primaryButton: .destructive(Text(L10n.tr("Delete"))) {

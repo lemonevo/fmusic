@@ -72,7 +72,8 @@ class DirectoriesVC: MultiSourceTableViewController {
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
       infoCB: {
-        "\(self.songsFetchedResultsController.fetchedObjects?.count ?? 0) Song\((self.songsFetchedResultsController.fetchedObjects?.count) == 1 ? "" : "s")"
+        let count = self.songsFetchedResultsController.fetchedObjects?.count ?? 0
+        return L10n.tr(count == 1 ? "%d Song" : "%d Songs", count)
       },
       playContextCb: { () in PlayContext(
         containable: self.directory,
@@ -171,7 +172,7 @@ class DirectoriesVC: MultiSourceTableViewController {
     if subdirectoriesFetchedResultsController.fetchedObjects?.count ?? 0 == 0,
        songsFetchedResultsController.fetchedObjects?.count ?? 0 == 0 {
       if subdirectoriesFetchedResultsController.isSearchActive {
-        contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         contentUnavailableConfiguration = emptyContentConfig
       }

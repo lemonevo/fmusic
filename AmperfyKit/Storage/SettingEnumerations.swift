@@ -90,66 +90,6 @@ public enum ScreenLockPreventionPreference: Int, CaseIterable, Sendable, Codable
   }
 }
 
-// MARK: - StreamingMaxBitratePreference
-
-public enum StreamingMaxBitratePreference: Int, CaseIterable, Sendable, Codable {
-  case noLimit = 0
-  case limit32 = 32
-  case limit64 = 64
-  case limit96 = 96
-  case limit128 = 128
-  case limit192 = 192
-  case limit256 = 256
-  case limit320 = 320
-
-  public static let defaultValue: StreamingMaxBitratePreference = .noLimit
-
-  public var description: String {
-    switch self {
-    case .noLimit:
-      return L10n.tr("No Limit (default)")
-    default:
-      return "\(rawValue) kbps"
-    }
-  }
-
-  public var asBitsPerSecondAV: Double {
-    Double(rawValue * 1000)
-  }
-}
-
-// MARK: - StreamingFormatPreference
-
-public enum StreamingFormatPreference: Int, CaseIterable, Sendable, Codable {
-  case mp3 = 0
-  case raw = 1
-  case serverConfig = 2 // omit the format to let the server decide which codec should be used
-
-  public static let defaultValue: StreamingFormatPreference = .mp3
-
-  public var shortInfo: String {
-    switch self {
-    case .mp3:
-      return "MP3"
-    case .raw:
-      return "RAW"
-    case .serverConfig:
-      return ""
-    }
-  }
-
-  public var description: String {
-    switch self {
-    case .mp3:
-      return L10n.tr("mp3 (default)")
-    case .raw:
-      return L10n.tr("Raw/Original")
-    case .serverConfig:
-      return L10n.tr("Server chooses Codec")
-    }
-  }
-}
-
 // MARK: - EqualizerSetting
 
 public struct EqualizerSetting: Hashable, Sendable, Codable {
@@ -336,27 +276,6 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
       return .white
     case .purple:
       return .white
-    }
-  }
-}
-
-// MARK: - CacheTranscodingFormatPreference
-
-public enum CacheTranscodingFormatPreference: Int, CaseIterable, Sendable, Codable {
-  case raw = 0
-  case mp3 = 1
-  case serverConfig = 2 // omit the format to let the server decide which codec should be used
-
-  public static let defaultValue: CacheTranscodingFormatPreference = .mp3
-
-  public var description: String {
-    switch self {
-    case .mp3:
-      return L10n.tr("mp3 (default)")
-    case .raw:
-      return L10n.tr("Raw/Original")
-    case .serverConfig:
-      return L10n.tr("Server chooses Codec")
     }
   }
 }

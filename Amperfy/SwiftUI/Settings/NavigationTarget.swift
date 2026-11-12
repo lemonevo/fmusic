@@ -78,37 +78,29 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     }
   }
 
+  /// Filled variants sized like the main sidebar rows (SF Symbol 16 pt regular, 22 pt box).
   @MainActor
   var icon: UIImage {
-    switch self {
-    case .general: .settings
-    case .displayAndInteraction: .display
-    case .account: .userPerson
-    case .library: .musicLibrary
-    case .player: .playCircle
-    case .equalizer: .equalizer
-    case .swipe: .arrowRight
-    case .artwork: .photo
-    case .support: .person
-    case .license: .doc
-    case .xcallback: .arrowTurnUp
-    #if DEBUG
-      case .developer: .hammer
-    #endif
-    }
+    let configuration = UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+    let image = UIImage(systemName: systemImage, withConfiguration: configuration)
+      ?? UIImage(
+        systemName: systemImage.replacingOccurrences(of: ".fill", with: ""),
+        withConfiguration: configuration
+      )
+    return (image ?? UIImage()).withRenderingMode(.alwaysTemplate)
   }
 
   var systemImage: String {
     switch self {
-    case .general: "gear"
-    case .displayAndInteraction: "display"
+    case .general: "gearshape.fill"
+    case .displayAndInteraction: "tv.fill"
     case .account: "person.fill"
-    case .library: "music.note.house"
+    case .library: "music.note.house.fill"
     case .player: "play.circle.fill"
-    case .equalizer: "chart.bar.xaxis"
+    case .equalizer: "chart.bar.fill"
     case .swipe: "arrow.right.circle.fill"
     case .artwork: "photo.fill"
-    case .support: "person.circle"
+    case .support: "person.crop.circle.fill"
     case .license: "doc.fill"
     case .xcallback: "arrowshape.turn.up.backward.circle.fill"
     #if DEBUG

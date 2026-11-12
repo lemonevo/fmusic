@@ -25,22 +25,16 @@ import Foundation
 enum PlayableContainerTypeAppEnum: Int, AppEnum {
   case artist
   case song
-  case podcastEpisode
   case playlist
   case album
   case genre
-  case podcast
-  case radio
 
   static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Playable Container Type")
   static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
     .artist: "Artist",
     .song: "Song",
-    .podcastEpisode: "Podcast Episode",
     .playlist: "Playlist",
     .album: "Album",
     .genre: "Genre",
-    .podcast: "Podcast",
-    .radio: "Radio",
   ]
 }

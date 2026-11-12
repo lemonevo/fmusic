@@ -106,7 +106,7 @@ public class AbstractPlayable: AbstractLibraryEntity, Downloadable {
   }
 
   public var title: String {
-    get { playableManagedObject.title ?? "Unknown Title" }
+    get { L10n.trPlaceholder(playableManagedObject.title ?? "Unknown Title") }
     set {
       if playableManagedObject.title != newValue {
         playableManagedObject.title = newValue

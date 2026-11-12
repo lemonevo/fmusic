@@ -23,38 +23,84 @@ import AmperfyKit
 import SwiftUI
 
 struct SettingsTabView: View {
+  var onBackToApp: (() -> ())?
+
   @State
   var selectedMenu: NavigationTarget = .general
   @State
   private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
   @State
   private var detailPath = NavigationPath()
+  @State
+  private var hoveredMenu: NavigationTarget?
+  @State
+  private var isBackRowHovered = false
   @Environment(\.colorScheme)
   private var colorScheme
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
-      List(NavigationTarget.allCases, id: \.self) { menuElement in
-        HStack(spacing: 10) {
-          Image(uiImage: menuElement.icon.withRenderingMode(.alwaysTemplate))
-            .font(.system(size: 16))
-            .foregroundStyle(Color.accentColor)
-            .frame(width: 22, height: 22)
-          Text(menuElement.displayName)
-            .font(.system(size: 13))
-            .foregroundStyle(Color.label)
-            .lineLimit(1)
+      List {
+        if let onBackToApp {
+          Button(action: onBackToApp) {
+            HStack(spacing: 10) {
+              Image(systemName: "chevron.left")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color.secondary)
+                .frame(width: 22, height: 22)
+              Text(L10n.tr("Back to App"))
+                .font(.system(size: 13))
+                .foregroundStyle(Color.label)
+                .lineLimit(1)
+              Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 32)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+              RoundedRectangle(cornerRadius: 8)
+                .fill(isBackRowHovered ? selectionColor.opacity(0.6) : .clear)
+            )
+            .contentShape(Rectangle())
+            .onHover { isBackRowHovered = $0 }
+            .padding(.vertical, 3)
+          }
+          .buttonStyle(.plain)
+          .listRowInsets(EdgeInsets())
+          .animation(.easeOut(duration: 0.1), value: isBackRowHovered)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .listRowInsets(EdgeInsets())
-        .background(
-          RoundedRectangle(cornerRadius: 8)
-            .fill(selectedMenu == menuElement ? selectionColor : Color.clear)
-        )
-        .contentShape(Rectangle())
-        .onTapGesture { selectedMenu = menuElement }
+
+        ForEach(NavigationTarget.allCases, id: \.self) { menuElement in
+          HStack(spacing: 10) {
+            Image(uiImage: menuElement.icon)
+              .foregroundStyle(Color.accentColor)
+              .frame(width: 22, height: 22)
+            Text(menuElement.displayName)
+              .font(.system(size: 13))
+              .foregroundStyle(Color.label)
+              .lineLimit(1)
+          }
+          .padding(.horizontal, 8)
+          .frame(height: 32)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(
+            RoundedRectangle(cornerRadius: 8)
+              .fill(rowBackgroundColor(for: menuElement))
+          )
+          .animation(.easeOut(duration: 0.14), value: selectedMenu)
+          .animation(.easeOut(duration: 0.1), value: hoveredMenu)
+          .contentShape(Rectangle())
+          .onHover { isHovering in
+            if isHovering {
+              hoveredMenu = menuElement
+            } else if hoveredMenu == menuElement {
+              hoveredMenu = nil
+            }
+          }
+          .onTapGesture { selectedMenu = menuElement }
+          .padding(.vertical, 3)
+          .listRowInsets(EdgeInsets())
+        }
       }
       .listStyle(.sidebar)
       .environment(\.defaultMinListRowHeight, 32)
@@ -62,13 +108,26 @@ struct SettingsTabView: View {
     } detail: {
       NavigationStack(path: $detailPath) {
         AnyView(selectedMenu.view())
+          .id(selectedMenu)
       }
+      // Cross-fade between setting pages instead of swapping the content instantly.
+      .animation(.easeInOut(duration: 0.18), value: selectedMenu)
       // Pop views pushed in the previous menu (e.g. Support -> Event Log) when another menu is
       // selected. This requires all pushes to be value based (NavigationLink(value:)).
       .onChange(of: selectedMenu) {
         detailPath = NavigationPath()
       }
     }
+  }
+
+  private func rowBackgroundColor(for menuElement: NavigationTarget) -> Color {
+    if selectedMenu == menuElement {
+      return selectionColor
+    }
+    if hoveredMenu == menuElement {
+      return selectionColor.opacity(0.6)
+    }
+    return .clear
   }
 
   /// Same neutral selection as the main sidebar (Apple Music style).

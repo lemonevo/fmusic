@@ -18,6 +18,11 @@ final class VolumeSlider: UIControl {
 
   private var storedValue: Float = 1
 
+  /// Tint of track, fill and knob. The player sits on artwork, so its controls use white.
+  var contentColor: UIColor = .label {
+    didSet { setNeedsDisplay() }
+  }
+
   var value: Float {
     get { storedValue }
     set {
@@ -55,12 +60,12 @@ final class VolumeSlider: UIControl {
     let knobX = trackRect.minX + trackRect.width * CGFloat(storedValue)
     let cornerRadius = Metrics.trackHeight / 2
 
-    UIColor.label.withAlphaComponent(0.4).setFill()
+    contentColor.withAlphaComponent(0.3).setFill()
     UIBezierPath(roundedRect: trackRect, cornerRadius: cornerRadius).fill()
 
     let filledWidth = knobX - trackRect.minX
     if filledWidth > 0 {
-      UIColor.label.setFill()
+      contentColor.setFill()
       UIBezierPath(
         roundedRect: CGRect(
           x: trackRect.minX,
@@ -73,7 +78,7 @@ final class VolumeSlider: UIControl {
     }
 
     let knobSize = isTracking ? Metrics.activeKnobSize : Metrics.knobSize
-    UIColor.label.setFill()
+    contentColor.setFill()
     UIBezierPath(
       roundedRect: CGRect(
         x: knobX - knobSize.width / 2,

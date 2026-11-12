@@ -102,9 +102,9 @@ public class AddToPlaylistManager {
   var title: String {
     let count = elementsToAdd.count
     if count != 0 {
-      return "Add \(elementsToAdd.count) Songs to \"\(playlist.name)\""
+      return L10n.tr("Add %d Songs to \"%@\"", elementsToAdd.count, playlist.name)
     } else {
-      return "Add Songs to \"\(playlist.name)\""
+      return L10n.tr("Add Songs to \"%@\"", playlist.name)
     }
   }
 
@@ -136,27 +136,26 @@ public class AddToPlaylistManager {
     let itemsNotContained = playlist.notContaines(playables: playables)
     if itemsNotContained.count != playableToToggleSet.count {
       let useSingular = (playableToToggleSet.count == 1)
-      let pluralS = useSingular ? "" : "s"
       let alertTitle = useSingular ?
-        "This Song is already in your Playlist." :
-        "Some Songs are already in your Playlist."
+        L10n.tr("This Song is already in your Playlist.") :
+        L10n.tr("Some Songs are already in this Playlist.")
       let alert = UIAlertController(title: nil, message: alertTitle, preferredStyle: .alert)
       alert.addAction(UIAlertAction(
-        title: "Add Duplicate\(pluralS)",
+        title: useSingular ? L10n.tr("Add Duplicate") : L10n.tr("Add Duplicates"),
         style: .default,
         handler: { _ in
           handleSuccessfullSelection(playables: playables)
         }
       ))
       alert.addAction(UIAlertAction(
-        title: "Skip\(useSingular ? "" : " Duplicates")",
+        title: useSingular ? L10n.tr("Skip") : L10n.tr("Skip Duplicates"),
         style: useSingular ? .cancel : .default,
         handler: { _ in
           handleSuccessfullSelection(playables: Array(itemsNotContained))
         }
       ))
       if !useSingular {
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: { _ in
+        alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
           // do nothing
           doneCB()
         }))
@@ -194,13 +193,13 @@ public class AddToPlaylistManager {
     if itemsNotContained.isEmpty {
       let alert = UIAlertController(
         title: nil,
-        message: "This Song is already in your Playlist.",
+        message: L10n.tr("This Song is already in your Playlist."),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: "Add Duplicate", style: .default, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Add Duplicate"), style: .default, handler: { _ in
         handleSuccessfullSelection(playables: [playable])
       }))
-      alert.addAction(UIAlertAction(title: "Skip", style: .cancel, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Skip"), style: .cancel, handler: { _ in
         isSelectedCB(false)
       }))
       rootVC.present(alert, animated: true, completion: nil)
@@ -215,7 +214,7 @@ public class AddToPlaylistManager {
 
   func createDoneButton() -> UIBarButtonItem {
     UIBarButtonItem(
-      title: "Done",
+      title: L10n.tr("Done"),
       style: .plain,
       target: self,
       action: #selector(doneBarButtonPressed)
@@ -249,7 +248,10 @@ public class AddToPlaylistManager {
         if songsToAdd.count > Self.warningElementsToAddCount {
           self.appDelegate.eventLogger.info(
             topic: "Add Songs to Playlist",
-            message: "The Playlist \"\(self.playlist.name)\" has been successfully synced to the server."
+            message: L10n.tr(
+              "The Playlist \"%@\" has been successfully synced to the server.",
+              self.playlist.name
+            )
           )
         }
       }
@@ -258,16 +260,16 @@ public class AddToPlaylistManager {
     if songsToAdd.count > Self.warningElementsToAddCount {
       let alert = UIAlertController(
         title: nil,
-        message: "Adding \(songsToAdd.count) Songs to this Playlist may cause performance issues during server synchronization.",
+        message: L10n.tr("Adding %d Songs to this Playlist may cause performance issues during server synchronization.", songsToAdd.count),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: "Add Songs Anyway", style: .default, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Add Songs Anyway"), style: .default, handler: { _ in
         uploadPlaylistChanges()
       }))
-      alert.addAction(UIAlertAction(title: "Abort", style: .default, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Abort"), style: .default, handler: { _ in
         self.rootView?.dismiss(animated: true, completion: nil)
       }))
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
         // do nothing
       }))
       rootView?.present(alert, animated: true, completion: nil)
@@ -284,7 +286,7 @@ public class AddToPlaylistManager {
       action: nil
     )
     let selectAllBarButton = UIBarButtonItem(
-      title: "All",
+      title: L10n.tr("All"),
       style: .plain,
       target: viewVC,
       action: selectButtonSelector

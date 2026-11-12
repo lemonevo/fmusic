@@ -73,8 +73,6 @@ struct SetShuffleIntent: AppIntent {
 
   @MainActor
   func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-    guard appDelegate.player.playerMode == .music
-    else { return .result(dialog: "This option is not available for podcasts.") }
     let isEnabled = isShuffle == .enable
     if appDelegate.player.isShuffle != isEnabled {
       appDelegate.player.toggleShuffle()

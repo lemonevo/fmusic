@@ -156,7 +156,6 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     var items = [WebDAVFileItem]()
     items.reserveCapacity(filesToRead.count)
     var artworkAlbumIDs = Set<String>()
-    let rootAlbumName = baseURL.lastPathComponent
     let coverDataSnapshot = coverDataByDirectory
     let filesByPathSnapshot = filesByPath
     var start = 0
@@ -172,7 +171,6 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
             let item = await Self.read(
               entry: file,
               filesByPath: filesByPathSnapshot,
-              rootAlbumName: rootAlbumName,
               coverData: coverDataSnapshot[file.directoryPath],
               client: client
             )
@@ -223,6 +221,16 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
         account: account,
         library: asyncCompanion.library
       )
+      // Older builds named the album of untagged files in the library root after the root folder
+      // itself. Keep the album, but give it the neutral name.
+      let rootAlbumID = FileSourceLibraryWriter.stableID(prefix: "webdav_album_", value: "path:")
+      if let rootAlbum = asyncCompanion.library.getAlbum(
+        for: account,
+        id: rootAlbumID,
+        isDetailFaultResolution: false
+      ) {
+        rootAlbum.name = "Unknown Album"
+      }
       asyncCompanion.saveContext()
     }
     storage.settings.accounts.updateSetting(accountInfo) { accountSettings in
@@ -305,7 +313,6 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
   private nonisolated static func read(
     entry: WebDAVEntry,
     filesByPath: [String: WebDAVEntry],
-    rootAlbumName: String,
     coverData: Data?,
     client: WebDAVClient
   ) async
@@ -350,7 +357,7 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     let artistName = flacTags?.artist ?? mp3Tags?.artist
       ?? (nameParts.count >= 2 ? nameParts.first! : "Unknown Artist")
     let directoryName = entry.directoryPath.isEmpty
-      ? rootAlbumName
+      ? "Unknown Album"
       : (entry.directoryPath as NSString).lastPathComponent
     let albumTag = flacTags?.album ?? mp3Tags?.album
     let albumName = albumTag ?? directoryName

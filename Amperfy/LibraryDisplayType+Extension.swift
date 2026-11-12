@@ -41,8 +41,6 @@ extension LibraryDisplayType {
       return AppStoryboard.Main.segueToMusicFolders(account: account)
     case .playlists:
       return AppStoryboard.Main.segueToPlaylists(account: account)
-    case .podcasts:
-      return AppStoryboard.Main.segueToPodcasts(account: account)
     case .downloads:
       return AppStoryboard.Main.segueToDownloads(account: account)
     case .favoriteSongs:
@@ -67,8 +65,6 @@ extension LibraryDisplayType {
         style: settings.user.albumsStyleSetting,
         category: .recent
       )
-    case .radios:
-      return AppStoryboard.Main.segueToRadios(account: account)
     }
   }
 }

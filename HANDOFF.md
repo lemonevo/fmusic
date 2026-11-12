@@ -55,7 +55,7 @@ pkill -f "Amperfy.app/Contents/MacOS/Amperfy"; sleep 2; open <Amperfy.app 路径
 
 - 保留 Amperfy 原 UI，删掉 Subsonic/Ampache，只做本地 + WebDAV。
 - 播放器 large 已改为 Apple Music 两栏：左侧封面 + 歌曲信息 + 底部传输键，右侧歌词列（始终显示、保留逐字高亮）；compact 仍是队列列表。large 时控制条收在左栏内、AirPlay/List/More 在歌词列右下角；compact 时控制条恢复全宽、工具组回到控制条。
-- 呈现方式对齐 Apple Music：点击主窗口迷你条后，在主窗口内整页进入播放器（同窗全屏、淡入），不是 sheet，也不是新窗口。
+- 呈现方式对齐 Apple Music：点击主窗口迷你条后，在主窗口内整页进入播放器（同窗全屏、`coverVertical` 从下往上滑入），不是 sheet，也不是新窗口。
 - Apple Music 风格：侧栏 210pt、行 13pt、表头 11pt、行高 32pt、中性灰选中、4 列等比网格不裁切；设置独立窗口/sheet 也用同一套。
 - 中文界面跟随系统语言（不要新增独立语言开关）。
 - 歌词：YRC 优先（词级逐字填充），没有 YRC 时用 LRC；外挂歌词文件只认 `.yrc`/`.lrc`，不写进音频标签。
@@ -142,7 +142,7 @@ pkill -f "Amperfy.app/Contents/MacOS/Amperfy"; sleep 2; open <Amperfy.app 路径
   - 大播放器顶部内边距 20 → 54（`PopupPlayerVC.xib` L56），避免音量胶囊压住封面。
   - 封面是 `width=height` 且最大 360，窗口较矮时槽位只有 320 高，封面会**向上溢出 29pt**，正好钻到音量条下面。已加“高度 ≤ 槽位高度”约束（`LargeCurrentlyPlayingPlayerView.xib` L42），较矮窗口里封面 320×320，不再溢出。
 - 主窗口底部迷你条在 Mac 上原本点击无反应：已给 `infoView`（封面/标题区）加 tap 打开播放器，进度条区域不受影响（`MiniPlayerView.swift` L599）。
-- sheet 关闭（2026-11-11 补，现已改为同窗全屏）：播放器现在是主窗口内的 `.fullScreen` modal（`crossDissolve`，见 `MiniPlayerView.openPlayerView`），不再有 sheet 把手；ESC（`AppDelegateKeyboardCommands.swift` L336 附近）和左上角半透明 `chevron.down` 关闭按钮（`PopupPlayerVC.swift` `setupCloseButton` L243）都返回资料库。独立 Mini Player 窗口不显示关闭按钮。
+- sheet 关闭（2026-11-11 补，现已改为同窗全屏）：播放器现在是主窗口内的 `.fullScreen` modal（`coverVertical` 从下往上滑入，见 `MiniPlayerView.openPlayerView`），不再有 sheet 把手；ESC（`AppDelegateKeyboardCommands.swift` L336 附近）和左上角半透明 `chevron.down` 关闭按钮（`PopupPlayerVC.swift` `setupCloseButton` L243）都返回资料库。独立 Mini Player 窗口不显示关闭按钮。
 - 两栏布局（2026-11-11）：`PopupPlayerVC.setupLargeLyricsColumn` 在主窗口右侧建歌词列（宽 44%、间距 24），并停用 XIB 里“大播放器/控制条贴右边距”的约束；large 时控制条改贴左栏右缘、工具按钮（AirPlay/List/More）挪到歌词列右下角；compact 时控制条恢复全宽、工具组回到控制条内，队列表顶部内边距加到 54 避免被左上关闭按钮压住。`LargeCurrentlyPlayingPlayerView.prepare(lyricsContainer:)` 把 `LyricsView` 用约束塞进该列；外部列模式下强制 `.lyrics`、封面保持全不透明、点击歌词不再切回封面。无歌曲时右栏显示“播放歌曲并在此处查看歌词。”。工具组搬移见 `PlayerControlView.attachUtilityCluster(to:)` / `restoreUtilityCluster()`。
 - 播放器显示样式：右下 List 按钮 → `switchDisplayStyleOptionPersistent()`，设置会持久化。测试完记得切回 large。
 
@@ -165,6 +165,59 @@ pkill -f "Amperfy.app/Contents/MacOS/Amperfy"; sleep 2; open <Amperfy.app 路径
 
 - 播放器选项菜单、睡眠定时器、播放器信息页等已全部中文；CUA 验证过菜单树无英文残留。
 
+### 4.4 冗余清理与性能（2026-11-12）
+
+基线提交 `dbba5a5`（重构前快照），下面的改动未提交。
+
+- **删掉的死文件**：`Amperfy/Screens/View/AlbumDetailHeaderView.swift`（不在 pbxproj 里的旧版重复实现）、`Screens/Basics/SpinnerViewController.swift`、`Screens/Basics/AnimatedGradientLayer.swift`（全仓库零引用），同步删 pbxproj 条目。
+- **删掉的死方法（44 个，编译验证过）**：`LibraryStorage` 的 musicFolder/podcast/radio/directory/scrobble/embeddedArtwork 旧同步辅助（12 个）及 `PrefetchIdContainer`/`PrefetchElementContainer`；`Album.markAs*`、`Artwork.markErrorIfNeeded`、`StringHasher.md5*`、`AudioPlayer.notifyArtworkChanged/removeAllNotifier`、`LocalNotificationManager.notifyDebug*`、`UIImageAssetsExtension.styleForNavigationBar/symbolImageSize`、`PersistentStorage.getPermanentObjectIDs`、`Identifyable.filterBy`、`Utilities` 的 `allIndices/averageColor/deletingPrefix/isContainedIn/setGradientBackground`、`Playlist.filter*Playlists`、`CacheFileManager.getCachedEpisodes`、`Account.assignAccount`、`AppDelegate.restartByUser`、`LibraryUpdater.cancleLibraryUpdate`、`SelectionAccessory.createEdit/createDone`、`BasicFetchedResultsController.hideResults`、`UtilitiesExtensions.isForceClicked`、`MigrationPolicyV4toV5.stringId`。
+- **删除播客/电台/转码功能入口（2026-11-12，按要求“暂时用不到”）**：
+  - 删文件：`RadiosVC`、`PodcastsVC`、`PodcastDetailVC`、`PodcastEpisodeTableCell`（含 xib）、`LocalNotificationManager`（只服务播客新集通知）、`BackgroundFetchTriggeredSyncer`（后台任务只同步播客），pbxproj 同步清理。
+  - UI：首页 section（`HomeSection.supportedCases` 过滤 podcasts/radios/newestPodcastEpisodes，`homeSections`/`homeSectionOrder` getter 也过滤，旧设置里的残留项不会冒出来）、资料库类型（`LibraryDisplayType` 删 `.podcasts`/`.radios`）、轻扫动作（`SwipeActionType.isSupported=false`，保留 raw 值 9/10 以便旧设置解码）、CarPlay 列表与快捷入口、Siri/App Intents（`PlayableContainerTypeAppEnum` 只留 artist/song/playlist/album/genre）、主菜单/键盘的 Music↔Podcast 切换、资料库设置里的播客计数、播客自动缓存设置与后台抓取。
+  - 播放器：去掉电台元数据/直播态、电台站点跳转、播客单集续播与“Show Podcast”跳转；暂停态 seek 复测正常。
+  - **保留数据层**：Core Data 实体（`PodcastMO`/`PodcastEpisodeMO`/`RadioMO`）、`PlayerMO` 的 podcast 队列、`PlayerMode.podcast`、`HomeSection` 的 raw value、`LibraryDisplayType` 的 rawValue 槽位（6/14）——避免迁移风险，旧库和旧设置可直接打开；清单/搜索里不会再出现这些实体。
+  - 转码设置（格式/码率、`TranscodingInfo`、`StreamingMaxBitrates` 等）此前已删；本次清掉剩余 6 条 L10n 转码文案和相关设置键。
+- **设置解码缓存**（`AmperfyKit/Storage/Settings.swift`）：`app/user/accounts` 原来每次 get 都从 UserDefaults 做 JSON 解码（`AccountSettings` 里还要 SHA-256 密码），而列表每个 cell、播放每 tick 都在读。现在用 `SettingsDecodeCache` 按**原始 Data** 缓存解码结果，set 时同步写缓存。**不要改成实例内存储属性缓存**：`DownloadManager`/`BackendProxy` 持有 `AmperfySettings` 的值拷贝，会看不到后续修改；按 Data 比对的静态缓存才保持原语义。
+- **Now Playing 推送**（`AmperfyKit/Player/NowPlayingInfoCenterHandler.swift`）：`didElapsedTimeChange` 原来每 0.2s 重建整份 `nowPlayingInfo`（读设置、取封面、请求封面下载、重建 `MPMediaItemArtwork`），MediaRemote 每次都重新编码 JPEG。现在 tick 只更新 `ElapsedPlaybackTime`/`PlaybackRate` 两个键且 ≥1s 才推；换歌/暂停/封面变化仍走完整更新，`didPlaybackRateChange` 也会立即推一次。
+- **播放器 tick 去抖**（`Amperfy/Screens/Player/PlayerUIHandler.swift`）：时间标签只在文本变化时赋值、进度条值变化 >0.01 才写、电台渐变 mask 只创建一次；`preferredBehavioralStyle` 也不再每 tick 设置。
+- **侧栏账户块**（`Amperfy/Screens/ViewController/SideBarVC.swift`）：左下角头像+用户名整体固定 128×28，头像 28×28、圆角 14、字号 13，间距 8，footer 高度 48。
+- **设置窗口与侧栏统一**（`Amperfy/SwiftUI/Basics/Settings*.swift`、`SettingsTabView.swift`、`NavigationTarget.swift`）：行文字 13 pt、行高 32、段头 11 pt semibold 次级色/大写、说明 11 pt；内容区去掉分组灰底和分隔线，与侧栏一样平铺；设置侧栏图标改用 outline SF Symbol（gearshape/person/play.circle 等），与主侧栏图标风格一致。
+- **登录界面重设计**（`Amperfy/Screens/ViewController/LoginVC.swift`，2026-11-12）：去掉整块反射壁纸的 Liquid Glass 大卡片和 50 pt 巨型字，改为经典居中式登录：44 pt 应用图标 + 28 pt 半粗主题色「Amperfy」+ 13 pt 副标题「登录以连接你的音乐库」；下方 360 pt 宽分组卡片（圆角 14、`secondarySystemBackground`、1 px 分隔线、轻阴影），行高 44，内含 API 选择行（右侧值 + 上下箭头）、URL/用户名/密码三行（16 pt 三级色图标 + 13 pt 输入）和「自定义 HTTP 头」行；卡片下方通栏 40 pt 主题红填充按钮；关闭按钮改为右上角 28 pt 中性圆形 X。本地模式隐藏用户名/密码/HTTP 头并去掉多余分隔线。新增 L10n 键 `API`/`Source`/`Sign in to your music library`。注意：带 `UIButton.Configuration` 的 API 按钮更新标题要用 `setTitle(_:for:)`，直接改 `configuration.title` 再赋值不会刷新显示。
+- **全局风格统一与转场动效**（2026-11-12）：
+  - **字号/间距**：内容区表格与网格的 mac 字号统一到侧栏/设置的紧凑口径——`GenericTableCell` 13/11 pt（标题/副标题+信息）、`PlayableTableCell` 13/11 pt（标题/艺人+时长）、`AlbumCollectionCell` 13/11 pt；首页与表格内容水平边距统一为 20 pt（`HomeVC.sectionHorizontalInset`、`UIView.defaultMarginCellX`）。大标题、详情页头图等仍保留更大字号维持层级。
+  - **鼠标悬停反馈**：`KeyboardFocusableListCell`（主侧栏行）和 `GenericTableCell`（艺人/专辑/播放列表等列表行）加入 `UIHoverGestureRecognizer` + 0.12 s 淡入的中性灰高亮；侧栏 section 标题行通过 `isHoverHighlightEnabled = false` 不响应悬停。设置窗口侧栏行用 SwiftUI `.onHover` 做同样效果。
+  - **切换侧栏分类**：`SplitVC.replaceSecondary(vc:)` 替换原来的 `setViewController` 硬切。先给旧 secondary 视图做快照盖在上面，换新控制器后旧页 0.1 s 淡出、新页 0.14 s 淡入（fade-through）。**不要改回同时交叉淡入淡出**：两个密集网格叠在一起会像双曝光，已实测难看。快照插在迷你播放器下方，避免遮住底栏。
+  - **进入详情**：`SplitVC.push(vc:)` 在导航栈已上屏时改为 `animated: true`（弹窗播放器关闭后跳转、从预览卡片跳转），栈未上屏时仍立即 push。
+  - **根视图切换**：`SceneDelegate.replaceMainRootViewController` 对已有根视图用 0.28 s 窗口 cross-dissolve（登录→同步→主界面、切换账户）；首次启动仍直接赋值。
+  - **设置窗口**：`SettingsTabView` 详情页按 `.id(selectedMenu)` + 0.18 s 动画淡入淡出；侧栏选中/悬停底色有 0.14 s 过渡。
+  - 验证：首页/专辑/歌曲列表截图确认字号与 20 pt 边距一致；窗口级录屏抽帧确认切换为“旧页淡出→新页淡入”，无双曝光；设置页与登录页布局未回归。录屏请用 `screencapture -l <windowID>` 只录 Amperfy 窗口，避免录到其他 App。
+- **中英文补漏与系统 UI 中文化**（2026-11-12）：
+  - 根因一：`UIContentUnavailableConfiguration.search()` 走的是系统本地化，而 App 只有 `Base.lproj`，所以空搜索状态一直是英文。已新增 `UIContentUnavailableConfiguration.localizedSearch()`（`CommonScreenOperations.swift`），用 L10n 构造“没有结果 / 请检查拼写或尝试新的搜索。”并替换全部 9 处调用。
+  - 根因二：`UIButton.Configuration` 直接改 `configuration.title` 后赋值不会刷新按钮显示（登录页 API 按钮也踩过）。`LibraryElementDetailTableHeaderView` 的播放/随机按钮因此一直显示 nib 里的“Play/Shuffle”，现在赋值后再 `setTitle(_:for:)` 一次。
+  - 硬编码英文统计：专辑/流派/文件夹/播放列表/专辑详情的 `infoCB` 改为 `L10n.tr("%d Album(s)/%d Songs/%d Artist(s)")`；新增 `%d Artist(s)`、`%d Playlist(s)` 中文条目。
+  - 其余补漏：目录页标题与空状态、下载队列“Many Songs”弹窗、播放列表选择/添加弹窗、macOS 菜单栏（打开/关闭播放器窗口、切换资料库/迷你播放器、播放速度、循环、快进/快退等）、CarPlay 列表标题、设置里的自定义 HTTP 头/服务器地址/备用地址/更新密码/App 图标名称、登录失败提示、Instant Mix 事件弹窗、删除缓存确认、音量工具栏标签。
+  - **新增 `Amperfy/zh-Hans.lproj/Localizable.strings` 并加入 pbxproj（knownRegions + Resources）**：App 之前只有 Base.lproj，导致系统提供的 UI（菜单栏“File/Edit/View”、搜索空状态、系统按钮 tooltip）全是英文。加入 zh-Hans 后系统 UI 会自动跟随中文；该文件目前只放系统用到的 `Favorite`/`Queue`，App 自身文案仍走 `L10n`。
+  - 注意：`L10n.chinese` 是字典字面量，**重复 key 会在启动时触发 `Dictionary.init(dictionaryLiteral:)` 断言崩溃**；新增译文前务必查重（本次就因 “Are you sure to delete the cached file?” 重复崩溃过一次，已移除）。
+  - 验证：重启后菜单栏显示 文件/编辑/显示/控制/窗口/帮助；专辑页显示“4 张专辑 / 播放 / 随机播放”；歌曲页“6 首歌曲 / 播放 / 随机播放”；搜索 `zzzzzz` 显示“没有结果 / 请检查拼写或尝试新的搜索。”；无新崩溃。
+- **第二轮硬编码英文清点**（2026-11-12，接上一轮）：
+  - 枚举 `description` 直接进 UI 的两处：`RepeatMode`（`AppDelegateMainMenuExtension` 的循环菜单，补 `Single`=单曲）与 `PlayerQueueType.user.description`（用户队列头），都改为 `L10n.tr(...)`。
+  - xib 默认值残留：`ContextQueueNextSectionHeader` 的 `queueNameLabel` 从不赋值，一直在显示 nib 的 “Next from:”，现在在 `refresh()` 里赋值（“接下来播放：”）；CarPlay 队列头 `Next from: %@` 同步。
+  - 未知元数据占位符：索引器仍把 “Unknown Artist/Album/Genre/Title” **原样写入数据库**（保持语言中性），改在展示侧用 `L10n.trPlaceholder(...)` 翻译（`Artist/Album/Genre/AbstractPlayable/Song` 的 getter）；否则老库里已存的英文占位符永远不会变。
+  - 其余补漏：搜索占位符“在“X”中搜索”（播放列表添加系列 VC）、按星级分组的 “N Star(s)/Not rated”、播放列表添加标题、扫/播放/暂停/搜索等快捷键名、WebDAV/本地文件夹/登录/API 错误描述、下载中/下载失败/无效下载、App 图标提示、文字大小档位名与脚注、事件日志类型与“状态码”、缓存上限“无限制”、X-Callback/Instant Mix 错误、混播上下文名、会话提醒与睡眠定时器事件。
+  - 未处理（属系统共享界面，不在 App 窗口内）：App Intents / Shortcuts 的参数标题仍是英文；事件日志里历史条目的 topic 与系统 `URLSession` 错误文本仍是英文（数据已落库）。
+  - 验证：构建通过并重启；首页随机专辑显示“未知专辑/未知艺人”；设置各页（通用/显示/账户/资料库/播放与串流/轻扫/封面/支持）AX 树无英文；文字大小脚注为“默认：列表和专辑网格中的文字大小。”；事件日志类型显示“错误”。
+- **账户弹窗改自绘 + 单账户移除**（2026-11-12，`SideBarVC.swift`）：左下角账户按钮不再用 `UIMenu`，改为加在 window 上的自绘浮层（宽 194 对齐 210 pt 侧栏、底色 `secondarySystemBackground`、圆角 12、1px 分隔 + 轻阴影，位置贴在账户按钮上方左侧）：每个账户一行（勾选 + 用户名 13 pt + 服务器地址 11 pt），行右侧一个 `minus.circle` 移除按钮；点击弹“移除账户”二次确认，确认后调 `AppDelegate.removeAccount(accountInfo:)`（从设置页“退出登录”抽出的同一套逻辑，任何账户都能直接移除，不必先切换）。底部仍是“添加账户 / 设置”；点浮层外或按 ESC 关闭（ESC 走 `AppDelegate.accountSwitcherDismissHandler` + 动态 keyCommand）。注意：Catalyst 的 `UIPopoverPresentationController` 箭头会渲染成黑色三角，别用 popover；浮层要加在 window 上才能盖住迷你播放器。首版曾用 280 pt 纯白面板，用户指出“颜色太白了 还有太宽了”，现已按侧栏宽度和次级灰重做；新控件请先对齐现有 token。
+- **修复移除账户时的崩溃**：`player.logout` → `AudioPlayer.stop` → `PlayerControlView.didStopPlaying` 会把已释放的 weak IBOutlet（`skipBackwardButton`，崩溃行 `PlayerControlView.swift:599`）传给非可选参数，触发 `EXC_BREAKPOINT`（2026-11-12 12:54 用户退出 Local 账户即崩）。现在 `refreshPlayer()`、`didStopPlaying()`、`didElapsedTimeChange()` 先判空 weak outlet 再刷新；账户删除流程可完整走完。
+- **播放器改为 Apple Music 深色风格**（2026-11-12）：`PopupPlayerVC` 设 `overrideUserInterfaceStyle = .dark`，再在模糊封面图上叠黑色 scrim（`black` alpha 0.15），于是歌词、控制键、收藏/更多、时间标签都按 `.label` 自动变白：未唱行白 60%、当前行未唱部分白 55%、已唱部分纯白。音量胶囊改成近透明（白 12% 填充 + 1px 白 22% 描边），`VolumeSlider.contentColor` 设白，轨道白 30%、填充/胶囊钮纯白；标题栏和播放器内两处音量控件同步。独立歌词页（`LyricsVC`）保持浅色黑字不变。
+- **实测**：同一首 FLAC 缓存播放，CPU 从 ~10–13% 降到 ~7–8%（`top` 瞬时；`ps` 进程均值 4.8%）；`sample` 里 `AppleJPEG` 编码帧 134 → 2；MediaRemote `setNowPlayingInfo` 5 次/秒 → 1 次/秒；tick 调用链里不再出现 `AmperfySettings.accounts` 解码。
+- 验证：重启后设置窗口（主题红色、WebDAV 账户/URL）、首页网格、大播放器歌词、播放中 seek、暂停态 seek 全部正常；改设置开关后 `defaults read ... settings.account` 变化，重启仍生效。
+- 播客/电台删除后复测（2026-11-12）：侧栏只剩 艺人/专辑/最新专辑/最近播放/歌曲/喜爱歌曲/播放列表，首页编辑器同样无播客/电台项；资料库设置无播客计数；播放中暂停 → 点进度条到 2:49 → 播放继续在 2:50 且歌词跟随；无新 `.ips`。注意 CUA 的 `drag` 在 UISlider 上可能只改 AX 值不发 `valueChanged`，验证 seek 要用坐标点击（点击会发 `valueChanged`）。
+- **WebDAV/本地根目录无标签文件不再拿根文件夹名当专辑**（2026-11-12）：用户库根目录直接放了一批没有 album tag 的 flac，旧逻辑 `directoryPath.isEmpty ? rootURL.lastPathComponent : 目录名` 生成了一个叫“猫曦汐喜欢的音乐”的专辑（ID = `stableID("webdav_album_", "path:")`），看起来像文件夹混进“最新专辑”。现在根目录无标签统一用 `"Unknown Album"`（展示侧经 `L10n.trPlaceholder` 显示“未知专辑”），子文件夹仍按文件夹名当专辑；`FileSourceLibraryWriter` 对已存在的专辑同步名称；WebDAV 同步末尾把老库里那个根目录专辑（ID 固定）改名，无需全量重读。验证：重新同步后 DB 中该专辑 `ZNAME = Unknown Album`，首页显示“未知专辑”。另注意这批无标签文件的曲名/艺人是从文件名按“艺人 - 曲名”猜的，用户文件是“曲名 - 艺人”，所以标题会反（未改，属另一个问题）。
+- **设置改为窗口内整页覆盖（不再开独立窗口）**（2026-11-12，按用户要求对齐 Qoder 的设置形态）：`AppDelegate.showSettings` 不再 `requestSceneSessionActivation` 独立 Scene，而是从 `AppDelegate.topViewController()` 以 `.fullScreen` + `.crossDissolve` 呈现 `SettingsHostVC(showsSidebar: true)`，设置侧栏第一行是“返回应用”（`SettingsTabView.onBackToApp`，13 pt、行高 32、悬停反馈与其它行一致），点它或按 ESC 关闭（`SettingsHostVC.keyCommands`），关掉后窗口标题自动回到“首页”。`SettingsHostVC` 的 `isForOwnWindow` 参数改名 `showsSidebar`。设置侧栏行已按首页侧栏对齐：SF Symbol 实心图标（`NavigationTarget.systemImage` 用 `.fill` 变体，16 pt regular、22×22 盒；`tv.fill` 用于“显示与交互”）、行高 38 pt（32 pt 高亮 + 上下 3 pt 间隙）、文字 13 pt、强调色取 `Color.accentColor`，返回行下面不再画分隔线。旧的 `SettingsSceneDelegate` 保留但只做一件事：把老版本残留的设置 Scene session 自毁（`requestSceneSessionDestruction`），避免升级后启动时又弹出一个空设置窗口；`AppDelegate.settingsSceneSession` 已删除。`SceneDelegate.replaceMainRootViewController` 换根前会先 dismiss 已呈现的 modal，防止在设置里退出登录后 modal 悬挂。之前为独立窗口做的 alpha/scale 入场动画随之移除（窗口内 cross-dissolve 已经够顺）。
+- **播放器按钮/码率标签跟 Apple Music 对齐**（2026-11-12，按用户截图反馈）：`PlayerControlView` 五个传输键统一到 `Self.iconTintColor = label 85%`（不再纯白）；尺寸 随机/循环 19 pt bold、上一首/下一首 21 pt、播放/暂停 27 pt（原来 17/22/30，播放和 outline 键比例失衡）；右下工具组同样用 85% 白。**随机/循环的图标颜色必须烘焙进图片**（`UIImage(systemName:withConfiguration:)?.withTintColor(tint, renderingMode: .alwaysOriginal)`）：这两个按钮是代码 new 出来的，`tintColor` 怎么设都只渲染出 ~62% 亮度的灰（实测峰值 158，纯白 tint 也一样），烘焙后五键峰值统一 223；开关打开时用主题色 `themePreference.asColor`（红），不再用 Catalyst 默认蓝色的 `UIColor.tintColor`。循环图标按模式直接取 `repeat`/`repeat.1`。`PlayerUIHandler.refreshTimeInfo` 不再显示 `audioInfoLabel`/`playTypeIcon`（FLAC 888 kbps 那行），`refreshAudioInfo` 已删除；迷你条和大播放器都受影响。
+- **AirPlay 键改为输出设备菜单**（2026-11-12，按用户要求“像 macOS 声音菜单，但别太宽”）：新增 `Amperfy/Screens/Player/AudioOutputPicker.swift`（已进 pbxproj，fileRef `5047B7A0…`）。`AudioOutputRouting` 用 CoreAudio 枚举 `kAudioHardwarePropertyDevices`，只留有输出声道的设备，按 `kAudioDevicePropertyTransportType` 映射图标（builtIn→laptopcomputer、bluetooth→airpodspro、usb→hifispeaker、display→display、virtual→waveform、other→speaker.wave.2）；**过滤掉名字以 `CADefaultDeviceAggregate` 开头的私有聚合设备**，否则 Catalyst 自己的聚合设备会以 `CADefaultDe...-<pid>-0` 出现在菜单里。点击行调 `AudioObjectSetPropertyData(kAudioHardwarePropertyDefaultOutputDevice)` 切系统默认输出，然后收起。面板为 window 级自绘浮层（宽 230、行高 38、**背景和迷你条同一套 `UIGlassEffect(style: .regular)`**（`isInteractive = false`，玻璃视图圆角 12 + clipsToBounds，阴影在外层 panel）、13 pt 名称、当前设备行尾 `checkmark` 12 semibold、悬停 6% 灰），贴在按钮上方、空间不足翻到下方，x 右对齐并夹紧窗口；点外部关闭，ESC 走 `AppDelegate.audioOutputPickerDismissHandler`（与账户浮层共用 `dismissActiveOverlayFromKeyboard`）。**每行必须显式 `heightAnchor == rowHeight`**：`.fill` 分布的 UIStackView 会把多出来的高度全给第一行（曾出现 AirPods 那行高出一倍）。`PopupPlayerVC.viewWillDisappear` 里调 `AudioOutputPicker.dismiss()`，否则关闭大播放器后浮层会留在窗口中间（ESC 关闭播放器时 UIKit 自动 dismiss 不走我们的 keyCommand）。iOS 分支仍走 `MPVolumeView`。行设置 `isAccessibilityElement`/`.button`/`.selected`，鼠标以外也可用。注意：真机验证时默认输出会被环境里别的东西抢回（本机 AirPods Pro 自动接管 / BlackHole），我们的 setter 本身是生效的（关掉 App 后 `swift /tmp/setout.swift` 设了也会被抢），别误判成 bug。
+- **夜间模式（外观）已内建并补两处传播缺口**（2026-11-12，用户要求“和 Apple Music 原生一样好”）：App 本来就有 设置 → 显示与交互 → 外观（系统/浅色/深色），值存在 `settings.user` 的 `_appearanceMode`（0=系统 / 1=浅色 / 2=深色），经 `AppDelegate.setAppAppearanceMode` 写 `window.overrideUserInterfaceStyle`，选“系统”时随 macOS 实时切换；所有页面用的是语义色（`systemBackground`/`secondarySystemBackground`/`label` 等），深色下内容区 #1E1E1E、侧栏 #262524。本次只修了两个缺口：`MiniPlayerSceneDelegate` 新建的弹窗/迷你窗口原先跟随系统而不是 App 内选择，现在创建后立刻 `overrideUserInterfaceStyle = settings.user.appearanceMode`；`SceneDelegate` 先把存储的外观应用到窗口再 `makeKeyAndVisible()`，避免系统浅色 + App 强制深色时首帧闪白。**大播放器仍固定 `.dark`**（见上一条 Apple Music 风格），这是有意为之，不受外观设置影响；独立 `LyricsVC` 也仍是浅色。已知小瑕疵：Catalyst 侧栏/列表的分段索引字母仍用主题红（`tableView.sectionIndexColor` 无效果，已回退，不保留死代码）。验证：系统浅色/深色与 App 内三项交叉切换，首页网格、专辑/歌曲列表、专辑详情、搜索、各设置页、账户浮层、AirPlay 面板均正确换色；强制深色（`_appearanceMode=2`、系统浅色）重启也无白闪。
+
 ---
 
 ## 5. 现状与验证方法
@@ -174,7 +227,7 @@ pkill -f "Amperfy.app/Contents/MacOS/Amperfy"; sleep 2; open <Amperfy.app 路径
 ### 手动验证路径
 
 1. `open` App → 主窗口 `首页`，底部有迷你条。
-2. 点击迷你条**封面/标题区** → 主窗口内整页播放器（同一窗口，`crossDissolve` 淡入，不再是 sheet，也不切独立窗口）。
+2. 点击迷你条**封面/标题区** → 主窗口内整页播放器（同一窗口，`coverVertical` 从下往上滑入；关闭时向下滑出，不再是 sheet，也不切独立窗口）。
 3. 检查：音量胶囊在右上；两栏布局（左封面+信息，右歌词）；5 个控制键一行；右下 3 个工具图标。
 4. 点右下 List 图标 → compact：音量滑块消失、音量按钮出现在右下；再点一次切回 large。
 5. 播放/暂停、点进度条、拖音量应正常。

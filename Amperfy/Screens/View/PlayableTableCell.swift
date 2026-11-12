@@ -111,6 +111,12 @@ class PlayableTableCell: BasicTableCell {
     super.awakeFromNib()
     // This must be called in Main thread
     MainActor.assumeIsolated {
+      #if targetEnvironment(macCatalyst)
+        // Compact macOS list typography, matching the sidebar and settings (13/11 pt).
+        titleLabel?.font = .systemFont(ofSize: 13)
+        artistLabel?.font = .systemFont(ofSize: 11)
+        durationLabel?.font = .systemFont(ofSize: 11)
+      #endif
       playContextCb = nil
       hoverGestureRecognizer = UIHoverGestureRecognizer(
         target: self,
@@ -379,7 +385,7 @@ class PlayableTableCell: BasicTableCell {
     favoriteIconImage.isHidden = !playable.isFavorite
     favoriteIconImage.tintColor = .red
 
-    let isDurationVisible = !playable.isRadio &&
+    let isDurationVisible =
       (
         userSettings.isShowSongDuration || (traitCollection.horizontalSizeClass == .regular)
       )

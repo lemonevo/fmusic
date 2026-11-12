@@ -23,10 +23,6 @@ import AmperfyKit
 import Foundation
 import UIKit
 
-extension UNNotification: @unchecked @retroactive Sendable {}
-extension UNNotificationResponse: @unchecked @retroactive Sendable {}
-extension UNUserNotificationCenter: @unchecked @retroactive Sendable {}
-
 // MARK: - PopupPlayerDirection
 
 enum PopupPlayerDirection {
@@ -35,51 +31,7 @@ enum PopupPlayerDirection {
   case toggle
 }
 
-// MARK: - AppDelegate + UNUserNotificationCenterDelegate
-
-extension AppDelegate: UNUserNotificationCenterDelegate {
-  func configureNotificationHandling() {
-    UNUserNotificationCenter.current().delegate = self
-  }
-
-  func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    willPresent notification: UNNotification
-  ) async
-    -> UNNotificationPresentationOptions {
-    [.list, .banner]
-  }
-
-  func userNotificationCenter(
-    _ center: UNUserNotificationCenter,
-    didReceive response: UNNotificationResponse
-  ) async {
-    let userInfo = response.notification.request.content.userInfo
-    guard let contentTypeRaw = userInfo[NotificationUserInfo.type] as? String,
-          let contentType = NotificationContentType(rawValue: contentTypeRaw),
-          let accountIdent = userInfo[NotificationUserInfo.account] as? String,
-          let accountInfo = AccountInfo.create(basedOnIdent: accountIdent),
-          let id = userInfo[NotificationUserInfo.id] as? String else {
-      return
-    }
-
-    Task { @MainActor in
-      userStatistics.appStartedViaNotification()
-      switch contentType {
-      case .podcastEpisode:
-        let account = storage.main.library.getAccount(info: accountInfo)
-        let episode = storage.main.library.getPodcastEpisode(for: account, id: id)
-        if let podcast = episode?.podcast {
-          let podcastDetailVC = AppStoryboard.Main.segueToPodcastDetail(
-            account: account,
-            podcast: podcast
-          )
-          displayInLibraryTab(vc: podcastDetailVC)
-        }
-      }
-    }
-  }
-
+extension AppDelegate {
   func displayInLibraryTab(vc: UIViewController) {
     Self.mainWindowHostVC?.pushNavLibrary(vc: vc)
   }

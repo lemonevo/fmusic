@@ -54,7 +54,7 @@ public class Artist: AbstractLibraryEntity {
   public var playables: [AbstractPlayable] { songs }
 
   public var name: String {
-    get { managedObject.name ?? "Unknown Artist" }
+    get { L10n.trPlaceholder(managedObject.name ?? "Unknown Artist") }
     set {
       if managedObject.name != newValue {
         managedObject.name = newValue

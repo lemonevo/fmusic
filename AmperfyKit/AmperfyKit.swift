@@ -60,8 +60,7 @@ public class AmperKit {
         networkMonitor: networkMonitor,
         performanceMonitor: threadPerformanceMonitor,
         eventLogger: eventLogger,
-        notificationHandler: notificationHandler,
-        localNotificationManager: localNotificationManager
+        notificationHandler: notificationHandler
       )
       metaManager[accountInfo] = newManager
       return newManager
@@ -134,15 +133,6 @@ public class AmperKit {
       cacheProxy: storage.main.library,
       userStatistics: userStatistics
     )
-
-    backendAudioPlayer.setStreamingMaxBitrates(to: StreamingMaxBitrates(
-      wifi: storage.settings.user.streamingMaxBitrateWifiPreference,
-      cellular: storage.settings.user.streamingMaxBitrateCellularPreference
-    ))
-    backendAudioPlayer.setStreamingTranscodings(to: StreamingTranscodings(
-      wifi: storage.settings.user.streamingFormatWifiPreference,
-      cellular: storage.settings.user.streamingFormatCellularPreference
-    ))
 
     let playerData = storage.main.library.getPlayerData()
     let queueHandler = PlayQueueHandler(playerData: playerData)
@@ -226,10 +216,5 @@ public class AmperKit {
 
   public lazy var userStatistics = {
     storage.main.library.getUserStatistics(appVersion: Self.version)
-  }()
-
-  @MainActor
-  public lazy var localNotificationManager = {
-    LocalNotificationManager(userStatistics: userStatistics, storage: storage)
   }()
 }

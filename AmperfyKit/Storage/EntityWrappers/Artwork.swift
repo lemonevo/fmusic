@@ -75,12 +75,6 @@ public class Artwork: NSObject {
     set { managedObject.status = newValue.rawValue }
   }
 
-  public func markErrorIfNeeded() {
-    if status != .CustomImage {
-      status = .FetchError
-    }
-  }
-
   public var relFilePath: URL? {
     get {
       if let relFilePathString = managedObject.relFilePath {

@@ -52,14 +52,14 @@ extension AppDelegate {
       let fileMenus = [
         UIMenu(options: .displayInline, children: [
           UIAction(
-            title: "Open Player Window",
+            title: L10n.tr("Open Player Window"),
             image: AmperfyImage.openPlayerWindow.asUIImage,
             attributes: isMainOrMiniPlayerPlayerOpen ? .disabled : []
           ) { _ in
             self.openMainWindow()
           },
           UIKeyCommand(
-            title: "Close Player Window",
+            title: L10n.tr("Close Player Window"),
             image: AmperfyImage.xmark.asUIImage,
             action: #selector(closePlayerWindow),
             input: "W",
@@ -69,7 +69,7 @@ extension AppDelegate {
         ]),
         UIMenu(options: .displayInline, children: [
           UIAction(
-            title: "Switch Library/Mini Player",
+            title: L10n.tr("Switch Library/Mini Player"),
             image: AmperfyImage.switchPlayerWindow.asUIImage
           ) { _ in
             if self.isShowingMiniPlayer {
@@ -86,7 +86,7 @@ extension AppDelegate {
       builder.insertChild(fileMenus[0], atStartOfMenu: .file)
       let openSettingsMenu = UIMenu(options: .displayInline, children: [
         UIKeyCommand(
-          title: "Settings…",
+          title: L10n.tr("Settings…"),
           image: AmperfyImage.settings.asUIImage,
           action: #selector(showSettings),
           input: ",",
@@ -98,12 +98,12 @@ extension AppDelegate {
 
     // Add media controls
     builder.insertSibling(
-      UIMenu(title: "Controls", children: buildControlsMenu()),
+      UIMenu(title: L10n.tr("Controls"), children: buildControlsMenu()),
       afterMenu: .view
     )
 
     builder.insertChild(UIMenu(options: .displayInline, children: [
-      UIAction(title: "Report an issue on GitHub") { _ in
+      UIAction(title: L10n.tr("Report an issue on GitHub")) { _ in
         if let url = URL(string: "https://github.com/BLeeEZ/amperfy/issues") {
           UIApplication.shared.open(url)
         }
@@ -179,13 +179,13 @@ extension AppDelegate {
 
     let section1 = [
       UIKeyCommand(
-        title: isPlaying ? (player.isStopInsteadOfPause ? "Stop Radio" : "Pause") : "Play",
+        title: isPlaying ? (player.isStopInsteadOfPause ? L10n.tr("Stop") : L10n.tr("Pause")) : L10n.tr("Play"),
         image: isPlaying ? (player.isStopInsteadOfPause ? .stop : .pause) : .play,
         action: isPlaying ? #selector(keyCommandPause) : #selector(keyCommandPlay),
         input: " "
       ),
       UIKeyCommand(
-        title: (isPlaying && player.isStopInsteadOfPause) ? "Stop Player" : "Stop",
+        title: (isPlaying && player.isStopInsteadOfPause) ? L10n.tr("Stop Player") : L10n.tr("Stop"),
         image: .stop,
         action: #selector(keyCommandStop),
         input: ".",
@@ -193,7 +193,7 @@ extension AppDelegate {
         attributes: []
       ),
       UIKeyCommand(
-        title: "Next Track",
+        title: L10n.tr("Next Track"),
         image: .forwardMenu,
         action: #selector(keyCommandNext),
         input: UIKeyCommand.inputRightArrow,
@@ -201,7 +201,7 @@ extension AppDelegate {
         attributes: []
       ),
       UIKeyCommand(
-        title: "Previous Track",
+        title: L10n.tr("Previous Track"),
         image: .backwardMenu,
         action: #selector(keyCommandPrevious),
         input: UIKeyCommand.inputLeftArrow,
@@ -209,7 +209,7 @@ extension AppDelegate {
         attributes: []
       ),
       UIKeyCommand(
-        title: "Skip Forward: " + Int(player.skipForwardInterval).description + " sec.",
+        title: L10n.tr("Skip Forward: %@ sec.", String(Int(player.skipForwardInterval))),
         image: player.skipForwardIcon,
         action: #selector(keyCommandSkipForward),
         input: UIKeyCommand.inputRightArrow,
@@ -217,7 +217,7 @@ extension AppDelegate {
         attributes: isSkipAvailable ? [] : [.disabled]
       ),
       UIKeyCommand(
-        title: "Skip Backward: " + Int(player.skipBackwardInterval).description + " sec.",
+        title: L10n.tr("Skip Backward: %@ sec.", String(Int(player.skipBackwardInterval))),
         image: player.skipBackwardIcon,
         action: #selector(keyCommandSkipBackward),
         input: UIKeyCommand.inputLeftArrow,
@@ -225,7 +225,7 @@ extension AppDelegate {
         attributes: isSkipAvailable ? [] : [.disabled]
       ),
       UIKeyCommand(
-        title: "Go to Current Song",
+        title: L10n.tr("Go to Current Song"),
         image: .currentSongMenu,
         action: #selector(keyCommandGoToCurrent),
         input: "L",
@@ -236,7 +236,7 @@ extension AppDelegate {
 
     var section2 = [
       UIMenu(
-        title: "Playback Rate",
+        title: L10n.tr("Playback Rate"),
         image: .playbackRate,
         children: PlaybackRate.allCases.map { rate in
           UIAction(
@@ -251,11 +251,11 @@ extension AppDelegate {
 
     if appDelegate.player.playerMode == .music {
       let repeatMenu = UIMenu(
-        title: "Repeat",
+        title: L10n.tr("Repeat"),
         image: .repeatMenu,
         children: RepeatMode.allCases.map { mode in
           UIAction(
-            title: mode.description,
+            title: L10n.tr(mode.description),
             state: mode == self.player.repeatMode ? .on : .off
           ) { _ in
             self.player.setRepeatMode(mode)
@@ -266,11 +266,11 @@ extension AppDelegate {
     }
     if appDelegate.player.playerMode == .music,
        appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled {
-      let shuffleMenu = UIMenu(title: "Shuffle", image: .shuffleMenu, children: [
-        UIAction(title: "On", state: isShuffle ? .on : .off) { [weak self] _ in
+      let shuffleMenu = UIMenu(title: L10n.tr("Shuffle"), image: .shuffleMenu, children: [
+        UIAction(title: L10n.tr("On"), state: isShuffle ? .on : .off) { [weak self] _ in
           self?.keyCommandShuffleOn()
         },
-        UIAction(title: "Off", state: !isShuffle ? .on : .off) { [weak self] _ in
+        UIAction(title: L10n.tr("Off"), state: !isShuffle ? .on : .off) { [weak self] _ in
           self?.keyCommandShuffleOff()
         },
       ])
@@ -283,16 +283,7 @@ extension AppDelegate {
       }),
     ]
 
-    let section4 = [
-      UIAction(
-        title: "Switch Music/Podcast mode",
-        image: player.playerMode == .music ? .musicalNotes : .podcast
-      ) { _ in
-        self.player.setPlayerMode(self.player.playerMode.nextMode)
-      },
-    ]
-
-    let sections: [[UIMenuElement]] = [section1, section2, section3, section4]
+    let sections: [[UIMenuElement]] = [section1, section2, section3]
 
     return sections.reduce([]) { result, section in
       result + [UIMenu(options: .displayInline)] + section
@@ -311,13 +302,15 @@ extension AppDelegate {
 
   @objc
   func showSettings(sender: Any) {
-    let settingsActivity = NSUserActivity(activityType: settingsWindowActivityType)
-    UIApplication.shared.requestSceneSessionActivation(
-      settingsSceneSession,
-      userActivity: settingsActivity,
-      options: nil,
-      errorHandler: nil
-    )
+    // Settings covers the main window content instead of opening a separate scene window.
+    guard let topView = AppDelegate.topViewController(),
+          topView.presentedViewController == nil,
+          !(topView is SettingsHostVC)
+    else { return }
+    let settingsVC = SettingsHostVC(showsSidebar: true)
+    settingsVC.modalPresentationStyle = .fullScreen
+    settingsVC.modalTransitionStyle = .crossDissolve
+    topView.present(settingsVC, animated: true)
   }
 
   var isShowingMiniPlayer: Bool {
@@ -388,7 +381,7 @@ extension AppDelegate {
       )
     } else {
       let endOfTrack = UIAction(
-        title: L10n.tr("End of Song or Podcast Episode"),
+        title: L10n.tr("End of Song"),
         image: nil,
         handler: { _ in
           self.player.isShouldPauseAfterFinishedPlaying = true
@@ -453,7 +446,7 @@ extension AppDelegate {
           self.appDelegate.player.pause()
           self.appDelegate.eventLogger.info(
             topic: "Sleep Timer",
-            message: "Sleep Timer paused playback."
+            message: L10n.tr("Sleep Timer paused playback.")
           )
           self.appDelegate.sleepTimer?.invalidate()
           self.appDelegate.sleepTimer = nil

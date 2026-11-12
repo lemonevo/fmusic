@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import AmperfyKit
 import Foundation
 
 @MainActor
@@ -32,8 +33,8 @@ class WelcomePopupPresenter: NSObject {
   private func displaySyncInfo() {
     let popupVC = AppStoryboard.Main.segueToLibrarySyncPopup()
     popupVC.setContent(
-      topic: "Synchronization",
-      detailMessage: "Your music library is read directly from the selected folder or WebDAV server. Use \"Resync Library\" in the account settings to pick up added or removed files.",
+      topic: L10n.tr("Synchronization"),
+      detailMessage: L10n.tr("Your music library is read directly from the selected folder or WebDAV server. Use \"Resync Library\" in the account settings to pick up added or removed files."),
       customIcon: .refresh,
       customAnimation: .rotate,
       onClosePressed: { _ in

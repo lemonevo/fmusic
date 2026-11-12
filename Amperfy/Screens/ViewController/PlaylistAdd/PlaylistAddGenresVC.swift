@@ -24,7 +24,7 @@ import CoreData
 import UIKit
 
 class PlaylistAddGenresVC: SingleFetchedResultsTableViewController<GenreMO>, PlaylistVCAddable {
-  override var sceneTitle: String? { "Genres" }
+  override var sceneTitle: String? { L10n.tr("Genres") }
 
   public var addToPlaylistManager = AddToPlaylistManager()
 
@@ -52,10 +52,10 @@ class PlaylistAddGenresVC: SingleFetchedResultsTableViewController<GenreMO>, Pla
     singleFetchedResultsController = fetchedResultsController
 
     configureSearchController(
-      placeholder: "Search in \"Genres\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Genres")),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
-    setNavBarTitle(title: "Genres")
+    setNavBarTitle(title: L10n.tr("Genres"))
     tableView.register(nibName: GenericTableCell.typeName)
     tableView.reloadOnTextSizeChange { GenericTableCell.rowHeightWithoutImage }
     tableView.sectionHeaderHeight = 0.0

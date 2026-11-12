@@ -81,6 +81,10 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   override func viewDidLoad() {
     super.viewDidLoad()
 
+    // The player follows Apple Music's dark, artwork-driven surface: white lyrics and white
+    // controls stay readable on the blurred artwork.
+    overrideUserInterfaceStyle = .dark
+
     tableView.delegate = self
     tableView.dataSource = self
     tableView.dragDelegate = self
@@ -92,6 +96,20 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     playerHandler = PlayerUIHandler(player: player, style: .popupPlayer)
 
     backgroundImage.setBackgroundBlur(style: .prominent)
+
+    // Dim the blurred artwork so white lyrics and controls keep enough contrast. This is the
+    // dark scrim Apple Music puts over the full player background.
+    let scrim = UIView()
+    scrim.translatesAutoresizingMaskIntoConstraints = false
+    scrim.backgroundColor = UIColor.black.withAlphaComponent(0.15)
+    scrim.isUserInteractionEnabled = false
+    view.insertSubview(scrim, aboveSubview: backgroundImage)
+    NSLayoutConstraint.activate([
+      scrim.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      scrim.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      scrim.topAnchor.constraint(equalTo: view.topAnchor),
+      scrim.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+    ])
 
     controlPlaceholderHeightConstraint.constant = PlayerControlView
       .frameHeight + safetyMarginOnBottom
@@ -202,10 +220,11 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
         withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
       )
     )
-    icon.tintColor = .label
+    icon.tintColor = .white
     icon.setContentHuggingPriority(.required, for: .horizontal)
 
     let slider = VolumeSlider()
+    slider.contentColor = .white
     slider.value = player.volume
     slider.accessibilityLabel = L10n.tr("Volume")
     slider.addTarget(self, action: #selector(volumeSliderChanged(_:)), for: .valueChanged)
@@ -217,23 +236,25 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     stack.alignment = .center
     stack.translatesAutoresizingMaskIntoConstraints = false
 
-    // The control floats above the artwork, which can be light or dark: a blurred material
-    // capsule stays readable on both without reading as a solid black blob.
-    let container = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    // Faint glass capsule, like Apple Music: the artwork stays visible through it.
+    let container = UIView()
     container.translatesAutoresizingMaskIntoConstraints = false
     container.layer.cornerRadius = 18
-    container.clipsToBounds = true
-    container.contentView.addSubview(stack)
+    container.layer.cornerCurve = .continuous
+    container.backgroundColor = UIColor.white.withAlphaComponent(0.12)
+    container.layer.borderWidth = 1.0 / UIScreen.main.scale
+    container.layer.borderColor = UIColor.white.withAlphaComponent(0.22).cgColor
+    container.addSubview(stack)
     view.addSubview(container)
     NSLayoutConstraint.activate([
       container.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
       container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
       container.widthAnchor.constraint(equalToConstant: 180),
       container.heightAnchor.constraint(equalToConstant: 36),
-      stack.leadingAnchor.constraint(equalTo: container.contentView.leadingAnchor, constant: 14),
-      stack.trailingAnchor.constraint(equalTo: container.contentView.trailingAnchor, constant: -14),
-      stack.topAnchor.constraint(equalTo: container.contentView.topAnchor),
-      stack.bottomAnchor.constraint(equalTo: container.contentView.bottomAnchor),
+      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14),
+      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -14),
+      stack.topAnchor.constraint(equalTo: container.topAnchor),
+      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
     ])
     volumeSliderControl = container
     #if targetEnvironment(macCatalyst)
@@ -402,6 +423,7 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   override func viewWillDisappear(_ animated: Bool) {
     super.viewWillDisappear(animated)
     resignFirstResponder()
+    AudioOutputPicker.dismiss()
     #if targetEnvironment(macCatalyst)
       isPlayerVisible = false
       windowVolumeControl?.detach()
@@ -442,30 +464,23 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   func favoritePressed() {
     switch player.playerMode {
     case .music:
-      guard let playableInfo = player.currentlyPlaying else { return }
-      if playableInfo.isSong, let account = playableInfo.account {
-        Task { @MainActor in
-          do {
-            try await playableInfo
-              .remoteToggleFavorite(
-                syncer: self.appDelegate.getMeta(account.info)
-                  .librarySyncer
-              )
-          } catch {
-            self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
-          }
-          self.refresh()
-        }
-      } else if let radio = playableInfo.asRadio,
-                let siteURL = radio.siteURL {
-        UIApplication.shared.open(siteURL)
-      }
-    case .podcast:
-      guard let podcastEpisode = player.currentlyPlaying?.asPodcastEpisode
+      guard let playableInfo = player.currentlyPlaying,
+            playableInfo.isSong,
+            let account = playableInfo.account
       else { return }
-      let plainDetailsVC = PlainDetailsVC()
-      plainDetailsVC.display(podcastEpisode: podcastEpisode, on: self)
-      present(plainDetailsVC, animated: true)
+      Task { @MainActor in
+        do {
+          try await playableInfo
+            .remoteToggleFavorite(
+              syncer: self.appDelegate.getMeta(account.info)
+                .librarySyncer
+            )
+        } catch {
+          self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
+        }
+        self.refresh()
+      }
+    case .podcast: break
     }
   }
 
@@ -486,19 +501,6 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
         songToScrollTo: song
       )
       closePopupPlayerAndDisplayInLibraryTab(vc: albumDetailVC)
-    }
-  }
-
-  func displayPodcastDetail() {
-    if let podcastEpisode = player.currentlyPlaying?.asPodcastEpisode,
-       let podcast = podcastEpisode.podcast,
-       let account = podcastEpisode.account {
-      let podcastDetailVC = AppStoryboard.Main.segueToPodcastDetail(
-        account: account,
-        podcast: podcast,
-        episodeToScrollTo: podcastEpisode
-      )
-      closePopupPlayerAndDisplayInLibraryTab(vc: podcastDetailVC)
     }
   }
 
@@ -566,7 +568,7 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
       userQueueSectionView.hide()
     } else {
       userQueueSectionView.display(
-        name: PlayerQueueType.user.description,
+        name: L10n.tr(PlayerQueueType.user.description),
         buttonPressAction: clearUserQueue
       )
     }

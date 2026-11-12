@@ -44,8 +44,6 @@ extension PlayerMode {
     switch type {
     case .music:
       return .music
-    case .podcast:
-      return .podcast
     }
   }
 }
@@ -57,23 +55,19 @@ extension PlayableContainerTypeAppEnum {
       return .artist
     case "song":
       return .song
-    case "podcastEpisode":
-      return .podcastEpisode
     case "playlist":
       return .playlist
     case "album":
       return .album
     case "genre":
       return .genre
-    case "podcast":
-      return .podcast
     default:
       return nil
     }
   }
 
   public static var allCasesDescription: String {
-    "artist, song, podcastEpisode, playlist, album, genre, podcast"
+    "artist, song, playlist, album, genre"
   }
 }
 
@@ -111,15 +105,15 @@ enum AmperfyAppIntentError: Error, LocalizedError {
   var errorDescription: String? {
     switch self {
     case .notFound:
-      return "I couldn’t find an element with the provided information."
+      return L10n.tr("I couldn’t find an element with the provided information.")
     case .accountNotValid:
-      return "The provided account is not valid."
+      return L10n.tr("The provided account is not valid.")
     case .changesOnlyInOnlineMode:
-      return "Can only be changed in online mode."
+      return L10n.tr("Can only be changed in online mode.")
     case .noItemIsPlaying:
-      return "There is currently no item playing."
+      return L10n.tr("There is currently no item playing.")
     case .serverSyncFailed:
-      return "Changes could not be send to server."
+      return L10n.tr("Changes could not be send to server.")
     }
   }
 
@@ -846,15 +840,12 @@ public class IntentManager {
       mediaSearch.mediaType == .music {
       // media type is provided by user
       // "play music" => mediaType: 18
-      // "play podcasts" => mediaType: 6
       // "play song <blub> by <artist>" => mediaType: 1; mediaName: blub; artistNames: artist
       // "play song <blub>" => mediaType: 1; mediaName: blub; artistNames: -
       // "play album <blub>" => mediaType: 2; mediaName: blub; artistNames: -
       // "play artist <blub>" => mediaType: 3; mediaName: blub; artistNames: -
       // "play <Rock>" => mediaType: 4; mediaName: -; artistNames: -; genreNames: Rock
       // "play playlist <blub>" => mediaType: 5; mediaName: blub; artistNames: -
-      // "play podcast <blub>" => mediaType: 6; mediaName: blub; artistNames: -
-      // "play radio <blub>" => mediaType: 16; mediaName: blub; artistNames: -
       if mediaSearch.mediaType == .music {
         os_log("Play Music", log: self.log, type: .info)
         let playableElements = library.getRandomSongs(
@@ -865,46 +856,11 @@ public class IntentManager {
           playableElements: playableElements,
           item: INMediaItem(
             identifier: nil,
-            title: "Random Songs",
+            title: L10n.tr("Random Songs"),
             type: INMediaItemType.music,
             artwork: nil
           )
         )
-      } else if mediaSearch.mediaType == .podcastShow ||
-        mediaSearch.mediaType == .podcastEpisode ||
-        mediaSearch.mediaType == .podcastStation ||
-        mediaSearch.mediaType == .podcastPlaylist {
-        os_log("Play Podcasts", log: self.log, type: .info)
-        let playableElements = library.getNewestPodcastEpisode(for: account, count: 1)
-        if !playableElements.isEmpty {
-          result = AmperfyMediaIntentItemResult(
-            playableElements: playableElements,
-            item: INMediaItem(
-              identifier: nil,
-              title: playableElements[0].title,
-              type: INMediaItemType.podcastEpisode,
-              artwork: nil,
-              artist: playableElements[0].creatorName
-            )
-          )
-        }
-      } else if mediaSearch.mediaName == nil,
-                mediaSearch.mediaType == .musicStation || mediaSearch.mediaType == .radioStation ||
-                mediaSearch.mediaType == .station {
-        os_log("Play random Radio", log: self.log, type: .info)
-        let randomRadio = library.getRadios(for: account).randomElement()
-        if let randomRadio {
-          result = AmperfyMediaIntentItemResult(
-            playableElements: [randomRadio],
-            item: INMediaItem(
-              identifier: nil,
-              title: "Random radio \(randomRadio.title)",
-              type: INMediaItemType.radioStation,
-              artwork: nil,
-              artist: nil
-            )
-          )
-        }
       } else if let mediaName = mediaSearch.mediaName {
         os_log(
           "Search explicitly in %ss: <%s>",
@@ -1023,24 +979,6 @@ public class IntentManager {
           }
         }
         if result == nil {
-          os_log("Search implicitly in podcasts: <%s>", log: self.log, type: .info, mediaName)
-          if let playableContainer = getPlayableContainer(
-            searchTerm: mediaName,
-            searchCategory: .podcast,
-            account: account
-          ) {
-            result = AmperfyMediaIntentItemResult(
-              playableContainer: playableContainer,
-              item: INMediaItem(
-                identifier: nil,
-                title: playableContainer.name,
-                type: INMediaItemType.podcastShow,
-                artwork: nil
-              )
-            )
-          }
-        }
-        if result == nil {
           os_log("Search implicitly in albums: <%s>", log: self.log, type: .info, mediaName)
           if let playableContainer = getPlayableContainer(
             searchTerm: mediaName,
@@ -1071,49 +1009,6 @@ public class IntentManager {
                 identifier: nil,
                 title: playableContainer.name,
                 type: INMediaItemType.song,
-                artwork: nil,
-                artist: playableContainer.subtitle
-              )
-            )
-          }
-        }
-        if result == nil {
-          os_log("Search implicitly in radios: <%s>", log: self.log, type: .info, mediaName)
-          if let playableContainer = getPlayableContainer(
-            searchTerm: mediaName,
-            searchCategory: .radio,
-            account: account
-          ) {
-            result = AmperfyMediaIntentItemResult(
-              playableContainer: playableContainer,
-              item: INMediaItem(
-                identifier: nil,
-                title: playableContainer.name,
-                type: INMediaItemType.radioStation,
-                artwork: nil,
-                artist: nil
-              )
-            )
-          }
-        }
-        if result == nil {
-          os_log(
-            "Search implicitly in podcastEpisodes: <%s>",
-            log: self.log,
-            type: .info,
-            mediaName
-          )
-          if let playableContainer = getPlayableContainer(
-            searchTerm: mediaName,
-            searchCategory: .podcastEpisode,
-            account: account
-          ) {
-            result = AmperfyMediaIntentItemResult(
-              playableContainer: playableContainer,
-              item: INMediaItem(
-                identifier: nil,
-                title: playableContainer.name,
-                type: INMediaItemType.podcastEpisode,
                 artwork: nil,
                 artist: playableContainer.subtitle
               )
@@ -1202,11 +1097,6 @@ public class IntentManager {
         search: searchTerm
       )
       .first
-    case .podcastEpisode:
-      playableContainer = FuzzySearcher.findBestMatch(
-        in: library.getPodcastEpisodes(for: account),
-        search: searchTerm
-      ).first
     case .playlist:
       playableContainer = FuzzySearcher
         .findBestMatch(in: library.getPlaylists(for: account), search: searchTerm).first
@@ -1219,18 +1109,6 @@ public class IntentManager {
     case .genre:
       playableContainer = FuzzySearcher.findBestMatch(
         in: library.getGenres(for: account),
-        search: searchTerm
-      )
-      .first
-    case .podcast:
-      playableContainer = FuzzySearcher.findBestMatch(
-        in: library.getPodcasts(for: account),
-        search: searchTerm
-      )
-      .first
-    case .radio:
-      playableContainer = FuzzySearcher.findBestMatch(
-        in: library.getRadios(for: account),
         search: searchTerm
       )
       .first
@@ -1280,8 +1158,6 @@ public class IntentManager {
       case .none:
         playableContainer = library.getArtistLocal(for: account, name: id)
       }
-    case .podcastEpisode:
-      playableContainer = library.getPodcastEpisode(for: account, id: id)
     case .playlist:
       playableContainer = library.getPlaylist(for: account, id: id)
     case .album:
@@ -1295,10 +1171,6 @@ public class IntentManager {
       case .none:
         playableContainer = library.getGenre(for: account, name: id)
       }
-    case .podcast:
-      playableContainer = library.getPodcast(for: account, id: id)
-    case .radio:
-      playableContainer = library.getRadio(for: account, id: id)
     }
     return playableContainer
   }
@@ -1419,18 +1291,12 @@ extension PlayableContainerTypeAppEnum {
       return "artist"
     case .song:
       return "song"
-    case .podcastEpisode:
-      return "podcastEpisode"
     case .playlist:
       return "playlist"
     case .album:
       return "album"
     case .genre:
       return "genre"
-    case .podcast:
-      return "podcast"
-    case .radio:
-      return "radio"
     }
   }
 }
@@ -1451,13 +1317,13 @@ extension PlayableContainerTypeAppEnum {
     case .playlist:
       return .playlist
     case .podcastShow:
-      return .podcast
+      return nil
     case .podcastEpisode:
-      return .podcastEpisode
+      return nil
     case .podcastPlaylist:
-      return .podcast
+      return nil
     case .musicStation:
-      return .radio
+      return nil
     case .audioBook:
       return nil
     case .movie:
@@ -1469,11 +1335,11 @@ extension PlayableContainerTypeAppEnum {
     case .musicVideo:
       return nil
     case .podcastStation:
-      return .podcast
+      return nil
     case .radioStation:
-      return .radio
+      return nil
     case .station:
-      return .radio
+      return nil
     case .music:
       return nil
     case .algorithmicRadioStation:

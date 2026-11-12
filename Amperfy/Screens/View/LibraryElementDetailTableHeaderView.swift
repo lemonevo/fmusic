@@ -170,6 +170,10 @@ class LibraryElementDetailTableHeaderView: UIView {
       tintColor: appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
         .asColor
     )
+    // Assigning a configuration does not refresh the displayed title on this OS (the button
+    // keeps the title from the nib), so set it explicitly as well.
+    playAllButton.setTitle(playTitle, for: .normal)
+    playShuffledButton.setTitle(shuffleTitle, for: .normal)
     playShuffledButton.isHidden = configuration.isShuffleHidden
     activate()
     registerForTraitChanges(

@@ -90,27 +90,4 @@ public class AutoDownloadLibrarySyncer {
       playableDownloadManager.download(objects: newestSongs)
     }
   }
-
-  /// return: new synced podcast episodes if an initial sync already occued. If this is the initial sync no episods are returned
-  @MainActor
-  public func syncNewestPodcastEpisodes() async throws -> [PodcastEpisode] {
-    let oldNewestEpisodes = Set(storage.main.library.getNewestPodcastEpisode(
-      for: account,
-      count: 20
-    ))
-    try await librarySyncer.syncNewestPodcastEpisodes()
-
-    let updatedEpisodes = Set(storage.main.library.getNewestPodcastEpisode(for: account, count: 20))
-    let newAddedNewestEpisodes = updatedEpisodes.subtracting(oldNewestEpisodes)
-    if !oldNewestEpisodes.isEmpty, !newAddedNewestEpisodes.isEmpty,
-       storage.settings.accounts.getSetting(account.info).read
-       .isAutoDownloadLatestPodcastEpisodesActive {
-      playableDownloadManager.download(objects: Array(newAddedNewestEpisodes))
-    }
-    if !oldNewestEpisodes.isEmpty {
-      return Array(newAddedNewestEpisodes)
-    } else {
-      return [PodcastEpisode]()
-    }
-  }
 }

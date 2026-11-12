@@ -1,0 +1,6 @@
+/* System-facing strings. The app UI itself is localized in code (see AmperfyKit/L10n.swift);
+   this file only makes UIKit/macOS render the system-provided UI (menu bar, command titles,
+   empty states) in Chinese. */
+
+"Favorite" = "喜爱";
+"Queue" = "播放队列";

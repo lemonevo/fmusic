@@ -286,6 +286,7 @@ class LibraryNavigatorConfigurator: NSObject {
       KeyboardFocusableListCell,
       LibraryNavigatorItem
     > { [weak self] cell, indexPath, item in
+      cell.isHoverHighlightEnabled = item.isInteractable
       if !item.isInteractable {
         var content = cell.defaultContentConfiguration()
         content.text = item.title.uppercased()

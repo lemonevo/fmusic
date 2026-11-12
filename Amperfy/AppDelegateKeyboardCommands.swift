@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import AmperfyKit
 import OSLog
 import UIKit
 
@@ -39,27 +40,24 @@ enum KeyboardCommands: CaseIterable {
   case search
   case repeatPlayback
   case shuffle
-  case musicPodcastMode
   case openClosePlayer
 
   var name: String {
     switch self {
     case .togglePausePlay:
-      return "Toggle Play and Pause"
+      return L10n.tr("Toggle Play and Pause")
     case .previous:
-      return "Play Previous"
+      return L10n.tr("Play Previous")
     case .next:
-      return "Play Next"
+      return L10n.tr("Play Next")
     case .search:
-      return "Search"
+      return L10n.tr("Search")
     case .repeatPlayback:
-      return "Repeat"
+      return L10n.tr("Repeat")
     case .shuffle:
-      return "Shuffle"
-    case .musicPodcastMode:
-      return "Switch between Music and Podcast mode"
+      return L10n.tr("Shuffle")
     case .openClosePlayer:
-      return "Open/Close Player"
+      return L10n.tr("Open/Close Player")
     }
   }
 
@@ -77,8 +75,6 @@ enum KeyboardCommands: CaseIterable {
       return KeyboardCommand(input: "r", modifierFlags: [])
     case .shuffle:
       return KeyboardCommand(input: "s", modifierFlags: [])
-    case .musicPodcastMode:
-      return KeyboardCommand(input: "m", modifierFlags: [])
     case .openClosePlayer:
       return KeyboardCommand(input: "p", modifierFlags: [])
     }
@@ -116,9 +112,23 @@ extension AppDelegate {
   }
 
   open override var keyCommands: [UIKeyCommand]? {
-    KeyboardCommands.allCases.filter(\.isAvailable).map { cmd in
+    var commands = KeyboardCommands.allCases.filter(\.isAvailable).map { cmd in
       cmd.asUIKeyCommand(action: #selector(handleKeyCommand(sender:)))
     }
+    if accountSwitcherDismissHandler != nil || audioOutputPickerDismissHandler != nil {
+      commands.append(UIKeyCommand(
+        title: L10n.tr("Close"),
+        action: #selector(dismissActiveOverlayFromKeyboard),
+        input: UIKeyCommand.inputEscape
+      ))
+    }
+    return commands
+  }
+
+  @objc
+  fileprivate func dismissActiveOverlayFromKeyboard() {
+    accountSwitcherDismissHandler?()
+    audioOutputPickerDismissHandler?()
   }
 
   @objc
@@ -144,8 +154,6 @@ extension AppDelegate {
       player.setRepeatMode(player.repeatMode.nextMode)
     case .shuffle:
       player.toggleShuffle()
-    case .musicPodcastMode:
-      player.setPlayerMode(player.playerMode.nextMode)
     case .openClosePlayer:
       visualizePopupPlayer(direction: .toggle, animated: true)
     }

@@ -39,7 +39,6 @@ public class MetaManager {
   private let performanceMonitor: ThreadPerformanceMonitor
   private let eventLogger: EventLogger
   private let notificationHandler: EventNotificationHandler
-  private let localNotificationManager: LocalNotificationManager
 
   public let account: Account
 
@@ -97,8 +96,7 @@ public class MetaManager {
     networkMonitor: NetworkMonitorFacade,
     performanceMonitor: ThreadPerformanceMonitor,
     eventLogger: EventLogger,
-    notificationHandler: EventNotificationHandler,
-    localNotificationManager: LocalNotificationManager
+    notificationHandler: EventNotificationHandler
   ) {
     self.storage = storage
     self.account = account
@@ -106,7 +104,6 @@ public class MetaManager {
     self.performanceMonitor = performanceMonitor
     self.eventLogger = eventLogger
     self.notificationHandler = notificationHandler
-    self.localNotificationManager = localNotificationManager
 
     if account.apiType == .local || account.apiType == .notDetected,
        let credentials = storage.settings.accounts.getSetting(account.info).read.loginCredentials {
@@ -276,17 +273,6 @@ public class MetaManager {
       librarySyncer: librarySyncer,
       playableDownloadManager: playableDownloadManager, autoDownloadLibrarySyncer: autoSyncer,
       eventLogger: eventLogger
-    )
-  }()
-
-  @MainActor
-  public lazy var backgroundFetchTriggeredSyncer = {
-    BackgroundFetchTriggeredSyncer(
-      storage: storage,
-      account: account,
-      librarySyncer: librarySyncer,
-      notificationManager: localNotificationManager,
-      playableDownloadManager: playableDownloadManager
     )
   }()
 

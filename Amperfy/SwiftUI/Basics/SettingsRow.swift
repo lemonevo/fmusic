@@ -52,6 +52,8 @@ struct SettingsRow<Content: View>: View {
       HStack {
         if let title {
           Text(title)
+            .font(.system(size: 13))
+            .foregroundStyle(Color.label)
         }
         Spacer()
         detail()
@@ -60,6 +62,8 @@ struct SettingsRow<Content: View>: View {
       VStack(alignment: .leading) {
         if let title {
           Text(title)
+            .font(.system(size: 13))
+            .foregroundStyle(Color.label)
             .padding([.bottom], 2)
         }
         detail()
@@ -126,6 +130,7 @@ struct SettingsButtonRow: View {
   var body: some View {
     Button(action: action) {
       Text(title)
+        .font(.system(size: 13))
     }.foregroundColor(actionType.foregroundColor)
   }
 }

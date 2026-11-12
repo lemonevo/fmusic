@@ -22,9 +22,4 @@
 import CoreData
 import Foundation
 
-public class MigrationPolicyV4toV5: NSEntityMigrationPolicy {
-  @objc
-  func stringId(forIntId: NSNumber) -> NSString {
-    forIntId.stringValue as NSString
-  }
-}
+public class MigrationPolicyV4toV5: NSEntityMigrationPolicy {}

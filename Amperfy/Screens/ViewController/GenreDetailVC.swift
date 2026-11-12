@@ -85,7 +85,13 @@ class GenreDetailVC: MultiSourceTableViewController {
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
       infoCB: {
-        "\(self.genre.artistCount) Artist\(self.genre.artistCount == 1 ? "" : "s") \(CommonString.oneMiddleDot) \(self.genre.albumCount) Album\(self.genre.albumCount == 1 ? "" : "s") \(CommonString.oneMiddleDot) \(self.genre.songCount) Song\(self.genre.songCount == 1 ? "" : "s")"
+        let artists = self.genre.artistCount
+        let albums = self.genre.albumCount
+        let songs = self.genre.songCount
+        let artistsText = L10n.tr(artists == 1 ? "%d Artist" : "%d Artists", artists)
+        let albumsText = L10n.tr(albums == 1 ? "%d Album" : "%d Albums", albums)
+        let songsText = L10n.tr(songs == 1 ? "%d Song" : "%d Songs", songs)
+        return "\(artistsText) \(CommonString.oneMiddleDot) \(albumsText) \(CommonString.oneMiddleDot) \(songsText)"
       },
       playContextCb: { () in PlayContext(
         containable: self.genre,

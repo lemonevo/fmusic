@@ -171,15 +171,6 @@ extension UIView {
     return Float(normalizedForce)
   }
 
-  func isForceClicked(_ touches: Set<UITouch>) -> Bool {
-    guard let force = normalizedForce(touches: touches) else { return false }
-    if force < UIView.forceTouchClickLimit {
-      return false
-    } else {
-      return true
-    }
-  }
-
   var is3DTouchAvailable: Bool {
     forceTouchCapability() == .available
   }

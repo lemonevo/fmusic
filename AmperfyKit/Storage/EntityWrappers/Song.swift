@@ -107,7 +107,7 @@ public class Song: AbstractPlayable, Identifyable {
   }
 
   override public var creatorName: String {
-    artist?.name ?? "Unknown Artist"
+    L10n.trPlaceholder(artist?.name ?? "Unknown Artist")
   }
 
   public var detailInfo: String {

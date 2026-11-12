@@ -28,9 +28,7 @@ extension LibraryDisplayType {
   fileprivate var isVisibleInCarPlay: Bool {
     switch self {
     case .albums, .artists, .favoriteAlbums, .favoriteArtists, .favoriteSongs, .genres,
-         .newestAlbums,
-         .podcasts,
-         .radios, .recentAlbums:
+         .newestAlbums, .recentAlbums:
       return true
     case .directories, .downloads, .songs:
       return false
@@ -41,11 +39,10 @@ extension LibraryDisplayType {
 }
 
 extension CarPlaySceneDelegate {
-  static let switchAccountTitle = "Switch Account"
-  static let continuePlaybackMusicTitle = "Continue Music"
-  static let continuePlaybackPodcastTitle = "Continue Podcasts"
-  static let playRandomAlbumsTitle = "Albums"
-  static let playRandomSongsTitle = "Songs"
+  static let switchAccountTitle = L10n.tr("Switch Account")
+  static let continuePlaybackMusicTitle = L10n.tr("Continue Music")
+  static let playRandomAlbumsTitle = L10n.tr("Albums")
+  static let playRandomSongsTitle = L10n.tr("Songs")
 
   func createLibrarySections() -> [CPListSection] {
     let librarySections = [
@@ -100,8 +97,6 @@ extension CarPlaySceneDelegate {
         sectionToDisplay = artistsSection
       case .albums:
         sectionToDisplay = albumsSection
-      case .podcasts:
-        sectionToDisplay = podcastSection
       case .favoriteSongs:
         sectionToDisplay = songsFavoriteSection
       case .favoriteAlbums:
@@ -112,8 +107,6 @@ extension CarPlaySceneDelegate {
         sectionToDisplay = albumsNewestSection
       case .recentAlbums:
         sectionToDisplay = albumsRecentSection
-      case .radios:
-        sectionToDisplay = radioSection
       case .directories, .downloads, .playlists, .songs:
         break // do nothing
       }
@@ -127,7 +120,7 @@ extension CarPlaySceneDelegate {
     }
     let libDisplaySection = CPListSection(
       items: [libDisplayRow],
-      header: "Library",
+      header: L10n.tr("Library"),
       sectionIndexTitle: nil
     )
     return libDisplaySection
@@ -179,7 +172,7 @@ extension CarPlaySceneDelegate {
     }
     let playRandomSection = CPListSection(
       items: [playRandomRow],
-      header: "Play Random",
+      header: L10n.tr("Play Random"),
       sectionIndexTitle: nil
     )
     return playRandomSection
@@ -197,19 +190,6 @@ extension CarPlaySceneDelegate {
           switchColors: true
         ).carPlayImage(carTraitCollection: traits),
         title: Self.continuePlaybackMusicTitle, subtitle: nil
-      )
-      quickActionItems.append(item)
-    }
-    if appDelegate.player.podcastItemCount > 0 {
-      let item = CPListImageRowItemRowElement(
-        image: UIImage.createArtwork(
-          with: UIImage.podcast,
-          iconSizeType: .small,
-          theme: getPreference(activeAccountInfo).theme,
-          lightDarkMode: traits.userInterfaceStyle.asModeType,
-          switchColors: true
-        ).carPlayImage(carTraitCollection: traits),
-        title: Self.continuePlaybackPodcastTitle, subtitle: nil
       )
       quickActionItems.append(item)
     }
@@ -243,14 +223,9 @@ extension CarPlaySceneDelegate {
           let _ = try? await interfaceController?
             .pushTemplate(accountSection, animated: true)
         }
-        if quickActionItems[index].title == Self.continuePlaybackMusicTitle ||
-          quickActionItems[index].title == Self.continuePlaybackPodcastTitle {
-          if quickActionItems[index].title == Self.continuePlaybackMusicTitle,
-             appDelegate.player.playerMode != .music {
+        if quickActionItems[index].title == Self.continuePlaybackMusicTitle {
+          if appDelegate.player.playerMode != .music {
             appDelegate.player.setPlayerMode(.music)
-          } else if quickActionItems[index].title == Self.continuePlaybackPodcastTitle,
-                    appDelegate.player.playerMode != .podcast {
-            appDelegate.player.setPlayerMode(.podcast)
           }
           appDelegate.player.play()
           displayNowPlaying {}
@@ -261,7 +236,7 @@ extension CarPlaySceneDelegate {
     }
     let quickActionsSection = CPListSection(
       items: [quickActionsRow],
-      header: "Quick Actions",
+      header: L10n.tr("Quick Actions"),
       sectionIndexTitle: nil
     )
     return quickActionsSection

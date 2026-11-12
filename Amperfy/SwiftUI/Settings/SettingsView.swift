@@ -73,7 +73,7 @@ struct SettingsView: View {
           },
           footer:
           L10n.tr(
-            "Songs, podcasts, and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
+            "Songs and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
           )
         )
 

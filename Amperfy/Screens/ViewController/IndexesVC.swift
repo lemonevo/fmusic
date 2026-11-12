@@ -49,7 +49,7 @@ class IndexesVC: SingleFetchedResultsTableViewController<DirectoryMO> {
     )
     singleFetchedResultsController = fetchedResultsController
 
-    configureSearchController(placeholder: "Search in \"Directories\"")
+    configureSearchController(placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Directories")))
     setNavBarTitle(title: musicFolder.name)
     tableView.register(nibName: DirectoryTableCell.typeName)
     tableView.reloadOnTextSizeChange { DirectoryTableCell.rowHeight }
@@ -65,7 +65,7 @@ class IndexesVC: SingleFetchedResultsTableViewController<DirectoryMO> {
   func updateContentUnavailable() {
     if fetchedResultsController.fetchedObjects?.count ?? 0 == 0 {
       if fetchedResultsController.isSearchActive {
-        contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         contentUnavailableConfiguration = emptyContentConfig
       }
@@ -77,8 +77,8 @@ class IndexesVC: SingleFetchedResultsTableViewController<DirectoryMO> {
   lazy var emptyContentConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .folder
-    config.text = "No Directories"
-    config.secondaryText = "Your directories will appear here."
+    config.text = L10n.tr("No Directories")
+    config.secondaryText = L10n.tr("Your directories will appear here.")
     return config
   }()
 

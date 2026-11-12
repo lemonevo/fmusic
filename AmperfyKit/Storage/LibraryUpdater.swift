@@ -146,46 +146,17 @@ public class LibraryUpdater {
       storage
         .settings.app.librarySyncVersion =
         .v20 // if App crashes don't do this step again -> This step is only for convenience
-      os_log(
-        "Perform blocking preference update: Streaming Transcoding Format Wifi/Cellular",
-        log: log,
-        type: .info
-      )
-      storage.settings.user.streamingFormatWifiPreference = storage.legacySettings
-        .streamingFormatPreference
-      storage.settings.user.streamingFormatCellularPreference = storage.legacySettings
-        .streamingFormatPreference
     }
   }
 
   private var isRunning = true
-
-  public func cancleLibraryUpdate() {
-    os_log("LibraryUpdate: cancle", log: self.log, type: .info)
-    isRunning = false
-  }
 
   @MainActor
   public func performLibraryUpdateWithStatus(
     notifier: LibraryUpdaterCallbacks
   ) async throws {
     isRunning = true
-    if storage.settings.app.librarySyncVersion < .v18,
-       let activeAccountInfo = storage.settings.accounts.active {
-      // add radios to libraryDisplaySettings to display it for old users
-      var libraryDisplaySettingsInUse = storage.settings.accounts.getSetting(activeAccountInfo).read
-        .libraryDisplaySettings.inUse
-      if !libraryDisplaySettingsInUse.contains(where: { $0 == .radios }) {
-        libraryDisplaySettingsInUse.append(.radios)
-
-        if let accountInfo = storage.settings.accounts.active {
-          storage.settings.accounts.updateSetting(accountInfo) { accountSettings in
-            accountSettings
-              .libraryDisplaySettings = LibraryDisplaySettings(inUse: libraryDisplaySettingsInUse)
-          }
-        }
-      }
-
+    if storage.settings.app.librarySyncVersion < .v18 {
       storage
         .settings.app.librarySyncVersion =
         .v18 // if App crashes don't do this step again -> This step is only for convenience

@@ -75,7 +75,7 @@ public class QuickActionsHandler {
 
     quickActions.append(UIApplicationShortcutItem(
       type: QuickActionType.searchAction.rawValue,
-      localizedTitle: "Search",
+      localizedTitle: L10n.tr("Search"),
       localizedSubtitle: nil,
       icon: UIApplicationShortcutIcon(systemImageName: "magnifyingglass"),
       userInfo: nil
@@ -85,8 +85,8 @@ public class QuickActionsHandler {
       let isPlaying = player.isPlaying && player.playerMode == .music
       quickActions.append(UIApplicationShortcutItem(
         type: QuickActionType.playMusicAction.rawValue,
-        localizedTitle: isPlaying ? "Pause Song" : "Play Song",
-        localizedSubtitle: "\(currentMusicItem.subtitle ?? "Unknown Artist") - \(currentMusicItem.title)",
+        localizedTitle: isPlaying ? L10n.tr("Pause Song") : L10n.tr("Play Song"),
+        localizedSubtitle: "\(currentMusicItem.subtitle ?? L10n.tr("Unknown Artist")) - \(currentMusicItem.title)",
         icon: UIApplicationShortcutIcon(
           systemImageName: isPlaying ? "pause.circle" :
             "play.circle"
@@ -98,8 +98,8 @@ public class QuickActionsHandler {
       let isPlaying = player.isPlaying && player.playerMode == .podcast
       quickActions.append(UIApplicationShortcutItem(
         type: QuickActionType.playPodcastAction.rawValue,
-        localizedTitle: isPlaying ? "Pause Podcast" : "Play Podcast",
-        localizedSubtitle: "\(currentPodcastItem.subtitle ?? "Unknown Podcast") - \(currentPodcastItem.title)",
+        localizedTitle: isPlaying ? L10n.tr("Pause Podcast") : L10n.tr("Play Podcast"),
+        localizedSubtitle: "\(currentPodcastItem.subtitle ?? L10n.tr("Unknown Podcast")) - \(currentPodcastItem.title)",
         icon: UIApplicationShortcutIcon(
           systemImageName: isPlaying ? "pause.circle" :
             "play.circle"
@@ -110,7 +110,7 @@ public class QuickActionsHandler {
     if storage.settings.user.isOfflineMode {
       quickActions.append(UIApplicationShortcutItem(
         type: QuickActionType.onlineModeAction.rawValue,
-        localizedTitle: "Start in Online Mode",
+        localizedTitle: L10n.tr("Start in Online Mode"),
         localizedSubtitle: nil,
         icon: UIApplicationShortcutIcon(systemImageName: AmperfyImage.onlineMode.systemName),
         userInfo: nil
@@ -118,7 +118,7 @@ public class QuickActionsHandler {
     } else {
       quickActions.append(UIApplicationShortcutItem(
         type: QuickActionType.offlineModeAction.rawValue,
-        localizedTitle: "Start in Offline Mode",
+        localizedTitle: L10n.tr("Start in Offline Mode"),
         localizedSubtitle: nil,
         icon: UIApplicationShortcutIcon(systemImageName: AmperfyImage.offlineMode.systemName),
         userInfo: nil

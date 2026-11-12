@@ -18,6 +18,7 @@
 //  You should have received a copy of the GNU General Public License
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
+import AmperfyKit
 import SwiftUI
 
 /// Settings section to choose one of the alternate app icons
@@ -68,7 +69,7 @@ struct AppIconSettingsSection: View {
     guard UIApplication.shared.alternateIconName != iconName else { return }
 
     guard UIApplication.shared.supportsAlternateIcons else {
-      appIconErrorMessage = "Alternate app icons are not supported on this device."
+      appIconErrorMessage = L10n.tr("Alternate app icons are not supported on this device.")
       isShowingAppIconError = true
       return
     }
@@ -92,9 +93,9 @@ struct AppIconSettingsSection: View {
     SettingsSection(
       content: {
         VStack(spacing: 16) {
-          Picker("Icon Family", selection: $selectedAppIconCategory) {
+          Picker(L10n.tr("Icon Family"), selection: $selectedAppIconCategory) {
             ForEach(AppIconCategory.allCases) { category in
-              Text(category.title)
+              Text(L10n.tr(category.title))
                 .tag(category)
             }
           }
@@ -125,7 +126,7 @@ struct AppIconSettingsSection: View {
                           }
                         }
 
-                      Text(option.title)
+                      Text(L10n.tr(option.title))
                         .font(.caption)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
@@ -137,7 +138,7 @@ struct AppIconSettingsSection: View {
                   }
                   .buttonStyle(.plain)
                   .disabled(isChangingAppIcon)
-                  .accessibilityLabel(option.title)
+                  .accessibilityLabel(L10n.tr(option.title))
                   .accessibilityValue(isSelected ? "Selected" : "Not selected")
                   .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
@@ -146,14 +147,14 @@ struct AppIconSettingsSection: View {
           }
         }
       },
-      header: "App Icon"
+      header: L10n.tr("App Icon")
     )
     .onAppear {
       selectedAppIconName = UIApplication.shared.alternateIconName
       selectedAppIconCategory = Self.category(ofIconName: selectedAppIconName)
     }
-    .alert("Unable to Change App Icon", isPresented: $isShowingAppIconError) {
-      Button("OK", role: .cancel) {}
+    .alert(L10n.tr("Unable to Change App Icon"), isPresented: $isShowingAppIconError) {
+      Button(L10n.tr("OK"), role: .cancel) {}
     } message: {
       Text(appIconErrorMessage)
     }

@@ -69,11 +69,11 @@ public enum AuthenticationError: LocalizedError {
     var ret = ""
     switch self {
     case .notAbleToLogin:
-      ret = "Not able to login, please check credentials!"
+      ret = L10n.tr("Not able to login, please check credentials!")
     case .invalidUrl:
-      ret = "Server URL is invalid!"
+      ret = L10n.tr("Server URL is invalid!")
     case let .requestStatusError(message: message):
-      ret = "Requesting server URL finished with status response error code '\(message)'!"
+      ret = L10n.tr("Requesting server URL finished with status response error code '%@'!", message)
     case let .downloadError(message: message):
       ret = message
     }
@@ -94,15 +94,15 @@ public enum BackendError: LocalizedError {
     var ret = ""
     switch self {
     case .invalidUrl:
-      ret = "Provided URL is invalid."
+      ret = L10n.tr("Provided URL is invalid.")
     case .noCredentials:
-      ret = "Internal error: no credentials provided."
+      ret = L10n.tr("Internal error: no credentials provided.")
     case .persistentSaveFailed:
-      ret = "Change could not be saved."
+      ret = L10n.tr("Change could not be saved.")
     case .notSupported:
-      ret = "Requested functionality is not supported."
+      ret = L10n.tr("Requested functionality is not supported.")
     case let .incorrectServerBehavior(message: message):
-      ret = "Server didn't behave as expected: \(message)"
+      ret = L10n.tr("Server didn't behave as expected: %@", message)
     }
     return ret
   }
@@ -141,7 +141,7 @@ final public class ResponseError: LocalizedError, Sendable {
     case .api:
       self.message = message
     case .xml:
-      self.message = "XML response could not be parsed."
+      self.message = L10n.tr("XML response could not be parsed.")
     case .resource:
       self.message = message
     }
@@ -150,11 +150,11 @@ final public class ResponseError: LocalizedError, Sendable {
   public var errorDescription: String? {
     switch type {
     case .api:
-      return "API error \(statusCode): \(message)"
+      return L10n.tr("API error %d: %@", statusCode, message)
     case .xml:
       return "\(message)"
     case .resource:
-      return "API error \(statusCode): \(message)"
+      return L10n.tr("API error %d: %@", statusCode, message)
     }
   }
 
@@ -277,32 +277,9 @@ extension BackendProxy: BackendApi {
     try await activeApi.generateUrl(forDownloadingPlayable: playableInfo)
   }
 
-  public func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference
-  ) async throws
+  public func generateUrl(forStreamingPlayable playableInfo: AbstractPlayableInfo) async throws
     -> URL {
-    try await activeApi.generateUrl(
-      forStreamingPlayable: playableInfo,
-      maxBitrate: maxBitrate,
-      formatPreference: formatPreference
-    )
-  }
-
-  public func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference,
-    timeOffset: Int
-  ) async throws
-    -> URL {
-    try await activeApi.generateUrl(
-      forStreamingPlayable: playableInfo,
-      maxBitrate: maxBitrate,
-      formatPreference: formatPreference,
-      timeOffset: timeOffset
-    )
+    try await activeApi.generateUrl(forStreamingPlayable: playableInfo)
   }
 
   public func generateUrl(forArtwork artwork: Artwork) async throws -> URL {

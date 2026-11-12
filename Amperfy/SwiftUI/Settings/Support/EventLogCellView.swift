@@ -29,7 +29,7 @@ struct EventLogCellView: View {
   var typeText: String {
     var typeLabelText = "\(entry.type.description)"
     if entry.type == .error, entry.statusCode > 1 {
-      typeLabelText += " \(CommonString.oneMiddleDot) Status code \(entry.statusCode)"
+      typeLabelText += " \(CommonString.oneMiddleDot) \(L10n.tr("Status code %d", entry.statusCode))"
     }
     return typeLabelText
   }
@@ -37,7 +37,7 @@ struct EventLogCellView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {
       Text(entry.message)
-        .font(.subheadline)
+        .font(.system(size: 13))
         .fixedSize(horizontal: false, vertical: true)
       HStack {
         Text(typeText)
@@ -45,8 +45,8 @@ struct EventLogCellView: View {
         Text("\(entry.creationDate.asIso8601String)")
           .monospacedDigit()
       }
-      .font(.caption)
-      .foregroundStyle(.secondary)
+      .font(.system(size: 11))
+      .foregroundStyle(Color.secondaryLabel)
     }
     .padding(.vertical, 4)
     .contextMenu {

@@ -43,7 +43,7 @@ class EntityPreviewActionBuilder {
     switch entityContainer.playContextType {
     case .music:
       return playables
-        .filter { $0.asSong?.isAvailableToUser() ?? $0.asRadio?.isAvailableToUser() ?? false }
+        .filter { $0.asSong?.isAvailableToUser() ?? false }
     case .podcast:
       return playables
     }
@@ -53,7 +53,6 @@ class EntityPreviewActionBuilder {
   private var isPlay = false
   private var isShuffle = false
   private var isMusicQueue = false
-  private var isPodcastQueue = false
   private var isShowAlbum = false
   private var isShowArtist = false
   private var isAddToPlaylist = false
@@ -65,9 +64,6 @@ class EntityPreviewActionBuilder {
     )
   }
 
-  private var isDeleteOnServer = false
-  private var isGoToSiteUrl = false
-  private var isShowPodcastDetails = false
   private var isShowSongDetails = false
   private var isInstantMix = false
   private var isShareable = false
@@ -114,9 +110,6 @@ class EntityPreviewActionBuilder {
     if isMusicQueue {
       menuActions.append(createMusicQueueAction())
     }
-    if isPodcastQueue {
-      menuActions.append(createPodcastQueueAction())
-    }
     if isShowAlbum {
       gotoActions.append(createShowAlbumAction())
     }
@@ -127,13 +120,6 @@ class EntityPreviewActionBuilder {
        let song = (entityContainer as? AbstractPlayable)?.asSong,
        let lyricsShowAction = createShowLyricsAction(song: song) {
       gotoActions.append(lyricsShowAction)
-    }
-    if isShowPodcastDetails,
-       let podcastEpisode = (entityContainer as? AbstractPlayable)?.asPodcastEpisode {
-      gotoActions.append(createShowEpisodeDetailsAction(podcastEpisode: podcastEpisode))
-    }
-    if isShowPodcastDetails, let podcast = entityContainer as? Podcast {
-      gotoActions.append(createShowPodcastDetailsAction(podcast: podcast))
     }
     if !gotoActions.isEmpty {
       menuActions.append(UIMenu(options: .displayInline, children: gotoActions))
@@ -158,14 +144,8 @@ class EntityPreviewActionBuilder {
     if entityContainer.playables.hasCachedItems {
       elementHandlingActions.append(createDeleteCacheAction())
     }
-    if isDeleteOnServer {
-      elementHandlingActions.append(createDeleteOnServerAction())
-    }
     if isShareable, let playable = entityContainer as? AbstractPlayable {
       elementHandlingActions.append(createShareAction(playable: playable))
-    }
-    if isGoToSiteUrl, let url = (entityContainer as? AbstractPlayable)?.asRadio?.siteURL {
-      elementHandlingActions.append(createGoToSiteUrl(url: url))
     }
     if !elementHandlingActions.isEmpty {
       menuActions.append(UIMenu(options: .displayInline, children: elementHandlingActions))
@@ -181,8 +161,6 @@ class EntityPreviewActionBuilder {
     if let playable = entityContainer as? AbstractPlayable {
       if let _ = playable.asSong, !(rootView is AlbumDetailVC) {
         showAlbum()
-      } else if let _ = playable.asPodcastEpisode, !(rootView is PodcastDetailVC) {
-        showArtist()
       }
     } else if let album = entityContainer as? Album, let account = album.account {
       rootView.navigationController?.pushViewController(
@@ -204,11 +182,6 @@ class EntityPreviewActionBuilder {
         AppStoryboard.Main.segueToPlaylistDetail(account: account, playlist: playlist),
         animated: true
       )
-    } else if let podcast = entityContainer as? Podcast, let account = podcast.account {
-      rootView.navigationController?.pushViewController(
-        AppStoryboard.Main.segueToPodcastDetail(account: account, podcast: podcast),
-        animated: true
-      )
     } else if let directory = entityContainer as? Directory, let account = directory.account {
       rootView.navigationController?.pushViewController(
         AppStoryboard.Main.segueToDirectories(account: account, directory: directory),
@@ -221,10 +194,6 @@ class EntityPreviewActionBuilder {
     if let playable = entityContainer as? AbstractPlayable {
       if let song = playable.asSong {
         configureFor(song: song)
-      } else if let podcastEpisode = playable.asPodcastEpisode {
-        configureFor(podcastEpisode: podcastEpisode)
-      } else if let radio = playable.asRadio {
-        configureFor(radio: radio)
       }
     } else if let album = entityContainer as? Album {
       configureFor(album: album)
@@ -234,8 +203,6 @@ class EntityPreviewActionBuilder {
       configureFor(genre: genre)
     } else if let playlist = entityContainer as? Playlist {
       configureFor(playlist: playlist)
-    } else if let podcast = entityContainer as? Podcast {
-      configureFor(podcast: podcast)
     } else if let directory = entityContainer as? Directory {
       configureFor(directory: directory)
     }
@@ -257,57 +224,12 @@ class EntityPreviewActionBuilder {
         playerIndexCb != nil ||
         (!song.isCached && appDelegate.storage.settings.user.isOfflineMode)
     )
-    isPodcastQueue = false
     isShowAlbum = !(rootView is AlbumDetailVC)
     isShowArtist = !(rootView is ArtistDetailVC)
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
     isShowSongDetails = true
     isInstantMix = appDelegate.storage.settings.user.isOnlineMode
     isShareable = song.isCached || appDelegate.storage.settings.user.isOnlineMode
-  }
-
-  private func configureFor(podcastEpisode: PodcastEpisode) {
-    isPlay = !(
-      (playContextCb == nil) ||
-        (!podcastEpisode.isAvailableToUser() && appDelegate.storage.settings.user.isOnlineMode) ||
-        (!podcastEpisode.isCached && appDelegate.storage.settings.user.isOfflineMode)
-    )
-    isShuffle = false
-    isMusicQueue = false
-    isPodcastQueue = !(
-      (playContextCb == nil) ||
-        (playerIndexCb != nil) ||
-        (!podcastEpisode.isAvailableToUser() && appDelegate.storage.settings.user.isOnlineMode) ||
-        (!podcastEpisode.isCached && appDelegate.storage.settings.user.isOfflineMode)
-    )
-    isShowAlbum = false
-    isShowArtist = !(rootView is PodcastDetailVC)
-    isAddToPlaylist = false
-    isDeleteOnServer = podcastEpisode.podcastStatus != .deleted && appDelegate.storage.settings.user
-      .isOnlineMode
-    isGoToSiteUrl = false
-    isShowPodcastDetails = true
-    isShowSongDetails = false
-    isShareable = podcastEpisode.isCached || appDelegate.storage.settings.user.isOnlineMode
-  }
-
-  private func configureFor(radio: Radio) {
-    isPlay = !((playContextCb == nil) || appDelegate.storage.settings.user.isOfflineMode)
-    isShuffle = false
-    isMusicQueue = !(
-      (playContextCb == nil) ||
-        playerIndexCb != nil ||
-        (appDelegate.storage.settings.user.isOfflineMode)
-    )
-    isPodcastQueue = false
-    isAddToPlaylist = false
-    isDeleteOnServer = false
-    isGoToSiteUrl = radio.siteURL != nil
-    isShowPodcastDetails = false
-    isShowSongDetails = false
   }
 
   private func configureFor(playlist: Playlist) {
@@ -319,13 +241,9 @@ class EntityPreviewActionBuilder {
     ) &&
       appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     isMusicQueue = true
-    isPodcastQueue = false
     isShowAlbum = false
     isShowArtist = false
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
     isShowSongDetails = false
   }
 
@@ -338,31 +256,9 @@ class EntityPreviewActionBuilder {
     ) &&
       appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     isMusicQueue = true
-    isPodcastQueue = false
     isShowAlbum = false
     isShowArtist = false
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
-    isShowSongDetails = false
-  }
-
-  private func configureFor(podcast: Podcast) {
-    isPlay = (
-      appDelegate.storage.settings.user.isOnlineMode || entityContainer.playables
-        .hasCachedItems
-    ) &&
-      appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
-    isShuffle = false
-    isMusicQueue = false
-    isShowAlbum = false
-    isShowArtist = false
-    isPodcastQueue = true
-    isAddToPlaylist = false
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = true
     isShowSongDetails = false
   }
 
@@ -375,13 +271,9 @@ class EntityPreviewActionBuilder {
     ) &&
       appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     isMusicQueue = true
-    isPodcastQueue = false
     isShowAlbum = false
     isShowArtist = false
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
     isShowSongDetails = false
   }
 
@@ -394,13 +286,9 @@ class EntityPreviewActionBuilder {
     ) &&
       appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     isMusicQueue = true
-    isPodcastQueue = false
     isShowAlbum = false
     isShowArtist = !(rootView is ArtistDetailVC)
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
     isShowSongDetails = false
   }
 
@@ -413,14 +301,10 @@ class EntityPreviewActionBuilder {
     ) &&
       appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
     isMusicQueue = true
-    isPodcastQueue = false
     isShowAlbum = false
     isShowArtist = false
     isAddToPlaylist = appDelegate.storage.settings.user.isOnlineMode && !entityContainer.playables
       .isEmpty
-    isDeleteOnServer = false
-    isGoToSiteUrl = false
-    isShowPodcastDetails = false
     isShowSongDetails = false
   }
 
@@ -473,7 +357,7 @@ class EntityPreviewActionBuilder {
         appDelegate.eventLogger.error(
           topic: "Instant Mix",
           statusCode: .commonError,
-          message: "Song has no account",
+          message: L10n.tr("Song has no account"),
           displayPopup: true
         )
         return
@@ -487,7 +371,7 @@ class EntityPreviewActionBuilder {
       if similarSongs.isEmpty {
         appDelegate.eventLogger.info(
           topic: "Instant Mix",
-          message: "No similar songs found",
+          message: L10n.tr("No similar songs found"),
           displayPopup: true
         )
         return
@@ -497,12 +381,12 @@ class EntityPreviewActionBuilder {
       let allSongs = [song] + similarSongs
 
       // Create play context and start playing
-      let context = PlayContext(name: "Instant Mix: \(song.title)", playables: allSongs)
+      let context = PlayContext(name: L10n.tr("Instant Mix: %@", song.title), playables: allSongs)
       appDelegate.player.play(context: context)
 
       appDelegate.eventLogger.info(
         topic: "Instant Mix",
-        message: "Playing instant mix with \(allSongs.count) songs",
+        message: L10n.tr("Playing instant mix with %d songs", allSongs.count),
         displayPopup: true
       )
 
@@ -528,19 +412,6 @@ class EntityPreviewActionBuilder {
       UIAction(title: L10n.tr("Append User Queue"), image: .userQueueAppend) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.appendUserQueue(playables: self.entityPlayables)
-      },
-    ])
-  }
-
-  private func createPodcastQueueAction() -> UIMenuElement {
-    UIMenu(image: .listBullet, options: .displayInline, children: [
-      UIAction(title: L10n.tr("Insert Podcast Queue"), image: .podcastQueueInsert) { action in
-        guard !self.entityPlayables.isEmpty else { return }
-        self.appDelegate.player.insertPodcastQueue(playables: self.entityPlayables)
-      },
-      UIAction(title: L10n.tr("Append Podcast Queue"), image: .podcastQueueAppend) { action in
-        guard !self.entityPlayables.isEmpty else { return }
-        self.appDelegate.player.appendPodcastQueue(playables: self.entityPlayables)
       },
     ])
   }
@@ -693,11 +564,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createShowArtistAction() -> UIAction {
-    let title = ((entityContainer as? AbstractPlayable)?.isPodcastEpisode ?? false) ?
-      L10n.tr("Show Podcast") : L10n.tr("Show Artist")
-    let image = ((entityContainer as? AbstractPlayable)?.isPodcastEpisode ?? false) ? UIImage
-      .squareArrow : UIImage.artist
-    return UIAction(title: title, image: image) { action in
+    UIAction(title: L10n.tr("Show Artist"), image: .artist) { action in
       self.showArtist()
     }
   }
@@ -719,21 +586,6 @@ class EntityPreviewActionBuilder {
       } else {
         guard let hostingSplitVC = AppDelegate.mainWindowHostVC else { return }
         hostingSplitVC.pushNavLibrary(vc: artistDetailVC)
-      }
-    } else if let podcast = playable?.asPodcastEpisode?.podcast, let account = podcast.account {
-      appDelegate.userStatistics.usedAction(.alertGoToPodcast)
-      let podcastDetailVC = AppStoryboard.Main.segueToPodcastDetail(
-        account: account,
-        podcast: podcast,
-        episodeToScrollTo: playable?.asPodcastEpisode
-      )
-      if let popupPlayer = rootView as? PopupPlayerVC {
-        popupPlayer.closePopupPlayerAndDisplayInLibraryTab(vc: podcastDetailVC)
-      } else if let navController = rootView.navigationController {
-        navController.pushViewController(podcastDetailVC, animated: true)
-      } else {
-        guard let hostingSplitVC = AppDelegate.mainWindowHostVC else { return }
-        hostingSplitVC.pushNavLibrary(vc: podcastDetailVC)
       }
     }
   }
@@ -774,36 +626,6 @@ class EntityPreviewActionBuilder {
     }
   }
 
-  private func createDeleteOnServerAction() -> UIAction {
-    UIAction(title: L10n.tr("Delete on Server"), image: .cloudX) { action in
-      guard let playable = self.entityContainer as? AbstractPlayable,
-            let podcastEpisode = playable.asPodcastEpisode,
-            let account = podcastEpisode.account
-      else { return }
-
-      let alert = UIAlertController(
-        title: nil,
-        message: L10n.tr("Are you sure to delete the podcast episode on the server?"),
-        preferredStyle: .alert
-      )
-      alert.addAction(UIAlertAction(title: L10n.tr("Delete"), style: .destructive, handler: { _ in
-        Task { @MainActor in do {
-          try await self.appDelegate.getMeta(account.info).librarySyncer
-            .requestPodcastEpisodeDelete(podcastEpisode: podcastEpisode)
-          guard let podcast = podcastEpisode.podcast else { return }
-          try await self.appDelegate.getMeta(account.info).librarySyncer
-            .sync(podcast: podcast)
-        } catch {
-          self.appDelegate.eventLogger.report(topic: "Podcast Episode Delete Sync", error: error)
-        }}
-      }))
-      alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
-        // do nothing
-      }))
-      self.rootView.present(alert, animated: true, completion: nil)
-    }
-  }
-
   private func createShareAction(playable: AbstractPlayable) -> UIAction {
     UIAction(
       title: L10n.tr("Share"),
@@ -826,40 +648,6 @@ class EntityPreviewActionBuilder {
         presenter: rootView,
         downloadManagerProvider: downloadManagerProvider
       )
-    }
-  }
-
-  private func createGoToSiteUrl(url: URL) -> UIAction {
-    UIAction(title: L10n.tr("Go to Site"), image: .followLink) { action in
-      UIApplication.shared.open(url)
-    }
-  }
-
-  private func createShowPodcastDetailsAction(podcast: Podcast) -> UIAction {
-    UIAction(title: L10n.tr("Show Podcast Description"), image: .info) { action in
-      self.showPodcastDetails()
-    }
-  }
-
-  private func createShowEpisodeDetailsAction(podcastEpisode: PodcastEpisode) -> UIAction {
-    UIAction(title: L10n.tr("Show Episode Description"), image: .info) { action in
-      self.showPodcastDetails()
-    }
-  }
-
-  private func showPodcastDetails() {
-    var descriptionVC: PlainDetailsVC?
-    if let playable = entityContainer as? AbstractPlayable,
-       let podcastEpisode = playable.asPodcastEpisode {
-      descriptionVC = PlainDetailsVC()
-      descriptionVC?.display(podcastEpisode: podcastEpisode, on: rootView)
-    } else if let podcast = entityContainer as? Podcast {
-      descriptionVC = PlainDetailsVC()
-      descriptionVC?.display(podcast: podcast, on: rootView)
-    }
-
-    if let descriptionVC = descriptionVC {
-      rootView.present(descriptionVC, animated: true)
     }
   }
 
@@ -936,9 +724,7 @@ class EntityPreviewVC: UIViewController {
   private var entityContainer: PlayableContainable?
 
   var isNavigationDisallowed: Bool {
-    ((entityContainer as? AbstractPlayable)?.isSong ?? false) && (rootView is AlbumDetailVC) ||
-      ((entityContainer as? AbstractPlayable)?.isPodcastEpisode ?? false) &&
-      (rootView is PodcastDetailVC)
+    ((entityContainer as? AbstractPlayable)?.isSong ?? false) && (rootView is AlbumDetailVC)
   }
 
   override func viewDidLoad() {

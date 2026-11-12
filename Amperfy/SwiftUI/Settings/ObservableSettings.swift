@@ -40,20 +40,7 @@ final class Settings: ObservableObject {
   @Published
   var screenLockPreventionPreference: ScreenLockPreventionPreference = .defaultValue
   @Published
-  var streamingMaxBitrateWifiPreference: StreamingMaxBitratePreference = .defaultValue
-  @Published
-  var streamingMaxBitrateCellularPreference: StreamingMaxBitratePreference =
-    .defaultValue
-  @Published
-  var streamingFormatCellularPreference: StreamingFormatPreference = .defaultValue
-  @Published
-  var streamingFormatWifiPreference: StreamingFormatPreference = .defaultValue
-  @Published
-  var cacheTranscodingFormatPreference: CacheTranscodingFormatPreference = .defaultValue
-  @Published
   var isAutoCacheLatestSongs = false
-  @Published
-  var isAutoCacheLatestPodcastEpisodes = false
   @Published
   var isPlayerAutoCachePlayedItems = false
   @Published

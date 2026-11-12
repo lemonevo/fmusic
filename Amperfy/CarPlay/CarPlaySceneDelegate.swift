@@ -201,7 +201,7 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var disconnectedTemplate = {
-    let disconnectedList = CPListTemplate(title: "Disconnected", sections: [])
+    let disconnectedList = CPListTemplate(title: L10n.tr("Disconnected"), sections: [])
     return disconnectedList
   }()
 
@@ -216,20 +216,20 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   }()
 
   lazy var playlistTab = {
-    let playlistTab = CPListTemplate(title: "Playlists", sections: [CPListSection]())
+    let playlistTab = CPListTemplate(title: L10n.tr("Playlists"), sections: [CPListSection]())
     playlistTab.tabImage = UIImage.playlist
     return playlistTab
   }()
 
   lazy var libraryTab = {
-    let libraryTab = CPListTemplate(title: "Library", sections: createLibrarySections())
+    let libraryTab = CPListTemplate(title: L10n.tr("Library"), sections: createLibrarySections())
     libraryTab.tabImage = UIImage.musicLibrary
     libraryTab.assistantCellConfiguration = CarPlaySceneDelegate.assistantConfig
     return libraryTab
   }()
 
   lazy var homeTab = {
-    let homeTab = CPListTemplate(title: "Home", sections: [])
+    let homeTab = CPListTemplate(title: L10n.tr("Home"), sections: [])
     homeTab.tabImage = UIImage.home
     homeTab.assistantCellConfiguration = CarPlaySceneDelegate.assistantConfig
     return homeTab
@@ -247,158 +247,133 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   var homeArtworkUpdate: [String: EntityImageRowContainer] = [:] // String is Artwork.uniqueID
 
   lazy var cachedTab = {
-    let cachedTab = CPListTemplate(title: "Cached", sections: createCachedSections())
+    let cachedTab = CPListTemplate(title: L10n.tr("Cached"), sections: createCachedSections())
     cachedTab.tabImage = UIImage.cache
     return cachedTab
   }()
 
   lazy var accountSection = {
-    let template = CPListTemplate(title: "Switch Account", sections: [
-      CPListSection(items: [CPListTemplateItem]()),
-    ])
-    return template
-  }()
-
-  lazy var podcastSection = {
-    let template = CPListTemplate(title: "Podcasts", sections: [
-      CPListSection(items: [CPListTemplateItem]()),
-    ])
-    return template
-  }()
-
-  lazy var podcastCachedSection = {
-    let template = CPListTemplate(title: "Cached Podcasts", sections: [
+    let template = CPListTemplate(title: L10n.tr("Switch Account"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var genresSection = {
-    let template = CPListTemplate(title: "Genres", sections: [
+    let template = CPListTemplate(title: L10n.tr("Genres"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var genresCachedSection = {
-    let template = CPListTemplate(title: "Cached Genres", sections: [
+    let template = CPListTemplate(title: L10n.tr("Cached Genres"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var artistsSection = {
-    let template = CPListTemplate(title: "Artists", sections: [
+    let template = CPListTemplate(title: L10n.tr("Artists"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var artistsCachedSection = {
-    let template = CPListTemplate(title: "Cached Artists", sections: [
+    let template = CPListTemplate(title: L10n.tr("Cached Artists"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var artistsFavoriteSection = {
-    let template = CPListTemplate(title: "Favorite Artists", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Artists"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var artistsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Artists", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Cached Artists"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsSection = {
-    let template = CPListTemplate(title: "Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsCachedSection = {
-    let template = CPListTemplate(title: "Cached Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Cached Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsFavoriteSection = {
-    let template = CPListTemplate(title: "Favorite Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Cached Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsNewestSection = {
-    let template = CPListTemplate(title: "Newest Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Newest Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsNewestCachedSection = {
-    let template = CPListTemplate(title: "Newest Cached Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Newest Cached Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsRecentSection = {
-    let template = CPListTemplate(title: "Recently Played Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Recently Played Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var albumsRecentCachedSection = {
-    let template = CPListTemplate(title: "Recently Played Cached Albums", sections: [
+    let template = CPListTemplate(title: L10n.tr("Recently Played Cached Albums"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var songsFavoriteSection = {
-    let template = CPListTemplate(title: "Favorite Songs", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Songs"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   lazy var songsFavoriteCachedSection = {
-    let template = CPListTemplate(title: "Favorite Cached Songs", sections: [
-      CPListSection(items: [CPListTemplateItem]()),
-    ])
-    return template
-  }()
-
-  lazy var radioSection = {
-    let template = CPListTemplate(title: "Radios", sections: [
+    let template = CPListTemplate(title: L10n.tr("Favorite Cached Songs"), sections: [
       CPListSection(items: [CPListTemplateItem]()),
     ])
     return template
   }()
 
   var playlistDetailSection: CPListTemplate?
-  var podcastDetailSection: CPListTemplate?
 
   var playlistFetchController: PlaylistFetchedResultsController?
-  var radiosFetchController: RadiosFetchedResultsController?
-  var podcastFetchController: PodcastFetchedResultsController?
-  var podcastCachedFetchController: PodcastFetchedResultsController?
   //
   var genresFetchController: GenreFetchedResultsController?
   var genresCachedFetchController: GenreFetchedResultsController?
@@ -418,17 +393,10 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
   var songsFavoritesCachedFetchController: SongsFetchedResultsController?
   //
   var playlistDetailFetchController: PlaylistItemsFetchedResultsController?
-  var podcastDetailFetchController: PodcastEpisodesFetchedResultsController?
 
   private func resetFetchController() {
     playlistFetchController?.delegate = nil
     playlistFetchController = nil
-    radiosFetchController?.delegate = nil
-    radiosFetchController = nil
-    podcastFetchController?.delegate = nil
-    podcastFetchController = nil
-    podcastCachedFetchController?.delegate = nil
-    podcastCachedFetchController = nil
     //
     genresFetchController?.delegate = nil
     genresFetchController = nil
@@ -465,8 +433,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
     //
     playlistDetailFetchController?.delegate = nil
     playlistDetailFetchController = nil
-    podcastDetailFetchController?.delegate = nil
-    podcastDetailFetchController = nil
   }
 
   @objc
@@ -570,23 +536,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
                 let mo = appDelegate.storage.main.context.object(with: managedObjectID) as? ArtistMO
                 if let mo = mo {
                   entity = Artist(managedObject: mo)
-                }
-              case .podcast:
-                let mo = appDelegate.storage.main.context
-                  .object(with: managedObjectID) as? PodcastMO
-                if let mo = mo {
-                  entity = Podcast(managedObject: mo)
-                }
-              case .podcastEpisode:
-                let mo = appDelegate.storage.main.context
-                  .object(with: managedObjectID) as? PodcastEpisodeMO
-                if let mo = mo {
-                  playable = PodcastEpisode(managedObject: mo)
-                }
-              case .radio:
-                let mo = appDelegate.storage.main.context.object(with: managedObjectID) as? RadioMO
-                if let mo = mo {
-                  playable = Radio(managedObject: mo)
                 }
               default: break
               }
@@ -730,14 +679,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
       createPlaylistFetchController()
       playlistTab.updateSections(createPlaylistsSections())
     }
-    if templates.contains(podcastSection) {
-      os_log("CarPlay: OfflineModeChanged: podcastFetchController", log: self.log, type: .info)
-      createPodcastFetchController()
-      podcastSection.updateSections(createPodcastsSections(
-        from: podcastFetchController,
-        onlyCached: isOfflineMode
-      ))
-    }
     if templates.contains(genresSection) {
       os_log(
         "CarPlay: OfflineModeChanged: genresFetchController",
@@ -835,15 +776,6 @@ class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelegate {
           [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
         )
     }
-    if let podcastDetailSection = podcastDetailSection, templates.contains(podcastDetailSection),
-       let podcastDetailFetchController = podcastDetailFetchController {
-      os_log("CarPlay: OfflineModeChanged: podcastDetailSection", log: self.log, type: .info)
-      podcastDetailFetchController.search(searchText: "", onlyCachedSongs: isOfflineMode)
-      podcastDetailSection
-        .updateSections(
-          [CPListSection(items: createPodcastDetailItems(from: podcastDetailFetchController))]
-        )
-    }
   }
 }
 
@@ -858,30 +790,6 @@ extension CarPlaySceneDelegate: @preconcurrency NSFetchedResultsControllerDelega
          controller == playlistFetchController.fetchResultsController {
         os_log("CarPlay: FetchedResults: playlistFetchController", log: self.log, type: .info)
         playlistTab.updateSections(createPlaylistsSections())
-      }
-      if templates.contains(podcastSection), let podcastFetchController = podcastFetchController,
-         controller == podcastFetchController.fetchResultsController {
-        os_log("CarPlay: FetchedResults: podcastFetchController", log: self.log, type: .info)
-        podcastSection.updateSections(createPodcastsSections(
-          from: podcastFetchController,
-          onlyCached: isOfflineMode
-        ))
-      }
-      if templates.contains(podcastCachedSection),
-         let podcastCachedFetchController = podcastCachedFetchController,
-         controller == podcastCachedFetchController.fetchResultsController {
-        os_log("CarPlay: FetchedResults: podcastCachedFetchController", log: self.log, type: .info)
-        podcastCachedSection.updateSections(createPodcastsSections(
-          from: podcastCachedFetchController,
-          onlyCached: true
-        ))
-      }
-
-      if templates.contains(radioSection), let radiosFetchController = radiosFetchController,
-         controller == radiosFetchController.fetchResultsController {
-        os_log("CarPlay: FetchedResults: radiosFetchController", log: self.log, type: .info)
-        radioSection
-          .updateSections(createRadioSections(from: radiosFetchController))
       }
       if templates.contains(genresSection),
          let genresFetchController = genresFetchController,
@@ -1089,15 +997,6 @@ extension CarPlaySceneDelegate: @preconcurrency NSFetchedResultsControllerDelega
             [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
           )
       }
-      if let podcastDetailSection = podcastDetailSection, templates.contains(podcastDetailSection),
-         let podcastDetailFetchController = podcastDetailFetchController,
-         controller == podcastDetailFetchController.fetchResultsController {
-        os_log("CarPlay: FetchedResults: podcastDetailSection", log: self.log, type: .info)
-        podcastDetailSection
-          .updateSections(
-            [CPListSection(items: createPodcastDetailItems(from: podcastDetailFetchController))]
-          )
-      }
     }
   }
 }
@@ -1129,28 +1028,9 @@ extension CarPlaySceneDelegate: CPInterfaceControllerDelegate {
         }}
         if playlistFetchController == nil { createPlaylistFetchController() }
         playlistTab.updateSections(createPlaylistsSections())
-      } else if aTemplate == podcastSection {
-        os_log("CarPlay: templateWillAppear podcastSection", log: self.log, type: .info)
-        if podcastFetchController == nil { createPodcastFetchController() }
-        podcastSection.updateSections(createPodcastsSections(
-          from: podcastFetchController,
-          onlyCached: isOfflineMode
-        ))
-      } else if aTemplate == podcastCachedSection {
-        os_log("CarPlay: templateWillAppear podcastCachedSection", log: self.log, type: .info)
-        if podcastCachedFetchController == nil { createPodcastCachedFetchController() }
-        podcastCachedSection.updateSections(createPodcastsSections(
-          from: podcastCachedFetchController,
-          onlyCached: true
-        ))
       } else if aTemplate == accountSection {
         os_log("CarPlay: templateWillAppear accountSection", log: self.log, type: .info)
         accountSection.updateSections(createAccountsSections())
-      } else if aTemplate == radioSection {
-        os_log("CarPlay: templateWillAppear radioSection", log: self.log, type: .info)
-        if radiosFetchController == nil { createRadiosFetchController() }
-        radioSection
-          .updateSections(createRadioSections(from: radiosFetchController))
       } else if aTemplate == artistsFavoriteSection {
         os_log("CarPlay: templateWillAppear artistsFavoriteSection", log: self.log, type: .info)
         if artistsFavoritesFetchController == nil { createArtistsFavoritesFetchController() }
@@ -1320,23 +1200,6 @@ extension CarPlaySceneDelegate: CPInterfaceControllerDelegate {
           .updateSections(
             [CPListSection(items: createPlaylistDetailItems(from: playlistDetailFetchController))]
           )
-      } else if aTemplate == podcastDetailSection,
-                let podcastDetailFetchController = podcastDetailFetchController {
-        os_log("CarPlay: templateWillAppear podcastDetailSection", log: self.log, type: .info)
-        Task { @MainActor in do {
-          try await podcastDetailFetchController.podcast.fetch(
-            storage: self.appDelegate.storage,
-            librarySyncer: self.appDelegate.getMeta(self.activeAccountInfo).librarySyncer,
-            playableDownloadManager: self.appDelegate.getMeta(self.activeAccountInfo)
-              .playableDownloadManager
-          )
-        } catch {
-          self.appDelegate.eventLogger.report(topic: "Podcast Sync", error: error)
-        }}
-        podcastDetailSection?
-          .updateSections(
-            [CPListSection(items: createPodcastDetailItems(from: podcastDetailFetchController))]
-          )
       }
     }
   }
@@ -1350,10 +1213,6 @@ extension CarPlaySceneDelegate: CPInterfaceControllerDelegate {
         os_log("CarPlay: templateDidDisappear playlistDetailSection", log: self.log, type: .info)
         playlistDetailFetchController = nil
         playlistDetailSection = nil
-      } else if aTemplate == podcastDetailSection {
-        os_log("CarPlay: templateDidDisappear podcastDetailSection", log: self.log, type: .info)
-        podcastDetailFetchController = nil
-        podcastDetailSection = nil
       }
     }
   }

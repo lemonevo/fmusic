@@ -51,12 +51,12 @@ public enum ShareSongAction {
     }
 
     let progressAlert = UIAlertController(
-      title: "Downloading\(CommonString.ellipsis)",
+      title: L10n.tr("Downloading…"),
       message: playable.displayString,
       preferredStyle: .alert
     )
     var cancelled = false
-    progressAlert.addAction(UIAlertAction(title: "Cancel", style: .cancel) { _ in
+    progressAlert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel) { _ in
       cancelled = true
     })
     presenter.present(progressAlert, animated: true)
@@ -83,11 +83,11 @@ public enum ShareSongAction {
       // Timed out, show error
       progressAlert.dismiss(animated: true) {
         let errorAlert = UIAlertController(
-          title: "Download failed",
-          message: "The download took too long. Please try again.",
+          title: L10n.tr("Download failed"),
+          message: L10n.tr("The download took too long. Please try again."),
           preferredStyle: .alert
         )
-        errorAlert.addAction(UIAlertAction(title: "OK", style: .default))
+        errorAlert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
         presenter.present(errorAlert, animated: true)
       }
     }

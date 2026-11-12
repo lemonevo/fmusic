@@ -100,7 +100,10 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     tableView.estimatedSectionHeaderHeight = 0.0
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
-      infoCB: { "\(self.album.songCount) Song\(self.album.songCount == 1 ? "" : "s")" },
+      infoCB: {
+        let count = self.album.songCount
+        return L10n.tr(count == 1 ? "%d Song" : "%d Songs", count)
+      },
       playContextCb: { () in PlayContext(
         containable: self.album,
         playables: self.fetchedResultsController

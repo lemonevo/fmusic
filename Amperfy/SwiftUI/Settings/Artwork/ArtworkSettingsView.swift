@@ -149,7 +149,7 @@ struct ArtworkSettingsView: View {
                 title: Text(L10n.tr("Delete all downloaded artworks")),
                 message: Text(
                   L10n.tr(
-                    "This action will delete downloaded artworks. Artworks embedded in song/podcast episode files will be kept. Continue?"
+                    "This action will delete downloaded artworks. Artworks embedded in song files will be kept. Continue?"
                   )
                 ),
                 primaryButton: .destructive(Text(L10n.tr("Delete"))) {

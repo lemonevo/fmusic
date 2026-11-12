@@ -31,12 +31,12 @@ class SettingsHostVC: UIViewController {
   }()
 
   var changesAgent: [AnyCancellable] = []
-  private var isForOwnWindow = false
+  private var showsSidebar = false
   private var accountNotificationHandler: AccountNotificationHandler?
 
   override var sceneTitle: String { windowSettingsTitle }
 
-  init(isForOwnWindow: Bool) {
+  init(showsSidebar: Bool) {
     super.init(nibName: nil, bundle: nil)
     self.accountNotificationHandler = AccountNotificationHandler(
       storage: appDelegate.storage,
@@ -48,12 +48,14 @@ class SettingsHostVC: UIViewController {
       refreshAccountSettings(accountInfo: accountInfo)
     }
 
-    self.isForOwnWindow = isForOwnWindow
+    self.showsSidebar = showsSidebar
 
     var settingsRootView: AnyView? = nil
-    if isForOwnWindow {
+    if showsSidebar {
+      var tabView = SettingsTabView()
+      tabView.onBackToApp = { [weak self] in self?.closeSettings() }
       settingsRootView = AnyView(
-        SettingsTabView()
+        tabView
           .environmentObject(settings)
           .environment(\.managedObjectContext, appDelegate.storage.main.context)
       )
@@ -83,11 +85,32 @@ class SettingsHostVC: UIViewController {
     super.init(coder: coder)
   }
 
+  private func closeSettings() {
+    guard presentingViewController != nil else { return }
+    dismiss(animated: true)
+  }
+
+  override var keyCommands: [UIKeyCommand]? {
+    guard showsSidebar, presentingViewController != nil else { return super.keyCommands }
+    var commands = super.keyCommands ?? []
+    commands.append(UIKeyCommand(
+      title: L10n.tr("Close"),
+      action: #selector(closeSettingsFromKeyboard),
+      input: UIKeyCommand.inputEscape
+    ))
+    return commands
+  }
+
+  @objc
+  private func closeSettingsFromKeyboard() {
+    closeSettings()
+  }
+
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
     changesAgent = [AnyCancellable]()
 
-    if !isForOwnWindow {
+    if !showsSidebar {
       extendSafeAreaToAccountForMiniPlayer()
     }
 
@@ -153,37 +176,6 @@ class SettingsHostVC: UIViewController {
       .screenLockPreventionPreference
     changesAgent.append(settings.$screenLockPreventionPreference.sink(receiveValue: { newValue in
       self.appDelegate.storage.settings.user.screenLockPreventionPreference = newValue
-    }))
-
-    settings.streamingMaxBitrateWifiPreference = appDelegate.storage.settings.user
-      .streamingMaxBitrateWifiPreference
-    changesAgent.append(settings.$streamingMaxBitrateWifiPreference.sink(receiveValue: { newValue in
-      self.appDelegate.storage.settings.user.streamingMaxBitrateWifiPreference = newValue
-    }))
-
-    settings.streamingMaxBitrateCellularPreference = appDelegate.storage.settings.user
-      .streamingMaxBitrateCellularPreference
-    changesAgent
-      .append(settings.$streamingMaxBitrateCellularPreference.sink(receiveValue: { newValue in
-        self.appDelegate.storage.settings.user.streamingMaxBitrateCellularPreference = newValue
-      }))
-
-    settings.streamingFormatCellularPreference = appDelegate.storage.settings.user
-      .streamingFormatCellularPreference
-    changesAgent.append(settings.$streamingFormatCellularPreference.sink(receiveValue: { newValue in
-      self.appDelegate.storage.settings.user.streamingFormatCellularPreference = newValue
-    }))
-
-    settings.streamingFormatWifiPreference = appDelegate.storage.settings.user
-      .streamingFormatWifiPreference
-    changesAgent.append(settings.$streamingFormatWifiPreference.sink(receiveValue: { newValue in
-      self.appDelegate.storage.settings.user.streamingFormatWifiPreference = newValue
-    }))
-
-    settings.cacheTranscodingFormatPreference = appDelegate.storage.settings.user
-      .cacheTranscodingFormatPreference
-    changesAgent.append(settings.$cacheTranscodingFormatPreference.sink(receiveValue: { newValue in
-      self.appDelegate.storage.settings.user.cacheTranscodingFormatPreference = newValue
     }))
 
     settings.isPlayerAutoCachePlayedItems = appDelegate.player.isAutoCachePlayedItems
@@ -284,13 +276,6 @@ class SettingsHostVC: UIViewController {
           accountSettings.isAutoDownloadLatestSongsActive = newValue
         }
     }))
-    changesAgent.append(settings.$isAutoCacheLatestPodcastEpisodes.sink(receiveValue: { newValue in
-      guard let activeAccountInfo = self.settings.activeAccountInfo else { return }
-      self.appDelegate.storage.settings.accounts
-        .updateSetting(activeAccountInfo) { accountSettings in
-          accountSettings.isAutoDownloadLatestPodcastEpisodesActive = newValue
-        }
-    }))
     changesAgent.append(settings.$isScrobbleStreamedItems.sink(receiveValue: { newValue in
       guard let activeAccountInfo = self.settings.activeAccountInfo else { return }
       self.appDelegate.storage.settings.accounts
@@ -311,11 +296,6 @@ class SettingsHostVC: UIViewController {
     settings.isAutoCacheLatestSongs = appDelegate.storage.settings.accounts
       .getSetting(accountInfo).read
       .isAutoDownloadLatestSongsActive
-
-    settings.isAutoCacheLatestPodcastEpisodes = appDelegate.storage.settings.accounts
-      .getSetting(accountInfo)
-      .read
-      .isAutoDownloadLatestPodcastEpisodesActive
 
     settings.isScrobbleStreamedItems = appDelegate.storage.settings.accounts
       .getSetting(accountInfo).read

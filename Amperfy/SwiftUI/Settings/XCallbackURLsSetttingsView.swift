@@ -34,31 +34,30 @@ struct XCallbackURLsSetttingsView: View {
               "Amperfy's X-Callback-URL API can be used to perform actions from other Apps or via Siri Shortcuts. All available actions with their detail information can be found below:"
             )
           )
-          .font(.caption)
+          .font(.system(size: 11))
         }
         ForEach(appDelegate.intentManager.documentation, id: \.self) { actionDocu in
           Section {
             VStack(alignment: .leading) {
               Text(actionDocu.name)
-                .font(.subheadline)
-                .fontWeight(.bold)
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.accentColor)
                 .padding([.top], 8)
               Text("\(actionDocu.description)")
-                .font(.caption)
+                .font(.system(size: 11))
                 .fixedSize(horizontal: false, vertical: true)
                 .padding([.top, .bottom], 8)
               Text(L10n.tr("Action: %@", actionDocu.action))
-                .font(.caption)
+                .font(.system(size: 11))
                 .padding([.bottom], 8)
               Text(L10n.tr("Example URLs:"))
-                .font(.caption)
+                .font(.system(size: 11))
                 .underline()
                 .padding([.bottom], 4)
               ForEach(actionDocu.exampleURLs, id: \.self) { url in
                 HStack {
                   Text("- " + url)
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .padding([.leading, .bottom], 8)
                   Spacer()
                   copyToPasteBoardButton(for: url)
@@ -67,24 +66,24 @@ struct XCallbackURLsSetttingsView: View {
 
               if !actionDocu.parameters.isEmpty {
                 Text(L10n.tr("Parameters:"))
-                  .font(.caption)
+                  .font(.system(size: 11))
                   .underline()
                   .padding([.top], 8)
               }
               ForEach(actionDocu.parameters, id: \.self) { para in
                 Text("\(para.name) \(para.isMandatory ? L10n.tr("(mandatory)") : "")")
-                  .font(.caption)
+                  .font(.system(size: 11))
                   .fontWeight(.bold)
                   .padding([.top], 4)
                 Text(L10n.tr("Type: %@", para.type))
-                  .font(.caption)
+                  .font(.system(size: 11))
                   .padding([.leading], 8)
                 Text(L10n.tr("Description: %@", para.description))
-                  .font(.caption)
+                  .font(.system(size: 11))
                   .padding([.leading], 8)
                 if !para.isMandatory, let defaultValue = para.defaultIfNotGiven {
                   Text(L10n.tr("Default: %@", defaultValue))
-                    .font(.caption)
+                    .font(.system(size: 11))
                     .padding([.leading], 8)
                 }
               }

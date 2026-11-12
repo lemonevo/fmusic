@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import AmperfyKit
 import SwiftUI
 
 // MARK: - HTTPHeaderEntry
@@ -72,15 +73,15 @@ struct CustomHTTPHeadersView: View {
   var body: some View {
     SettingsList {
       Section(footer: Text(
-        "Headers are sent with every request to the server, including streaming and downloads. Use this to provide a Cloudflare Access service token (CF-Access-Client-Id / CF-Access-Client-Secret) or any other proxy authentication header."
+        L10n.tr("Headers are sent with every request to the server, including streaming and downloads. Use this to provide a Cloudflare Access service token (CF-Access-Client-Id / CF-Access-Client-Secret) or any other proxy authentication header.")
       )) {
         ForEach($entries) { $entry in
           VStack(alignment: .leading, spacing: 4) {
-            TextField("Header name", text: $entry.key)
-              .font(.headline)
+            TextField(L10n.tr("Header name"), text: $entry.key)
+              .font(.system(size: 13, weight: .semibold))
               .autocorrectionDisabled()
               .textInputAutocapitalization(.never)
-            TextField("Value", text: $entry.value)
+            TextField(L10n.tr("Value"), text: $entry.value)
               .foregroundColor(.secondary)
               .autocorrectionDisabled()
               .textInputAutocapitalization(.never)
@@ -92,20 +93,20 @@ struct CustomHTTPHeadersView: View {
         }
 
         Button(action: addEmptyHeader) {
-          Label("Add Header", systemImage: "plus")
+          Label(L10n.tr("Add Header"), systemImage: "plus")
         }
       }
 
       Section {
         Button(action: addCloudflareAccessToken) {
-          Label("Add Cloudflare Access Token", systemImage: "lock.shield")
+          Label(L10n.tr("Add Cloudflare Access Token"), systemImage: "lock.shield")
         }
       }
     }
     .onChange(of: entries) { _, _ in
       commit()
     }
-    .navigationTitle("Custom HTTP Headers")
+    .navigationTitle(L10n.tr("Custom HTTP Headers"))
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
       EditButton()

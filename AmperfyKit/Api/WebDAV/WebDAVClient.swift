@@ -50,17 +50,17 @@ enum WebDAVError: LocalizedError, Sendable {
   var errorDescription: String? {
     switch self {
     case .invalidBaseURL:
-      return "The WebDAV URL is invalid."
+      return L10n.tr("The WebDAV URL is invalid.")
     case .unauthorized:
-      return "WebDAV login failed. Please check username and password."
+      return L10n.tr("WebDAV login failed. Please check username and password.")
     case .digestNotSupported:
-      return "This WebDAV server requires Digest authentication, which is not supported yet."
+      return L10n.tr("This WebDAV server requires Digest authentication, which is not supported yet.")
     case let .requestFailed(statusCode):
-      return "WebDAV request failed with status code \(statusCode)."
+      return L10n.tr("WebDAV request failed with status code %d.", statusCode)
     case .invalidResponse:
-      return "The WebDAV server returned an unexpected response."
+      return L10n.tr("The WebDAV server returned an unexpected response.")
     case .unreadableRange:
-      return "The WebDAV server did not return the requested byte range."
+      return L10n.tr("The WebDAV server did not return the requested byte range.")
     }
   }
 }

@@ -95,91 +95,6 @@ extension PersistentStorage {
       ) }
     }
 
-    public var streamingMaxBitrateWifiPreference: StreamingMaxBitratePreference {
-      get {
-        let streamingMaxBitrateWifiPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.StreamingMaxBitrateWifiPreference.rawValue) as? Int ??
-          StreamingMaxBitratePreference.defaultValue.rawValue
-        return StreamingMaxBitratePreference(rawValue: streamingMaxBitrateWifiPreferenceRaw) ??
-          StreamingMaxBitratePreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.StreamingMaxBitrateWifiPreference.rawValue
-      ) }
-    }
-
-    public var streamingMaxBitrateCellularPreference: StreamingMaxBitratePreference {
-      get {
-        let streamingMaxBitrateCelluarPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.StreamingMaxBitrateCellularPreference.rawValue) as? Int ??
-          StreamingMaxBitratePreference.defaultValue.rawValue
-        return StreamingMaxBitratePreference(rawValue: streamingMaxBitrateCelluarPreferenceRaw) ??
-          StreamingMaxBitratePreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.StreamingMaxBitrateCellularPreference.rawValue
-      ) }
-    }
-
-    /// deprecated: use Wifi and Cellular instead
-    public var streamingFormatPreference: StreamingFormatPreference {
-      get {
-        let streamingFormatPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.StreamingFormatPreference.rawValue) as? Int ??
-          StreamingFormatPreference.defaultValue.rawValue
-        return StreamingFormatPreference(rawValue: streamingFormatPreferenceRaw) ??
-          StreamingFormatPreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.StreamingFormatPreference.rawValue
-      ) }
-    }
-
-    public var streamingFormatWifiPreference: StreamingFormatPreference {
-      get {
-        let streamingFormatPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.StreamingFormatWifiPreference.rawValue) as? Int ??
-          StreamingFormatPreference.defaultValue.rawValue
-        return StreamingFormatPreference(rawValue: streamingFormatPreferenceRaw) ??
-          StreamingFormatPreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.StreamingFormatWifiPreference.rawValue
-      ) }
-    }
-
-    public var streamingFormatCellularPreference: StreamingFormatPreference {
-      get {
-        let streamingFormatPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.StreamingFormatCellularPreference.rawValue) as? Int ??
-          StreamingFormatPreference.defaultValue.rawValue
-        return StreamingFormatPreference(rawValue: streamingFormatPreferenceRaw) ??
-          StreamingFormatPreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.StreamingFormatCellularPreference.rawValue
-      ) }
-    }
-
-    public var cacheTranscodingFormatPreference: CacheTranscodingFormatPreference {
-      get {
-        let cacheTranscodingFormatPreferenceRaw = UserDefaults.standard
-          .object(forKey: UserDefaultsKey.CacheTranscodingFormatPreference.rawValue) as? Int ??
-          CacheTranscodingFormatPreference.defaultValue.rawValue
-        return CacheTranscodingFormatPreference(rawValue: cacheTranscodingFormatPreferenceRaw) ??
-          CacheTranscodingFormatPreference.defaultValue
-      }
-      set { UserDefaults.standard.set(
-        newValue.rawValue,
-        forKey: UserDefaultsKey.CacheTranscodingFormatPreference.rawValue
-      ) }
-    }
-
     public var isShowDetailedInfo: Bool {
       get {
         UserDefaults.standard
@@ -501,19 +416,6 @@ extension PersistentStorage {
       ) }
     }
 
-    public var isAutoDownloadLatestPodcastEpisodesActive: Bool {
-      get {
-        UserDefaults.standard
-          .object(
-            forKey: UserDefaultsKey.IsAutoDownloadLatestPodcastEpisodesActive
-              .rawValue
-          ) as? Bool ?? false
-      }
-      set { UserDefaults.standard.set(
-        newValue,
-        forKey: UserDefaultsKey.IsAutoDownloadLatestPodcastEpisodesActive.rawValue
-      ) }
-    }
 
     public var isScrobbleStreamedItems: Bool {
       get {
@@ -767,8 +669,6 @@ extension PersistentStorage {
       accountSetting.artworkDownloadSetting = legacySettings.artworkDownloadSetting
       accountSetting.homeSections = legacySettings.homeSections
       accountSetting.initialSyncCompletionStatus = legacySettings.initialSyncCompletionStatus
-      accountSetting.isAutoDownloadLatestPodcastEpisodesActive = legacySettings
-        .isAutoDownloadLatestPodcastEpisodesActive
       accountSetting.isAutoDownloadLatestSongsActive = legacySettings
         .isAutoDownloadLatestSongsActive
       accountSetting.isScrobbleStreamedItems = legacySettings.isScrobbleStreamedItems
@@ -782,14 +682,6 @@ extension PersistentStorage {
     settings.app.isLibrarySynced = legacySettings.isLibrarySynced
     settings.app.librarySyncVersion = legacySettings.librarySyncVersion
 
-    settings.user.streamingMaxBitrateWifiPreference = legacySettings
-      .streamingMaxBitrateWifiPreference
-    settings.user.streamingMaxBitrateCellularPreference = legacySettings
-      .streamingMaxBitrateCellularPreference
-    settings.user.streamingFormatWifiPreference = legacySettings.streamingFormatWifiPreference
-    settings.user.streamingFormatCellularPreference = legacySettings
-      .streamingFormatCellularPreference
-    settings.user.cacheTranscodingFormatPreference = legacySettings.cacheTranscodingFormatPreference
     settings.user.isShowDetailedInfo = legacySettings.isShowDetailedInfo
     settings.user.isShowSongDuration = legacySettings.isShowSongDuration
     settings.user.isShowAlbumDuration = legacySettings.isShowAlbumDuration

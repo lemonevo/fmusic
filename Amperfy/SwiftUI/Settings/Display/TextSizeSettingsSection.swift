@@ -75,29 +75,35 @@ struct TextSizeSettingsSection: View {
 
   private var textSizeFooter: String {
     #if targetEnvironment(macCatalyst)
-      return "\(Self.textSizeName(currentTextSize)): Size of the text in lists and album grids."
+      return L10n.tr(
+        "%@: Size of the text in lists and album grids.",
+        Self.textSizeName(currentTextSize)
+      )
     #else
       guard settings.textSize != nil else {
-        return "Amperfy uses the text size from the iOS settings."
+        return L10n.tr("Amperfy uses the text size from the iOS settings.")
       }
-      return "\(Self.textSizeName(currentTextSize)): Size of the text in Amperfy."
+      return L10n.tr(
+        "%@: Size of the text in Amperfy.",
+        Self.textSizeName(currentTextSize)
+      )
     #endif
   }
 
   private static func textSizeName(_ textSize: UIContentSizeCategory) -> String {
     switch textSize {
-    case .extraSmall: "Extra Small"
-    case .small: "Small"
-    case .medium: "Medium"
-    case .large: "Default"
-    case .extraLarge: "Large"
-    case .extraExtraLarge: "Extra Large"
-    case .extraExtraExtraLarge: "Extra Extra Large"
-    case .accessibilityMedium: "Accessibility 1"
-    case .accessibilityLarge: "Accessibility 2"
-    case .accessibilityExtraLarge: "Accessibility 3"
-    case .accessibilityExtraExtraLarge: "Accessibility 4"
-    case .accessibilityExtraExtraExtraLarge: "Accessibility 5"
+    case .extraSmall: L10n.tr("Extra Small")
+    case .small: L10n.tr("Small")
+    case .medium: L10n.tr("Medium")
+    case .large: L10n.tr("Default")
+    case .extraLarge: L10n.tr("Large")
+    case .extraExtraLarge: L10n.tr("Extra Large")
+    case .extraExtraExtraLarge: L10n.tr("Extra Extra Large")
+    case .accessibilityMedium: L10n.tr("Accessibility 1")
+    case .accessibilityLarge: L10n.tr("Accessibility 2")
+    case .accessibilityExtraLarge: L10n.tr("Accessibility 3")
+    case .accessibilityExtraExtraLarge: L10n.tr("Accessibility 4")
+    case .accessibilityExtraExtraExtraLarge: L10n.tr("Accessibility 5")
     default: textSize.rawValue
     }
   }
@@ -106,16 +112,16 @@ struct TextSizeSettingsSection: View {
     SettingsSection(
       content: {
         #if !targetEnvironment(macCatalyst)
-          SettingsCheckBoxRow(title: "Use System Text Size", isOn: isSystemTextSize)
+          SettingsCheckBoxRow(title: L10n.tr("Use System Text Size"), isOn: isSystemTextSize)
         #endif
         if isTextSizeSliderVisible {
-          SettingsRow(title: "Text Size") {
+          SettingsRow(title: L10n.tr("Text Size")) {
             Slider(
               value: textSizeIndex,
               in: 0 ... Double(TextScaling.textSizes.count - 1),
               step: 1
             ) {
-              Text("Text Size")
+              Text(L10n.tr("Text Size"))
             } minimumValueLabel: {
               Image(systemName: "textformat.size.smaller")
             } maximumValueLabel: {

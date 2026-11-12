@@ -28,9 +28,9 @@ extension LibraryDisplayType {
   fileprivate var isVisibleInCachedCarPlay: Bool {
     switch self {
     case .albums, .artists, .favoriteAlbums, .favoriteArtists, .favoriteSongs, .genres,
-         .newestAlbums, .podcasts, .recentAlbums:
+         .newestAlbums, .recentAlbums:
       return true
-    case .directories, .downloads, .radios, .songs:
+    case .directories, .downloads, .songs:
       return false
     case .playlists:
       return false // playlists have their own tab
@@ -71,8 +71,6 @@ extension CarPlaySceneDelegate {
       switch displayType {
       case .genres:
         sectionToDisplay = genresCachedSection
-      case .podcasts:
-        sectionToDisplay = podcastCachedSection
       case .artists:
         sectionToDisplay = artistsCachedSection
       case .albums:
@@ -87,8 +85,6 @@ extension CarPlaySceneDelegate {
         sectionToDisplay = albumsNewestCachedSection
       case .recentAlbums:
         sectionToDisplay = albumsRecentCachedSection
-      case .radios:
-        sectionToDisplay = radioSection
       case .directories, .downloads, .playlists, .songs:
         break // do nothing
       }
@@ -102,7 +98,7 @@ extension CarPlaySceneDelegate {
     }
     let libDisplaySection = CPListSection(
       items: [libDisplayRow],
-      header: "Cached Library",
+      header: L10n.tr("Cached Library"),
       sectionIndexTitle: nil
     )
     return libDisplaySection
@@ -153,7 +149,7 @@ extension CarPlaySceneDelegate {
     }
     let playRandomSection = CPListSection(
       items: [playRandomRow],
-      header: "Play Random Cached",
+      header: L10n.tr("Play Random Cached"),
       sectionIndexTitle: nil
     )
     return playRandomSection

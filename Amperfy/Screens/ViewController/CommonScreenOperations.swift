@@ -38,7 +38,7 @@ extension UIView {
     bottom: UIView.defaultMarginY,
     right: UIView.defaultMarginX
   )
-  static let defaultMarginCellX: CGFloat = 16
+  static let defaultMarginCellX: CGFloat = 20
   static let defaultMarginCellY: CGFloat = 9
   static let defaultMarginCell = UIEdgeInsets(
     top: UIView.defaultMarginCellY,
@@ -59,66 +59,17 @@ class CommonScreenOperations {
 
 // MARK: - UIViewController
 
-extension UIViewController {
-  func createUserButtonMenu() -> UIMenu {
-    var accountActions = [UIMenuElement]()
-    for accountInfo in appDelegate.storage.settings.accounts.allAccounts {
-      let isActiveAccount = (accountInfo == appDelegate.storage.settings.accounts.active)
-      let action = UIAction(
-        title: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
-          .loginCredentials?
-          .username ?? L10n.tr("Unknown"),
-        subtitle: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
-          .loginCredentials?
-          .displayServerUrl ?? "",
-        image: .userCircle(withConfiguration: UIImage.SymbolConfiguration(
-          pointSize: 30,
-          weight: .regular
-        )),
-        attributes: isActiveAccount ? [UIMenuElement.Attributes.disabled] : [],
-        state: isActiveAccount ? .on : .off,
-        handler: { _ in
-          self.appDelegate.switchAccount(accountInfo: accountInfo)
-        }
-      )
-      accountActions.append(action)
-    }
 
-    #if targetEnvironment(macCatalyst)
-      let addAccountImage = UIImage.plus
-    #else
-      let addAccountImage = UIImage.userCirclePlus
-    #endif
-    let openAddAccount = UIAction(
-      title: L10n.tr("Add Account"),
-      image: addAccountImage,
-      handler: { _ in
-        let loginVC = AppStoryboard.Main.segueToLogin()
-        loginVC.modalPresentationStyle = .formSheet
-        self.present(loginVC, animated: true)
-      }
-    )
-    let openSettings = UIAction(
-      title: L10n.tr("Settings"),
-      image: .settings,
-      handler: { _ in
-        #if targetEnvironment(macCatalyst)
-          self.appDelegate.showSettings(sender: "")
-        #else
-          let nav = AppStoryboard.Main.segueToSettings()
-          nav.modalPresentationStyle = .formSheet
-          self.present(nav, animated: true)
-        #endif
-      }
-    )
-    let settingsMenu = UIMenu(options: [.displayInline], children: [openAddAccount, openSettings])
-    accountActions.append(settingsMenu)
+// MARK: - Localized empty states
 
-    return UIMenu(
-      title: "",
-      image: nil,
-      options: [.displayInline],
-      children: accountActions
-    )
+extension UIContentUnavailableConfiguration {
+  /// The system `search()` state is localized from the app bundle, which only ships
+  /// Base.lproj and therefore always renders English. Build the same state from L10n.
+  static func localizedSearch() -> UIContentUnavailableConfiguration {
+    var config = UIContentUnavailableConfiguration.empty()
+    config.image = UIImage(systemName: "magnifyingglass")
+    config.text = L10n.tr("No Results")
+    config.secondaryText = L10n.tr("Check the spelling or try a new search.")
+    return config
   }
 }

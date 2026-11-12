@@ -498,19 +498,16 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
   @IBAction
   func titlePressed(_ sender: Any) {
     rootView?.displayAlbumDetail()
-    rootView?.displayPodcastDetail()
   }
 
   @IBAction
   func albumPressed(_ sender: Any) {
     rootView?.displayAlbumDetail()
-    rootView?.displayPodcastDetail()
   }
 
   @IBAction
   func artistNamePressed(_ sender: Any) {
     rootView?.displayArtistDetail()
-    rootView?.displayPodcastDetail()
   }
 
   @IBAction

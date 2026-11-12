@@ -38,6 +38,17 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   case appendPodcastQueue = 10
   case favorite = 11
 
+  /// Podcast queue actions stay in the enum so existing settings still decode,
+  /// but they are not offered anywhere in this music-only fork.
+  public var isSupported: Bool {
+    switch self {
+    case .insertPodcastQueue, .appendPodcastQueue:
+      return false
+    default:
+      return true
+    }
+  }
+
   public var displayName: String {
     switch self {
     case .insertUserQueue:
@@ -133,19 +144,21 @@ public struct SwipeActionSettings: Sendable, Codable {
   public var combined: [[SwipeActionType]]
 
   public var leading: [SwipeActionType] {
-    combined[0]
+    combined[0].filter(\.isSupported)
   }
 
   public var trailing: [SwipeActionType] {
-    combined[1]
+    combined[1].filter(\.isSupported)
   }
 
   public var notUsed: [SwipeActionType] {
-    combined[2]
+    combined[2].filter(\.isSupported)
   }
 
   public init(leading: [SwipeActionType], trailing: [SwipeActionType]) {
-    let notUsedSet = Set(SwipeActionType.allCases).subtracting(Set(leading))
+    let notUsedSet = Set(SwipeActionType.allCases)
+      .filter(\.isSupported)
+      .subtracting(Set(leading))
       .subtracting(Set(trailing))
     self.combined = [leading, trailing, Array(notUsedSet)]
   }
@@ -189,8 +202,6 @@ public struct SwipeActionSettings: Sendable, Codable {
       ], trailing: [
         .appendUserQueue,
         .insertUserQueue,
-        .appendPodcastQueue,
-        .insertPodcastQueue,
         .download,
       ]
     )

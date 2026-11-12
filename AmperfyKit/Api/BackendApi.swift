@@ -261,17 +261,6 @@ public protocol URLCleanser: Sendable {
   func cleanse(url: URL?) -> CleansedURL
 }
 
-// MARK: - TranscodingInfo
-
-public struct TranscodingInfo {
-  var format: CacheTranscodingFormatPreference?
-  var bitrate: StreamingMaxBitratePreference?
-
-  var description: String {
-    "Format: \(format?.description ?? "-"), Bitrate: \(bitrate?.description ?? "-")"
-  }
-}
-
 // MARK: - BackendApi
 
 public protocol BackendApi: URLCleanser, Sendable {
@@ -281,18 +270,7 @@ public protocol BackendApi: URLCleanser, Sendable {
   func provideCredentials(credentials: LoginCredentials)
   func isAuthenticationValid(credentials: LoginCredentials) async throws
   func generateUrl(forDownloadingPlayable playableInfo: AbstractPlayableInfo) async throws -> URL
-  func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference
-  ) async throws -> URL
-  /// Stream starting at `timeOffset` seconds; throws `BackendError.notSupported` if the server can't do it
-  func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference,
-    timeOffset: Int
-  ) async throws -> URL
+  func generateUrl(forStreamingPlayable playableInfo: AbstractPlayableInfo) async throws -> URL
   func generateUrl(forArtwork artwork: Artwork) async throws -> URL
   func checkForErrorResponse(response: APIDataResponse) -> ResponseError?
   @MainActor

@@ -37,9 +37,9 @@ struct SettingsList<Content: View>: View {
         .settingsRowBackground()
     }
     .settingsListBackground()
-    // Match the compact macOS settings typography (the sidebar uses the same 13 pt size).
+    // Same compact typography as the main sidebar: 13 pt rows on 32 pt row height.
     .font(.system(size: 13))
-    .environment(\.defaultMinListRowHeight, 30)
+    .environment(\.defaultMinListRowHeight, 32)
     .contentMargins(.top, 2, for: .scrollContent)
   }
 }
@@ -52,7 +52,6 @@ extension Color {
     // grouped rows are drawn as a subtle fill on top of it. The fill is translucent, so the rows
     // become slightly darker in light mode and slightly lighter in dark mode.
     static let settingsBackground = Color(UIColor.systemBackground)
-    static let settingsRowBackground = Color(UIColor.quaternarySystemFill)
   #endif
 }
 
@@ -68,11 +67,12 @@ extension View {
     #endif
   }
 
-  /// Background of the rows inside a settings `List`
+  /// Flat rows like the main sidebar: no group cards and no separators.
   @ViewBuilder
   func settingsRowBackground() -> some View {
     #if targetEnvironment(macCatalyst) // ok
-      listRowBackground(Color.settingsRowBackground)
+      listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     #else
       self
     #endif

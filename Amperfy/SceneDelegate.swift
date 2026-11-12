@@ -127,6 +127,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     replaceMainRootViewController(vc: initialViewController!)
 
+    // Apply the stored appearance before the first frame, so forcing Dark (or Light) while the
+    // system uses the other one doesn't flash the wrong theme on launch.
+    window?.overrideUserInterfaceStyle = appDelegate.storage.settings.user.appearanceMode
     window?.makeKeyAndVisible()
 
     appDelegate.setAppAppearanceMode(style: appDelegate.storage.settings.user.appearanceMode)
@@ -167,7 +170,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   #endif
 
   func replaceMainRootViewController(vc: UIViewController) {
-    window?.rootViewController = vc
+    guard let window else { return }
+    guard window.rootViewController != nil else {
+      window.rootViewController = vc
+      return
+    }
+    // A modal (e.g. settings) is presented by the old root; it would stay on screen after the swap.
+    window.rootViewController?.presentedViewController?.dismiss(animated: false)
+    // Cross-fade between whole app states (login -> sync -> library, account switch) instead of
+    // swapping the root view controller abruptly.
+    UIView.transition(
+      with: window,
+      duration: 0.28,
+      options: [.transitionCrossDissolve, .allowUserInteraction]
+    ) {
+      UIView.performWithoutAnimation {
+        window.rootViewController = vc
+      }
+    }
   }
 
   /** Called when the user activates your application by selecting a shortcut on the Home Screen,
@@ -238,7 +258,6 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     guard appDelegate.isNormalInteraction else {
       return
     }
-    appDelegate.scheduleAppRefresh()
   }
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {

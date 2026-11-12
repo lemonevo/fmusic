@@ -54,7 +54,7 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
     case .rating:
       guard let album = getFirstAlbum(in: section) else { return nil }
       if album.rating > 0 {
-        return "\(album.rating) Star\(album.rating != 1 ? "s" : "")"
+        return L10n.tr(album.rating == 1 ? "%d Star" : "%d Stars", album.rating)
       } else {
         return L10n.tr("Not rated")
       }

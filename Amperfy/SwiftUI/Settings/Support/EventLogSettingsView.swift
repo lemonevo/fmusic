@@ -42,6 +42,8 @@ struct EventLogSettingsView: View {
             EventLogCellView(entry: LogEntry(managedObject: entry))
           }
         }
+        .font(.system(size: 13))
+        .environment(\.defaultMinListRowHeight, 32)
         #if targetEnvironment(macCatalyst) // ok
         .listStyle(.plain)
         #else

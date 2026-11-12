@@ -186,7 +186,7 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
   func updateContentUnavailable() {
     if fetchedResultsController.fetchedObjects?.count ?? 0 == 0 {
       if fetchedResultsController.isSearchActive {
-        contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         contentUnavailableConfiguration = emptyContentConfig
       }

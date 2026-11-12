@@ -221,6 +221,78 @@ class KeyboardFocusableListCell: UICollectionViewListCell {
     }
   }
 
+  /// Soft neutral highlight under the content while the pointer is over a sidebar row.
+  private lazy var hoverBackgroundView: UIView = {
+    let view = UIView()
+    view.backgroundColor = UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor.white.withAlphaComponent(0.07)
+        : UIColor.black.withAlphaComponent(0.045)
+    }
+    view.layer.cornerRadius = 6
+    view.layer.cornerCurve = .continuous
+    view.alpha = 0
+    view.isUserInteractionEnabled = false
+    return view
+  }()
+
+  private var hoverGestureRecognizer: UIHoverGestureRecognizer?
+
+  /// Section headers etc. are not clickable and must not highlight on hover.
+  var isHoverHighlightEnabled = true {
+    didSet {
+      hoverGestureRecognizer?.isEnabled = isHoverHighlightEnabled
+      if !isHoverHighlightEnabled {
+        hoverBackgroundView.alpha = 0
+      }
+    }
+  }
+
+  override init(frame: CGRect) {
+    super.init(frame: frame)
+    configureHover()
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+    configureHover()
+  }
+
+  private func configureHover() {
+    #if targetEnvironment(macCatalyst)
+      contentView.insertSubview(hoverBackgroundView, at: 0)
+      let recognizer = UIHoverGestureRecognizer(
+        target: self,
+        action: #selector(handlePointerHover(_:))
+      )
+      addGestureRecognizer(recognizer)
+      hoverGestureRecognizer = recognizer
+    #endif
+  }
+
+  @objc
+  private func handlePointerHover(_ recognizer: UIHoverGestureRecognizer) {
+    let isHovering: Bool
+    switch recognizer.state {
+    case .began, .changed: isHovering = true
+    default: isHovering = false
+    }
+    UIView.animate(
+      withDuration: 0.12,
+      delay: 0,
+      options: [.beginFromCurrentState, .allowUserInteraction]
+    ) {
+      self.hoverBackgroundView.alpha = isHovering ? 1 : 0
+    }
+  }
+
+  override func layoutSubviews() {
+    super.layoutSubviews()
+    #if targetEnvironment(macCatalyst)
+      hoverBackgroundView.frame = contentView.bounds.insetBy(dx: 6, dy: 1)
+    #endif
+  }
+
   override func markAsFocused() {
     isKeyboardFocused = true
   }
@@ -232,6 +304,7 @@ class KeyboardFocusableListCell: UICollectionViewListCell {
   override func prepareForReuse() {
     super.prepareForReuse()
     isKeyboardFocused = false
+    hoverBackgroundView.alpha = 0
   }
 
   override func updateConfiguration(using state: UICellConfigurationState) {

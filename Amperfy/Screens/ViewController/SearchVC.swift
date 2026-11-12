@@ -705,7 +705,7 @@ class SearchVC: BasicTableViewController {
   func updateContentUnavailable() {
     if isSearchActive {
       if artists.isEmpty, albums.isEmpty, playlists.isEmpty, songs.isEmpty {
-        contentUnavailableConfiguration = UIContentUnavailableConfiguration.search()
+        contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
       } else {
         contentUnavailableConfiguration = nil
       }

@@ -25,16 +25,12 @@ import MarqueeLabel
 import UIKit
 
 class PlainDetailsVC: UIViewController {
-  override var sceneTitle: String? { podcast?.name }
-
   @IBOutlet
   weak var headerLabel: UILabel!
   @IBOutlet
   weak var detailsTextView: UITextView!
 
   private var rootView: UIViewController?
-  private var podcast: Podcast?
-  private var podcastEpisode: PodcastEpisode?
   private var player: PlayerFacade?
   private var lyricsRelFilePath: URL?
   private var lyricsAccount: Account?
@@ -59,47 +55,21 @@ class PlainDetailsVC: UIViewController {
     refresh()
   }
 
-  func display(podcast: Podcast, on rootView: UIViewController) {
-    self.rootView = rootView
-    self.podcast = podcast
-    podcastEpisode = nil
-    player = nil
-    lyricsRelFilePath = nil
-  }
-
-  func display(podcastEpisode: PodcastEpisode, on rootView: UIViewController) {
-    self.rootView = rootView
-    podcast = nil
-    self.podcastEpisode = podcastEpisode
-    player = nil
-    lyricsRelFilePath = nil
-  }
-
   func display(player: PlayerFacade, on rootView: UIViewController) {
     self.rootView = rootView
-    podcast = nil
-    podcastEpisode = nil
     self.player = player
     lyricsRelFilePath = nil
   }
 
   func display(lyricsRelFilePath: URL, lyricsAccount: Account, on rootView: UIViewController) {
     self.rootView = rootView
-    podcast = nil
-    podcastEpisode = nil
     player = nil
     self.lyricsRelFilePath = lyricsRelFilePath
     self.lyricsAccount = lyricsAccount
   }
 
   func refresh() {
-    if let podcast = podcast {
-      detailsTextView.text = podcast.depiction
-      headerLabel.text = L10n.tr("Description")
-    } else if let podcastEpisode = podcastEpisode {
-      detailsTextView.text = podcastEpisode.depiction
-      headerLabel.text = L10n.tr("Description")
-    } else if let lyricsRelFilePath = lyricsRelFilePath, let lyricsAccount {
+    if let lyricsRelFilePath = lyricsRelFilePath, let lyricsAccount {
       detailsTextView.text = ""
       headerLabel.text = L10n.tr("Lyrics")
       Task { @MainActor in do {

@@ -87,7 +87,7 @@ class TabBarVC: UITabBarController {
       }
 
     libraryGroup = UITabGroup(
-      title: "Library",
+      title: L10n.tr("Library"),
       image: .musicLibrary,
       identifier: "Tabs.Library",
       children: libraryTabs
@@ -142,7 +142,10 @@ class TabBarVC: UITabBarController {
     )
 
     if appDelegate.storage.settings.user.isOfflineMode {
-      appDelegate.eventLogger.info(topic: "Reminder", message: "Offline Mode is active.")
+      appDelegate.eventLogger.info(
+        topic: "Reminder",
+        message: L10n.tr("Offline Mode is active.")
+      )
     }
   }
 

@@ -79,7 +79,7 @@ final class PlayableDownloadDelegate: DownloadManagerDelegate {
     guard let fileURL else {
       return ResponseError(
         type: .api,
-        message: "Invalid download",
+        message: L10n.tr("Invalid download"),
         cleansedURL: downloadURL?.asCleansedURL(cleanser: backendApi),
         data: nil
       )

@@ -26,8 +26,8 @@ import UIKit
 class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, PlaylistVCAddable {
   override var sceneTitle: String? {
     switch displayFilter {
-    case .all, .newest, .recent: "Songs"
-    case .favorites: "Favorite Songs"
+    case .all, .newest, .recent: L10n.tr("Songs")
+    case .favorites: L10n.tr("Favorite Songs")
     }
   }
 
@@ -61,8 +61,8 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
     tableView.estimatedSectionFooterHeight = 0.0
 
     configureSearchController(
-      placeholder: "Search in \"\(sceneTitle ?? "Songs")\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", sceneTitle ?? L10n.tr("Songs")),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
   }
 
@@ -207,9 +207,12 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
     case .rating:
       if let sectionNameInitial = super.tableView(tableView, titleForHeaderInSection: section),
          sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
-        return "\(sectionNameInitial) Star\(sectionNameInitial != "1" ? "s" : "")"
+        return L10n.tr(
+          sectionNameInitial == "1" ? "%@ Star" : "%@ Stars",
+          sectionNameInitial
+        )
       } else {
-        return "Not rated"
+        return L10n.tr("Not rated")
       }
     case .addedDate:
       return nil

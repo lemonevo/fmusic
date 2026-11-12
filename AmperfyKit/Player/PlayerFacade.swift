@@ -22,71 +22,6 @@
 import Foundation
 import MediaPlayer
 
-// MARK: - StreamingMaxBitrates
-
-@MainActor
-public struct StreamingMaxBitrates {
-  public var wifi: StreamingMaxBitratePreference = .noLimit
-  public var cellular: StreamingMaxBitratePreference = .noLimit
-
-  public init(wifi: StreamingMaxBitratePreference, cellular: StreamingMaxBitratePreference) {
-    self.wifi = wifi
-    self.cellular = cellular
-  }
-
-  public init() {
-    self.wifi = .noLimit
-    self.cellular = .noLimit
-  }
-
-  public func getActive(networkMonitor: NetworkMonitorFacade) -> StreamingMaxBitratePreference {
-    if networkMonitor.isWifiOrEthernet {
-      return wifi
-    } else {
-      return cellular
-    }
-  }
-}
-
-// MARK: - StreamingTranscodings
-
-@MainActor
-public struct StreamingTranscodings {
-  public var wifi: StreamingFormatPreference = .serverConfig
-  public var cellular: StreamingFormatPreference = .serverConfig
-
-  public init(wifi: StreamingFormatPreference, cellular: StreamingFormatPreference) {
-    self.wifi = wifi
-    self.cellular = cellular
-  }
-
-  public init() {
-    self.wifi = .serverConfig
-    self.cellular = .serverConfig
-  }
-
-  public func getActive(networkMonitor: NetworkMonitorFacade) -> StreamingFormatPreference {
-    if networkMonitor.isWifiOrEthernet {
-      return wifi
-    } else {
-      return cellular
-    }
-  }
-
-  public func isTranscodingActive(networkMonitor: NetworkMonitorFacade) -> Bool {
-    if networkMonitor.isCellular {
-      if cellular != .raw {
-        return true
-      }
-    } else {
-      if wifi != .raw {
-        return true
-      }
-    }
-    return false
-  }
-}
-
 // MARK: - PlayContext
 
 public struct PlayContext {
@@ -203,13 +138,7 @@ public protocol PlayerFacade {
   var podcastItemCount: Int { get }
   var playerMode: PlayerMode { get }
   var playType: PlayType? { get }
-  var activeStreamingBitrate: StreamingMaxBitratePreference? { get }
-  var activeTranscodingFormat: StreamingFormatPreference? { get }
   func setPlayerMode(_ newValue: PlayerMode)
-  var streamingMaxBitrates: StreamingMaxBitrates { get }
-  func setStreamingMaxBitrates(to: StreamingMaxBitrates)
-  var streamingTranscodings: StreamingTranscodings { get }
-  func setStreamingTranscodings(to: StreamingTranscodings)
 
   func logout(account: Account)
 
@@ -396,14 +325,6 @@ class PlayerFacadeImpl: PlayerFacade {
     backendAudioPlayer.playType
   }
 
-  var activeStreamingBitrate: StreamingMaxBitratePreference? {
-    backendAudioPlayer.activeStreamingBitrate
-  }
-
-  var activeTranscodingFormat: StreamingFormatPreference? {
-    backendAudioPlayer.activeTranscodingFormat
-  }
-
   func getPlayable(at playerIndex: PlayerIndex) -> AbstractPlayable? {
     queueHandler.getPlayable(at: playerIndex)
   }
@@ -430,7 +351,7 @@ class PlayerFacadeImpl: PlayerFacade {
        queueHandler.currentlyPlaying == nil || queueHandler.isUserQueuePlaying {
       return ""
     } else {
-      return "Mixed Context"
+      return L10n.tr("Mixed Context")
     }
   }
 
@@ -509,16 +430,6 @@ class PlayerFacadeImpl: PlayerFacade {
     musicPlayer.stopButRemainIndex()
     playerStatus.setPlayerMode(newValue)
     musicPlayer.notifyPlaylistUpdated()
-  }
-
-  var streamingMaxBitrates: StreamingMaxBitrates { backendAudioPlayer.streamingMaxBitrates }
-  public func setStreamingMaxBitrates(to: StreamingMaxBitrates) {
-    backendAudioPlayer.setStreamingMaxBitrates(to: to)
-  }
-
-  var streamingTranscodings: StreamingTranscodings { backendAudioPlayer.streamingTranscodings }
-  public func setStreamingTranscodings(to: StreamingTranscodings) {
-    backendAudioPlayer.setStreamingTranscodings(to: to)
   }
 
   public func updateEqualizerEnabled(isEnabled: Bool) {

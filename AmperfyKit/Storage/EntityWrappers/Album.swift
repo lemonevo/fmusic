@@ -46,7 +46,7 @@ public class Album: AbstractLibraryEntity {
   }
 
   public var name: String {
-    get { managedObject.name ?? "Unknown Album" }
+    get { L10n.trPlaceholder(managedObject.name ?? "Unknown Album") }
     set {
       if managedObject.name != newValue {
         managedObject.name = newValue
@@ -118,17 +118,9 @@ public class Album: AbstractLibraryEntity {
     managedObject.newestIndex = Int16(index)
   }
 
-  public func markAsNotNewAnymore() {
-    managedObject.newestIndex = 0
-  }
-
   public func updateIsRecentInfo(index: Int) {
     guard Int16.isValid(value: index), managedObject.recentIndex != index else { return }
     managedObject.recentIndex = Int16(index)
-  }
-
-  public func markAsNotRecentAnymore() {
-    managedObject.recentIndex = 0
   }
 
   public var remoteSongCount: Int {

@@ -49,6 +49,8 @@ class MiniPlayerSceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     window = UIWindow(windowScene: windowScene)
     appDelegate.applyTextSize()
+    // Newly opened scenes must inherit the in-app appearance choice, not the system one.
+    window?.overrideUserInterfaceStyle = appDelegate.storage.settings.user.appearanceMode
     window?.backgroundColor = .secondarySystemBackground
 
     #if targetEnvironment(macCatalyst)

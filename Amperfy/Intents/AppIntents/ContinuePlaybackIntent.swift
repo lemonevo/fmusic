@@ -29,8 +29,6 @@ extension PlaybackModeAppEnum {
     switch self {
     case .music:
       return AmperfyImage.musicalNotes.asImage
-    case .podcast:
-      return AmperfyImage.podcast.asImage
     }
   }
 
@@ -38,8 +36,6 @@ extension PlaybackModeAppEnum {
     switch self {
     case .music:
       return "Continue Music playback."
-    case .podcast:
-      return "Continue Podcast playback."
     }
   }
 }
@@ -85,9 +81,8 @@ struct ContinuePlaybackIntent: AppIntent {
 
   @MainActor
   func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-    let playerMode = PlayerMode.fromIntent(type: playbackMode)
-    if appDelegate.player.playerMode != playerMode {
-      appDelegate.player.setPlayerMode(playerMode)
+    if appDelegate.player.playerMode != .music {
+      appDelegate.player.setPlayerMode(.music)
     }
     appDelegate.player.play()
     return .result(

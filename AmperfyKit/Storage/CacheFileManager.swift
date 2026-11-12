@@ -502,43 +502,6 @@ final public class CacheFileManager: Sendable {
     return cacheInfo
   }
 
-  public func getCachedEpisodes(for account: AccountInfo) -> [PlayableCacheInfo] {
-    var URLs = [URL]()
-    var cacheInfo = [PlayableCacheInfo]()
-    if let episodesDir = getOrCreateAbsolutePodcastEpisodesDirectory(for: account) {
-      URLs = contentsOfDirectory(url: episodesDir)
-    }
-    for url in URLs {
-      let isDirectoryResourceValue: URLResourceValues
-      do {
-        isDirectoryResourceValue = try url.resourceValues(forKeys: [.isDirectoryKey])
-      } catch {
-        continue
-      }
-      guard isDirectoryResourceValue.isDirectory == nil || isDirectoryResourceValue
-        .isDirectory == false else {
-        continue
-      }
-
-      let fileName = url.lastPathComponent
-      var id = fileName
-      let pathExtension = url.pathExtension
-      var mimeType: String?
-      if !pathExtension.isEmpty {
-        id = (fileName as NSString).deletingPathExtension
-        mimeType = MimeFileConverter.getMIMEType(filenameExtension: pathExtension)
-      }
-      cacheInfo.append(PlayableCacheInfo(
-        url: url,
-        id: id,
-        fileType: pathExtension,
-        mimeType: mimeType,
-        relFilePath: getRelPodcastEpisodesDirectory(for: account)?.appendingPathComponent(fileName)
-      ))
-    }
-    return cacheInfo
-  }
-
   public struct EmbeddedArtworkCacheInfo: Sendable {
     let url: URL
     let id: String
