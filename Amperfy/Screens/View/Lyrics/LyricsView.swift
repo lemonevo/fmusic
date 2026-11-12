@@ -81,6 +81,11 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
 
   public var onLyricSelected: ((LyricsLine) -> ())?
 
+  private var lastScrollTime: CMTime?
+  private var userLyricsOffsetSeconds: Double {
+    Double(appDelegate.storage.settings.user.lyricsOffsetMs) / 1_000
+  }
+
   override init(frame: CGRect, style: UITableView.Style) {
     super.init(frame: frame, style: style)
     commonInit()
@@ -103,6 +108,13 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
 
     backgroundColor = .clear
     layer.mask = fadeMask
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(handleLyricsOffsetChanged),
+      name: .lyricsOffsetChanged,
+      object: nil
+    )
   }
 
   override func layoutSubviews() {
@@ -390,6 +402,22 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
     }
   }
 
+  /// Lyric lines arrive sorted by `startTime`; this runs at 60 Hz, so keep it O(log n).
+  private func firstLineIndex(atOrAfter time: CMTime) -> Int? {
+    guard let lyrics, !lyrics.line.isEmpty else { return nil }
+    var low = 0
+    var high = lyrics.line.count
+    while low < high {
+      let mid = (low + high) / 2
+      if lyrics.line[mid].startTime < time {
+        low = mid + 1
+      } else {
+        high = mid
+      }
+    }
+    return low < lyrics.line.count ? low : nil
+  }
+
   func scroll(toTime time: CMTime) {
     guard let lyrics = lyrics,
           !lyricModels.isEmpty,
@@ -397,12 +425,19 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
           time.seconds.isFinite
     else { return }
 
-    // The fill follows the raw audio clock (plus LRC offset). Word-timed lyrics use
+    lastScrollTime = time
+    // Hidden lyrics (artwork/visualizer mode, closed player) don't need 60 Hz updates; the
+    // position is re-synced when the lyrics are shown again.
+    guard !isHidden, window != nil else { return }
+
+    let offsetSeconds = (Double(lyrics.offset) / 1_000) + userLyricsOffsetSeconds
+
+    // The fill follows the raw audio clock (plus LRC and manual offsets). Word-timed lyrics use
     // their timestamps directly; the estimated fallback adds a small lead internally
     // so the first character is already lit when the line becomes current.
     defer {
       updateActiveFill(
-        rawSeconds: time.seconds + (Double(lyrics.offset) / 1_000)
+        rawSeconds: time.seconds + offsetSeconds
       )
     }
 
@@ -411,15 +446,15 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
       return Date() >= suppressUntil
     }()
 
-    // A positive LRC offset makes the lyrics appear sooner.
+    // A positive offset makes the lyrics appear sooner.
     let adjustedSeconds = max(
       0,
-      time.seconds + lyricsLeadTime + (Double(lyrics.offset) / 1_000)
+      time.seconds + lyricsLeadTime + offsetSeconds
     )
     let searchTime = CMTime(seconds: adjustedSeconds, preferredTimescale: 1_000)
     let isFirstSync = isInitialScroll
 
-    guard let indexOfNextLine = lyrics.line.firstIndex(where: { $0.startTime >= searchTime }) else {
+    guard let indexOfNextLine = firstLineIndex(atOrAfter: searchTime) else {
       // After the last line starts there is no next line; keep it highlighted until the song ends.
       let lastRow = lyricModels.count - 1
       if lastIndex != lastRow {
@@ -492,7 +527,21 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
     }
   }
 
+  /// Playback position at which the given lyric line is displayed, accounting for the LRC
+  /// offset and the manual offset. Used when tapping a line to seek.
+  func playbackTime(for lyric: LyricsLine) -> Double {
+    let offsetSeconds = (Double(lyrics?.offset ?? 0) / 1_000) + userLyricsOffsetSeconds
+    return max(0, lyric.startTime.seconds - offsetSeconds)
+  }
+
+  @objc
+  private func handleLyricsOffsetChanged() {
+    guard let lastScrollTime else { return }
+    scroll(toTime: lastScrollTime)
+  }
+
   deinit {
     stopScrollSpring()
+    NotificationCenter.default.removeObserver(self)
   }
 }

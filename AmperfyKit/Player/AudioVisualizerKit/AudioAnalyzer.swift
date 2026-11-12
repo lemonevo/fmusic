@@ -2,20 +2,10 @@ import AVFoundation
 import Observation
 import SwiftUI
 
-// MARK: - AudioAnalyzerProtocol
-
-@MainActor
-protocol AudioAnalyzerProtocol: AnyObject {
-  func install(on audioNode: AVAudioNode)
-  func playing(sampleRate: Float)
-  func play()
-  func stop()
-}
-
 // MARK: - AudioAnalyzer
 
 @MainActor
-public final class AudioAnalyzer: ObservableObject, AudioAnalyzerProtocol {
+public final class AudioAnalyzer: ObservableObject {
   @Published
   public var magnitudes: [Magnitude]
   @Published
@@ -67,6 +57,9 @@ public final class AudioAnalyzer: ObservableObject, AudioAnalyzerProtocol {
     }
   }
 
+  /// The tap fires once per ~6 ms; the visualizer only needs ~30 fps.
+  nonisolated(unsafe) private var lastPublishTime: CFAbsoluteTime = 0
+
   public init(fftSize: Int = 256, windowType: WindowType = .hannWindow) {
     self.fftSize = fftSize
     self._fft = FFT(size: fftSize, windowType: windowType)
@@ -96,14 +89,17 @@ public final class AudioAnalyzer: ObservableObject, AudioAnalyzerProtocol {
   }
 
   nonisolated func calculate(buffer: AVAudioPCMBuffer, audioTime: AVAudioTime) {
-    if isActive, isPlaying, let data = buffer.floatChannelData {
-      let magnitudesCalculated = fft.compute(sampleRate: sampleRate, audioData: data.pointee)
-      let rmsCalculated = fft.rms(audioData: data.pointee)
+    guard isActive, isPlaying, let data = buffer.floatChannelData else { return }
+    let now = CFAbsoluteTimeGetCurrent()
+    guard now - lastPublishTime >= 1.0 / 30.0 else { return }
+    lastPublishTime = now
 
-      Task { @MainActor in
-        self.magnitudes = magnitudesCalculated
-        self.rms = rmsCalculated
-      }
+    let magnitudesCalculated = fft.compute(sampleRate: sampleRate, audioData: data.pointee)
+    let rmsCalculated = fft.rms(audioData: data.pointee)
+
+    Task { @MainActor in
+      self.magnitudes = magnitudesCalculated
+      self.rms = rmsCalculated
     }
   }
 }

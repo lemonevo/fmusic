@@ -120,6 +120,20 @@ public struct UserSettings: Sendable, Codable {
     set { _cacheLimit = newValue }
   }
 
+  // Manual lyrics timing offset in milliseconds; positive shows lyrics sooner.
+  private var _lyricsOffsetMs: Int = 0
+  public var lyricsOffsetMs: Int {
+    get { _lyricsOffsetMs }
+    set { _lyricsOffsetMs = min(5_000, max(-5_000, newValue)) }
+  }
+
+  // Crossfade duration in seconds between consecutive tracks; 0 disables crossfading.
+  private var _crossfadeSeconds: Int = 0
+  public var crossfadeSeconds: Int {
+    get { _crossfadeSeconds }
+    set { _crossfadeSeconds = min(8, max(0, newValue)) }
+  }
+
   private var _isPlayerLyricsDisplayed: Bool = false
   public var isPlayerLyricsDisplayed: Bool {
     get { _isPlayerLyricsDisplayed }
@@ -367,12 +381,6 @@ public struct AccountSetting: Sendable, Codable {
     set { _isAutoDownloadLatestSongsActive = newValue }
   }
 
-  private var _isScrobbleStreamedItems: Bool = false
-  public var isScrobbleStreamedItems: Bool {
-    get { _isScrobbleStreamedItems }
-    set { _isScrobbleStreamedItems = newValue }
-  }
-
   private var _libraryDisplaySettings: LibraryDisplaySettings = .defaultSettings
   public var libraryDisplaySettings: LibraryDisplaySettings {
     get { _libraryDisplaySettings }
@@ -459,10 +467,6 @@ public struct AccountSettings: Sendable, Codable {
   public var activeSetting: ReadOnlyAccountSetting {
     guard let _activeAccount else { return ReadOnlyAccountSetting(read: AccountSetting()) }
     return ReadOnlyAccountSetting(read: _accounts[_activeAccount] ?? AccountSetting())
-  }
-
-  public var availableApiTypes: Set<ServerApiType> {
-    Set(_accounts.compactMap { $0.value.loginCredentials?.backendApi.asServerApiType })
   }
 
   public var allAccounts: [AccountInfo] {

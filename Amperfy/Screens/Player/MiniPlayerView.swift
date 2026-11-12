@@ -138,7 +138,10 @@ class MiniPlayerView: UIView {
 
   fileprivate lazy var moreButton: UIButton = {
     let button = UIButton()
-    button.setImage(Self.barIcon(.ellipsis), for: .normal)
+    button.setImage(
+      Self.barIcon(UIImage(systemName: "ellipsis.circle") ?? .ellipsis),
+      for: .normal
+    )
     button.imageView?.tintColor = .label
     button.showsMenuAsPrimaryAction = true
     return button
@@ -195,6 +198,7 @@ class MiniPlayerView: UIView {
     var config = UIButton.Configuration.plain()
     config.image = .repeatMenu.withConfiguration(UIImage.SymbolConfiguration(scale: .medium))
     let button = UIButton(configuration: config)
+    button.accessibilityLabel = L10n.tr("Repeat")
     button.addTarget(self, action: #selector(Self.repeatButtonPushed), for: .touchUpInside)
     button
       .cornerConfiguration =
@@ -212,6 +216,7 @@ class MiniPlayerView: UIView {
     var config = UIButton.Configuration.plain()
     config.image = .shuffle.withConfiguration(UIImage.SymbolConfiguration(scale: .medium))
     let button = UIButton(configuration: config)
+    button.accessibilityLabel = L10n.tr("Shuffle")
     button.addTarget(self, action: #selector(Self.shuffleButtonPushed), for: .touchUpInside)
     button
       .cornerConfiguration =

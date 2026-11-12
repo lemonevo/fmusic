@@ -59,25 +59,26 @@ final class AudioPlayerRenderProcessor: NSObject {
 
         rendererContext.lock.lock()
         var waitForBuffer = false
-        let audioBuffer = rendererContext.audioBuffer
         var bufferList = rendererContext.inOutAudioBufferList[0]
         let bufferContext = rendererContext.bufferContext
         let frameSizeInBytes = bufferContext.sizeInBytes
         let used = bufferContext.frameUsedCount
         let start = bufferContext.frameStartIndex
+        let crossfade = rendererContext.crossfadeState
         #if DEBUG
         assert(start < bufferContext.totalFrameCount,
                "frameStartIndex (\(start)) >= totalFrameCount (\(bufferContext.totalFrameCount)) - logic error!")
         assert(used <= bufferContext.totalFrameCount,
                "frameUsedCount (\(used)) > totalFrameCount (\(bufferContext.totalFrameCount)) - logic error!")
         #endif
-        let end = (bufferContext.frameStartIndex + bufferContext.frameUsedCount) % bufferContext.totalFrameCount
         let signal = rendererContext.waiting.value && used < bufferContext.totalFrameCount / 2
 
+        var playingFramesState: EntryFramesState?
         if let playingEntry = playingEntry {
             playingEntry.lock.lock()
             let framesState = playingEntry.framesState
             playingEntry.lock.unlock()
+            playingFramesState = framesState
 
             if state == .waitingForData {
                 var requiredFramesToStart = rendererContext.framesRequiredToStartPlaying
@@ -111,81 +112,52 @@ final class AudioPlayerRenderProcessor: NSObject {
 
         var totalFramesCopied: UInt32 = 0
         if used > 0 && !waitForBuffer && playingEntry != nil && state.contains(.running) && state != .paused {
-            if end > start {
-                let framesToCopy = min(inNumberFrames, used)
-                bufferList.mBuffers.mNumberChannels = 2
-                bufferList.mBuffers.mDataByteSize = frameSizeInBytes * framesToCopy
+            // When a crossfade has been prepared, the outgoing entry must not read into the raw
+            // head of the incoming entry. The head is skipped at the entry switch instead.
+            var framesAvailableFromCurrent = Int(used)
+            var crossfadeHeadFrames = 0
+            var incomingPostHeadIndex: UInt32?
+            if let crossfade, let playingEntry, playingEntry.id == crossfade.outgoingId,
+               let framesState = playingFramesState, framesState.lastFrameQueued >= 0 {
+                framesAvailableFromCurrent = min(
+                    framesAvailableFromCurrent,
+                    max(0, framesState.lastFrameQueued - framesState.played)
+                )
+                crossfadeHeadFrames = crossfade.frames
+                incomingPostHeadIndex = (crossfade.incomingStartIndex + UInt32(crossfade.frames)) %
+                    bufferContext.totalFrameCount
+            }
 
-                if isMuted {
-                    if let mData = bufferList.mBuffers.mData {
-                        memset(mData, 0, Int(bufferList.mBuffers.mDataByteSize))
-                    }
-                } else {
-                    if let mDataBuffer = audioBuffer.mData {
-                        memcpy(bufferList.mBuffers.mData, mDataBuffer + Int(start * frameSizeInBytes), Int(bufferList.mBuffers.mDataByteSize))
-                    }
-                }
-                totalFramesCopied = framesToCopy
+            let framesToCopyCurrent = min(Int(inNumberFrames), framesAvailableFromCurrent)
+            var copiedFrames = 0
+            if framesToCopyCurrent > 0 {
+                copyRingFrames(from: Int(start), count: framesToCopyCurrent, to: bufferList, byteOffset: 0)
+                copiedFrames = framesToCopyCurrent
+            }
 
-                rendererContext.lock.lock()
-                #if DEBUG
-                if totalFramesCopied > bufferContext.frameUsedCount {
-                    Logger.debug("Buffer race: tried to consume %d frames but only %d available (reset likely occurred)",
-                                 category: .audioRendering,
-                                 args: totalFramesCopied, bufferContext.frameUsedCount)
+            if copiedFrames < Int(inNumberFrames), let incomingPostHeadIndex {
+                let usedAfterCurrent = Int(used) - framesToCopyCurrent
+                let availableIncoming = max(0, usedAfterCurrent - crossfadeHeadFrames)
+                let framesToCopyIncoming = min(Int(inNumberFrames) - copiedFrames, availableIncoming)
+                if framesToCopyIncoming > 0 {
+                    copyRingFrames(
+                        from: Int(incomingPostHeadIndex),
+                        count: framesToCopyIncoming,
+                        to: bufferList,
+                        byteOffset: copiedFrames * Int(frameSizeInBytes)
+                    )
+                    copiedFrames += framesToCopyIncoming
                 }
-                #endif
-                bufferContext.frameStartIndex = (bufferContext.frameStartIndex + totalFramesCopied) % bufferContext.totalFrameCount
-                if totalFramesCopied <= bufferContext.frameUsedCount {
-                    bufferContext.frameUsedCount -= totalFramesCopied
-                } else {
-                    bufferContext.frameUsedCount = 0
-                }
-                rendererContext.lock.unlock()
+            }
 
-            } else {
-                let frameToCopy: UInt32
-                if start < bufferContext.totalFrameCount {
-                    frameToCopy = min(inNumberFrames, bufferContext.totalFrameCount - start)
-                } else {
-                    #if DEBUG
-                    Logger.debug("Buffer race: start index %d >= totalFrameCount %d (reset likely occurred)",
-                                 category: .audioRendering,
-                                 args: start, bufferContext.totalFrameCount)
-                    #endif
-                    frameToCopy = 0
-                }
-                bufferList.mBuffers.mNumberChannels = 2
-                bufferList.mBuffers.mDataByteSize = frameSizeInBytes * frameToCopy
+            totalFramesCopied = UInt32(copiedFrames)
+            bufferList.mBuffers.mNumberChannels = 2
+            bufferList.mBuffers.mDataByteSize = frameSizeInBytes * totalFramesCopied
+            if isMuted, let mData = bufferList.mBuffers.mData {
+                memset(mData, 0, Int(bufferList.mBuffers.mDataByteSize))
+            }
 
-                if isMuted {
-                    if let mData = bufferList.mBuffers.mData {
-                        memset(mData, 0, Int(bufferList.mBuffers.mDataByteSize))
-                    }
-                } else {
-                    if let mDataBuffer = audioBuffer.mData {
-                        memcpy(bufferList.mBuffers.mData, mDataBuffer + Int(start * frameSizeInBytes), Int(bufferList.mBuffers.mDataByteSize))
-                    }
-                }
-
-                var moreFramesToCopy: UInt32 = 0
-                let delta = inNumberFrames - frameToCopy
-                if delta > 0 {
-                    moreFramesToCopy = min(delta, end)
-                    bufferList.mBuffers.mNumberChannels = 2
-                    bufferList.mBuffers.mDataByteSize += frameSizeInBytes * moreFramesToCopy
-                    if let ioBufferData = bufferList.mBuffers.mData {
-                        if isMuted {
-                            memset(ioBufferData + Int(frameToCopy * frameSizeInBytes), 0, Int(frameSizeInBytes * moreFramesToCopy))
-                        } else {
-                            if let mDataBuffer = audioBuffer.mData {
-                                memcpy(ioBufferData + Int(frameToCopy * frameSizeInBytes), mDataBuffer, Int(frameSizeInBytes * moreFramesToCopy))
-                            }
-                        }
-                    }
-                }
-                totalFramesCopied = frameToCopy + moreFramesToCopy
-
+            if totalFramesCopied > 0 {
                 rendererContext.lock.lock()
                 #if DEBUG
                 if totalFramesCopied > bufferContext.frameUsedCount {
@@ -303,6 +275,35 @@ final class AudioPlayerRenderProcessor: NSObject {
         rendererContext.inOutAudioBufferList[0].mBuffers.mNumberChannels = outputAudioFormat.mChannelsPerFrame
 
         return UnsafePointer(rendererContext.inOutAudioBufferList)
+    }
+
+    /// Copies frames out of the decoded ring buffer, splitting at the ring boundary.
+    private func copyRingFrames(
+        from startIndex: Int,
+        count: Int,
+        to buffer: AudioBufferList,
+        byteOffset: Int
+    ) {
+        guard count > 0,
+              let source = rendererContext.audioBuffer.mData,
+              let destination = buffer.mBuffers.mData
+        else { return }
+        let totalFrames = Int(rendererContext.bufferContext.totalFrameCount)
+        let frameBytes = Int(rendererContext.bufferContext.sizeInBytes)
+        let firstChunk = min(count, totalFrames - startIndex)
+        memcpy(
+            destination + byteOffset,
+            source + startIndex * frameBytes,
+            firstChunk * frameBytes
+        )
+        let remaining = count - firstChunk
+        if remaining > 0 {
+            memcpy(
+                destination + byteOffset + firstChunk * frameBytes,
+                source,
+                remaining * frameBytes
+            )
+        }
     }
 
     func render(

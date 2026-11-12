@@ -185,16 +185,6 @@ extension LibrarySyncerProxy: LibrarySyncer {
   }
 
   @MainActor
-  func syncNowPlaying(song: Song, songPosition: NowPlayingSongPosition) async throws {
-    try await activeSyncer.syncNowPlaying(song: song, songPosition: songPosition)
-  }
-
-  @MainActor
-  func scrobble(song: Song, date: Date?) async throws {
-    try await activeSyncer.scrobble(song: song, date: date)
-  }
-
-  @MainActor
   func setRating(song: Song, rating: Int) async throws {
     try await activeSyncer.setRating(song: song, rating: rating)
   }

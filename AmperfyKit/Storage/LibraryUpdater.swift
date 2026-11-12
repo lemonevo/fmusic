@@ -497,7 +497,6 @@ public class LibraryUpdater {
      x PlayerData
      x PlaylistItems
      x Playlists
-     x ScrobbleEntries
      x SearchHistories
      */
     try await storage.async.perform { asyncCompanion in
@@ -564,16 +563,6 @@ public class LibraryUpdater {
       }
     }
     try await storage.async.perform { asyncCompanion in
-      let scrobbleEntries = asyncCompanion.library.getAllScrobbleEntries()
-      let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-      notifier.startOperation(name: "Scrobbles Update", totalCount: scrobbleEntries.count)
-      for (index, scrobbleEntry) in scrobbleEntries.enumerated() {
-        sleepConditionally(index)
-        scrobbleEntry.account = accountAsync
-        notifier.tickOperation()
-      }
-    }
-    try await storage.async.perform { asyncCompanion in
       let searchHistory = asyncCompanion.library.getAllSearchHistory()
       let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
       notifier.startOperation(name: "Search History Update", totalCount: searchHistory.count)
@@ -603,7 +592,6 @@ public class LibraryUpdater {
         x player
         x playlistItems
         x playlists
-        x scrobbleEntries
         x searchHistories
         */
   }

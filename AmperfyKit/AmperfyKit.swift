@@ -120,7 +120,16 @@ public class AmperKit {
   private func createPlayer() -> PlayerFacade {
     playerAudioSessionHandler = AudioSessionHandler()
     let backendAudioPlayer = BackendAudioPlayer(
-      createAudioStreamingPlayerCB: { AudioStreamingPlayer() },
+      createAudioStreamingPlayerCB: {
+        AudioStreamingPlayer(configuration: AudioPlayerConfiguration(
+          flushQueueOnSeek: false,
+          bufferSizeInSeconds: 30,
+          secondsRequiredToStartPlaying: 1,
+          gracePeriodAfterSeekInSeconds: 0.5,
+          secondsRequiredToStartPlayingAfterBufferUnderrun: 7,
+          enableLogs: false
+        ))
+      },
       audioSessionHandler: playerAudioSessionHandler!,
       eventLogger: eventLogger,
       getBackendApiCB: { accountInfo in
@@ -158,6 +167,7 @@ public class AmperKit {
     backendAudioPlayer
       .updateEqualizerSetting(eqSetting: storage.settings.user.activeEqualizerSetting)
     backendAudioPlayer.updateReplayGainEnabled(isEnabled: storage.settings.user.isReplayGainEnabled)
+    backendAudioPlayer.crossfadeDuration = Double(storage.settings.user.crossfadeSeconds)
     backendAudioPlayer.volume = storage.settings.user.playerVolume
 
     playerDownloadPreparationHandler = PlayerDownloadPreparationHandler(

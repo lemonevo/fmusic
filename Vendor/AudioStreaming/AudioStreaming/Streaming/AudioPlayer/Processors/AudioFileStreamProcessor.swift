@@ -964,12 +964,20 @@ final class AudioFileStreamProcessor {
     @inline(__always)
     private func fillUsedFrames(framesCount: UInt32) {
         rendererContext.lock.lock()
+        let writeIndex = (rendererContext.bufferContext.frameStartIndex +
+            rendererContext.bufferContext.frameUsedCount) % rendererContext.bufferContext.totalFrameCount
+        let generation = rendererContext.bufferGeneration
         rendererContext.bufferContext.frameUsedCount += framesCount
         rendererContext.lock.unlock()
 
-        playerContext.audioReadingEntry?.lock.lock()
-        playerContext.audioReadingEntry?.framesState.queued += Int(framesCount)
-        playerContext.audioReadingEntry?.lock.unlock()
+        guard let readingEntry = playerContext.audioReadingEntry else { return }
+        readingEntry.lock.lock()
+        if readingEntry.framesState.queued == 0 {
+            readingEntry.firstFrameRingIndex = writeIndex
+            readingEntry.firstFrameBufferGeneration = generation
+        }
+        readingEntry.framesState.queued += Int(framesCount)
+        readingEntry.lock.unlock()
     }
 
     @inline(__always)

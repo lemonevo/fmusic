@@ -123,6 +123,10 @@ class BackendAudioPlayer: NSObject {
 
   public var isOfflineMode: Bool = false
   public var isAutoCachePlayedItems: Bool = true
+  /// Crossfade duration in seconds; 0 disables crossfading.
+  public var crossfadeDuration: Double = 0 {
+    didSet { player?.crossfadeDuration = crossfadeDuration }
+  }
   public var nextPlayablePreloadCB: NextPlayablePreloadCallback?
   public var triggerReinsertPlayableCB: TriggerReinsertPlayableCallback?
   public private(set) var isPlaying: Bool = false
@@ -217,6 +221,10 @@ class BackendAudioPlayer: NSObject {
         self.responder?.didLyricsTimeChange(time: cmTime)
       }
     }
+    // `scheduledTimer` only registers for the default mode; keep the clocks running while
+    // the user scrolls a list or holds a menu open.
+    if let timer = timerElapsedTimeInterval { RunLoop.main.add(timer, forMode: .common) }
+    if let timer = timerLyricsTimeInterval { RunLoop.main.add(timer, forMode: .common) }
   }
 
   private func stopTimers() {
@@ -229,7 +237,8 @@ class BackendAudioPlayer: NSObject {
     if nextPreloadedPlayable == nil, elapsedTime.isFinite, elapsedTime > 0, duration.isFinite,
        duration > 0 {
       let remainingTime = duration - elapsedTime
-      if remainingTime > 0, remainingTime < 10 {
+      let preloadThreshold = max(10, crossfadeDuration + 8)
+      if remainingTime > 0, remainingTime < preloadThreshold {
         nextPreloadedPlayable = nextPlayablePreloadCB?()
         guard let nextPreloadedPlayable = nextPreloadedPlayable else { return }
         os_log(.default, "Preloading: %s", nextPreloadedPlayable.displayString)
@@ -348,6 +357,7 @@ class BackendAudioPlayer: NSObject {
     else { return }
 
     player.volume = volumePlayer
+    player.crossfadeDuration = crossfadeDuration
     player.delegate = self
 
     player.attach(nodes: [eq, replayGain])

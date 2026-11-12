@@ -70,13 +70,6 @@ final public class ThreadPerformanceObserver: ThreadPerformanceMonitor, Sendable
   }
 }
 
-// MARK: - NowPlayingSongPosition
-
-public enum NowPlayingSongPosition {
-  case start
-  case end
-}
-
 // MARK: - APIDataResponse
 
 public final class APIDataResponse: Sendable {
@@ -208,10 +201,6 @@ public protocol LibrarySyncer: Sendable {
   func requestSimilarSongs(song: Song, count: Int) async throws -> [Song]
   @MainActor
   func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws
-  @MainActor
-  func syncNowPlaying(song: Song, songPosition: NowPlayingSongPosition) async throws
-  @MainActor
-  func scrobble(song: Song, date: Date?) async throws
   @MainActor
   func setRating(song: Song, rating: Int) async throws
   @MainActor

@@ -30,11 +30,6 @@ public class AbstractPlayableMO: AbstractLibraryEntityMO {
       $0.playable = targetPlayable
     }
 
-    let scrobbleCopy = scrobbleEntries?.compactMap { $0 as? ScrobbleEntryMO }
-    scrobbleCopy?.forEach {
-      $0.playable = targetPlayable
-    }
-
     if targetPlayable.download == nil {
       targetPlayable.download = download
       download = nil

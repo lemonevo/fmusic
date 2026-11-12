@@ -146,7 +146,6 @@ public class PersistentStorage {
     case IsPlayerVisualizerDisplayed = "isPlayerVisualizerDisplayed"
     case IsOfflineMode = "isOfflineMode"
     case IsAutoDownloadLatestSongsActive = "isAutoDownloadLatestSongsActive"
-    case IsScrobbleStreamedItems = "isScrobbleStreamedItems"
     case IsPlaybackStartOnlyOnPlay = "isPlaybackStartOnlyOnPlay"
     case LibrarySyncVersion = "librarySyncVersion"
     case IsHapticsEnabled = "isHapticsEnabled"
@@ -249,7 +248,6 @@ public class CoreDataPersistentManager: CoreDataManagable {
 extension NSPersistentContainer {
   static fileprivate func configureContext(_ contextToConfigure: NSManagedObjectContext) {
     contextToConfigure.automaticallyMergesChangesFromParent = true
-    contextToConfigure.retainsRegisteredObjects = true
     contextToConfigure
       .mergePolicy = NSMergePolicy(merge: .mergeByPropertyObjectTrumpMergePolicyType)
   }

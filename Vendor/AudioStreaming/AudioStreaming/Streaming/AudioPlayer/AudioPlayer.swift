@@ -7,6 +7,15 @@ import AVFoundation
 import CoreAudio
 import OSLog
 
+/// Describes an outgoing track that already contains a crossfade into the incoming track.
+/// The frame indices refer to the decoded ring buffer.
+struct CrossfadeReadState {
+    let outgoingId: AudioEntryId
+    let incomingEntry: AudioEntry
+    let incomingStartIndex: UInt32
+    let frames: Int
+}
+
 open class AudioPlayer {
     public weak var delegate: AudioPlayerDelegate?
 
@@ -132,6 +141,24 @@ open class AudioPlayer {
     /// - Pass `nil` for times to loop infinitely, or a positive integer to loop that many times
     public var loopMode: AudioPlayerLoopMode = .off
 
+    /// Crossfade duration in seconds. `0` disables crossfading.
+    /// When enabled, the last `crossfadeDuration` seconds of the outgoing track are mixed with
+    /// the first `crossfadeDuration` seconds of the preloaded next track.
+    public var crossfadeDuration: Double = 0 {
+        didSet {
+            guard crossfadeDuration != oldValue else { return }
+            // The prepare timer only exists while crossfading is wanted.
+            if crossfadeDuration > 0 {
+                if playerContext.internalState.contains(.running),
+                   playerContext.internalState != .paused {
+                    crossfadeTimer.activate()
+                }
+            } else {
+                crossfadeTimer.suspend()
+            }
+        }
+    }
+
     /// A Boolean value that indicates whether the audio engine is running.
     /// `true` if the engine is running, otherwise, `false`
     public var isEngineRunning: Bool { audioEngine.isRunning }
@@ -178,7 +205,16 @@ open class AudioPlayer {
     private let entryProvider: AudioEntryProviding
 
     var entriesQueue: PlayerQueueEntries
-    
+
+    /// Periodically checks whether a crossfade into the preloaded entry can be prepared.
+    private lazy var crossfadeTimer: DispatchTimerSource = {
+        let timer = DispatchTimerSource(interval: .milliseconds(250), queue: serializationQueue)
+        timer.add(handler: { [weak self] in
+            self?.tryPrepareCrossfade()
+        })
+        return timer
+    }()
+
     /// Stores the original queue entries for loop all functionality
     private var originalQueueForLoop: [LoopEntryInfo] = []
     /// Tracks played entries for loop functionality
@@ -293,6 +329,7 @@ open class AudioPlayer {
             guard let self = self else { return }
             self.processSource()
         }
+        if crossfadeDuration > 0 { crossfadeTimer.activate() }
     }
 
     public func playNextInQueue() {
@@ -406,6 +443,7 @@ open class AudioPlayer {
     public func stop(clearQueue: Bool = true) {
         guard playerContext.internalState != .stopped else { return }
 
+        crossfadeTimer.suspend()
         serializationQueue.sync {
             stopEngine(reason: .userAction)
         }
@@ -433,6 +471,7 @@ open class AudioPlayer {
     /// Pauses the audio playback
     public func pause() {
         if playerContext.internalState != .paused, playerContext.internalState.contains(.running) {
+            crossfadeTimer.suspend()
             stateBeforePaused = playerContext.internalState
             playerContext.setInternalState(to: .paused)
             serializationQueue.sync {
@@ -448,6 +487,7 @@ open class AudioPlayer {
     /// Resumes the audio playback, if previous paused
     public func resume() {
         guard playerContext.internalState == .paused else { return }
+        if crossfadeDuration > 0 { crossfadeTimer.activate() }
         let hasPendingSeek = playerContext.entriesLock.withLock {
             guard let playingEntry = playerContext.audioPlayingEntry else { return false }
             playingEntry.seekRequest.lock.lock()
@@ -627,6 +667,9 @@ open class AudioPlayer {
                         self.handleLoopingIfNeeded(for: entry)
                     }
                 } else {
+                    if let nextEntry = nextEntry {
+                        self.applyCrossfadeSwitchIfNeeded(nextEntry: nextEntry)
+                    }
                     self.processFinishPlaying(entry: entry, with: nextEntry)
                 }
             }
@@ -812,6 +855,126 @@ open class AudioPlayer {
         assert(playerContext.audioReadingEntry === playerContext.audioPlayingEntry,
                "reading and playing entry must be the same")
         fileStreamProcessor.processSeek()
+    }
+
+    // MARK: - Crossfade
+
+    /// Mixes the outgoing track's last `crossfadeDuration` seconds with the preloaded incoming
+    /// track's first `crossfadeDuration` seconds directly in the decoded ring buffer.
+    private func tryPrepareCrossfade() {
+        guard crossfadeDuration > 0,
+              playerContext.internalState != .paused,
+              playerContext.internalState != .stopped
+        else { return }
+
+        let entries = playerContext.entriesLock.withLock {
+            (playing: playerContext.audioPlayingEntry, reading: playerContext.audioReadingEntry)
+        }
+        guard let playing = entries.playing,
+              let incoming = entries.reading,
+              playing !== incoming
+        else { return }
+
+        // The outgoing track's end must already be known before its last frames are a stable tail.
+        playing.lock.lock()
+        let lastFrameQueued = playing.framesState.lastFrameQueued
+        playing.lock.unlock()
+        guard lastFrameQueued >= 0 else { return }
+
+        guard let firstFrame = incoming.firstFrameInfo() else { return }
+        incoming.lock.lock()
+        let incomingQueued = incoming.framesState.queued
+        incoming.lock.unlock()
+
+        let sampleRate = outputAudioFormat.sampleRate
+        let frames = Int(crossfadeDuration * sampleRate)
+        guard frames > 0, incomingQueued >= frames else { return }
+        // Keep a margin so the render thread can't copy the tail while it is being overwritten.
+        let safetyFrames = Int(0.5 * sampleRate)
+
+        rendererContext.lock.lock()
+        defer { rendererContext.lock.unlock() }
+        guard firstFrame.generation == rendererContext.bufferGeneration,
+              rendererContext.crossfadeState == nil
+        else { return }
+
+        let total = Int(rendererContext.bufferContext.totalFrameCount)
+        let used = Int(rendererContext.bufferContext.frameUsedCount)
+        let cursor = Int(rendererContext.bufferContext.frameStartIndex)
+        let incomingStart = Int(firstFrame.index)
+        let remainingOutgoing = (incomingStart - cursor + total) % total
+        // Mix only after the incoming head is buffered and while the outgoing tail is still ahead.
+        guard remainingOutgoing >= frames + safetyFrames,
+              remainingOutgoing + frames <= used,
+              frames <= used
+        else { return }
+
+        let tailStart = (incomingStart - frames + total) % total
+        mixCrossfade(tailStart: tailStart, incomingStart: incomingStart, frames: frames)
+        rendererContext.crossfadeState = CrossfadeReadState(
+            outgoingId: playing.id,
+            incomingEntry: incoming,
+            incomingStartIndex: firstFrame.index,
+            frames: frames
+        )
+        os_log(.default, "Crossfade prepared: frames=%d remaining=%d", frames, remainingOutgoing)
+    }
+
+    /// Applies a linear crossfade to the ring buffer. Must be called while `rendererContext.lock` is held.
+    private func mixCrossfade(tailStart: Int, incomingStart: Int, frames: Int) {
+        guard outputAudioFormat.commonFormat == .pcmFormatFloat32,
+              outputAudioFormat.isInterleaved,
+              let data = rendererContext.audioBuffer.mData
+        else { return }
+        let total = Int(rendererContext.bufferContext.totalFrameCount)
+        let floatStride = Int(rendererContext.bufferContext.sizeInBytes) / MemoryLayout<Float>.size
+        guard floatStride > 0 else { return }
+
+        let samples = data.assumingMemoryBound(to: Float.self)
+        var outgoingIndex = tailStart
+        var incomingIndex = incomingStart
+        let divisor = Float(max(frames, 1))
+        for frame in 0..<frames {
+            let progress = (Float(frame) + 0.5) / divisor
+            let outgoingGain = 1 - progress
+            let incomingGain = progress
+            let outgoingOffset = outgoingIndex * floatStride
+            let incomingOffset = incomingIndex * floatStride
+            for sample in 0..<floatStride {
+                samples[outgoingOffset + sample] = samples[outgoingOffset + sample] * outgoingGain +
+                    samples[incomingOffset + sample] * incomingGain
+            }
+            outgoingIndex += 1
+            if outgoingIndex == total { outgoingIndex = 0 }
+            incomingIndex += 1
+            if incomingIndex == total { incomingIndex = 0 }
+        }
+    }
+
+    /// Skips the already mixed head of the incoming entry when it starts playing.
+    private func applyCrossfadeSwitchIfNeeded(nextEntry: AudioEntry) {
+        rendererContext.lock.lock()
+        guard let state = rendererContext.crossfadeState,
+              state.incomingEntry === nextEntry
+        else {
+            rendererContext.lock.unlock()
+            return
+        }
+        let total = Int(rendererContext.bufferContext.totalFrameCount)
+        let skippedFrames = state.frames
+        let newStart = (Int(rendererContext.bufferContext.frameStartIndex) + skippedFrames) % total
+        rendererContext.bufferContext.frameStartIndex = UInt32(newStart)
+        rendererContext.bufferContext.frameUsedCount = UInt32(max(
+            0,
+            Int(rendererContext.bufferContext.frameUsedCount) - skippedFrames
+        ))
+        rendererContext.crossfadeState = nil
+        rendererContext.lock.unlock()
+
+        nextEntry.lock.lock()
+        nextEntry.framesState.played = skippedFrames
+        nextEntry.lock.unlock()
+        os_log(.default, "Crossfade switched: skipped=%d", skippedFrames)
     }
 
     private func setCurrentReading(entry: AudioEntry?, startPlaying: Bool, shouldClearQueue: Bool) {

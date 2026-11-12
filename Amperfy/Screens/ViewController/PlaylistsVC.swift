@@ -22,6 +22,7 @@
 import AmperfyKit
 import CoreData
 import UIKit
+import UniformTypeIdentifiers
 
 // MARK: - PlaylistsDiffableDataSource
 
@@ -123,20 +124,9 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
 
     change(sortType: appDelegate.storage.settings.user.playlistsSortSetting)
 
-    var searchTiles: [String]? = nil
-    if account.apiType.asServerApiType == .ampache {
-      searchTiles = [
-        L10n.tr("All"),
-        L10n.tr("Cached"),
-        L10n.tr("User"),
-        L10n.tr("Smart"),
-      ]
-    } else if account.apiType.asServerApiType == .subsonic {
-      searchTiles = [L10n.tr("All"), L10n.tr("Cached")]
-    }
     configureSearchController(
       placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Playlists")),
-      scopeButtonTitles: searchTiles
+      scopeButtonTitles: nil
     )
     setNavBarTitle(title: L10n.tr("Playlists"))
     tableView.register(nibName: PlaylistTableCell.typeName)
@@ -373,8 +363,69 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
       title: L10n.tr("Options"),
       image: .sort,
       options: [.displayInline],
-      children: [fetchAllPlaylists]
+      children: [
+        fetchAllPlaylists,
+        UIAction(
+          title: L10n.tr("Import M3U Playlist"),
+          image: UIImage(systemName: "square.and.arrow.down"),
+          handler: { _ in self.presentM3UImporter() }
+        ),
+      ]
     )
+  }
+
+  private func presentM3UImporter() {
+    let types = ["m3u", "m3u8"].compactMap { UTType(filenameExtension: $0) }
+    let picker = UIDocumentPickerViewController(
+      forOpeningContentTypes: types.isEmpty ? [.plainText] : types,
+      asCopy: true
+    )
+    picker.delegate = self
+    present(picker, animated: true)
+  }
+
+  private func importM3U(from url: URL) {
+    let isSecurityScoped = url.startAccessingSecurityScopedResource()
+    defer { if isSecurityScoped { url.stopAccessingSecurityScopedResource() } }
+    guard let data = try? Data(contentsOf: url),
+          let content = String(data: data, encoding: .utf8)
+          ?? String(data: data, encoding: .isoLatin1)
+    else {
+      presentM3UAlert(message: L10n.tr("The M3U file could not be read."))
+      return
+    }
+    let entries = M3UCodec.parse(content)
+    guard !entries.isEmpty else {
+      presentM3UAlert(message: L10n.tr("No tracks found in this M3U file."))
+      return
+    }
+    let library = appDelegate.storage.main.library
+    let songs = library.getSongs(for: account)
+    let result = M3UImportMatcher.match(entries: entries, songs: songs)
+    guard !result.matches.isEmpty else {
+      presentM3UAlert(message: L10n.tr("No matching songs found in the library."))
+      return
+    }
+    let playlist = library.createPlaylist(account: account)
+    let fileName = url.deletingPathExtension().lastPathComponent
+    playlist.name = fileName.isEmpty ? L10n.tr("Imported Playlist") : fileName
+    playlist.append(playables: result.matches)
+    library.saveContext()
+    presentM3UAlert(message: L10n.tr(
+      "Imported %d songs. %d entries were skipped.",
+      result.matches.count,
+      result.unmatchedCount
+    ))
+  }
+
+  private func presentM3UAlert(message: String) {
+    let alert = UIAlertController(
+      title: L10n.tr("M3U Import"),
+      message: message,
+      preferredStyle: .alert
+    )
+    alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
+    present(alert, animated: true)
   }
 
   @objc
@@ -402,5 +453,15 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
     )
     tableView.reloadData()
     updateContentUnavailable()
+  }
+}
+
+extension PlaylistsVC: UIDocumentPickerDelegate {
+  func documentPicker(
+    _ controller: UIDocumentPickerViewController,
+    didPickDocumentsAt urls: [URL]
+  ) {
+    guard let url = urls.first else { return }
+    importM3U(from: url)
   }
 }

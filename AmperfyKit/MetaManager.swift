@@ -119,23 +119,6 @@ public class MetaManager {
     }
   }
 
-  private var scrobbleSyncer: ScrobbleSyncer?
-  internal func createScrobbleSyncer(
-    player: PlayerFacade
-  )
-    -> ScrobbleSyncer {
-    if let scrobbleSyncer { return scrobbleSyncer }
-    scrobbleSyncer = ScrobbleSyncer(
-      player: player,
-      networkMonitor: networkMonitor,
-      account: account,
-      storage: storage,
-      librarySyncer: librarySyncer,
-      eventLogger: eventLogger
-    )
-    return scrobbleSyncer!
-  }
-
   public lazy var playableDownloadManager: DownloadManageable = {
     let getDownloadDelegateCB = { @MainActor in
       return self.playableDownloadDelegate
@@ -281,8 +264,6 @@ public class MetaManager {
     playableDownloadManager.start()
     artworkDownloadManager.start()
     backgroundLibrarySyncer.start()
-    let scrobbler = createScrobbleSyncer(player: player)
-    player.addNotifier(notifier: scrobbler)
   }
 
   public func startManagerForNormalOperation(player: PlayerFacade) {
@@ -291,15 +272,10 @@ public class MetaManager {
     artworkDownloadManager.start()
     playableDownloadManager.start()
     backgroundLibrarySyncer.start()
-    let scrobbler = createScrobbleSyncer(player: player)
-    player.addNotifier(notifier: scrobbler)
-    scrobbler.start()
   }
 
   public func stopManager() {
     os_log("Start meta managers", log: self.log, type: .info)
-    scrobbleSyncer?.stop()
-    scrobbleSyncer = nil
     backgroundLibrarySyncer.stop()
     artworkDownloadManager.stop()
     playableDownloadManager.stop()

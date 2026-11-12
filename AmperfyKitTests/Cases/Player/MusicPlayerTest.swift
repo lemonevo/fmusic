@@ -176,8 +176,6 @@ final class MOCK_LibrarySyncer: LibrarySyncer {
   func requestRandomSongs(playlist: Playlist, count: Int) async throws {}
   func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] { [] }
   func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws {}
-  func syncNowPlaying(song: Song, songPosition: NowPlayingSongPosition) async throws {}
-  func scrobble(song: Song, date: Date?) async throws {}
   func setRating(song: Song, rating: Int) async throws {}
   func setRating(album: Album, rating: Int) async throws {}
   func setRating(artist: Artist, rating: Int) async throws {}

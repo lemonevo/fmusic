@@ -51,6 +51,23 @@ struct PlayerSettingsView: View {
           footer: L10n.tr("Automatically normalize track volume based on replay gain information for consistent loudness.")
         )
 
+        // Crossfade
+        SettingsSection(
+          content: {
+            SettingsRow(title: L10n.tr("Crossfade")) {
+              Picker("", selection: $settings.crossfadeSeconds) {
+                Text(L10n.tr("Off")).tag(0)
+                Text(L10n.tr("%d seconds", 3)).tag(3)
+                Text(L10n.tr("%d seconds", 5)).tag(5)
+                Text(L10n.tr("%d seconds", 8)).tag(8)
+              }
+              .pickerStyle(.menu)
+              .labelsHidden()
+            }
+          },
+          footer: L10n.tr("Crossfade Footer")
+        )
+
         // General Settings
         SettingsSection(
           content: {
@@ -106,9 +123,8 @@ struct PlayerSettingsView: View {
         )
 
         if let activeAccountInfo = settings.activeAccountInfo,
-           let credentials = appDelegate.storage.settings.accounts.getSetting(activeAccountInfo)
-           .read.loginCredentials,
-           credentials.backendApi.asServerApiType != .ampache {
+           appDelegate.storage.settings.accounts.getSetting(activeAccountInfo)
+           .read.loginCredentials != nil {
           SettingsSection(
             content: {
               SettingsCheckBoxRow(

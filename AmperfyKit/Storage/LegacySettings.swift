@@ -416,18 +416,6 @@ extension PersistentStorage {
       ) }
     }
 
-
-    public var isScrobbleStreamedItems: Bool {
-      get {
-        UserDefaults.standard
-          .object(forKey: UserDefaultsKey.IsScrobbleStreamedItems.rawValue) as? Bool ?? false
-      }
-      set { UserDefaults.standard.set(
-        newValue,
-        forKey: UserDefaultsKey.IsScrobbleStreamedItems.rawValue
-      ) }
-    }
-
     public var isPlaybackStartOnlyOnPlay: Bool {
       get {
         UserDefaults.standard
@@ -671,7 +659,6 @@ extension PersistentStorage {
       accountSetting.initialSyncCompletionStatus = legacySettings.initialSyncCompletionStatus
       accountSetting.isAutoDownloadLatestSongsActive = legacySettings
         .isAutoDownloadLatestSongsActive
-      accountSetting.isScrobbleStreamedItems = legacySettings.isScrobbleStreamedItems
       accountSetting.libraryDisplaySettings = legacySettings.libraryDisplaySettings
       accountSetting.loginCredentials = credentials
       accountSetting.loginCredentials?.alternativeServerURLs = legacySettings.alternativeServerURLs

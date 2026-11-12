@@ -178,7 +178,9 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
 
     lyricsView = LyricsView()
     lyricsView!.onLyricSelected = { [weak self] lyric in
-      self?.appDelegate.player.seek(toSecond: lyric.startTime.seconds)
+      guard let self else { return }
+      let target = self.lyricsView?.playbackTime(for: lyric) ?? lyric.startTime.seconds
+      self.appDelegate.player.seek(toSecond: target)
     }
     let lyricsTap = UITapGestureRecognizer(target: self, action: #selector(handleLyricsTap(_:)))
     lyricsTap.cancelsTouchesInView = false

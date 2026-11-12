@@ -76,12 +76,28 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     self.credentials = credentials
   }
 
+  private var activeIndexTask: Task<Void, Error>?
+
+  func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
+    if let activeIndexTask {
+      try await activeIndexTask.value
+      return
+    }
+    let indexTask = Task { [weak self] in
+      guard let self else { return }
+      try await self.performIndexing(statusNotifyier: statusNotifyier)
+    }
+    activeIndexTask = indexTask
+    defer { activeIndexTask = nil }
+    try await indexTask.value
+  }
+
   func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] {
     let account = storage.main.library.getAccount(info: accountInfo)
     return storage.main.library.getSimilarSongs(for: account, to: song, count: count)
   }
 
-  func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
+  private func performIndexing(statusNotifyier: SyncCallbacks?) async throws {
     let syncStart = Date()
     guard let credentials,
           let baseURL = URL(string: credentials.activeBackendServerUrl)

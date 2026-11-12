@@ -228,6 +228,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
     appDelegate.quickActionsManager.handleSavedShortCutItemIfSaved()
     appDelegate.rebuildMainMenu()
+    appDelegate.triggerWebDAVIncrementalScanIfNeeded()
   }
 
   func sceneWillResignActive(_ scene: UIScene) {

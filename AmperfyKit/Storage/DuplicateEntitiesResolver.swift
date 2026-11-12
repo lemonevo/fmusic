@@ -50,43 +50,6 @@ public class DuplicateEntitiesResolver {
     Task { @MainActor in
       os_log("start", log: self.log, type: .info)
 
-      // only check for duplicates on Ampache API, Subsonic does not have genre ids
-      if self.isRunning, account.apiType.asServerApiType == .ampache {
-        try? await self.storage.async.perform { asyncCompanion in
-          let accountAsync = Account(
-            managedObject: asyncCompanion.context
-              .object(with: self.accountObjectId) as! AccountMO
-          )
-          let duplicates = asyncCompanion.library.findDuplicates(
-            for: Genre.typeName,
-            keyPathString: #keyPath(GenreMO.id),
-            account: accountAsync
-          )
-          asyncCompanion.library.resolveGenresDuplicates(
-            account: accountAsync,
-            duplicates: duplicates,
-            byName: false
-          )
-        }
-      } else if self.isRunning, account.apiType.asServerApiType == .subsonic {
-        try? await self.storage.async.perform { asyncCompanion in
-          let accountAsync = Account(
-            managedObject: asyncCompanion.context
-              .object(with: self.accountObjectId) as! AccountMO
-          )
-          let duplicates = asyncCompanion.library.findDuplicates(
-            for: Genre.typeName,
-            keyPathString: #keyPath(GenreMO.name),
-            account: accountAsync
-          )
-          asyncCompanion.library.resolveGenresDuplicates(
-            account: accountAsync,
-            duplicates: duplicates,
-            byName: true
-          )
-        }
-      }
-
       if self.isRunning {
         try? await self.storage.async.perform { asyncCompanion in
           let accountAsync = Account(

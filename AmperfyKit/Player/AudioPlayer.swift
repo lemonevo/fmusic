@@ -64,6 +64,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   private var notifierList: [WeakMusicPlayable] = []
   public private(set) var currentRadioNowPlaying: RadioNowPlayingInfo?
   private var lastRadioStreamTitle: String?
+  private var lastSavedProgress: Double = -.infinity
 
   init(
     coreData: PlayerStatusPersistent,
@@ -113,6 +114,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
       isShuffle: playerStatus.isShuffle
     )
     playable.countPlayed()
+    backendAudioPlayer.crossfadeDuration = Double(settings.user.crossfadeSeconds)
     backendAudioPlayer.requestToPlay(
       playable: playable,
       playbackRate: playerStatus.playbackRate,
@@ -288,6 +290,11 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   // BackendAudioPlayerNotifiable
   func didElapsedTimeChange() {
     notifyElapsedTimeChanged()
+    // The tick runs at 5 Hz; refreshing the resume position on every tick is not needed for
+    // the whole-second UI. Update it every 5 s of playback instead.
+    let elapsed = backendAudioPlayer.elapsedTime
+    guard abs(elapsed - lastSavedProgress) >= 5 else { return }
+    lastSavedProgress = elapsed
     if let currentItem = currentlyPlaying {
       savePlayInformation(of: currentItem)
     }

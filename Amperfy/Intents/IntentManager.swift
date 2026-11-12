@@ -1147,30 +1147,13 @@ public class IntentManager {
     case .song:
       playableContainer = library.getSong(for: account, id: id)
     case .artist:
-      switch account.apiType.asServerApiType {
-      case .ampache:
-        playableContainer = library.getArtist(for: account, id: id)
-      case .subsonic:
-        playableContainer = library.getArtist(for: account, id: id)
-        if playableContainer == nil {
-          playableContainer = library.getArtistLocal(for: account, name: id)
-        }
-      case .none:
-        playableContainer = library.getArtistLocal(for: account, name: id)
-      }
+      playableContainer = library.getArtistLocal(for: account, name: id)
     case .playlist:
       playableContainer = library.getPlaylist(for: account, id: id)
     case .album:
       playableContainer = library.getAlbum(for: account, id: id, isDetailFaultResolution: false)
     case .genre:
-      switch account.apiType.asServerApiType {
-      case .ampache:
-        playableContainer = library.getGenre(for: account, id: id)
-      case .subsonic:
-        playableContainer = library.getGenre(for: account, name: id)
-      case .none:
-        playableContainer = library.getGenre(for: account, name: id)
-      }
+      playableContainer = library.getGenre(for: account, name: id)
     }
     return playableContainer
   }

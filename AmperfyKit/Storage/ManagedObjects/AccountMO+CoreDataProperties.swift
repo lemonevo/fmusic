@@ -59,8 +59,6 @@ extension AccountMO {
   @NSManaged
   public var playlists: NSSet?
   @NSManaged
-  public var scrobbleEntries: NSSet?
-  @NSManaged
   public var searchHistories: NSSet?
 }
 
@@ -222,26 +220,6 @@ extension AccountMO {
   @objc(removePlaylists:)
   @NSManaged
   public func removeFromPlaylists(_ values: NSSet)
-}
-
-// MARK: Generated accessors for scrobbleEntries
-
-extension AccountMO {
-  @objc(addScrobbleEntriesObject:)
-  @NSManaged
-  public func addToScrobbleEntries(_ value: ScrobbleEntryMO)
-
-  @objc(removeScrobbleEntriesObject:)
-  @NSManaged
-  public func removeFromScrobbleEntries(_ value: ScrobbleEntryMO)
-
-  @objc(addScrobbleEntries:)
-  @NSManaged
-  public func addToScrobbleEntries(_ values: NSSet)
-
-  @objc(removeScrobbleEntries:)
-  @NSManaged
-  public func removeFromScrobbleEntries(_ values: NSSet)
 }
 
 // MARK: Generated accessors for searchHistories

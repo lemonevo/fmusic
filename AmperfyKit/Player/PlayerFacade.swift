@@ -175,6 +175,7 @@ public protocol PlayerFacade {
   func updateEqualizerEnabled(isEnabled: Bool)
   func updateEqualizerSetting(eqSetting: EqualizerSetting)
   func updateReplayGainEnabled(isEnabled: Bool)
+  func updateCrossfadeDuration(seconds: Int)
 }
 
 extension PlayerFacade {
@@ -442,6 +443,10 @@ class PlayerFacadeImpl: PlayerFacade {
 
   public func updateReplayGainEnabled(isEnabled: Bool) {
     backendAudioPlayer.updateReplayGainEnabled(isEnabled: isEnabled)
+  }
+
+  public func updateCrossfadeDuration(seconds: Int) {
+    backendAudioPlayer.crossfadeDuration = Double(seconds)
   }
 
   func logout(account: Account) {

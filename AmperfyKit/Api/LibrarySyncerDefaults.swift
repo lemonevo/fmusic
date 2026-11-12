@@ -42,8 +42,6 @@ extension LibrarySyncer {
   public func requestRandomSongs(playlist: Playlist, count: Int) async throws {}
   public func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] { [] }
   public func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws {}
-  public func syncNowPlaying(song: Song, songPosition: NowPlayingSongPosition) async throws {}
-  public func scrobble(song: Song, date: Date?) async throws {}
 
   public func setRating(song: Song, rating: Int) async throws {
     song.rating = rating
@@ -174,10 +172,25 @@ enum LRCFileParser {
     pattern: "^\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?\\]",
     options: []
   )
+  private static let offsetPattern = try? NSRegularExpression(
+    pattern: "\\[offset:\\s*([+-]?\\d+)\\s*\\]",
+    options: [.caseInsensitive]
+  )
 
   static func parse(_ content: String) -> LyricsList {
     var lines = [LyricsLine]()
     var isSynced = false
+    var offsetMs = 0
+
+    if let offsetPattern,
+       let match = offsetPattern.firstMatch(
+         in: content,
+         range: NSRange(content.startIndex..., in: content)
+       ),
+       let valueRange = Range(match.range(at: 1), in: content),
+       let value = Int(content[valueRange]) {
+      offsetMs = value
+    }
 
     for rawLine in content.components(separatedBy: .newlines) {
       var remaining = rawLine.trimmingCharacters(in: .whitespaces)
@@ -235,6 +248,7 @@ enum LRCFileParser {
     var lyrics = StructuredLyrics()
     lyrics.lang = "und"
     lyrics.synced = isSynced
+    lyrics.offset = offsetMs
     lyrics.line = isSynced ? lines.sorted { ($0.start ?? 0) < ($1.start ?? 0) } : lines
     var list = LyricsList()
     list.lyrics = [lyrics]

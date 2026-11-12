@@ -44,8 +44,6 @@ final class Settings: ObservableObject {
   @Published
   var isPlayerAutoCachePlayedItems = false
   @Published
-  var isScrobbleStreamedItems = false
-  @Published
   var isPlaybackStartOnlyOnPlay = false
   @Published
   var isPlayerSongPlaybackResumeEnabled = false
@@ -82,6 +80,9 @@ final class Settings: ObservableObject {
 
   @Published
   var isReplayGainEnabled = true
+
+  @Published
+  var crossfadeSeconds = 0
 
   @Published
   var isMiniPlayerAlwaysOnTop = false

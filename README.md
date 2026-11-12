@@ -36,7 +36,6 @@ Amperfy is an iOS/iPadOS/macOS app written in Swift to interact with an [Ampache
 - 5 star song rating
 - Favorite song
 - Sleep Timer
-- Scrobbling
 
 ## Requirements
 

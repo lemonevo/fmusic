@@ -89,13 +89,6 @@ extension Genre: PlayableContainable {
   public var subsubtitle: String? { nil }
   public func infoDetails(for api: ServerApiType?, details: DetailInfoType) -> [String] {
     var infoContent = [String]()
-    if api == .ampache {
-      if artistCount == 1 {
-        infoContent.append("1 Artist")
-      } else if artistCount > 1 {
-        infoContent.append("\(artistCount) Artists")
-      }
-    }
     if albumCount == 1 {
       infoContent.append("1 Album")
     } else if albumCount > 1 {

@@ -121,11 +121,7 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
       break
     case .favorites:
       isIndexTitelsHidden = false
-      if account.apiType.asServerApiType != .ampache {
-        change(sortType: appDelegate.storage.settings.user.favoriteSongSortSetting)
-      } else {
-        change(sortType: appDelegate.storage.settings.user.songsSortSetting)
-      }
+      change(sortType: appDelegate.storage.settings.user.favoriteSongSortSetting)
     }
   }
 

@@ -110,8 +110,10 @@ class PlayerControlView: UIView {
     skipForwardButton.removeFromSuperview()
 
     let shuffle = makeToggleButton(imageName: "shuffle")
+    shuffle.accessibilityLabel = L10n.tr("Shuffle")
     shuffle.addTarget(self, action: #selector(shuffleButtonPushed), for: .touchUpInside)
     let repeatToggle = makeToggleButton(imageName: "repeat")
+    repeatToggle.accessibilityLabel = L10n.tr("Repeat")
     repeatToggle.addTarget(self, action: #selector(repeatButtonPushed), for: .touchUpInside)
     transportStack.insertArrangedSubview(shuffle, at: 0)
     transportStack.addArrangedSubview(repeatToggle)
@@ -244,7 +246,7 @@ class PlayerControlView: UIView {
     skipForwardButton.tintColor = Self.iconTintColor
     applyUtilityIcon(airplayButton, systemName: "airplayaudio")
     applyUtilityIcon(volumeButton, systemName: "speaker.wave.3.fill")
-    applyUtilityIcon(optionsButton, systemName: "ellipsis")
+    applyUtilityIcon(optionsButton, systemName: "ellipsis.circle")
     airplayButton.tintColor = Self.iconTintColor
     playerModeButton.tintColor = Self.iconTintColor
     volumeButton.tintColor = Self.iconTintColor
@@ -434,6 +436,36 @@ class PlayerControlView: UIView {
     )
   }
 
+  func createLyricsOffsetMenu() -> UIMenuElement {
+    let currentOffset = appDelegate.storage.settings.user.lyricsOffsetMs
+    let presets = [-1_000, -500, -200, 0, 200, 500, 1_000]
+    let actions = presets.map { offset in
+      UIAction(
+        title: Self.lyricsOffsetDescription(offset),
+        state: offset == currentOffset ? .on : .off,
+        handler: { [weak self] _ in
+          self?.appDelegate.storage.settings.user.lyricsOffsetMs = offset
+          NotificationCenter.default.post(name: .lyricsOffsetChanged, object: nil)
+        }
+      )
+    }
+    return UIMenu(
+      title: L10n.tr("Lyrics Offset"),
+      subtitle: Self.lyricsOffsetDescription(currentOffset),
+      image: .lyrics,
+      children: actions
+    )
+  }
+
+  private static func lyricsOffsetDescription(_ milliseconds: Int) -> String {
+    guard milliseconds != 0 else { return L10n.tr("Synced") }
+    let seconds = String(format: "%.1fs", abs(Double(milliseconds)) / 1_000)
+    let direction = milliseconds > 0
+      ? L10n.tr("Lyrics ahead by")
+      : L10n.tr("Lyrics behind by")
+    return "\(direction) \(seconds)"
+  }
+
   func createVisualizerTypeMenu() -> UIMenuElement {
     let currentType = appDelegate.storage.settings.user.selectedVisualizerType
     let availableTypes: [UIAction] = VisualizerType.allCases.reversed()
@@ -478,6 +510,7 @@ class PlayerControlView: UIView {
 
     menuActions.append(appDelegate.createSleepTimerMenu(refreshCB: nil))
     menuActions.append(createPlaybackRateMenu())
+    menuActions.append(createLyricsOffsetMenu())
 
     if rootView?.largeCurrentlyPlayingView?.isLyricsButtonAllowedToDisplay ?? false {
       if !appDelegate.storage.settings.user.isPlayerLyricsDisplayed ||

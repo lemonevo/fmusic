@@ -26,6 +26,13 @@ final class AudioRendererContext {
 
     let waitingForDataAfterSeekFrameCount = Atomic<Int32>(0)
 
+    /// Incremented whenever the ring buffer is reset, so captured frame indices can be invalidated.
+    private(set) var bufferGeneration: UInt64 = 0
+
+    /// Non-nil while the outgoing track contains a prepared crossfade into the incoming entry.
+    /// Guarded by `lock`.
+    var crossfadeState: CrossfadeReadState?
+
     private let configuration: AudioPlayerConfiguration
 
     init(configuration: AudioPlayerConfiguration, outputAudioFormat: AVAudioFormat) {
@@ -64,6 +71,8 @@ final class AudioRendererContext {
         lock.lock(); defer { lock.unlock() }
         bufferContext.frameStartIndex = 0
         bufferContext.frameUsedCount = 0
+        bufferGeneration &+= 1
+        crossfadeState = nil
     }
 }
 

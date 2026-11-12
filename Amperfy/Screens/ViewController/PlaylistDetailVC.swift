@@ -156,7 +156,12 @@ class PlaylistDetailVC: SingleSnapshotFetchedResultsTableViewController<Playlist
     )
     optionsButton = UIBarButtonItem.createOptionsBarButton()
     optionsButton.menu = UIMenu.lazyMenu {
-      EntityPreviewActionBuilder(container: self.playlist, on: self).createMenuActions()
+      var actions = EntityPreviewActionBuilder(container: self.playlist, on: self)
+        .createMenuActions()
+      if !self.playlist.isSmartPlaylist {
+        actions.append(self.createExportM3UAction())
+      }
+      return actions
     }
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
@@ -232,8 +237,47 @@ class PlaylistDetailVC: SingleSnapshotFetchedResultsTableViewController<Playlist
     }
   }
 
-  func refreshBarButtons() {
-    var edititingBarButton: UIBarButtonItem? = nil
+  private func createExportM3UAction() -> UIAction {
+    UIAction(
+      title: L10n.tr("Export M3U"),
+      image: UIImage(systemName: "square.and.arrow.up"),
+      handler: { _ in self.exportM3U() }
+    )
+  }
+
+  private func exportM3U() {
+    guard let playables = fetchedResultsController.getContextSongs(onlyCachedSongs: false),
+          !playables.isEmpty
+    else {
+      let alert = UIAlertController(
+        title: L10n.tr("Export M3U"),
+        message: L10n.tr("This playlist has no songs to export."),
+        preferredStyle: .alert
+      )
+      alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
+      present(alert, animated: true)
+      return
+    }
+    let content = M3UCodec.export(playables: playables)
+    let safeName = playlist.name
+      .replacingOccurrences(of: "/", with: "-")
+      .replacingOccurrences(of: ":", with: "-")
+    let fileName = safeName.isEmpty ? "Playlist" : safeName
+    let url = FileManager.default.temporaryDirectory
+      .appendingPathComponent(fileName)
+      .appendingPathExtension("m3u8")
+    do {
+      try content.write(to: url, atomically: true, encoding: .utf8)
+    } catch {
+      appDelegate.eventLogger.report(topic: "Export M3U", error: error)
+      return
+    }
+    let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    activityVC.popoverPresentationController?.barButtonItem = optionsButton
+    present(activityVC, animated: true)
+  }
+
+  func refreshBarButtons() {    var edititingBarButton: UIBarButtonItem? = nil
 
     if appDelegate.storage.settings.user.isOnlineMode {
       edititingBarButton = editButton

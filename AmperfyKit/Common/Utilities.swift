@@ -109,9 +109,10 @@ extension Int {
     let minutes = (self - (hours * 60 * 60)) / 60
     let seconds = self - ((hours * 60 * 60) + (minutes * 60))
     if hourString.isEmpty {
-      return String(format: "%01d", minutes) + ":" + String(format: "%02d", seconds)
+      return String(format: "%01d", Int(minutes)) + ":" + String(format: "%02d", Int(seconds))
     } else {
-      return hourString + String(format: "%02d", minutes) + ":" + String(format: "%02d", seconds)
+      return hourString + String(format: "%02d", Int(minutes)) + ":" +
+        String(format: "%02d", Int(seconds))
     }
   }
 

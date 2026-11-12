@@ -38,7 +38,6 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
   case favoriteSongs = 8
   case favoriteAlbums = 9
   case favoriteArtists = 10
-  // case recentSongs = 11 not used anymore
   case newestAlbums = 12
   case recentAlbums = 13
 

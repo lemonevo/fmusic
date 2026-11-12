@@ -147,11 +147,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     case .favorites:
       filterTitle = L10n.tr("Favorite Songs")
       isIndexTitelsHidden = false
-      if account.apiType.asServerApiType != .ampache {
-        change(sortType: appDelegate.storage.settings.user.favoriteSongSortSetting)
-      } else {
-        change(sortType: appDelegate.storage.settings.user.songsSortSetting)
-      }
+      change(sortType: appDelegate.storage.settings.user.favoriteSongSortSetting)
     }
     setNavBarTitle(title: filterTitle)
   }
@@ -345,7 +341,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   }
 
   private func saveSortPreference(preference: SongElementSortType) {
-    if account.apiType.asServerApiType != .ampache, displayFilter == .favorites {
+    if displayFilter == .favorites {
       appDelegate.storage.settings.user.favoriteSongSortSetting = preference
     } else {
       appDelegate.storage.settings.user.songsSortSetting = preference
@@ -453,26 +449,19 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
         )
       }
     )
-    if displayFilter == .favorites, account.apiType.asServerApiType != .ampache {
+    if displayFilter == .favorites {
       return UIMenu(
         title: L10n.tr("Sort"),
         image: .sort,
         options: [],
         children: [sortByName, sortByRating, sortByDuration, sortByStarredDate, sortByAddedDate]
       )
-    } else if account.apiType.asServerApiType != .ampache {
-      return UIMenu(
-        title: L10n.tr("Sort"),
-        image: .sort,
-        options: [],
-        children: [sortByName, sortByRating, sortByDuration, sortByAddedDate]
-      )
     } else {
       return UIMenu(
         title: L10n.tr("Sort"),
         image: .sort,
         options: [],
-        children: [sortByName, sortByRating, sortByDuration]
+        children: [sortByName, sortByRating, sortByDuration, sortByAddedDate]
       )
     }
   }

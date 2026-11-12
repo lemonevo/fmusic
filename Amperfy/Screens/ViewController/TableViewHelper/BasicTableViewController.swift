@@ -129,6 +129,16 @@ class BasicTableViewController: KeyCommandTableViewController {
     override func viewDidLayoutSubviews() {
       super.viewDidLayoutSubviews()
       updateSectionEndSeparators()
+      updateSectionIndexColor()
+    }
+
+    private func updateSectionIndexColor() {
+      // The section index ignores sectionIndexColor on Catalyst; it takes its tint from the
+      // private index subview instead.
+      for subview in tableView.subviews
+        where String(describing: type(of: subview)).contains("Index") {
+        subview.tintColor = .secondaryLabel
+      }
     }
 
     private func updateSectionEndSeparators() {

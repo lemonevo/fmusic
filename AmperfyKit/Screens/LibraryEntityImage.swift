@@ -20,6 +20,7 @@
 //
 
 import CoreData
+import ImageIO
 import UIKit
 
 extension LibraryEntityImage {
@@ -51,7 +52,14 @@ extension LibraryEntityImage {
 
 @MainActor
 public class LibraryEntityImage: RoundedImage {
-  static private let cache: NSCache<NSString, UIImage> = NSCache()
+  static private let cache: NSCache<NSString, UIImage> = {
+    let cache = NSCache<NSString, UIImage>()
+    cache.countLimit = 300
+    cache.totalCostLimit = 64 * 1024 * 1024
+    return cache
+  }()
+
+  nonisolated private static let maxArtworkPixelSize = 1024
 
   private let appDelegate: AmperKit
 
@@ -178,14 +186,41 @@ public class LibraryEntityImage: RoundedImage {
     imagePath: String
   ) async {
     guard !Task.isCancelled else { return }
-    let loadedImage = UIImage(contentsOfFile: imagePath)
+    let loadedImage = Self.downsampledArtwork(atPath: imagePath)
     let readyImage = await loadedImage?.byPreparingForDisplay()
     guard !Task.isCancelled else { return }
     Task { @MainActor [weak self] in
       guard let self, let readyImage else { return }
-      Self.cache.setObject(readyImage, forKey: imagePath as NSString)
+      Self.cache.setObject(
+        readyImage,
+        forKey: imagePath as NSString,
+        cost: Self.decodedCost(of: readyImage)
+      )
       refresh()
     }
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  nonisolated private static func downsampledArtwork(atPath path: String) -> UIImage? {
+    let url = URL(fileURLWithPath: path)
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceShouldCacheImmediately: true,
+      kCGImageSourceThumbnailMaxPixelSize: maxArtworkPixelSize,
+    ]
+    guard let downsampled = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+    else { return UIImage(contentsOfFile: path) }
+    return UIImage(cgImage: downsampled)
+  }
+
+  nonisolated private static func decodedCost(of image: UIImage) -> Int {
+    guard let cgImage = image.cgImage else { return 0 }
+    return cgImage.bytesPerRow * cgImage.height
   }
 
   @objc

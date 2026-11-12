@@ -120,7 +120,9 @@ final public class CacheFileManager: Sendable {
     }
 
     checkAmperfyDirectory()
-    recalculatePlayableCacheSizes()
+    Task.detached(priority: .utility) { [weak self] in
+      self?.recalculatePlayableCacheSizes()
+    }
   }
 
   public func recalculatePlayableCacheSizes() {

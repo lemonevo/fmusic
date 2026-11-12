@@ -52,6 +52,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   var focusedWindowTitle: String?
   var accountSwitcherDismissHandler: (() -> ())?
   var audioOutputPickerDismissHandler: (() -> ())?
+  private var lastWebDAVIncrementalScanAttempt: Date?
+  private static let webDAVIncrementalScanMinimumInterval: TimeInterval = 15
 
   lazy var player: PlayerFacade = {
     UIApplication.shared.beginReceivingRemoteControlEvents()
@@ -287,6 +289,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       userInfo: nil
     )
     let account = appDelegate.storage.main.library.getAccount(info: accountInfo)
+    lastWebDAVIncrementalScanAttempt = nil
+    triggerWebDAVIncrementalScanIfNeeded(force: true)
 
     closeAllButActiveMainTabs()
     setAppTheme(
@@ -431,6 +435,42 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   func applicationDidBecomeActive(_ application: UIApplication) {
     // Restart any tasks that were paused (or not yet started) while the application was inactive. If the application was previously in the background, optionally refresh the user interface.
     os_log("applicationDidBecomeActive", log: self.log, type: .info)
+    triggerWebDAVIncrementalScanIfNeeded()
+  }
+
+  /// WebDAV has no file system events, so changes are discovered by re-running the incremental
+  /// indexer when the app becomes active. It compares size and modification date per file and
+  /// only fetches metadata for new or changed entries.
+  func triggerWebDAVIncrementalScanIfNeeded(force: Bool = false) {
+    guard storage.settings.app.isLibrarySynced,
+          !storage.settings.user.isOfflineMode,
+          let accountInfo = storage.settings.accounts.active
+    else { return }
+    let account = storage.main.library.getAccount(info: accountInfo)
+    guard account.apiType == .webdav,
+          storage.settings.accounts.getSetting(accountInfo).read
+          .initialSyncCompletionStatus != .aborted
+    else { return }
+    if !force, let lastAttempt = lastWebDAVIncrementalScanAttempt,
+       Date().timeIntervalSince(lastAttempt) < Self.webDAVIncrementalScanMinimumInterval {
+      return
+    }
+    lastWebDAVIncrementalScanAttempt = Date()
+    let librarySyncer = getMeta(accountInfo).librarySyncer
+    Task { @MainActor in
+      do {
+        try await librarySyncer.syncInitial(statusNotifyier: nil)
+        self.notificationHandler.post(name: .librarySongsSynced, object: nil, userInfo: nil)
+        os_log("WebDAV incremental scan finished", log: self.log, type: .info)
+      } catch {
+        os_log(
+          "WebDAV incremental scan failed: %s",
+          log: self.log,
+          type: .error,
+          error.localizedDescription
+        )
+      }
+    }
   }
 
   func applicationWillTerminate(_ application: UIApplication) {

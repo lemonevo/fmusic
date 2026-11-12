@@ -100,15 +100,9 @@ class PlaylistAddPlaylistsVC: SingleSnapshotFetchedResultsTableViewController<Pl
 
     change(sortType: appDelegate.storage.settings.user.playlistsSortSetting)
 
-    var searchTiles: [String]? = nil
-    if account.apiType.asServerApiType == .ampache {
-      searchTiles = ["All", "Cached", "User", "Smart"]
-    } else if account.apiType.asServerApiType == .subsonic {
-      searchTiles = ["All", "Cached"]
-    }
     configureSearchController(
       placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Playlists")),
-      scopeButtonTitles: searchTiles
+      scopeButtonTitles: nil
     )
     tableView.register(nibName: PlaylistTableCell.typeName)
     tableView.reloadOnTextSizeChange { PlaylistTableCell.rowHeight }

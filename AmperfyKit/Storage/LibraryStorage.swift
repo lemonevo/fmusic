@@ -69,7 +69,6 @@ public class LibraryStorage: PlayableFileCachable {
     PodcastEpisode.typeName,
     Radio.typeName,
     Download.typeName,
-    ScrobbleEntry.typeName,
     SearchHistoryItem.typeName,
     // Accounts are not going to get deleted
   ]
@@ -397,18 +396,6 @@ public class LibraryStorage: PlayableFileCachable {
     return (try? context.count(for: request)) ?? 0
   }
 
-  public func getUploadableScrobbleEntryCount(for account: Account) -> Int {
-    let fetchRequest = ScrobbleEntryMO.fetchRequest()
-    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-      getFetchPredicate(forAccount: account),
-      NSPredicate(
-        format: "%K == FALSE",
-        #keyPath(ScrobbleEntryMO.isUploaded)
-      ),
-    ])
-    return (try? context.count(for: fetchRequest)) ?? 0
-  }
-
   public func getArtworkCount(for account: Account) -> Int {
     let request: NSFetchRequest<ArtworkMO> = ArtworkMO.fetchRequest()
     request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
@@ -627,12 +614,6 @@ public class LibraryStorage: PlayableFileCachable {
     let radioMO = RadioMO(context: context)
     radioMO.account = account.managedObject
     return Radio(managedObject: radioMO)
-  }
-
-  func createScrobbleEntry(account: Account) -> ScrobbleEntry {
-    let scrobbleEntryMO = ScrobbleEntryMO(context: context)
-    scrobbleEntryMO.account = account.managedObject
-    return ScrobbleEntry(managedObject: scrobbleEntryMO)
   }
 
   func createMusicFolder(account: Account) -> MusicFolder {
@@ -1822,44 +1803,6 @@ public class LibraryStorage: PlayableFileCachable {
     return history ?? [SearchHistoryItem]()
   }
 
-  // MARK: ScrobbleEntries
-
-  public func getAllScrobbleEntries() -> [ScrobbleEntry] {
-    getScrobbleEntries(account: nil)
-  }
-
-  public func getScrobbleEntries(for account: Account) -> [ScrobbleEntry] {
-    getScrobbleEntries(account: account)
-  }
-
-  private func getScrobbleEntries(account: Account?) -> [ScrobbleEntry] {
-    let fetchRequest = ScrobbleEntryMO.fetchRequest()
-    if let account {
-      fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-        getFetchPredicate(forAccount: account),
-      ])
-    }
-    let entries = try? context.fetch(fetchRequest)
-    return entries?.compactMap { ScrobbleEntry(managedObject: $0) } ?? [ScrobbleEntry]()
-  }
-
-  public func getFirstUploadableScrobbleEntry(for account: Account) -> ScrobbleEntry? {
-    let fetchRequest = ScrobbleEntryMO.fetchRequest()
-    fetchRequest.sortDescriptors = [
-      NSSortDescriptor(key: #keyPath(ScrobbleEntryMO.date), ascending: true), // oldest first
-    ]
-    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-      getFetchPredicate(forAccount: account),
-      NSPredicate(
-        format: "%K == FALSE",
-        #keyPath(ScrobbleEntryMO.isUploaded)
-      ),
-    ])
-    fetchRequest.fetchLimit = 1
-    let entries = try? context.fetch(fetchRequest)
-    return entries?.lazy.compactMap { ScrobbleEntry(managedObject: $0) }.first
-  }
-
   // MARK: Playlists
 
   public func getAllPlaylists(
@@ -2890,13 +2833,6 @@ public class LibraryStorage: PlayableFileCachable {
     // Downloads
     do {
       let request: NSFetchRequest<DownloadMO> = DownloadMO.fetchRequest()
-      request.predicate = getFetchPredicate(forAccount: account)
-      clearStorage(fetchRequest: request as! NSFetchRequest<NSFetchRequestResult>)
-    }
-
-    // Scrobble Entries
-    do {
-      let request: NSFetchRequest<ScrobbleEntryMO> = ScrobbleEntryMO.fetchRequest()
       request.predicate = getFetchPredicate(forAccount: account)
       clearStorage(fetchRequest: request as! NSFetchRequest<NSFetchRequestResult>)
     }

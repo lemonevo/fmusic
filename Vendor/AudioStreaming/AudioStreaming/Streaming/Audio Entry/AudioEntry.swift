@@ -52,6 +52,11 @@ class AudioEntry {
     private(set) var framesState: EntryFramesState
     private(set) var processedPacketsState: ProcessedPacketsState
 
+    /// Ring-buffer index of this entry's first decoded frame. Used to locate a crossfade partner.
+    /// Guarded by `lock`.
+    var firstFrameRingIndex: UInt32?
+    var firstFrameBufferGeneration: UInt64 = 0
+
     var packetDuration: Double
 
     private var averagePacketByteSize: Double {
@@ -100,6 +105,21 @@ class AudioEntry {
         framesState.played = 0
         framesState.queued = 0
         framesState.lastFrameQueued = -1
+        firstFrameRingIndex = nil
+        firstFrameBufferGeneration = 0
+    }
+
+    func firstFrameInfo() -> (index: UInt32, generation: UInt64)? {
+        lock.lock(); defer { lock.unlock() }
+        guard let index = firstFrameRingIndex else { return nil }
+        return (index, firstFrameBufferGeneration)
+    }
+
+    func setFirstFrame(index: UInt32, generation: UInt64) {
+        lock.lock(); defer { lock.unlock() }
+        guard firstFrameRingIndex == nil else { return }
+        firstFrameRingIndex = index
+        firstFrameBufferGeneration = generation
     }
 
     func has(same source: CoreAudioStreamSource) -> Bool {

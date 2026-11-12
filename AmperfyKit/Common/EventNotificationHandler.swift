@@ -44,6 +44,9 @@ extension Notification.Name {
   // posted by the background library sync after its newest elements step and at its natural end
   public static let librarySongsSynced = Notification
     .Name(rawValue: "de.amperfy.library.songs.synced")
+  // posted when the manual lyrics offset changes so visible lyrics re-render while paused
+  public static let lyricsOffsetChanged = Notification
+    .Name(rawValue: "de.amperfy.lyrics.offset.changed")
 }
 
 // MARK: - DownloadNotification

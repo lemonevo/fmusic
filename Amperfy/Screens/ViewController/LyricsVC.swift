@@ -40,6 +40,8 @@ class LyricsVC: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    overrideUserInterfaceStyle = .dark
+    view.backgroundColor = .systemBackground
 
     let lyricsView = LyricsView()
     lyricsView.translatesAutoresizingMaskIntoConstraints = false
@@ -54,7 +56,9 @@ class LyricsVC: UIViewController {
     ])
 
     lyricsView.onLyricSelected = { [weak self] lyric in
-      self?.player.seek(toSecond: lyric.startTime.seconds)
+      guard let self else { return }
+      let target = self.lyricsView?.playbackTime(for: lyric) ?? lyric.startTime.seconds
+      self.player.seek(toSecond: target)
     }
 
     self.lyricsView = lyricsView
