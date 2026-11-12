@@ -182,7 +182,9 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "SearchAndPlay",
-        description: "Plays the first search result for searchTerm in searchCategory from the currently active account with the given player options",
+        description: L10n.tr(
+          "Plays the first search result for searchTerm in searchCategory from the currently active account with the given player options"
+        ),
         exampleURLs: [
           "amperfy://x-callback-url/searchAndPlay?searchTerm=Awesome&searchCategory=playlist",
           "amperfy://x-callback-url/searchAndPlay?searchTerm=Example&searchCategory=artist&shuffleOption=1&repeatOption=2",
@@ -193,7 +195,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.searchTerm.rawValue,
             type: "String",
             isMandatory: true,
-            description: "Query term to search for"
+            description: L10n.tr("Query term to search for")
           ),
           XCallbackActionParameterDocu(
             name: NSUserActivity.ActivityKeys.searchCategory.rawValue,
@@ -205,14 +207,14 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.shuffleOption.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (false) or 1 (true)",
+            description: L10n.tr("0 (false) or 1 (true)"),
             defaultIfNotGiven: "false"
           ),
           XCallbackActionParameterDocu(
             name: NSUserActivity.ActivityKeys.repeatOption.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (off), 1 (all), 2 (single)",
+            description: L10n.tr("0 (off), 1 (all), 2 (single)"),
             defaultIfNotGiven: "off"
           ),
         ]
@@ -293,7 +295,9 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "PlayID",
-        description: "Plays the library element with the given ID from the currently active account with the provided player options",
+        description: L10n.tr(
+          "Plays the library element with the given ID from the currently active account with the provided player options"
+        ),
         exampleURLs: [
           "amperfy://x-callback-url/playID?id=123456&libraryElementType=playlist",
           "amperfy://x-callback-url/playID?id=aa2349&libraryElementType=artist&shuffleOption=1&repeatOption=2",
@@ -304,7 +308,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.id.rawValue,
             type: "String",
             isMandatory: true,
-            description: "ID of the library element"
+            description: L10n.tr("ID of the library element")
           ),
           XCallbackActionParameterDocu(
             name: NSUserActivity.ActivityKeys.libraryElementType.rawValue,
@@ -316,14 +320,14 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.shuffleOption.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (false) or 1 (true)",
+            description: L10n.tr("0 (false) or 1 (true)"),
             defaultIfNotGiven: "false"
           ),
           XCallbackActionParameterDocu(
             name: NSUserActivity.ActivityKeys.repeatOption.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (off), 1 (all), 2 (single)",
+            description: L10n.tr("0 (off), 1 (all), 2 (single)"),
             defaultIfNotGiven: "off"
           ),
         ]
@@ -401,7 +405,8 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "PlayRandomSongs",
-        description: "Plays \(player.maxSongsToAddOnce) random songs from the currently active account",
+        description: L10n
+          .tr("Plays %d random songs from the currently active account", player.maxSongsToAddOnce),
         exampleURLs: [
           "amperfy://x-callback-url/playRandomSongs",
           "amperfy://x-callback-url/playRandomSongs?onlyCached=1",
@@ -412,7 +417,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.onlyCached.rawValue,
             type: "Int",
             isMandatory: false,
-            description: "0 (false) or 1 (true), use only cached songs from library",
+            description: L10n.tr("0 (false) or 1 (true), use only cached songs from library"),
             defaultIfNotGiven: "false"
           ),
         ]
@@ -448,7 +453,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "Play",
-        description: "Changes the play state of the player to play",
+        description: L10n.tr("Changes the play state of the player to play"),
         exampleURLs: [
           "amperfy://x-callback-url/play",
         ],
@@ -465,7 +470,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "Pause",
-        description: "Changes the play state of the player to pause",
+        description: L10n.tr("Changes the play state of the player to pause"),
         exampleURLs: [
           "amperfy://x-callback-url/pause",
         ],
@@ -482,7 +487,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "TogglePlayPause",
-        description: "Toggles the play state of the player (play/pause)",
+        description: L10n.tr("Toggles the play state of the player (play/pause)"),
         exampleURLs: [
           "amperfy://x-callback-url/togglePlayPause",
         ],
@@ -499,7 +504,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "PlayNext",
-        description: "The next track will be played",
+        description: L10n.tr("The next track will be played"),
         exampleURLs: [
           "amperfy://x-callback-url/playNext",
         ],
@@ -516,7 +521,10 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "PlayPreviousOrReplay",
-        description: "The previous track will be played (if the tracked plays longer than \(AudioPlayer.replayInsteadPlayPreviousTimeInSec) seconds the track starts from the beginning)",
+        description: L10n.tr(
+          "The previous track will be played (if the track plays longer than %d seconds it starts from the beginning)",
+          AudioPlayer.replayInsteadPlayPreviousTimeInSec
+        ),
         exampleURLs: [
           "amperfy://x-callback-url/playPreviousOrReplay",
         ],
@@ -534,7 +542,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "SetShuffle",
-        description: "Sets the shuffle state of the player",
+        description: L10n.tr("Sets the shuffle state of the player"),
         exampleURLs: [
           "amperfy://x-callback-url/setShuffle?shuffleOption=1",
         ],
@@ -544,7 +552,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.shuffleOption.rawValue,
             type: "Int",
             isMandatory: true,
-            description: "0 (false) or 1 (true)"
+            description: L10n.tr("0 (false) or 1 (true)")
           ),
         ]
       )
@@ -579,7 +587,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "SetRepeat",
-        description: "Sets the shuffle state of the player",
+        description: L10n.tr("Sets the repeat state of the player"),
         exampleURLs: [
           "amperfy://x-callback-url/setRepeat?repeatOption=2",
         ],
@@ -589,7 +597,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.repeatOption.rawValue,
             type: "Int",
             isMandatory: true,
-            description: "0 (off), 1 (all), 2 (single)"
+            description: L10n.tr("0 (off), 1 (all), 2 (single)")
           ),
         ]
       )
@@ -619,7 +627,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "SetOfflineMode",
-        description: "Sets the Amperfy offline mode to active/inactive",
+        description: L10n.tr("Sets the Amperfy offline mode to active/inactive"),
         exampleURLs: [
           "amperfy://x-callback-url/setOfflineMode?offlineMode=1",
         ],
@@ -629,7 +637,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.offlineMode.rawValue,
             type: "Int",
             isMandatory: true,
-            description: "0 (inactive) or 1 (active)"
+            description: L10n.tr("0 (inactive) or 1 (active)")
           ),
         ]
       )
@@ -660,7 +668,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "RateCurrentlyPlayingSong",
-        description: "Rate the currently playing song.",
+        description: L10n.tr("Rate the currently playing song."),
         exampleURLs: [
           "amperfy://x-callback-url/rateCurrentlyPlayingSong?rating=0",
           "amperfy://x-callback-url/rateCurrentlyPlayingSong?rating=5",
@@ -671,7 +679,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.rating.rawValue,
             type: "Int",
             isMandatory: true,
-            description: "Rating must be between 0 and 5"
+            description: L10n.tr("Rating must be between 0 and 5")
           ),
         ]
       )
@@ -732,7 +740,7 @@ public class IntentManager {
     documentation.append(
       XCallbackActionDocu(
         name: "FavoriteCurrentlyPlayingSong",
-        description: "Mark the currently playing song as favorite.",
+        description: L10n.tr("Mark the currently playing song as favorite."),
         exampleURLs: [
           "amperfy://x-callback-url/favoriteCurrentlyPlayingSong?favorite=0",
           "amperfy://x-callback-url/favoriteCurrentlyPlayingSong?favorite=1",
@@ -743,7 +751,7 @@ public class IntentManager {
             name: NSUserActivity.ActivityKeys.favorite.rawValue,
             type: "Int",
             isMandatory: true,
-            description: "0 (no favorite) or 1 (favorite)"
+            description: L10n.tr("0 (no favorite) or 1 (favorite)")
           ),
         ]
       )
@@ -1270,7 +1278,7 @@ public class IntentManager {
           playableContainer = library.getArtistLocal(for: account, name: id)
         }
       case .none:
-        break // do nothing
+        playableContainer = library.getArtistLocal(for: account, name: id)
       }
     case .podcastEpisode:
       playableContainer = library.getPodcastEpisode(for: account, id: id)
@@ -1285,7 +1293,7 @@ public class IntentManager {
       case .subsonic:
         playableContainer = library.getGenre(for: account, name: id)
       case .none:
-        break // do nothing
+        playableContainer = library.getGenre(for: account, name: id)
       }
     case .podcast:
       playableContainer = library.getPodcast(for: account, id: id)

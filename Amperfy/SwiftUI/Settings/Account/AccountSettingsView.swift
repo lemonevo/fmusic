@@ -41,6 +41,12 @@ struct AccountSettingsView: View {
   @EnvironmentObject
   var settings: Settings
 
+  private var activeBackendApi: BackenApiType? {
+    guard let activeAccountInfo = settings.activeAccountInfo else { return nil }
+    return appDelegate.storage.settings.accounts.getSetting(activeAccountInfo).read
+      .loginCredentials?.backendApi
+  }
+
   func setThemePreference(preference: ThemePreference) {
     settings.themePreference = preference
     appDelegate.setAppTheme(color: preference.asColor)
@@ -147,7 +153,7 @@ struct AccountSettingsView: View {
               )
             }
             SettingsRow(
-              title: "Username",
+              title: L10n.tr("Username"),
               orientation: .vertical,
               splitPercentage: splitPercentage
             ) {
@@ -159,24 +165,24 @@ struct AccountSettingsView: View {
           }
 
           SettingsSection {
-            SettingsRow(title: "Theme Color") {
-              Menu(settings.themePreference.description) {
-                Button(ThemePreference.blue.description) {
+            SettingsRow(title: L10n.tr("Theme Color")) {
+              Menu(L10n.tr(settings.themePreference.description)) {
+                Button(L10n.tr(ThemePreference.blue.description)) {
                   setThemePreference(preference: .blue)
                 }
-                Button(ThemePreference.green.description) {
+                Button(L10n.tr(ThemePreference.green.description)) {
                   setThemePreference(preference: .green)
                 }
-                Button(ThemePreference.red.description) {
+                Button(L10n.tr(ThemePreference.red.description)) {
                   setThemePreference(preference: .red)
                 }
-                Button(ThemePreference.yellow.description) {
+                Button(L10n.tr(ThemePreference.yellow.description)) {
                   setThemePreference(preference: .yellow)
                 }
-                Button(ThemePreference.orange.description) {
+                Button(L10n.tr(ThemePreference.orange.description)) {
                   setThemePreference(preference: .orange)
                 }
-                Button(ThemePreference.purple.description) {
+                Button(L10n.tr(ThemePreference.purple.description)) {
                   setThemePreference(preference: .purple)
                 }
               }
@@ -185,46 +191,36 @@ struct AccountSettingsView: View {
 
           SettingsSection(content: {
             SettingsCheckBoxRow(
-              title: "Newest Songs",
+              title: L10n.tr("Newest Songs"),
               isOn: $settings.isAutoCacheLatestSongs
             )
-            SettingsCheckBoxRow(
-              title: "Newest Podcast Episodes",
-              isOn: $settings.isAutoCacheLatestPodcastEpisodes
-            )
-          }, header: "Auto Cache")
-
-          SettingsSection(
-            content: {
-              SettingsCheckBoxRow(
-                title: "Scrobble streamed Songs",
-                isOn: $settings.isScrobbleStreamedItems
-              )
-            },
-            footer: "Enable to scrobble all streamed songs, even if the server already marks them as played."
-          )
+          }, header: L10n.tr("Auto Cache"))
 
           SettingsSection {
-            SettingsRow(title: "Backend API", splitPercentage: splitPercentage) {
+            SettingsRow(title: L10n.tr("Backend API"), splitPercentage: splitPercentage) {
               Text(
-                appDelegate.storage.settings.accounts.getSetting(settings.activeAccountInfo).read
-                  .loginCredentials?
-                  .backendApi.description ?? ""
+                L10n.tr(
+                  appDelegate.storage.settings.accounts
+                    .getSetting(settings.activeAccountInfo).read
+                    .loginCredentials?.backendApi.description ?? ""
+                )
               )
               .foregroundColor(.secondary)
               .help(
-                appDelegate.storage.settings.accounts.getSetting(settings.activeAccountInfo).read
-                  .loginCredentials?
-                  .backendApi.description ?? ""
+                L10n.tr(
+                  appDelegate.storage.settings.accounts
+                    .getSetting(settings.activeAccountInfo).read
+                    .loginCredentials?.backendApi.description ?? ""
+                )
               )
             }
 
-            SettingsRow(title: "Server API Version", splitPercentage: splitPercentage) {
+            SettingsRow(title: L10n.tr("Server API Version"), splitPercentage: splitPercentage) {
               Text(appDelegate.getMeta(activeAccountInfo).backendApi.serverApiVersion)
                 .foregroundColor(.secondary)
                 .help(appDelegate.getMeta(activeAccountInfo).backendApi.serverApiVersion)
             }
-            SettingsRow(title: "Client API Version", splitPercentage: splitPercentage) {
+            SettingsRow(title: L10n.tr("Client API Version"), splitPercentage: splitPercentage) {
               Text(appDelegate.getMeta(activeAccountInfo).backendApi.clientApiVersion)
                 .foregroundColor(.secondary)
                 .help(appDelegate.getMeta(activeAccountInfo).backendApi.clientApiVersion)
@@ -233,26 +229,30 @@ struct AccountSettingsView: View {
 
           SettingsSection {
             NavigationLink(value: Destination.serverURLs) {
-              Text("Manage Server URLs")
+              Text(L10n.tr("Manage Server URLs"))
             }
             NavigationLink(value: Destination.customHTTPHeaders) {
-              Text("Custom HTTP Headers")
+              Text(L10n.tr("Custom HTTP Headers"))
             }
           }
 
           SettingsSection {
-            SettingsButtonRow(title: "Update Password") {
-              withPopupAnimation { isPwUpdateDialogVisible = true }
+            if activeBackendApi != .local {
+              SettingsButtonRow(title: L10n.tr("Update Password")) {
+                withPopupAnimation { isPwUpdateDialogVisible = true }
+              }
             }
-            SettingsButtonRow(title: "Resync Library") {
+            SettingsButtonRow(title: L10n.tr("Resync Library")) {
               isShowResyncLibraryAlert = true
             }.alert(isPresented: $isShowResyncLibraryAlert) {
               Alert(
-                title: Text("Resync Library"),
+                title: Text(L10n.tr("Resync Library")),
                 message: Text(
-                  "This will reset your local library and start syncing again from the server. Your downloaded files will remain on this device.\n\nDo you want to resync your library?"
+                  L10n.tr(
+                    "This will rescan your music source and pick up added, changed, or removed files. Unchanged files are skipped, and your downloads and playback data stay on this device.\n\nDo you want to resync your library?"
+                  )
                 ),
-                primaryButton: .destructive(Text("Resync")) {
+                primaryButton: .destructive(Text(L10n.tr("Resync"))) {
                   resyncLibrary(accountInfo: activeAccountInfo)
                 },
                 secondaryButton: .cancel()
@@ -261,16 +261,18 @@ struct AccountSettingsView: View {
           }
 
           SettingsSection {
-            SettingsButtonRow(title: "Logout", actionType: .destructive) {
+            SettingsButtonRow(title: L10n.tr("Logout"), actionType: .destructive) {
               isShowLogoutAlert = true
             }
             .alert(isPresented: $isShowLogoutAlert) {
               Alert(
-                title: Text("Logout"),
+                title: Text(L10n.tr("Logout")),
                 message: Text(
-                  "Logging out will sign you out of the current account. Your login credentials will be removed, and all downloaded files for this account will be deleted.\n\nDo you want to log out?"
+                  L10n.tr(
+                    "Logging out will sign you out of the current account. Your login credentials will be removed, and all downloaded files for this account will be deleted.\n\nDo you want to log out?"
+                  )
                 ),
-                primaryButton: .destructive(Text("Logout")) {
+                primaryButton: .destructive(Text(L10n.tr("Logout"))) {
                   logout(accountInfo: activeAccountInfo)
                 },
                 secondaryButton: .cancel()
@@ -280,12 +282,12 @@ struct AccountSettingsView: View {
         } else {
           // User is not logged in yet
           SettingsSection {
-            SecondaryText("You aren't logged in yet.")
+            SecondaryText(L10n.tr("You aren't logged in yet."))
           }
         }
       }
     }
-    .navigationTitle("Account")
+    .navigationTitle(L10n.tr("Account"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {

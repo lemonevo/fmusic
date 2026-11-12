@@ -119,11 +119,28 @@ public struct StructuredLyrics {
   public init() {}
 }
 
+// MARK: - LyricWord
+
+public struct LyricWord {
+  public var start: Int // Absolute start time, in milliseconds
+  public var duration: Int // Duration, in milliseconds
+  public var value = ""
+
+  public init(start: Int, duration: Int, value: String) {
+    self.start = start
+    self.duration = duration
+    self.value = value
+  }
+
+  public var end: Int { start + duration }
+}
+
 // MARK: - LyricsLine
 
 public struct LyricsLine {
   public var start: Int? // The start time of the lyrics, relative to the start time of the track, in milliseconds. If this is not part of synced lyrics, start must be omitted
   public var value = "" // The actual text of this line
+  public var words = [LyricWord]() // Word/syllable timings when the source is word-synced (e.g. YRC)
 
   public init() {}
   public var startTime: CMTime {

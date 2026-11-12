@@ -27,10 +27,14 @@ import SwiftUI
 // MARK: - SplitVC
 
 class SplitVC: UISplitViewController {
-  public static let sidebarWidth: CGFloat = 250
+  public static let sidebarWidth: CGFloat = 210
   public static let inspectorWidth: CGFloat = 300
+  public static let miniPlayerWidth: CGFloat = 700
+  public static let miniPlayerHeight: CGFloat = 54
 
   var miniPlayer: MiniPlayerView?
+  var miniPlayerWidthConstraint: NSLayoutConstraint?
+  var miniPlayerCenterXConstraint: NSLayoutConstraint?
   var miniPlayerLeadingConstraint: NSLayoutConstraint?
   var miniPlayerTrailingConstraint: NSLayoutConstraint?
   var miniPlayerBottomConstraint: NSLayoutConstraint?
@@ -65,32 +69,41 @@ class SplitVC: UISplitViewController {
     miniPlayer!.configureForMac()
     guard let miniPlayer else { return }
 
-    let inspectorWidth = viewController(for: .inspector)?.view.bounds.width ?? 0.0
     displayOrHideInspector()
 
     view.addSubview(miniPlayer.glassContainer)
-    // Set up constraints to pin it to the bottom, left, and right
+    // Apple Music style: fixed 700 x 54 floating capsule, centered at the bottom
     miniPlayer.glassContainer.translatesAutoresizingMaskIntoConstraints = false
 
-    miniPlayer.glassContainer.layer.cornerRadius = 25
+    miniPlayer.glassContainer.layer.cornerRadius = Self.miniPlayerHeight / 2
     miniPlayer.glassContainer.clipsToBounds = true
 
+    miniPlayerWidthConstraint = miniPlayer.glassContainer.widthAnchor.constraint(
+      equalToConstant: Self.miniPlayerWidth
+    )
+    miniPlayerWidthConstraint?.priority = UILayoutPriority(999)
+    miniPlayerCenterXConstraint = miniPlayer.glassContainer.centerXAnchor.constraint(
+      equalTo: view.safeAreaLayoutGuide.centerXAnchor,
+      constant: 0
+    )
     miniPlayerLeadingConstraint = miniPlayer.glassContainer.leadingAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.leadingAnchor,
-      constant: primaryColumnWidth + 20
+      greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor,
+      constant: 24
     )
     miniPlayerTrailingConstraint = miniPlayer.glassContainer.trailingAnchor.constraint(
-      equalTo: view.safeAreaLayoutGuide.trailingAnchor,
-      constant: -inspectorWidth - 20
+      lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor,
+      constant: -24
     )
-    miniPlayerBottomConstraint = view.safeAreaLayoutGuide.bottomAnchor.constraint(
+    miniPlayerBottomConstraint = view.bottomAnchor.constraint(
       equalTo: miniPlayer.glassContainer.bottomAnchor,
-      constant: 15.0
+      constant: 10
     )
     miniPlayerHeightConstraint = miniPlayer.glassContainer.heightAnchor
-      .constraint(equalToConstant: 50)
+      .constraint(equalToConstant: Self.miniPlayerHeight)
 
     NSLayoutConstraint.activate([
+      miniPlayerWidthConstraint!,
+      miniPlayerCenterXConstraint!,
       miniPlayerLeadingConstraint!,
       miniPlayerTrailingConstraint!,
       miniPlayerBottomConstraint!,
@@ -98,13 +111,15 @@ class SplitVC: UISplitViewController {
     ])
   }
 
-  override func viewWillLayoutSubviews() {
-    super.viewWillLayoutSubviews()
+  override func viewDidLayoutSubviews() {
+    super.viewDidLayoutSubviews()
 
-    let inspectorWidth = viewController(for: .inspector)?.view.bounds.width ?? 0.0
-
-    miniPlayerLeadingConstraint?.constant = (isSidebarVisible ? primaryColumnWidth : -0) + 40
-    miniPlayerTrailingConstraint?.constant = -inspectorWidth - 40
+    // Apple Music centers the player bar in the content column, not in the whole window.
+    let sidebarInset = isSidebarVisible ? primaryColumnWidth : 0
+    let inspectorWidth = viewController(for: .inspector)?.view.bounds.width ?? 0
+    miniPlayerCenterXConstraint?.constant = (sidebarInset - inspectorWidth) / 2
+    miniPlayerLeadingConstraint?.constant = sidebarInset + 24
+    miniPlayerTrailingConstraint?.constant = -(inspectorWidth + 24)
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -124,7 +139,7 @@ class SplitVC: UISplitViewController {
       let lyricsVC = LyricsVC()
       setViewController(lyricsVC, for: .inspector)
       show(.inspector)
-    } else if appDelegate.storage.settings.user.playerDisplayStyle == .compact {
+    } else if appDelegate.storage.settings.user.isPlayerQueueDisplayed {
       let queueVC = QueueVC()
       setViewController(queueVC, for: .inspector)
       show(.inspector)
@@ -132,6 +147,7 @@ class SplitVC: UISplitViewController {
       hide(.inspector)
       setViewController(nil, for: .inspector)
     }
+    miniPlayer?.refreshInspectorButtons()
   }
 
   var isSidebarVisible: Bool {

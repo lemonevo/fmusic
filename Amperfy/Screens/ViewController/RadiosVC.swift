@@ -25,7 +25,7 @@ import UIKit
 
 class RadiosVC: SingleFetchedResultsTableViewController<RadioMO> {
   override var sceneTitle: String? {
-    "Radios"
+    L10n.tr("Radios")
   }
 
   private var fetchedResultsController: RadiosFetchedResultsController!
@@ -56,7 +56,7 @@ class RadiosVC: SingleFetchedResultsTableViewController<RadioMO> {
     tableView.reloadData()
 
     configureSearchController(
-      placeholder: "Search in \"\(sceneTitle ?? "")\""
+      placeholder: L10n.tr("Search in \"%@\"", sceneTitle ?? "")
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     tableView.reloadOnTextSizeChange { PlayableTableCell.rowHeight }
@@ -67,7 +67,8 @@ class RadiosVC: SingleFetchedResultsTableViewController<RadioMO> {
 
     let playShuffleConfig = PlayShuffleInfoConfiguration(
       infoCB: {
-        "\(self.fetchedResultsController.fetchedObjects?.count ?? 0) Radio\((self.fetchedResultsController.fetchedObjects?.count ?? 0) == 1 ? "" : "s")"
+        let count = self.fetchedResultsController.fetchedObjects?.count ?? 0
+        return L10n.tr(count == 1 ? "%d Radio" : "%d Radios", count)
       },
       playContextCb: handleHeaderPlay,
       player: appDelegate.player,
@@ -117,8 +118,8 @@ class RadiosVC: SingleFetchedResultsTableViewController<RadioMO> {
   lazy var emptyContentConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .radio
-    config.text = "No Radios"
-    config.secondaryText = "Your radios will appear here."
+    config.text = L10n.tr("No Radios")
+    config.secondaryText = L10n.tr("Your radios will appear here.")
     return config
   }()
 

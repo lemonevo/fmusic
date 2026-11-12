@@ -38,6 +38,11 @@ class PlayerUIHandler: NSObject {
   public static let playButtonImagePointSize: CGFloat = 25
   public static let bigButtonImagePointSize: CGFloat = 17
   public static let playAndNextiOSButtonImagePointSize: CGFloat = 15
+  /// One shared size for the small utility icons (AirPlay, queue, volume, ellipsis).
+  public static let utilitySymbolConfiguration = UIImage.SymbolConfiguration(
+    pointSize: 17,
+    weight: .regular
+  )
 
   private var player: PlayerFacade
   private var style: PlayerUIStyle
@@ -252,15 +257,17 @@ class PlayerUIHandler: NSObject {
   }
 
   func refreshDisplayPlaylistButton(displayPlaylistButton: UIButton) {
-    let isSelected = appDelegate.storage.settings.user.playerDisplayStyle == .compact
+    let isQueueDisplayed = appDelegate.storage.settings.user.isPlayerQueueDisplayed
 
     switch style {
     case .miniPlayeriOS, .miniPlayerMac:
-      displayPlaylistButton.tintColor = isSelected ? .tintColor : .label
+      displayPlaylistButton.tintColor = isQueueDisplayed ? .tintColor : .label
     case .popupPlayer:
-      var config = UIButton.Configuration.player(isSelected: isSelected)
+      var config = UIButton.Configuration.plain()
       config.image = .playlistDisplayStyle
-      displayPlaylistButton.isSelected = isSelected
+      config.preferredSymbolConfigurationForImage = Self.utilitySymbolConfiguration
+      config.baseForegroundColor = .label
+      displayPlaylistButton.isSelected = false
       displayPlaylistButton.configuration = config
     }
   }
@@ -281,7 +288,7 @@ class PlayerUIHandler: NSObject {
     menuCreateCB: @escaping () -> [UIMenuElement]
   ) {
     optionsButton?.showsMenuAsPrimaryAction = true
-    optionsButton?.menu = UIMenu.lazyMenu(title: "Player Options") {
+    optionsButton?.menu = UIMenu.lazyMenu(title: L10n.tr("Player Options")) {
       menuCreateCB()
     }
   }
@@ -319,9 +326,9 @@ class PlayerUIHandler: NSObject {
     } else {
       switch player.playerMode {
       case .music:
-        titleLabel.text = "No music playing"
+        titleLabel.text = L10n.tr("No music playing")
       case .podcast:
-        titleLabel.text = "No podcast playing"
+        titleLabel.text = L10n.tr("No podcast playing")
       }
       albumLabel?.text = ""
       albumButton?.isEnabled = false
@@ -372,8 +379,7 @@ class PlayerUIHandler: NSObject {
   }
 
   var isLyricsButtonAllowedToDisplay: Bool {
-    appDelegate.player.playerMode == .music && appDelegate.storage.settings.accounts
-      .availableApiTypes.contains(.subsonic)
+    appDelegate.player.playerMode == .music
   }
 
   private var remainingTime: Int? {

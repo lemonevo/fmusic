@@ -56,7 +56,7 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
       if album.rating > 0 {
         return "\(album.rating) Star\(album.rating != 1 ? "s" : "")"
       } else {
-        return "Not rated"
+        return L10n.tr("Not rated")
       }
     case .newest, .recent:
       return nil
@@ -188,8 +188,8 @@ class AlbumsVC: SingleSnapshotFetchedResultsTableViewController<AlbumMO> {
 
     common.applyFilter()
     configureSearchController(
-      placeholder: "Search in \"\(common.filterTitle)\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", common.filterTitle),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
     tableView.register(nibName: GenericTableCell.typeName)
     tableView.reloadOnTextSizeChange { GenericTableCell.rowHeight }

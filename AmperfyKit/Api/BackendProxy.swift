@@ -33,35 +33,27 @@ public enum ServerApiType: Int, Sendable {
 
 public enum BackenApiType: Int, Sendable, Codable {
   case notDetected = 0
-  case ampache = 1
-  case subsonic = 2
-  case subsonic_legacy = 3
+  case local = 4
+  case webdav = 5
 
   public var description: String {
     switch self {
     case .notDetected: return "NotDetected"
-    case .ampache: return "Ampache"
-    case .subsonic: return "Subsonic"
-    case .subsonic_legacy: return "Subsonic (legacy login)"
+    case .local: return "Local Folder"
+    case .webdav: return "WebDAV"
     }
   }
 
   public var selectorDescription: String {
     switch self {
-    case .notDetected: return "Auto-Detect"
-    case .ampache: return "Ampache"
-    case .subsonic: return "Subsonic"
-    case .subsonic_legacy: return "Subsonic (legacy login)"
+    case .notDetected: return L10n.tr("Select Source")
+    case .local: return L10n.tr("Local Folder")
+    case .webdav: return L10n.tr("WebDAV")
     }
   }
 
   public var asServerApiType: ServerApiType? {
-    switch self {
-    case .notDetected: return nil
-    case .ampache: return .ampache
-    case .subsonic: return .subsonic
-    case .subsonic_legacy: return .subsonic
-    }
+    nil
   }
 }
 
@@ -211,25 +203,20 @@ public final class BackendProxy: Sendable {
     }
   }
 
-  private let activeApiType = Atomic<BackenApiType>(wrappedValue: .ampache)
+  private let activeApiType = Atomic<BackenApiType>(wrappedValue: .webdav)
   private let downloadManagerDelegate = Atomic<DownloadManagerDelegate?>(wrappedValue: nil)
 
   private var activeApi: BackendApi {
     switch activeApiType.wrappedValue {
-    case .notDetected:
-      return ampacheApi.wrappedValue!
-    case .ampache:
-      return ampacheApi.wrappedValue!
-    case .subsonic:
-      return subsonicApi.wrappedValue!
-    case .subsonic_legacy:
-      return subsonicLegacyApi.wrappedValue!
+    case .local, .notDetected:
+      return localApi.wrappedValue!
+    case .webdav:
+      return webdavApi.wrappedValue!
     }
   }
 
-  private let ampacheApi = Atomic<BackendApi?>(wrappedValue: nil)
-  private let subsonicApi = Atomic<SubsonicApi?>(wrappedValue: nil)
-  private let subsonicLegacyApi = Atomic<SubsonicApi?>(wrappedValue: nil)
+  private let localApi = Atomic<BackendApi?>(wrappedValue: nil)
+  private let webdavApi = Atomic<BackendApi?>(wrappedValue: nil)
 
   init(
     networkMonitor: NetworkMonitorFacade,
@@ -245,38 +232,8 @@ public final class BackendProxy: Sendable {
 
   @MainActor
   public func initialize() {
-    ampacheApi.wrappedValue = AmpacheApi(
-      ampacheXmlServerApi: AmpacheXmlServerApi(
-        performanceMonitor: performanceMonitor,
-        eventLogger: eventLogger,
-        settings: settings
-      ),
-      networkMonitor: networkMonitor,
-      performanceMonitor: performanceMonitor,
-      eventLogger: eventLogger
-    )
-    subsonicApi.wrappedValue = SubsonicApi(
-      subsonicServerApi: SubsonicServerApi(
-        performanceMonitor: performanceMonitor,
-        eventLogger: eventLogger,
-        settings: settings
-      ),
-      networkMonitor: networkMonitor,
-      performanceMonitor: performanceMonitor,
-      eventLogger: eventLogger
-    )
-    subsonicApi.wrappedValue!.setAuthType(newAuthType: .autoDetect)
-    subsonicLegacyApi.wrappedValue = SubsonicApi(
-      subsonicServerApi: SubsonicServerApi(
-        performanceMonitor: performanceMonitor,
-        eventLogger: eventLogger,
-        settings: settings
-      ),
-      networkMonitor: networkMonitor,
-      performanceMonitor: performanceMonitor,
-      eventLogger: eventLogger
-    )
-    subsonicLegacyApi.wrappedValue!.setAuthType(newAuthType: .legacy)
+    localApi.wrappedValue = LocalServerApi()
+    webdavApi.wrappedValue = WebDAVServerApi()
   }
 
   @MainActor
@@ -285,70 +242,16 @@ public final class BackendProxy: Sendable {
     credentials: LoginCredentials
   ) async throws
     -> BackenApiType {
-    try await checkServerReachablity(credentials: credentials)
-
-    if apiType == .notDetected || apiType == .ampache {
-      do {
-        try await ampacheApi.wrappedValue!.isAuthenticationValid(credentials: credentials)
-        return .ampache
-      } catch {} // error -> ignore this api and check the others
+    switch apiType {
+    case .local:
+      try await localApi.wrappedValue!.isAuthenticationValid(credentials: credentials)
+      return .local
+    case .webdav:
+      try await webdavApi.wrappedValue!.isAuthenticationValid(credentials: credentials)
+      return .webdav
+    case .notDetected:
+      throw AuthenticationError.notAbleToLogin
     }
-
-    if apiType == .notDetected || apiType == .subsonic {
-      do {
-        try await subsonicApi.wrappedValue!.isAuthenticationValid(credentials: credentials)
-        return .subsonic
-      } catch {} // error -> ignore this api and check the others
-    }
-
-    if apiType == .notDetected || apiType == .subsonic_legacy {
-      do {
-        try await subsonicLegacyApi.wrappedValue!.isAuthenticationValid(credentials: credentials)
-        return .subsonic_legacy
-      } catch {} // error -> ignore this api and check the others
-    }
-
-    throw AuthenticationError.notAbleToLogin
-  }
-
-  @MainActor
-  private func checkServerReachablity(credentials: LoginCredentials) async throws {
-    guard let activeBackendServerUrl = URL(string: credentials.activeBackendServerUrl) else {
-      throw AuthenticationError.invalidUrl
-    }
-
-    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<(), Error>) in
-      let sessionConfig = URLSessionConfiguration.default
-      let session = URLSession(configuration: sessionConfig)
-      var request = URLRequest(url: activeBackendServerUrl)
-      for (field, value) in credentials.httpHeaders {
-        request.setValue(value, forHTTPHeaderField: field)
-      }
-      let task = session.downloadTask(with: request) { tempLocalUrl, response, error in
-        if let error = error {
-          continuation
-            .resume(
-              throwing: AuthenticationError
-                .downloadError(message: error.localizedDescription)
-            )
-        } else {
-          if let statusCode = (response as? HTTPURLResponse)?.statusCode {
-            if statusCode >= 400,
-               // ignore 401 Unauthorized (RFC 7235) status code
-               // -> Can occur if root website requires http basic authentication,
-               //    but the REST API endpoints are reachable without http basic authentication
-               statusCode != 401 {
-              continuation
-                .resume(throwing: AuthenticationError.requestStatusError(message: "\(statusCode)"))
-            } else {
-              continuation.resume()
-            }
-          }
-        }
-      }
-      task.resume()
-    }
-    os_log("Server url is reachable.", log: self.log, type: .info)
   }
 }
 

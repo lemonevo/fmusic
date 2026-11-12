@@ -42,7 +42,7 @@ struct AddSwipeActionView: View {
 
   var body: some View {
     VStack {
-      Text("Add \(swipePosition.description) swipe")
+      Text(L10n.tr("Add %@ swipe", swipePosition.description))
         .font(.headline)
         .fontWeight(.bold)
         .frame(alignment: .center)
@@ -64,7 +64,7 @@ struct AddSwipeActionView: View {
       #endif
 
       Button(action: { isVisible = false }) {
-        Text("Cancel")
+        Text(L10n.tr("Cancel"))
           .fontWeight(.bold)
       }
       .padding()

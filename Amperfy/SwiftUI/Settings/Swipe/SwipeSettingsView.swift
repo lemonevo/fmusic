@@ -31,9 +31,9 @@ enum SwipePosition {
   var description: String {
     switch self {
     case .leading:
-      return "leading"
+      return L10n.tr("leading")
     case .trailing:
-      return "trailing"
+      return L10n.tr("trailing")
     }
   }
 }
@@ -77,7 +77,7 @@ struct SwipeSettingsView: View {
         Section(
           header:
           HStack {
-            Text("Leading")
+            Text(L10n.tr("Leading"))
             Spacer()
             Button(action: {
               addPositionType = .leading
@@ -102,7 +102,7 @@ struct SwipeSettingsView: View {
         Section(
           header:
           HStack {
-            Text("Trailing")
+            Text(L10n.tr("Trailing"))
             Spacer()
             Button(action: {
               addPositionType = .trailing
@@ -134,7 +134,7 @@ struct SwipeSettingsView: View {
           )
         }
     }
-    .navigationTitle("Swipe")
+    .navigationTitle(L10n.tr("Swipe"))
     .navigationBarTitleDisplayMode(.inline)
     .onAppear {
       reload()

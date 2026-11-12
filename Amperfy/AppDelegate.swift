@@ -266,6 +266,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     storage.applyMultiAccountSettingsUpdateIfNeeded()
     libraryUpdater.performAccountCleanUpIfNeccessaryInBackground()
 
+    if !storage.settings.app.didMigrateToAppleMusicTheme {
+      for accountInfo in storage.settings.accounts.allAccounts {
+        storage.settings.accounts.updateSetting(accountInfo) { accountSettings in
+          accountSettings.themePreference = .red
+        }
+      }
+      storage.settings.app.didMigrateToAppleMusicTheme = true
+    }
+
     configureDefaultNavigationBarStyle()
     configureBatteryMonitoring()
     configureBackgroundFetch()

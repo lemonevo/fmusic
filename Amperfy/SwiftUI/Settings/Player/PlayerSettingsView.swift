@@ -28,6 +28,11 @@ struct PlayerSettingsView: View {
   @EnvironmentObject
   private var settings: Settings
 
+  private var isServerBackedAccount: Bool {
+    appDelegate.storage.settings.accounts.getSetting(settings.activeAccountInfo).read
+      .loginCredentials?.backendApi.asServerApiType != nil
+  }
+
   private func updateBitrate(
     wifi: StreamingMaxBitratePreference? = nil,
     cellular: StreamingMaxBitratePreference? = nil
@@ -75,7 +80,7 @@ struct PlayerSettingsView: View {
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Enable ReplayGain",
+              title: L10n.tr("Enable ReplayGain"),
               isOn: Binding(
                 get: { settings.isReplayGainEnabled },
                 set: { isEnabled in
@@ -84,130 +89,130 @@ struct PlayerSettingsView: View {
               )
             )
           },
-          footer: "Automatically normalize track volume based on replay gain information for consistent loudness."
+          footer: L10n.tr("Automatically normalize track volume based on replay gain information for consistent loudness.")
         )
 
         // General Settings
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Auto-cache played tracks and download upcoming ones",
+              title: L10n.tr("Auto-cache played tracks and download upcoming ones"),
               isOn: $settings.isPlayerAutoCachePlayedItems
             )
           },
-          footer: "Played tracks (songs and podcast episodes) are cached automatically. The next \(PlayerDownloadPreparationHandler.preDownloadCount) tracks are downloaded in advance."
+          footer: L10n.tr(
+            "Played tracks (songs and podcast episodes) are cached automatically. The next %d tracks are downloaded in advance.",
+            PlayerDownloadPreparationHandler.preDownloadCount
+          )
         )
 
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Song Playback Resume",
+              title: L10n.tr("Song Playback Resume"),
               isOn: $settings.isPlayerSongPlaybackResumeEnabled
             )
           },
-          footer: "Keeps track of song progress so playback continues from the previously saved position."
+          footer: L10n.tr("Keeps track of song progress so playback continues from the previously saved position.")
         )
 
         SettingsSection(content: {
-          SettingsCheckBoxRow(title: "Manual Playback", isOn: $settings.isPlaybackStartOnlyOnPlay)
-        }, footer: "Enable to start playback only when the Play button is pressed.")
+          SettingsCheckBoxRow(
+            title: L10n.tr("Manual Playback"),
+            isOn: $settings.isPlaybackStartOnlyOnPlay
+          )
+        }, footer: L10n.tr("Enable to start playback only when the Play button is pressed."))
 
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Autoplay After End",
+              title: L10n.tr("Autoplay After End"),
               isOn: $settings.isAutoplayEnabled
             )
           },
-          footer: "When the queue ends, automatically continue playback using Instant Mix to find similar songs."
+          footer: L10n.tr("When the queue ends, automatically continue playback using Instant Mix to find similar songs.")
         )
 
-        // Streaming Format Settings
-        SettingsSection(
-          content: {
-            SettingsRow(title: "Cellular Streaming\nFormat (Transcoding)") {
-              Menu(settings.streamingFormatCellularPreference.description) {
-                ForEach(StreamingFormatPreference.allCases, id: \.self) { format in
+        // Streaming and transcoding only apply to server backed accounts
+        if isServerBackedAccount {
+          SettingsSection(
+            content: {
+              SettingsRow(title: L10n.tr("Cellular Streaming\nFormat (Transcoding)")) {
+                Menu(settings.streamingFormatCellularPreference.description) {
+                  ForEach(StreamingFormatPreference.allCases, id: \.self) { format in
+                    Button(format.description) {
+                      updateFormatCell(format)
+                    }
+                  }
+                }
+              }
+            },
+            footer: L10n.tr("Select a transcoding format for streaming while using Cellular. Transcoding is recommended for better compatibility.")
+          )
+
+          SettingsSection(
+            content: {
+              SettingsRow(title: L10n.tr("Cellular Streaming\nBitrate Limit")) {
+                Menu(settings.streamingMaxBitrateCellularPreference.description) {
+                  ForEach(StreamingMaxBitratePreference.allCases, id: \.self) { bitrate in
+                    Button(bitrate.description) {
+                      updateBitrate(cellular: bitrate)
+                    }
+                  }
+                }
+              }
+            },
+            footer: L10n.tr("Set the maximum streaming bitrate for Cellular.")
+          )
+
+          SettingsSection(
+            content: {
+              SettingsRow(title: L10n.tr("WiFi Streaming\nFormat (Transcoding)")) {
+                Menu(settings.streamingFormatWifiPreference.description) {
+                  ForEach(StreamingFormatPreference.allCases, id: \.self) { format in
+                    Button(format.description) {
+                      updateFormatWifi(format)
+                    }
+                  }
+                }
+              }
+            },
+            footer: L10n.tr("Select a transcoding format for streaming while on WiFi. Transcoding is recommended for better compatibility.")
+          )
+          // Streaming Bitrate Settings
+          SettingsSection(
+            content: {
+              SettingsRow(title: L10n.tr("WiFi Streaming\nBitrate Limit")) {
+                Menu(settings.streamingMaxBitrateWifiPreference.description) {
+                  ForEach(StreamingMaxBitratePreference.allCases, id: \.self) { bitrate in
+                    Button(bitrate.description) {
+                      updateBitrate(wifi: bitrate)
+                    }
+                  }
+                }
+              }
+            },
+            footer: L10n.tr("Set the maximum streaming bitrate for WiFi.")
+          )
+
+          // Cache Format Settings
+          SettingsSection(content: {
+            SettingsRow(title: L10n.tr("Cache\nFormat (Transcoding)")) {
+              Menu(settings.cacheTranscodingFormatPreference.description) {
+                ForEach(CacheTranscodingFormatPreference.allCases, id: \.self) { format in
                   Button(format.description) {
-                    updateFormatCell(format)
+                    updateCacheFormat(format)
                   }
                 }
               }
             }
-          },
-          footer: "Select a transcoding format for streaming while using Cellular. Transcoding is recommended for better compatibility."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsRow(title: "Cellular Streaming\nBitrate Limit") {
-              Menu(settings.streamingMaxBitrateCellularPreference.description) {
-                ForEach(StreamingMaxBitratePreference.allCases, id: \.self) { bitrate in
-                  Button(bitrate.description) {
-                    updateBitrate(cellular: bitrate)
-                  }
-                }
-              }
-            }
-          },
-          footer: "Set the maximum streaming bitrate for Cellular."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsRow(title: "WiFi Streaming\nFormat (Transcoding)") {
-              Menu(settings.streamingFormatWifiPreference.description) {
-                ForEach(StreamingFormatPreference.allCases, id: \.self) { format in
-                  Button(format.description) {
-                    updateFormatWifi(format)
-                  }
-                }
-              }
-            }
-          },
-          footer: "Select a transcoding format for streaming while on WiFi. Transcoding is recommended for better compatibility."
-        )
-        // Streaming Bitrate Settings
-        SettingsSection(
-          content: {
-            SettingsRow(title: "WiFi Streaming\nBitrate Limit") {
-              Menu(settings.streamingMaxBitrateWifiPreference.description) {
-                ForEach(StreamingMaxBitratePreference.allCases, id: \.self) { bitrate in
-                  Button(bitrate.description) {
-                    updateBitrate(wifi: bitrate)
-                  }
-                }
-              }
-            }
-          },
-          footer: "Set the maximum streaming bitrate for WiFi."
-        )
-
-        // Cache Format Settings
-        SettingsSection(content: {
-          SettingsRow(title: "Cache\nFormat (Transcoding)") {
-            Menu(settings.cacheTranscodingFormatPreference.description) {
-              ForEach(CacheTranscodingFormatPreference.allCases, id: \.self) { format in
-                Button(format.description) {
-                  updateCacheFormat(format)
-                }
-              }
-            }
-          }
-        }, footer: """
-        Select a transcoding format for cached songs. Changes will not apply to already downloaded songs; clear cache and redownload if needed.
-        \(
-          appDelegate.storage.settings.accounts.getSetting(settings.activeAccountInfo).read
-            .loginCredentials?.backendApi
-            .asServerApiType == .ampache ? "" :
-            """
-            For 'raw', Amperfy uses the Subsonic API's 'download' action, which skips transcoding. Other formats use the 'stream' action, which requires proper server configuration for transcoding.
-            """
-        )
-        """)
+          }, footer: L10n.tr(
+            "Select a transcoding format for cached songs. Changes will not apply to already downloaded songs; clear cache and redownload if needed."
+          ))
+        }
       }
     }
-    .navigationTitle("Player & Stream")
+    .navigationTitle(L10n.tr("Player & Stream"))
     .navigationBarTitleDisplayMode(.inline)
     .onAppear {
       appDelegate.userStatistics.visited(.settingsPlayer)

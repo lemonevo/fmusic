@@ -110,6 +110,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       windowScene.sizeRestrictions?.minimumSize = Self.mainWindowSize
     #endif
     #if targetEnvironment(macCatalyst)
+      windowScene.sizeRestrictions?.minimumSize = Self.minimumWindowSize
       restoreMainWindowFrame(of: windowScene)
     #endif
     if let activeAccountInfo = AmperKit.shared.storage.settings.accounts.active {
@@ -133,7 +134,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   #if targetEnvironment(macCatalyst)
-    private static let minimumWindowSize = CGSize(width: 400, height: 300)
+    /// Apple Music like: the window stops shrinking where the four column grid would have to
+    /// reflow, instead of allowing an arbitrarily narrow layout.
+    private static let minimumWindowSize = CGSize(width: 980, height: 540)
     /// Frame of the last main window that was closed in this app run. Closing the window
     /// (e.g. Cmd+W or switching to the mini player) discards its scene session, so macOS
     /// cannot restore the frame and the next main window would open in the default size.

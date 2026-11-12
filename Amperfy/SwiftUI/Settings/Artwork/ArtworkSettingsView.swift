@@ -102,30 +102,32 @@ struct ArtworkSettingsView: View {
     ZStack {
       SettingsList {
         SettingsSection {
-          SettingsRow(title: "Artworks") {
+          SettingsRow(title: L10n.tr("Artworks")) {
             SecondaryText(artworkCountText)
           }
-          SettingsRow(title: "Not checked Artworks") {
+          SettingsRow(title: L10n.tr("Not checked Artworks")) {
             SecondaryText(artworkNotCheckedCountText)
           }
-          SettingsRow(title: "Cached Artworks") {
+          SettingsRow(title: L10n.tr("Cached Artworks")) {
             SecondaryText(cachedArtworksCountText)
           }
-          SettingsRow(title: "Artwork Cache Size") {
+          SettingsRow(title: L10n.tr("Artwork Cache Size")) {
             SecondaryText(artworkCacheSizeText)
           }
 
           if let activeAccountInfo = settings.activeAccountInfo {
-            SettingsButtonRow(title: "Download all artworks in library") {
+            SettingsButtonRow(title: L10n.tr("Download all artworks in library")) {
               isShowDownloadArtworksAlert = true
             }
             .alert(isPresented: $isShowDownloadArtworksAlert) {
               Alert(
-                title: Text("Download all artworks in library"),
+                title: Text(L10n.tr("Download all artworks in library")),
                 message: Text(
-                  "This action will add all uncached artworks to the download queue. With this action a lot network traffic can be generated and device storage capacity will be taken. Continue?"
+                  L10n.tr(
+                    "This action will add all uncached artworks to the download queue. With this action a lot network traffic can be generated and device storage capacity will be taken. Continue?"
+                  )
                 ),
-                primaryButton: .default(Text("OK")) {
+                primaryButton: .default(Text(L10n.tr("OK"))) {
                   let account = appDelegate.storage.main.library
                     .getAccount(info: activeAccountInfo)
                   let allArtworksToDownload = appDelegate.storage.main.library
@@ -136,16 +138,21 @@ struct ArtworkSettingsView: View {
                 secondaryButton: .cancel()
               )
             }
-            SettingsButtonRow(title: "Delete all downloaded artworks", actionType: .destructive) {
+            SettingsButtonRow(
+              title: L10n.tr("Delete all downloaded artworks"),
+              actionType: .destructive
+            ) {
               isShowDeleteArtworksAlert = true
             }
             .alert(isPresented: $isShowDeleteArtworksAlert) {
               Alert(
-                title: Text("Delete all downloaded artworks"),
+                title: Text(L10n.tr("Delete all downloaded artworks")),
                 message: Text(
-                  "This action will delete downloaded artworks. Artworks embedded in song/podcast episode files will be kept. Continue?"
+                  L10n.tr(
+                    "This action will delete downloaded artworks. Artworks embedded in song/podcast episode files will be kept. Continue?"
+                  )
                 ),
-                primaryButton: .destructive(Text("Delete")) {
+                primaryButton: .destructive(Text(L10n.tr("Delete"))) {
                   let account = appDelegate.storage.main.library
                     .getAccount(info: activeAccountInfo)
                   appDelegate.getMeta(activeAccountInfo).artworkDownloadManager.stop()
@@ -167,15 +174,15 @@ struct ArtworkSettingsView: View {
         }
         SettingsSection {
           NavigationLink(value: Destination.download) {
-            Text("Artwork Download Settings")
+            Text(L10n.tr("Artwork Download Settings"))
           }
           NavigationLink(value: Destination.display) {
-            Text("Artwork Display Settings")
+            Text(L10n.tr("Artwork Display Settings"))
           }
         }
       }
     }
-    .navigationTitle("Artwork")
+    .navigationTitle(L10n.tr("Artwork"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {

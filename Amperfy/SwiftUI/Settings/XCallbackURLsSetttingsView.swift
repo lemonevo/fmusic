@@ -30,7 +30,9 @@ struct XCallbackURLsSetttingsView: View {
       SettingsList {
         Section {
           Text(
-            "Amperfy's X-Callback-URL API can be used to perform actions from other Apps or via Siri Shortcuts. All available actions with their detail information can be found below:"
+            L10n.tr(
+              "Amperfy's X-Callback-URL API can be used to perform actions from other Apps or via Siri Shortcuts. All available actions with their detail information can be found below:"
+            )
           )
           .font(.caption)
         }
@@ -46,10 +48,10 @@ struct XCallbackURLsSetttingsView: View {
                 .font(.caption)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding([.top, .bottom], 8)
-              Text("Action: \(actionDocu.action)")
+              Text(L10n.tr("Action: %@", actionDocu.action))
                 .font(.caption)
                 .padding([.bottom], 8)
-              Text("Example URLs:")
+              Text(L10n.tr("Example URLs:"))
                 .font(.caption)
                 .underline()
                 .padding([.bottom], 4)
@@ -64,24 +66,24 @@ struct XCallbackURLsSetttingsView: View {
               }
 
               if !actionDocu.parameters.isEmpty {
-                Text("Parameters:")
+                Text(L10n.tr("Parameters:"))
                   .font(.caption)
                   .underline()
                   .padding([.top], 8)
               }
               ForEach(actionDocu.parameters, id: \.self) { para in
-                Text("\(para.name) \(para.isMandatory ? "(mandatory)" : "")")
+                Text("\(para.name) \(para.isMandatory ? L10n.tr("(mandatory)") : "")")
                   .font(.caption)
                   .fontWeight(.bold)
                   .padding([.top], 4)
-                Text("Type: \(para.type)")
+                Text(L10n.tr("Type: %@", para.type))
                   .font(.caption)
                   .padding([.leading], 8)
-                Text("Description: \(para.description)")
+                Text(L10n.tr("Description: %@", para.description))
                   .font(.caption)
                   .padding([.leading], 8)
                 if !para.isMandatory, let defaultValue = para.defaultIfNotGiven {
-                  Text("Default: \(defaultValue)")
+                  Text(L10n.tr("Default: %@", defaultValue))
                     .font(.caption)
                     .padding([.leading], 8)
                 }
@@ -91,7 +93,7 @@ struct XCallbackURLsSetttingsView: View {
         }
       }
     }
-    .navigationTitle("X-Callback-URL Documentation")
+    .navigationTitle(L10n.tr("X-Callback-URL Documentation"))
     .navigationBarTitleDisplayMode(.inline)
   }
 }

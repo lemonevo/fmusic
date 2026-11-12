@@ -238,7 +238,14 @@ class KeyboardFocusableListCell: UICollectionViewListCell {
     super.updateConfiguration(using: state)
     var background = defaultBackgroundConfiguration().updated(for: state)
     // the selection appearance has priority over the focus
-    if isKeyboardFocused, !state.isSelected, !state.isHighlighted {
+    if state.isSelected || state.isHighlighted {
+      // Apple Music uses a neutral gray selection instead of the accent color
+      background.backgroundColor = UIColor { traits in
+        traits.userInterfaceStyle == .dark
+          ? UIColor.white.withAlphaComponent(0.12)
+          : UIColor.black.withAlphaComponent(0.07)
+      }
+    } else if isKeyboardFocused {
       background.backgroundColor = .systemGray4
     }
     backgroundConfiguration = background

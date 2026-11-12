@@ -58,8 +58,8 @@ class DirectoriesVC: MultiSourceTableViewController {
     songsFetchedResultsController.delegate = self
 
     configureSearchController(
-      placeholder: "Directories and Songs",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Directories and Songs"),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
     setNavBarTitle(title: directory.name)
     tableView.register(nibName: DirectoryTableCell.typeName)
@@ -185,8 +185,8 @@ class DirectoriesVC: MultiSourceTableViewController {
   lazy var emptyContentConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .folder
-    config.text = "No Directories or Songs"
-    config.secondaryText = "Your directories and songs will appear here."
+    config.text = L10n.tr("No Directories or Songs")
+    config.secondaryText = L10n.tr("Your directories and songs will appear here.")
     return config
   }()
 

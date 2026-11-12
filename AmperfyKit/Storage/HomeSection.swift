@@ -43,16 +43,16 @@ public enum HomeSection: Int, Sendable, CaseIterable, Codable {
 
   public var title: String {
     switch self {
-    case .recentlyPlayedAlbums: return "Recently Played Albums"
-    case .newestAlbums: return "Newest Albums"
-    case .randomAlbums: return "Random Albums"
-    case .lastTimePlayedPlaylists: return "Recently Played Playlists"
-    case .newestPodcastEpisodes: return "Newest Podcast Episodes"
-    case .podcasts: return "Podcasts"
-    case .radios: return "Radios"
-    case .randomArtists: return "Random Artists"
-    case .randomGenres: return "Random Genres"
-    case .randomSongs: return "Random Songs"
+    case .recentlyPlayedAlbums: return L10n.tr("Recently Played Albums")
+    case .newestAlbums: return L10n.tr("Newest Albums")
+    case .randomAlbums: return L10n.tr("Random Albums")
+    case .lastTimePlayedPlaylists: return L10n.tr("Recently Played Playlists")
+    case .newestPodcastEpisodes: return L10n.tr("Newest Podcast Episodes")
+    case .podcasts: return L10n.tr("Podcasts")
+    case .radios: return L10n.tr("Radios")
+    case .randomArtists: return L10n.tr("Random Artists")
+    case .randomGenres: return L10n.tr("Random Genres")
+    case .randomSongs: return L10n.tr("Random Songs")
     }
   }
 

@@ -56,6 +56,16 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   var largeCurrentlyPlayingView: LargeCurrentlyPlayingPlayerView?
   var accountNotificationHandler: AccountNotificationHandler?
 
+  private var volumeSliderControl: UIView?
+  #if targetEnvironment(macCatalyst)
+    var windowVolumeControl: PlayerWindowVolumeControl?
+    private var isPlayerVisible = false
+  #endif
+  private var closeButtonControl: UIButton?
+  private var largeLyricsColumnView: UIView?
+  private var controlFullWidthConstraint: NSLayoutConstraint?
+  private var controlSplitConstraint: NSLayoutConstraint?
+
   var currentlyPlayingTableCell: CurrentlyPlayingTableCell?
   var contextPrevQueueSectionHeader: ContextQueuePrevSectionHeader?
   var userQueueSectionHeader: UserQueueSectionHeader?
@@ -96,6 +106,7 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
       createdPlayerControlView.prepare(toWorkOnRootView: self)
       controlPlaceholderView.addSubview(createdPlayerControlView)
     }
+    setupLargeLyricsColumn()
     if let createdLargeCurrentlyPlayingView = ViewCreator<LargeCurrentlyPlayingPlayerView>
       .createFromNib(withinFixedFrame: CGRect(
         x: 0,
@@ -104,9 +115,15 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
         height: largePlayerPlaceholderView.bounds.size.height
       )) {
       largeCurrentlyPlayingView = createdLargeCurrentlyPlayingView
-      createdLargeCurrentlyPlayingView.prepare(toWorkOnRootView: self)
+      createdLargeCurrentlyPlayingView.prepare(
+        toWorkOnRootView: self,
+        lyricsContainer: largeLyricsColumnView
+      )
       largePlayerPlaceholderView.addSubview(createdLargeCurrentlyPlayingView)
     }
+
+    setupVolumeControl()
+    updateVolumeControlVisibility(for: appDelegate.storage.settings.user.playerDisplayStyle)
 
     closeButtonPlaceholderView.isHidden = true
 
@@ -121,7 +138,7 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
         height: ContextQueuePrevSectionHeader.frameHeight
       )) {
       contextPrevQueueSectionHeader = sectionView
-      contextPrevQueueSectionHeader?.display(name: "Previous")
+      contextPrevQueueSectionHeader?.display(name: L10n.tr("Previous"))
     }
     if let sectionView = ViewCreator<UserQueueSectionHeader>.createFromNib(withinFixedFrame: CGRect(
       x: 0,
@@ -130,7 +147,10 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
       height: UserQueueSectionHeader.frameHeight
     )) {
       userQueueSectionHeader = sectionView
-      userQueueSectionHeader?.display(name: "Next from Queue", buttonPressAction: clearUserQueue)
+      userQueueSectionHeader?.display(
+        name: L10n.tr("Next from Queue"),
+        buttonPressAction: clearUserQueue
+      )
     }
     if let sectionView = ViewCreator<ContextQueueNextSectionHeader>
       .createFromNib(withinFixedFrame: CGRect(
@@ -171,15 +191,202 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     )
   }
 
+  /// Apple Music keeps a compact volume slider in the top-right corner of the player instead
+  /// of a volume button next to the transport controls.
+  private func setupVolumeControl() {
+    guard volumeSliderControl == nil else { return }
+
+    let icon = UIImageView(
+      image: UIImage(
+        systemName: "speaker.wave.2.fill",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 12, weight: .regular)
+      )
+    )
+    icon.tintColor = .label
+    icon.setContentHuggingPriority(.required, for: .horizontal)
+
+    let slider = VolumeSlider()
+    slider.value = player.volume
+    slider.accessibilityLabel = L10n.tr("Volume")
+    slider.addTarget(self, action: #selector(volumeSliderChanged(_:)), for: .valueChanged)
+
+    // Apple Music puts the slider first and the speaker icon at the trailing edge.
+    let stack = UIStackView(arrangedSubviews: [slider, icon])
+    stack.axis = .horizontal
+    stack.spacing = 10
+    stack.alignment = .center
+    stack.translatesAutoresizingMaskIntoConstraints = false
+
+    // The control floats above the artwork, which can be light or dark: a blurred material
+    // capsule stays readable on both without reading as a solid black blob.
+    let container = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    container.translatesAutoresizingMaskIntoConstraints = false
+    container.layer.cornerRadius = 18
+    container.clipsToBounds = true
+    container.contentView.addSubview(stack)
+    view.addSubview(container)
+    NSLayoutConstraint.activate([
+      container.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 4),
+      container.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+      container.widthAnchor.constraint(equalToConstant: 180),
+      container.heightAnchor.constraint(equalToConstant: 36),
+      stack.leadingAnchor.constraint(equalTo: container.contentView.leadingAnchor, constant: 14),
+      stack.trailingAnchor.constraint(equalTo: container.contentView.trailingAnchor, constant: -14),
+      stack.topAnchor.constraint(equalTo: container.contentView.topAnchor),
+      stack.bottomAnchor.constraint(equalTo: container.contentView.bottomAnchor),
+    ])
+    volumeSliderControl = container
+    #if targetEnvironment(macCatalyst)
+      windowVolumeControl = PlayerWindowVolumeControl(player: player)
+    #endif
+  }
+
+  @objc
+  private func volumeSliderChanged(_ sender: VolumeSlider) {
+    player.volume = sender.value
+  }
+
+  /// The sheet has no title bar on Mac Catalyst, so it needs an explicit way back
+  /// besides dragging the grabber. Only sheets get the button; the standalone
+  /// mini player window is closed with its window controls.
+  private func setupCloseButton() {
+    guard closeButtonControl == nil, presentingViewController != nil else { return }
+
+    let button = UIButton(type: .system)
+    button.setImage(
+      UIImage(
+        systemName: "chevron.down",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+      ),
+      for: .normal
+    )
+    button.tintColor = .secondaryLabel
+    button.backgroundColor = UIColor.black.withAlphaComponent(0.28)
+    button.layer.cornerRadius = 15
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.accessibilityLabel = L10n.tr("Close")
+    button.addTarget(self, action: #selector(closePlayerPressed), for: .touchUpInside)
+    view.addSubview(button)
+    NSLayoutConstraint.activate([
+      button.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 15),
+      button.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+      button.widthAnchor.constraint(equalToConstant: 30),
+      button.heightAnchor.constraint(equalToConstant: 30),
+    ])
+    closeButtonControl = button
+  }
+
+  @objc
+  func closePlayerPressed() {
+    guard let presentingViewController else { return }
+    presentingViewController.dismiss(animated: true)
+  }
+
+  /// Apple Music splits the window: artwork and metadata on the left, lyrics on the right.
+  /// The compact style still uses the single-column queue table.
+  private func setupLargeLyricsColumn() {
+    #if targetEnvironment(macCatalyst)
+      guard largeLyricsColumnView == nil else { return }
+
+      let column = UIView()
+      column.translatesAutoresizingMaskIntoConstraints = false
+      view.addSubview(column)
+
+      // The XIB pins the large player and the control bar to the trailing margin; replace
+      // that with the split. The control bar returns to full width in compact style.
+      view.constraints.first {
+        ($0.firstItem as? UIView) === view &&
+          $0.firstAttribute == .rightMargin &&
+          ($0.secondItem as? UIView) === largePlayerPlaceholderView &&
+          $0.secondAttribute == .trailing
+      }?.isActive = false
+      controlFullWidthConstraint = view.constraints.first {
+        ($0.firstItem as? UIView) === view &&
+          $0.firstAttribute == .trailingMargin &&
+          ($0.secondItem as? UIView) === controlPlaceholderView &&
+          $0.secondAttribute == .trailing
+      }
+      let splitControlConstraint = controlPlaceholderView.trailingAnchor.constraint(
+        equalTo: largePlayerPlaceholderView.trailingAnchor
+      )
+      controlSplitConstraint = splitControlConstraint
+
+      NSLayoutConstraint.activate([
+        column.topAnchor.constraint(equalTo: largePlayerPlaceholderView.topAnchor),
+        column.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+        column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+        column.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.44),
+        largePlayerPlaceholderView.trailingAnchor.constraint(
+          equalTo: column.leadingAnchor,
+          constant: -24
+        ),
+      ])
+      largeLyricsColumnView = column
+
+      // The floating close button sits in the top-left corner; keep the compact queue
+      // (and its first artwork) clear of it, matching the large player's top inset.
+      view.constraints.first {
+        ($0.firstItem as? UIView) === tableView &&
+          $0.firstAttribute == .top &&
+          ($0.secondItem as? UIView) === view &&
+          $0.secondAttribute == .topMargin
+      }?.constant = 54
+    #endif
+  }
+
+  func updateLargeLyricsColumnVisibility(for displayStyle: PlayerDisplayStyle) {
+    guard let largeLyricsColumnView else { return }
+    let isLarge = displayStyle == .large
+    largeLyricsColumnView.isHidden = !isLarge
+    controlSplitConstraint?.isActive = isLarge
+    controlFullWidthConstraint?.isActive = !isLarge
+    if isLarge {
+      controlView?.attachUtilityCluster(to: largeLyricsColumnView)
+    } else {
+      controlView?.restoreUtilityCluster()
+    }
+  }
+
+  func updateVolumeControlVisibility(for displayStyle: PlayerDisplayStyle) {
+    #if targetEnvironment(macCatalyst)
+      // Apple Music keeps the slider in the title bar row; the in-content capsule is only
+      // the fallback when the scene exposes no title bar.
+      if displayStyle == .large {
+        windowVolumeControl?.attach(to: view.window?.windowScene)
+      } else {
+        windowVolumeControl?.detach()
+      }
+      volumeSliderControl?.isHidden = displayStyle != .large
+        || (windowVolumeControl?.isAttached ?? false)
+    #else
+      volumeSliderControl?.isHidden = displayStyle != .large
+    #endif
+    controlView?.updateVolumeControlVisibility(for: displayStyle)
+  }
+
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     refreshCellMasks()
     controlView?.refreshView()
     applyGradientBackground()
+    #if targetEnvironment(macCatalyst)
+      // The window scene exists once the player is actually in a window.
+      if isPlayerVisible,
+         appDelegate.storage.settings.user.playerDisplayStyle == .large {
+        if !(windowVolumeControl?.isAttached ?? false) {
+          windowVolumeControl?.attach(to: view.window?.windowScene)
+        }
+        volumeSliderControl?.isHidden = windowVolumeControl?.isAttached ?? false
+      }
+    #endif
   }
 
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
+    #if targetEnvironment(macCatalyst)
+      isPlayerVisible = true
+    #endif
+    setupCloseButton()
     appDelegate.userStatistics.visited(.popupPlayer)
     becomeFirstResponder()
     changeDisplayStyleVisually(
@@ -195,6 +402,10 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   override func viewWillDisappear(_ animated: Bool) {
     super.viewWillDisappear(animated)
     resignFirstResponder()
+    #if targetEnvironment(macCatalyst)
+      isPlayerVisible = false
+      windowVolumeControl?.detach()
+    #endif
   }
 
   override func viewWillLayoutSubviews() {
@@ -421,7 +632,14 @@ extension PopupPlayerVC: MusicPlayable {
     refresh()
   }
 
-  func didPause() {}
+  func didPause() {
+    // Elapsed and lyrics updates come from timers that stop with playback. Push the final
+    // position once so the seek bar and the lyrics don't stay behind when the user pauses.
+    let time = CMTime(seconds: player.elapsedTime, preferredTimescale: 1_000)
+    controlView?.didElapsedTimeChange()
+    largeCurrentlyPlayingView?.refreshLyricsTime(time: time)
+  }
+
   func didElapsedTimeChange() {}
 
   func didLyricsTimeChange(time: CMTime) {

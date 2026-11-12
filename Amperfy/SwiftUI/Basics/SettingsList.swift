@@ -37,6 +37,10 @@ struct SettingsList<Content: View>: View {
         .settingsRowBackground()
     }
     .settingsListBackground()
+    // Match the compact macOS settings typography (the sidebar uses the same 13 pt size).
+    .font(.system(size: 13))
+    .environment(\.defaultMinListRowHeight, 30)
+    .contentMargins(.top, 2, for: .scrollContent)
   }
 }
 

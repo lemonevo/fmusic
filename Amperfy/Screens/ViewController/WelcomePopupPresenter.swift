@@ -26,8 +26,6 @@ class WelcomePopupPresenter: NSObject {
   func displayInfoPopupsIfNeeded() {
     if !appDelegate.storage.settings.app.isLibrarySyncInfoReadByUser {
       displaySyncInfo()
-    } else {
-      displayNotificationAuthorization()
     }
   }
 
@@ -35,33 +33,13 @@ class WelcomePopupPresenter: NSObject {
     let popupVC = AppStoryboard.Main.segueToLibrarySyncPopup()
     popupVC.setContent(
       topic: "Synchronization",
-      detailMessage: "Your music collection is constantly updating. Already synced library items are offline available. If library items (artists/albums/songs) are not shown in your collection please use the various search functionalities to synchronize with the server.",
+      detailMessage: "Your music library is read directly from the selected folder or WebDAV server. Use \"Resync Library\" in the account settings to pick up added or removed files.",
       customIcon: .refresh,
       customAnimation: .rotate,
       onClosePressed: { _ in
         self.appDelegate.storage.settings.app.isLibrarySyncInfoReadByUser = true
-        self.displayNotificationAuthorization()
       }
     )
     appDelegate.display(popup: popupVC)
-  }
-
-  private func displayNotificationAuthorization() {
-    Task { @MainActor in
-      let hasAuthorizationNotBeenAskedYet = await self.appDelegate.localNotificationManager
-        .hasAuthorizationNotBeenAskedYet()
-      guard hasAuthorizationNotBeenAskedYet else { return }
-      let popupVC = AppStoryboard.Main.segueToLibrarySyncPopup()
-      popupVC.setContent(
-        topic: "Notifications",
-        detailMessage: "Amperfy can inform you about the latest podcast episodes. If you want to, please authorize Amperfy to send you notifications.",
-        customIcon: .bell,
-        customAnimation: .swing,
-        onClosePressed: { _ in
-          self.appDelegate.localNotificationManager.requestAuthorization()
-        }
-      )
-      self.appDelegate.display(popup: popupVC)
-    }
   }
 }

@@ -37,18 +37,19 @@ struct DisplaySettingsView: View {
     ZStack {
       SettingsList {
         SettingsSection {
-          SettingsRow(title: "Appearance") {
+          SettingsRow(title: L10n.tr("Appearance")) {
             Menu(
-              settings.appearanceMode == .unspecified ? "System" :
-                (settings.appearanceMode == .light ? "Light" : "Dark")
+              settings.appearanceMode == .unspecified
+                ? L10n.tr("System")
+                : (settings.appearanceMode == .light ? L10n.tr("Light") : L10n.tr("Dark"))
             ) {
-              Button("System") {
+              Button(L10n.tr("System")) {
                 setAppearanceMode(style: .unspecified)
               }
-              Button("Light") {
+              Button(L10n.tr("Light")) {
                 setAppearanceMode(style: .light)
               }
-              Button("Dark") {
+              Button(L10n.tr("Dark")) {
                 setAppearanceMode(style: .dark)
               }
             }
@@ -64,10 +65,15 @@ struct DisplaySettingsView: View {
         #if !targetEnvironment(macCatalyst)
           SettingsSection(
             content: {
-              SettingsCheckBoxRow(title: "Haptic Feedback", isOn: $settings.isHapticsEnabled)
+              SettingsCheckBoxRow(
+                title: L10n.tr("Haptic Feedback"),
+                isOn: $settings.isHapticsEnabled
+              )
             },
             footer:
-            "Certain interactions provide haptic feedback. Long pressing to display the details menu will always trigger haptic feedback."
+            L10n.tr(
+              "Certain interactions provide haptic feedback. Long pressing to display the details menu will always trigger haptic feedback."
+            )
           )
         #endif
 
@@ -77,24 +83,26 @@ struct DisplaySettingsView: View {
           SettingsSection(
             content: {
               SettingsCheckBoxRow(
-                title: "Mini Player Always on Top",
+                title: L10n.tr("Mini Player Always on Top"),
                 isOn: $settings.isMiniPlayerAlwaysOnTop
               )
             },
             footer:
-            "Keep the mini player window floating above all other windows."
+            L10n.tr("Keep the mini player window floating above all other windows.")
           )
         #endif
 
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Music Player Skip Buttons",
+              title: L10n.tr("Music Player Skip Buttons"),
               isOn: $settings.isShowMusicPlayerSkipButtons
             )
           },
           footer:
-          "Add skip forward and skip backward buttons to the music player, along with the previous/next buttons."
+          L10n.tr(
+            "Add skip forward and skip backward buttons to the music player, along with the previous/next buttons."
+          )
         )
 
         if let activeAccountInfo = settings.activeAccountInfo,
@@ -104,62 +112,78 @@ struct DisplaySettingsView: View {
           SettingsSection(
             content: {
               SettingsCheckBoxRow(
-                title: "Lyrics Smooth Scrolling",
+                title: L10n.tr("Lyrics Smooth Scrolling"),
                 isOn: $settings.isLyricsSmoothScrolling
               )
             },
             footer:
-            "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
+            L10n.tr(
+              "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
+            )
           )
         }
 
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Detailed Information",
+              title: L10n.tr("Detailed Information"),
               isOn: $settings.isShowDetailedInfo
             )
           },
           footer:
-          "Display detailed information (bitrate, ID) and button \"Copy ID to Clipboard\"."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(title: "Song Duration", isOn: $settings.isShowSongDuration)
-          },
-          footer:
-          "Display song duration in table rows."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(title: "Album Duration", isOn: $settings.isShowAlbumDuration)
-          },
-          footer:
-          "Display album duration in table rows."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(title: "Artist Duration", isOn: $settings.isShowArtistDuration)
-          },
-          footer:
-          "Display artist duration in table rows."
-        )
-
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(title: "Show Star Rating", isOn: $settings.isShowRating)
-          },
-          footer:
-          "Display star rating in song cells and the currently playing view."
+          L10n.tr(
+            "Display detailed information (bitrate, ID) and button \"Copy ID to Clipboard\"."
+          )
         )
 
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
-              title: "Disable Player Shuffle Button",
+              title: L10n.tr("Song Duration"),
+              isOn: $settings.isShowSongDuration
+            )
+          },
+          footer:
+          L10n.tr("Display song duration in table rows.")
+        )
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Album Duration"),
+              isOn: $settings.isShowAlbumDuration
+            )
+          },
+          footer:
+          L10n.tr("Display album duration in table rows.")
+        )
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Artist Duration"),
+              isOn: $settings.isShowArtistDuration
+            )
+          },
+          footer:
+          L10n.tr("Display artist duration in table rows.")
+        )
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Show Star Rating"),
+              isOn: $settings.isShowRating
+            )
+          },
+          footer:
+          L10n.tr("Display star rating in song cells and the currently playing view.")
+        )
+
+        SettingsSection(
+          content: {
+            SettingsCheckBoxRow(
+              title: L10n.tr("Disable Player Shuffle Button"),
               isOn: Binding<Bool>(
                 get: { !settings.isPlayerShuffleButtonEnabled },
                 set: {
@@ -170,24 +194,24 @@ struct DisplaySettingsView: View {
             )
           },
           footer:
-          "The player shuffle button is displayed but non-interactive."
+          L10n.tr("The player shuffle button is displayed but non-interactive.")
         )
 
         #if !targetEnvironment(macCatalyst)
           SettingsSection(
             content: {
               SettingsCheckBoxRow(
-                title: "Collapse Toolbar Player",
+                title: L10n.tr("Collapse Toolbar Player"),
                 isOn: $settings.isToolbarPlayerAutoCollapse
               )
             },
             footer:
-            "Collapse the toolbar player into a compact view when scrolling"
+            L10n.tr("Collapse the toolbar player into a compact view when scrolling")
           )
         #endif
       }
     }
-    .navigationTitle("Display")
+    .navigationTitle(L10n.tr("Display"))
     .navigationBarTitleDisplayMode(.inline)
   }
 }

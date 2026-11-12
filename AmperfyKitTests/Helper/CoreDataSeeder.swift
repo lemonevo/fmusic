@@ -28,12 +28,12 @@ class CoreDataSeeder {
     (
       serverHash: TestAccountInfo.test1ServerHash,
       userHash: TestAccountInfo.test1UserHash,
-      apiType: BackenApiType.ampache.rawValue
+      apiType: BackenApiType.local.rawValue
     ),
     (
       serverHash: TestAccountInfo.test2ServerHash,
       userHash: TestAccountInfo.test2UserHash,
-      apiType: BackenApiType.subsonic.rawValue
+      apiType: BackenApiType.webdav.rawValue
     ),
   ]
   let artists = [

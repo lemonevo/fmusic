@@ -57,3 +57,93 @@ class MimeFileConverterTest: XCTestCase {
     XCTAssertEqual(MimeFileConverter.getFilenameExtension(mimeType: "audio/x-m4b"), "mp4")
   }
 }
+
+// MARK: - WebDAVIndexerTest
+
+@MainActor
+final class WebDAVIndexerTest: XCTestCase {
+  private struct TestConfig: Decodable {
+    let url: String
+    let username: String
+    let password: String
+  }
+
+  func testIndexesFilesFromWebDAVServer() async throws {
+    let configURL = URL(fileURLWithPath: "/tmp/amperfy_webdav_test.json")
+    let config = (try? Data(contentsOf: configURL))
+      .flatMap { try? JSONDecoder().decode(TestConfig.self, from: $0) }
+    let isExternalLibrary = config != nil
+    let serverURL = config?.url ?? "http://127.0.0.1:18080"
+    let username = config?.username ?? "test"
+    let password = config?.password ?? "test"
+
+    let helper = CoreDataHelper()
+    _ = helper.createInMemoryManagedObjectContext()
+    let manager = MOCK_CoreDataManager(persistentContainer: helper.persistentContainer)
+    let storage = PersistentStorage(coreDataManager: manager)
+
+    var credentials = LoginCredentials(
+      serverUrl: serverURL,
+      username: username,
+      password: password
+    )
+    credentials.backendApi = .webdav
+    let info = Account.createInfo(credentials: credentials)
+    let account = storage.main.library.createAccount(info: info)
+    storage.main.saveContext()
+
+    let indexer = WebDAVLibraryIndexer(
+      account: account,
+      storage: storage,
+      credentials: credentials
+    )
+    try await indexer.syncInitial(statusNotifyier: nil)
+
+    let summary = try await storage.async.performAndGet { asyncCompanion
+      -> (
+        songs: Int,
+        title: String,
+        album: String,
+        artist: String,
+        genre: String,
+        duration: Int,
+        songsWithLyrics: Int,
+        songsWithArtwork: Int
+      ) in
+      let account = asyncCompanion.library.getAccount(info: info)
+      let songs = asyncCompanion.library.getSongs(for: account)
+      let song = songs.first
+      let album = asyncCompanion.library.getAlbums(for: account).first
+      let artist = asyncCompanion.library.getArtists(for: account).first
+      return (
+        songs.count,
+        song?.title ?? "",
+        album?.name ?? "",
+        artist?.name ?? "",
+        song?.genre?.name ?? "",
+        song?.duration ?? 0,
+        songs.filter { $0.lyricsRelFilePath != nil }.count,
+        songs.filter { $0.artwork != nil }.count
+      )
+    }
+
+    if isExternalLibrary {
+      XCTAssertGreaterThan(summary.songs, 0)
+      XCTAssertFalse(summary.title.isEmpty)
+      XCTAssertFalse(summary.album.isEmpty)
+      XCTAssertFalse(summary.artist.isEmpty)
+      XCTAssertGreaterThan(summary.duration, 0)
+      XCTAssertGreaterThan(summary.songsWithLyrics, 0)
+      XCTAssertGreaterThan(summary.songsWithArtwork, 0)
+    } else {
+      XCTAssertEqual(summary.songs, 1)
+      XCTAssertEqual(summary.title, "复仇者联盟（The End Of Heroes）")
+      XCTAssertEqual(summary.album, "十年漫威")
+      XCTAssertEqual(summary.artist, "6＆9")
+      XCTAssertEqual(summary.genre, "Pop")
+      XCTAssertEqual(summary.duration, 94)
+      XCTAssertEqual(summary.songsWithLyrics, 1)
+      XCTAssertEqual(summary.songsWithArtwork, 1)
+    }
+  }
+}

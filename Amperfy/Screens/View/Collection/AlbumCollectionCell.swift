@@ -128,6 +128,9 @@ class AlbumCollectionCell: BasicCollectionCell {
   override func layoutSubviews() {
     if let indexPath = rootView?.collectionView.indexPath(for: self) {
       updateArtworkImageConstraint(indexPath: indexPath)
+    } else if itemWidth != nil {
+      // the cell may be laid out before it is registered at an index path
+      updateArtworkImageConstraint(indexPath: .init(row: 0, section: 0))
     }
     textStackHeightConstraint?.constant = Self.textHeight(for: traitCollection)
     super.layoutSubviews()
@@ -144,7 +147,8 @@ class AlbumCollectionCell: BasicCollectionCell {
       let newImageWidth = min(itemSize.width, itemSize.height)
       artworkImageWidthConstraint.constant = newImageWidth
     } else if let itemWidth {
-      artworkImageWidthConstraint.constant = itemWidth
+      // the home grid sizes its cards from the window width: follow the current cell width
+      artworkImageWidthConstraint.constant = bounds.width > 0 ? bounds.width : itemWidth
     }
   }
 }

@@ -24,7 +24,7 @@ import CoreData
 import UIKit
 
 class PodcastsVC: MultiSourceTableViewController {
-  override var sceneTitle: String? { "Podcasts" }
+  override var sceneTitle: String? { L10n.tr("Podcasts") }
 
   private var podcastsFetchedResultsController: PodcastFetchedResultsController!
   private var episodesFetchedResultsController: PodcastEpisodesReleaseDateFetchedResultsController!
@@ -55,10 +55,10 @@ class PodcastsVC: MultiSourceTableViewController {
     )
 
     configureSearchController(
-      placeholder: "Search in \"Podcasts\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Podcasts")),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
-    setNavBarTitle(title: "Podcasts")
+    setNavBarTitle(title: L10n.tr("Podcasts"))
     tableView.register(nibName: GenericTableCell.typeName)
     tableView.register(nibName: PodcastEpisodeTableCell.typeName)
     tableView.reloadOnTextSizeChange()
@@ -144,16 +144,16 @@ class PodcastsVC: MultiSourceTableViewController {
   lazy var emptyPodcastConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .podcast
-    config.text = "No Podcasts"
-    config.secondaryText = "Your podcasts will appear here."
+    config.text = L10n.tr("No Podcasts")
+    config.secondaryText = L10n.tr("Your podcasts will appear here.")
     return config
   }()
 
   lazy var emptyEpisodeConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .podcastEpisode
-    config.text = "No Podcast Episodes"
-    config.secondaryText = "Your podcast episodes will appear here."
+    config.text = L10n.tr("No Podcast Episodes")
+    config.secondaryText = L10n.tr("Your podcast episodes will appear here.")
     return config
   }()
 
@@ -313,7 +313,7 @@ class PodcastsVC: MultiSourceTableViewController {
 
   private func createSortButtonMenu() -> UIMenu {
     let podcastsSortByName = UIAction(
-      title: "Podcasts sorted by name",
+      title: L10n.tr("Podcasts sorted by name"),
       image: showType == .podcasts ? .check : nil,
       handler: { _ in
         self.showType = .podcasts
@@ -327,7 +327,7 @@ class PodcastsVC: MultiSourceTableViewController {
       }
     )
     let episodesSortByReleaseDate = UIAction(
-      title: "Episodes sorted by release date",
+      title: L10n.tr("Episodes sorted by release date"),
       image: showType == .episodesSortedByReleaseDate ? .check : nil,
       handler: { _ in
         self.showType = .episodesSortedByReleaseDate

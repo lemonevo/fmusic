@@ -39,6 +39,7 @@
                             </subviews>
                             <constraints>
                                 <constraint firstItem="4sr-YU-gYi" firstAttribute="top" secondItem="ia9-ph-a9C" secondAttribute="top" priority="750" id="12M-TF-w9C"/>
+                                <constraint firstItem="4sr-YU-gYi" firstAttribute="height" relation="lessThanOrEqual" secondItem="ia9-ph-a9C" secondAttribute="height" id="z4T-8m-Q1a"/>
                                 <constraint firstAttribute="bottom" secondItem="4sr-YU-gYi" secondAttribute="bottom" priority="750" id="AQW-tz-8of"/>
                                 <constraint firstItem="BiX-ge-9XM" firstAttribute="bottom" secondItem="4sr-YU-gYi" secondAttribute="bottom" id="B6c-oA-2gs"/>
                                 <constraint firstItem="4sr-YU-gYi" firstAttribute="centerX" secondItem="ia9-ph-a9C" secondAttribute="centerX" id="QAU-Hs-QvW"/>

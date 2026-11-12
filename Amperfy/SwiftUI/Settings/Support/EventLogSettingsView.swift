@@ -32,9 +32,9 @@ struct EventLogSettingsView: View {
     ZStack {
       if entries.isEmpty {
         ContentUnavailableView(
-          "No Events",
+          L10n.tr("No Events"),
           systemImage: "list.bullet.rectangle",
-          description: Text("Errors and other events will be listed here.")
+          description: Text(L10n.tr("Errors and other events will be listed here."))
         )
       } else {
         List {
@@ -49,7 +49,7 @@ struct EventLogSettingsView: View {
         #endif
       }
     }
-    .navigationTitle("Event Log")
+    .navigationTitle(L10n.tr("Event Log"))
   }
 }
 

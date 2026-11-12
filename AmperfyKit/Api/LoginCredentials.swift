@@ -30,6 +30,8 @@ public struct LoginCredentials: Sendable, Codable {
     case activeBackendServerUrl
     case alternativeServerURLs
     case httpHeaders
+    case localFolderBookmark
+    case localFolderPath
   }
 
   public var serverUrl: String
@@ -43,6 +45,10 @@ public struct LoginCredentials: Sendable, Codable {
   /// Cloudflare Access service token (CF-Access-Client-Id / CF-Access-Client-Secret) so that
   /// the connection bypasses an interactive Zero Trust policy.
   public var httpHeaders: [String: String]
+  /// Security scoped bookmark of the folder selected for the local media source.
+  public var localFolderBookmark: Data?
+  /// Display path of the folder selected for the local media source.
+  public var localFolderPath: String?
 
   public init() {
     self.serverUrl = ""
@@ -53,9 +59,17 @@ public struct LoginCredentials: Sendable, Codable {
     self.activeBackendServerUrl = ""
     self.alternativeServerURLs = []
     self.httpHeaders = [:]
+    self.localFolderBookmark = nil
+    self.localFolderPath = nil
   }
 
   public var displayServerUrl: String {
+    if backendApi == .local {
+      return localFolderPath ?? serverUrl
+    }
+    if backendApi == .webdav {
+      return serverUrl
+    }
     guard let url = URL(string: serverUrl),
           let host = url.host else {
       return ""
@@ -81,6 +95,8 @@ public struct LoginCredentials: Sendable, Codable {
     self.activeBackendServerUrl = serverUrl
     self.alternativeServerURLs = []
     self.httpHeaders = [:]
+    self.localFolderBookmark = nil
+    self.localFolderPath = nil
   }
 
   public init(serverUrl: String, username: String, password: String, backendApi: BackenApiType) {
@@ -107,6 +123,14 @@ public struct LoginCredentials: Sendable, Codable {
       [String: String].self,
       forKey: .httpHeaders
     ) ?? [:]
+    self.localFolderBookmark = try container.decodeIfPresent(
+      Data.self,
+      forKey: .localFolderBookmark
+    )
+    self.localFolderPath = try container.decodeIfPresent(
+      String.self,
+      forKey: .localFolderPath
+    )
     self.passwordHash = StringHasher.sha256(dataString: password)
   }
 
@@ -119,6 +143,8 @@ public struct LoginCredentials: Sendable, Codable {
     try container.encode(activeBackendServerUrl, forKey: .activeBackendServerUrl)
     try container.encode(alternativeServerURLs, forKey: .alternativeServerURLs)
     try container.encode(httpHeaders, forKey: .httpHeaders)
+    try container.encodeIfPresent(localFolderBookmark, forKey: .localFolderBookmark)
+    try container.encodeIfPresent(localFolderPath, forKey: .localFolderPath)
   }
 
   public mutating func changePasswordAndHash(password newPassword: String) {

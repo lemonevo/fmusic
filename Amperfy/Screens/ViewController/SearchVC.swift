@@ -48,16 +48,16 @@ class SearchDiffableDataSource: BasicUITableViewDiffableDataSource {
       if searchVC.searchHistory.isEmpty {
         return ""
       } else {
-        return "Recently Searched"
+        return L10n.tr("Recently Searched")
       }
     case .Playlist:
-      return "Playlists"
+      return L10n.tr("Playlists")
     case .Artist:
-      return "Artists"
+      return L10n.tr("Artists")
     case .Album:
-      return "Albums"
+      return L10n.tr("Albums")
     case .Song:
-      return "Songs"
+      return L10n.tr("Songs")
     case .none:
       return ""
     }
@@ -67,7 +67,7 @@ class SearchDiffableDataSource: BasicUITableViewDiffableDataSource {
 // MARK: - SearchVC
 
 class SearchVC: BasicTableViewController {
-  override var sceneTitle: String { "Search" }
+  override var sceneTitle: String { L10n.tr("Search") }
 
   nonisolated private static let categoryItemLimit = 20
 
@@ -79,12 +79,9 @@ class SearchVC: BasicTableViewController {
   fileprivate var playlists: [Playlist] = []
   fileprivate var songs: [Song] = []
 
-  private var userButton: UIButton?
-  private var userBarButtonItem: UIBarButtonItem?
   private var isSearchActive = false
   private var accountObjectId: NSManagedObjectID?
   private let account: Account
-  private var accountNotificationHandler: AccountNotificationHandler?
 
   init(account: Account) {
     self.account = account
@@ -208,18 +205,6 @@ class SearchVC: BasicTableViewController {
       }
     }
     updateContentUnavailable()
-    accountNotificationHandler = AccountNotificationHandler(
-      storage: appDelegate.storage,
-      notificationHandler: appDelegate.notificationHandler
-    )
-    accountNotificationHandler?.registerCallbackForActiveAccountChange { [weak self] accountInfo in
-      guard let self else { return }
-      setupUserNavButton(
-        currentAccount: account,
-        userButton: &userButton,
-        userBarButtonItem: &userBarButtonItem
-      )
-    }
   }
 
   override func viewWillAppear(_ animated: Bool) {
@@ -232,8 +217,8 @@ class SearchVC: BasicTableViewController {
     extendSafeAreaToAccountForMiniPlayer()
     appDelegate.userStatistics.visited(.search)
     configureSearchController(
-      placeholder: "Search in \"Library\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Library")),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
   }
 
@@ -409,7 +394,7 @@ class SearchVC: BasicTableViewController {
 
     let clearButton = UIButton(
       type: .system,
-      primaryAction: UIAction(title: "Clear") { [weak self] _ in
+      primaryAction: UIAction(title: L10n.tr("Clear")) { [weak self] _ in
         self?.clearSearchHistory()
       }
     )
@@ -732,8 +717,8 @@ class SearchVC: BasicTableViewController {
   lazy var noSearchHistoryConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .clock
-    config.text = "No Search History"
-    config.secondaryText = "Your search history will appear here."
+    config.text = L10n.tr("No Search History")
+    config.secondaryText = L10n.tr("Your search history will appear here.")
     return config
   }()
 }

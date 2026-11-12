@@ -333,6 +333,12 @@ extension BasicTableViewController {
 extension PopupPlayerVC {
   override var keyCommands: [UIKeyCommand]? {
     [
+      // dismiss the sheet
+      UIKeyCommand(
+        input: UIKeyCommand.inputEscape,
+        modifierFlags: [],
+        action: #selector(closePlayerPressed)
+      ),
       // select
       UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(selectKeyTapped)), // enter
       UIKeyCommand(input: "l", modifierFlags: [], action: #selector(selectKeyTapped)),

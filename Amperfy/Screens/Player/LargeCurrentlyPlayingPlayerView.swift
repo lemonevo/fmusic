@@ -127,6 +127,7 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
 
   private var rootView: PopupPlayerVC?
   private var lyricsView: LyricsView?
+  private weak var externalLyricsContainer: UIView?
   private var visualizerHostingView: SwiftUIContentView?
   private var displayElement: LargeDisplayElement = .artwork
   private var ratingView: RatingView?
@@ -162,18 +163,20 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     // Force a layout to prevent wrong size on first appearance on macOS
     upperContainerView.layoutIfNeeded()
 
-    lyricsView?.frame = upperContainerView.bounds
+    if externalLyricsContainer == nil {
+      lyricsView?.frame = upperContainerView.bounds
+    }
     visualizerHostingView?.hostingController?.view.frame = upperContainerView.bounds
   }
 
-  func prepare(toWorkOnRootView: PopupPlayerVC?) {
+  func prepare(toWorkOnRootView: PopupPlayerVC?, lyricsContainer: UIView? = nil) {
     rootView = toWorkOnRootView
+    externalLyricsContainer = lyricsContainer
     titleLabel.applyAmperfyStyle()
     albumLabel.applyAmperfyStyle()
     artistLabel.applyAmperfyStyle()
 
     lyricsView = LyricsView()
-    lyricsView!.frame = upperContainerView.bounds
     lyricsView!.onLyricSelected = { [weak self] lyric in
       self?.appDelegate.player.seek(toSecond: lyric.startTime.seconds)
     }
@@ -181,7 +184,19 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     lyricsTap.cancelsTouchesInView = false
     lyricsTap.delegate = self
     lyricsView!.addGestureRecognizer(lyricsTap)
-    upperContainerView.addSubview(lyricsView!)
+    if let lyricsContainer {
+      lyricsView!.translatesAutoresizingMaskIntoConstraints = false
+      lyricsContainer.addSubview(lyricsView!)
+      NSLayoutConstraint.activate([
+        lyricsView!.leadingAnchor.constraint(equalTo: lyricsContainer.leadingAnchor),
+        lyricsView!.trailingAnchor.constraint(equalTo: lyricsContainer.trailingAnchor),
+        lyricsView!.topAnchor.constraint(equalTo: lyricsContainer.topAnchor),
+        lyricsView!.bottomAnchor.constraint(equalTo: lyricsContainer.bottomAnchor),
+      ])
+    } else {
+      lyricsView!.frame = upperContainerView.bounds
+      upperContainerView.addSubview(lyricsView!)
+    }
 
     visualizerHostingView = SwiftUIContentView()
     visualizerHostingView!.hostingController?.view.frame = upperContainerView.bounds
@@ -238,6 +253,8 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
 
   @objc
   private func handleLyricsTap(_ gesture: UITapGestureRecognizer) {
+    // In the split layout the lyrics stay visible next to the artwork.
+    guard externalLyricsContainer == nil else { return }
     // Toggle back to artwork when lyrics are tapped
     appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
     display(element: .artwork)
@@ -301,8 +318,11 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       return
     }
 
-    guard let playable = rootView?.player.currentlyPlaying,
-          let song = playable.asSong,
+    guard let playable = rootView?.player.currentlyPlaying else {
+      showEmptyLyricsPlaceholder()
+      return
+    }
+    guard let song = playable.asSong,
           let account = song.account,
           let lyricsRelFilePath = song.lyricsRelFilePath
     else {
@@ -335,13 +355,11 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
 
   var isLyricsViewAllowedToDisplay: Bool {
     displayElement == .lyrics &&
-      appDelegate.player.playerMode == .music &&
-      appDelegate.storage.settings.accounts.availableApiTypes.contains(.subsonic)
+      appDelegate.player.playerMode == .music
   }
 
   var isLyricsButtonAllowedToDisplay: Bool {
-    appDelegate.player.playerMode == .music &&
-      appDelegate.storage.settings.accounts.availableApiTypes.contains(.subsonic)
+    appDelegate.player.playerMode == .music
   }
 
   public func getDisplayElementBasedOnConfig() -> LargeDisplayElement {
@@ -364,7 +382,11 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       showArtwork()
     case .lyrics:
       hideVisualizer()
-      almostHideArtwork()
+      if externalLyricsContainer == nil {
+        almostHideArtwork()
+      } else {
+        showArtwork()
+      }
       initializeLyrics()
     case .visualizer:
       hideLyrics()
@@ -400,11 +422,21 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     lyricsView?.isHidden = true
   }
 
+  private func showEmptyLyricsPlaceholder() {
+    var placeholder = StructuredLyrics()
+    placeholder.synced = false
+    var line = LyricsLine()
+    line.value = L10n.tr("Play a song to see the lyrics here.")
+    placeholder.line.append(line)
+    showLyrics(structuredLyrics: placeholder)
+    lyricsView?.highlightAllLyrics()
+  }
+
   private func showLyricsAreNotAvailable() {
     var notAvailableLyrics = StructuredLyrics()
     notAvailableLyrics.synced = false
     var line = LyricsLine()
-    line.value = "No Lyrics"
+    line.value = L10n.tr("No Lyrics")
     notAvailableLyrics.line.append(line)
     showLyrics(structuredLyrics: notAvailableLyrics)
     lyricsView?.highlightAllLyrics()
@@ -416,6 +448,12 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling
     )
     lyricsView?.isHidden = false
+    let elapsed = appDelegate.player.elapsedTime
+    DispatchQueue.main.async { [weak self] in
+      self?.lyricsView?.scroll(
+        toTime: CMTime(seconds: elapsed, preferredTimescale: 1000)
+      )
+    }
   }
 
   func refresh() {
@@ -430,7 +468,7 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     rootView?.refreshFavoriteButton(button: favoriteButton)
     rootView?.refreshOptionButton(button: optionsButton, rootView: rootView)
     refreshRating()
-    display(element: displayElement)
+    display(element: externalLyricsContainer != nil ? LargeDisplayElement.lyrics : displayElement)
   }
 
   func refreshRating() {

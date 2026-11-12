@@ -23,7 +23,12 @@ import AmperfyKit
 import UIKit
 
 class SideBarVC: KeyCommandCollectionViewController {
+  private static let accountFooterHeight: CGFloat = 72
+
   private let account: Account!
+  private var accountMenuButton: UIButton?
+  private var accountNameLabel: UILabel?
+  private var avatarLabel: UILabel?
 
   init(collectionViewLayout: UICollectionViewLayout, account: Account) {
     self.account = account
@@ -36,9 +41,9 @@ class SideBarVC: KeyCommandCollectionViewController {
 
   private var offsetData: [LibraryNavigatorItem] = {
     [
-      LibraryNavigatorItem(title: "Search", tab: .search),
-      LibraryNavigatorItem(title: "Home", tab: .home),
-      LibraryNavigatorItem(title: "Library", isInteractable: false),
+      LibraryNavigatorItem(title: L10n.tr("Search"), tab: .search),
+      LibraryNavigatorItem(title: L10n.tr("Home"), tab: .home),
+      LibraryNavigatorItem(title: L10n.tr("Library"), isInteractable: false),
     ]
   }()
 
@@ -55,10 +60,12 @@ class SideBarVC: KeyCommandCollectionViewController {
     super.viewDidLoad()
 
     clearsSelectionOnViewWillAppear = false
+    collectionView.tintColor = .secondaryLabel
     libraryItemConfigurator.viewDidLoad(
       navigationItem: navigationItem,
       collectionView: collectionView
     )
+    configureAccountFooter()
     if #available(macCatalyst 27.0, *) {
       // soft top border -> works fine on macOS 27, no sidebar item is covered
       collectionView.topEdgeEffect.style = .soft
@@ -75,6 +82,7 @@ class SideBarVC: KeyCommandCollectionViewController {
       navigationItem: navigationItem,
       collectionView: collectionView
     )
+    refreshAccountFooter()
   }
 
   override func viewDidDisappear(_ animated: Bool) {
@@ -85,7 +93,94 @@ class SideBarVC: KeyCommandCollectionViewController {
   override func viewDidLayoutSubviews() {
     super.viewDidLayoutSubviews()
     let topInsetCorrection = 55.0 - collectionView.safeAreaInsets.top
-    collectionView.contentInset = .init(top: topInsetCorrection, left: 0, bottom: 0, right: 0)
+    collectionView.contentInset = .init(
+      top: topInsetCorrection,
+      left: 0,
+      bottom: Self.accountFooterHeight,
+      right: 0
+    )
+    collectionView.verticalScrollIndicatorInsets = .init(
+      top: 0,
+      left: 0,
+      bottom: Self.accountFooterHeight - 8,
+      right: 0
+    )
+  }
+
+  private func configureAccountFooter() {
+    let footer = UIView()
+    footer.translatesAutoresizingMaskIntoConstraints = false
+
+    let button = UIButton(type: .custom)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.showsMenuAsPrimaryAction = true
+    button.accessibilityLabel = L10n.tr("Account")
+
+    let avatar = UILabel()
+    avatar.translatesAutoresizingMaskIntoConstraints = false
+    avatar.font = .systemFont(ofSize: 15, weight: .semibold)
+    avatar.textAlignment = .center
+    avatar.textColor = .white
+    avatar.backgroundColor = UIColor(red: 0.56, green: 0.65, blue: 0.91, alpha: 1.0)
+    avatar.layer.cornerRadius = 20
+    avatar.clipsToBounds = true
+
+    let name = UILabel()
+    name.translatesAutoresizingMaskIntoConstraints = false
+    name.font = .systemFont(ofSize: 13, weight: .semibold)
+    name.textColor = .label
+
+    let stack = UIStackView(arrangedSubviews: [avatar, name])
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    stack.axis = .horizontal
+    stack.alignment = .center
+    stack.spacing = 12
+    stack.isUserInteractionEnabled = false
+
+    guard let containerView = navigationController?.view ?? view else { return }
+    containerView.addSubview(footer)
+    footer.addSubview(button)
+    button.addSubview(stack)
+
+    NSLayoutConstraint.activate([
+      footer.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+      footer.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+      footer.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+      footer.heightAnchor.constraint(equalToConstant: Self.accountFooterHeight),
+
+      button.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 16),
+      button.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -16),
+      button.topAnchor.constraint(equalTo: footer.topAnchor),
+      button.bottomAnchor.constraint(equalTo: footer.bottomAnchor, constant: -10),
+
+      stack.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+      stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+      stack.trailingAnchor.constraint(lessThanOrEqualTo: button.trailingAnchor),
+
+      avatar.widthAnchor.constraint(equalToConstant: 40),
+      avatar.heightAnchor.constraint(equalToConstant: 40),
+    ])
+
+    accountMenuButton = button
+    accountNameLabel = name
+    avatarLabel = avatar
+    refreshAccountFooter()
+  }
+
+  private func refreshAccountFooter() {
+    accountMenuButton?.menu = createUserButtonMenu()
+    guard let accountInfo = appDelegate.storage.settings.accounts.active else { return }
+    let credentials = appDelegate.storage.settings.accounts.getSetting(accountInfo).read
+      .loginCredentials
+    let username = credentials?.username ?? ""
+    let displayName = username.isEmpty ? L10n.tr("Account") : username
+    accountNameLabel?.text = displayName
+    let initials = displayName.split(separator: " ").prefix(2)
+      .compactMap { $0.first }
+      .map(String.init)
+      .joined()
+      .uppercased()
+    avatarLabel?.text = initials.isEmpty ? String(displayName.prefix(1)).uppercased() : initials
   }
 
   public func pushedOn(selectedItem: LibraryNavigatorItem) {

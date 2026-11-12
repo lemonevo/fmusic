@@ -26,8 +26,8 @@ import UIKit
 class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   override var sceneTitle: String? {
     switch displayFilter {
-    case .all, .newest, .recent: "Songs"
-    case .favorites: "Favorite Songs"
+    case .all, .newest, .recent: L10n.tr("Songs")
+    case .favorites: L10n.tr("Favorite Songs")
     }
   }
 
@@ -36,7 +36,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   private var optionsButton: UIBarButtonItem!
   public var displayFilter: DisplayCategoryFilter = .all
   private var sortType: SongElementSortType = .name
-  private var filterTitle = "Songs"
+  private var filterTitle = L10n.tr("Songs")
 
   init(account: Account) {
     super.init(style: .plain, account: account)
@@ -59,15 +59,16 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
     applyFilter()
     configureSearchController(
-      placeholder: "Search in \"\(filterTitle)\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", filterTitle),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     tableView.reloadOnTextSizeChange { PlayableTableCell.rowHeight }
 
     let playShuffleInfoConfig = PlayShuffleInfoConfiguration(
       infoCB: {
-        "\(self.fetchedResultsController.fetchedObjects?.count ?? 0) Song\((self.fetchedResultsController.fetchedObjects?.count ?? 0) == 1 ? "" : "s")"
+        let count = self.fetchedResultsController.fetchedObjects?.count ?? 0
+        return L10n.tr(count == 1 ? "%d Song" : "%d Songs", count)
       },
       playContextCb: handleHeaderPlay,
       player: appDelegate.player,
@@ -130,21 +131,21 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
   lazy var emptyContentConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .musicalNotes
-    config.text = "No Songs"
-    config.secondaryText = "Your songs will appear here."
+    config.text = L10n.tr("No %@", L10n.tr("Songs"))
+    config.secondaryText = L10n.tr("Your %@ will appear here.", L10n.tr("Songs"))
     return config
   }()
 
   func applyFilter() {
     switch displayFilter {
     case .all:
-      filterTitle = "Songs"
+      filterTitle = L10n.tr("Songs")
       isIndexTitelsHidden = false
       change(sortType: appDelegate.storage.settings.user.songsSortSetting)
     case .newest, .recent:
       break
     case .favorites:
-      filterTitle = "Favorite Songs"
+      filterTitle = L10n.tr("Favorite Songs")
       isIndexTitelsHidden = false
       if account.apiType.asServerApiType != .ampache {
         change(sortType: appDelegate.storage.settings.user.favoriteSongSortSetting)
@@ -271,7 +272,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
          sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
         return "\(sectionNameInitial) Star\(sectionNameInitial != "1" ? "s" : "")"
       } else {
-        return "Not rated"
+        return L10n.tr("Not rated")
       }
     case .addedDate:
       return nil
@@ -380,7 +381,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
-      title: "Name",
+      title: L10n.tr("Name"),
       image: sortType == .name ? .check : nil,
       handler: { _ in
         self.change(sortType: .name)
@@ -394,7 +395,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       }
     )
     let sortByRating = UIAction(
-      title: "Rating",
+      title: L10n.tr("Rating"),
       image: sortType == .rating ? .check : nil,
       handler: { _ in
         self.change(sortType: .rating)
@@ -408,7 +409,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       }
     )
     let sortByDuration = UIAction(
-      title: "Duration",
+      title: L10n.tr("Duration"),
       image: sortType == .duration ? .check : nil,
       handler: { _ in
         self.change(sortType: .duration)
@@ -422,7 +423,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       }
     )
     let sortByStarredDate = UIAction(
-      title: "Starred date",
+      title: L10n.tr("Starred date"),
       image: sortType == .starredDate ? .check : nil,
       handler: { _ in
         self.change(sortType: .starredDate)
@@ -436,7 +437,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
       }
     )
     let sortByAddedDate = UIAction(
-      title: "Date Added",
+      title: L10n.tr("Date Added"),
       image: sortType == .addedDate ? .check : nil,
       handler: { _ in
         self.change(sortType: .addedDate)
@@ -451,21 +452,21 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     )
     if displayFilter == .favorites, account.apiType.asServerApiType != .ampache {
       return UIMenu(
-        title: "Sort",
+        title: L10n.tr("Sort"),
         image: .sort,
         options: [],
         children: [sortByName, sortByRating, sortByDuration, sortByStarredDate, sortByAddedDate]
       )
     } else if account.apiType.asServerApiType != .ampache {
       return UIMenu(
-        title: "Sort",
+        title: L10n.tr("Sort"),
         image: .sort,
         options: [],
         children: [sortByName, sortByRating, sortByDuration, sortByAddedDate]
       )
     } else {
       return UIMenu(
-        title: "Sort",
+        title: L10n.tr("Sort"),
         image: .sort,
         options: [],
         children: [sortByName, sortByRating, sortByDuration]
@@ -475,7 +476,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
   private func createActionButtonMenu() -> UIMenu {
     let action = UIAction(
-      title: "Download \(filterTitle)",
+      title: L10n.tr("Download %@", filterTitle),
       image: UIImage.startDownload,
       handler: { _ in
         var songs = [Song]()
@@ -490,15 +491,19 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
         }
         if songs.count > AppDelegate.maxPlayablesDownloadsToAddAtOnceWithoutWarning {
           let alert = UIAlertController(
-            title: "Many Songs",
-            message: "Are you sure to add \(songs.count) songs from \"\(self.filterTitle)\" to download queue?",
+            title: L10n.tr("Many Songs"),
+            message: L10n.tr(
+              "Are you sure to add %d songs from \"%@\" to download queue?",
+              songs.count,
+              self.filterTitle
+            ),
             preferredStyle: .alert
           )
-          alert.addAction(UIAlertAction(title: "OK", style: .default, handler: { _ in
+          alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default, handler: { _ in
             self.appDelegate.getMeta(self.account.info).playableDownloadManager
               .download(objects: songs)
           }))
-          alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+          alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel))
           self.present(alert, animated: true, completion: nil)
         } else {
           self.appDelegate.getMeta(self.account.info).playableDownloadManager

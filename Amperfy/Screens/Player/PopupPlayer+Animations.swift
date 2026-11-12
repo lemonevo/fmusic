@@ -34,6 +34,9 @@ extension PopupPlayerVC {
   }
 
   func changeDisplayStyleVisually(to displayStyle: PlayerDisplayStyle, animated: Bool = true) {
+    updateVolumeControlVisibility(for: displayStyle)
+    updateLargeLyricsColumnVisibility(for: displayStyle)
+
     var viewToDisapper: UIView?
     var artworkToDisapper: UIView?
     var containerToDisapper: UIView?

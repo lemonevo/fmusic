@@ -82,11 +82,11 @@ class BackendAudioPlayer: NSObject {
   private let eventLogger: EventLogger
   private let networkMonitor: NetworkMonitorFacade
   private let updateElapsedTimeInterval = CMTime(
-    seconds: 1.0,
+    seconds: 0.2,
     preferredTimescale: CMTimeScale(NSEC_PER_SEC)
   )
   private let updateLyricsTimeInterval = CMTime(
-    seconds: 0.1,
+    seconds: 1.0 / 60.0,
     preferredTimescale: CMTimeScale(NSEC_PER_SEC)
   )
   private let fileManager = CacheFileManager.shared
@@ -259,7 +259,7 @@ class BackendAudioPlayer: NSObject {
       withTimeInterval: updateLyricsTimeInterval.seconds,
       repeats: true
     ) { [weak self] timer in
-      Task { @MainActor in
+      MainActor.assumeIsolated {
         guard let self = self else { return }
         let cmTime = CMTime(value: Int64(self.elapsedTime * 1_000), timescale: 1_000)
         self.responder?.didLyricsTimeChange(time: cmTime)
@@ -374,13 +374,23 @@ class BackendAudioPlayer: NSObject {
     // before the stream has started, the seek is applied in didStartPlaying
     if isSeekByStreamRestartNeeded, currentPlayUrl != "" || shouldPlayAfterStreamRestart != nil {
       restartStream(atSecond: toSecond)
+      notifyCurrentTime()
     } else if currentPlayUrl != "",
               player?.getState() == .playing || player?.getState() == .paused {
       seekTimeWhenStarted = nil
       player?.seek(to: toSecond)
+      // The player reports the requested position as soon as the seek is requested, so the bar
+      // and the lyrics (which share this clock) can move now instead of on the next tick.
+      notifyCurrentTime()
     } else {
       seekTimeWhenStarted = toSecond
     }
+  }
+
+  private func notifyCurrentTime() {
+    let time = CMTime(value: Int64(elapsedTime * 1_000), timescale: 1_000)
+    responder?.didElapsedTimeChange()
+    responder?.didLyricsTimeChange(time: time)
   }
 
   /// A time offset at or behind the end makes the server answer with a stream without audio frames,
@@ -908,6 +918,7 @@ extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
 
       currentPreparedUrl = ""
       currentPlayUrl = url
+      let pendingSeekTime = seekTimeWhenStarted
       let shouldPlay = shouldPlayAfterStreamRestart ?? shouldPlaybackStart
       shouldPlayAfterStreamRestart = nil
       if shouldPlay {
@@ -927,6 +938,8 @@ extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
           player?.seek(to: seekTimeWhenStarted)
         }
       }
+      // A restart requested by a seek lands here with its offset already applied.
+      if pendingSeekTime != nil { notifyCurrentTime() }
     }
   }
 

@@ -591,6 +591,20 @@ public class LibraryStorage: PlayableFileCachable {
     context.delete(album.managedObject)
   }
 
+  func deleteSong(_ song: Song) {
+    if let embeddedArtwork = song.managedObject.embeddedArtwork {
+      context.delete(embeddedArtwork)
+    }
+    if let download = song.managedObject.download {
+      context.delete(download)
+    }
+    context.delete(song.managedObject)
+  }
+
+  func deleteGenre(_ genre: Genre) {
+    context.delete(genre.managedObject)
+  }
+
   func createPodcast(account: Account) -> Podcast {
     let podcastMO = PodcastMO(context: context)
     podcastMO.account = account.managedObject
@@ -1668,8 +1682,35 @@ public class LibraryStorage: PlayableFileCachable {
     return songs ?? [Song]()
   }
 
-  /// Same result as `getSongs(for:whichContainsSongsWithArtist:).count`. The IDs are collected via the
-  /// relationships (indexed) because the OR across the album join scans all songs for every artist cell.
+  /// Songs for Apple Music style autoplay: same artist first, then same genre, then anything
+  /// else from the library.
+  public func getSimilarSongs(for account: Account, to song: Song, count: Int) -> [Song] {
+    guard count > 0 else { return [] }
+    let allSongs = getSongs(for: account)
+    let currentID = song.managedObject.objectID
+    var picked = [Song]()
+    var pickedIDs = Set<NSManagedObjectID>()
+
+    func addCandidates(_ candidates: [Song]) {
+      for candidate in candidates.shuffled() where picked.count < count {
+        let id = candidate.managedObject.objectID
+        guard id != currentID, !pickedIDs.contains(id) else { continue }
+        picked.append(candidate)
+        pickedIDs.insert(id)
+      }
+    }
+
+    if let artist = song.artist {
+      let artistID = artist.managedObject.objectID
+      addCandidates(allSongs.filter { $0.artist?.managedObject.objectID == artistID })
+    }
+    if let genre = song.genre {
+      let genreID = genre.managedObject.objectID
+      addCandidates(allSongs.filter { $0.genre?.managedObject.objectID == genreID })
+    }
+    addCandidates(allSongs)
+    return picked
+  }
   public func getSongsCount(
     for account: Account,
     whichContainsSongsWithArtist artist: Artist

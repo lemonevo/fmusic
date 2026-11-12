@@ -88,8 +88,8 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     snapshotDidChange = { [weak self] in self?.updateDiscTitles() }
 
     configureSearchController(
-      placeholder: "Search in \"Album\"",
-      scopeButtonTitles: ["All", "Cached"]
+      placeholder: L10n.tr("Search in \"%@\"", L10n.tr("Album")),
+      scopeButtonTitles: [L10n.tr("All"), L10n.tr("Cached")]
     )
     tableView.register(nibName: PlayableTableCell.typeName)
     // Catalyst also need an estimate to calculate the correct height before scrolling
@@ -217,7 +217,7 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
     var seenDiscs = Set<Int>()
     let titles: [String?] = discNumbers.map { disc in
       guard isMultiDisc, let disc, seenDiscs.insert(disc).inserted else { return nil }
-      return "Disc \(disc)"
+      return L10n.tr("Disc %d", disc)
     }
     guard titles != discTitles else { return }
     discTitles = titles

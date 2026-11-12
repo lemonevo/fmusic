@@ -66,7 +66,7 @@ struct ArtworkDownloadSettingsView: View {
         }
       }
     }
-    .navigationTitle("Artwork Download")
+    .navigationTitle(L10n.tr("Artwork Download"))
     .onAppear {
       updateValues()
     }

@@ -72,6 +72,7 @@ class TabBarVC: UITabBarController {
       .getSetting(account.info).read
       .libraryDisplaySettings
     let libraryTabs = librarySettings.order
+      .filter { LibraryDisplayType.supportedCases.contains($0) }
       .compactMap { item in
         let tab = UITab(
           title: item.displayName,

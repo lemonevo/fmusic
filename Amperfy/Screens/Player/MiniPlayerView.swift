@@ -34,53 +34,9 @@ class MiniPlayerView: UIView {
 
   static let mediumButtonSize: CGFloat = 20.0
 
-  fileprivate lazy var artworkOverlay: UIView = {
-    let view = UIView()
-    view.backgroundColor = .black.withAlphaComponent(0.4)
-    view.isHidden = true
-
-    let imageView = UIImageView()
-    imageView.translatesAutoresizingMaskIntoConstraints = false
-    imageView.contentMode = .scaleAspectFit
-    imageView.tintColor = .white
-    imageView.image = .miniPlayer.withRenderingMode(.alwaysTemplate)
-
-    view.addSubview(imageView)
-    NSLayoutConstraint.activate([
-      imageView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-      imageView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-      imageView.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.8),
-      imageView.heightAnchor.constraint(equalTo: view.heightAnchor, multiplier: 0.8),
-    ])
-
-    return view
-  }()
-
   fileprivate lazy var artworkImage: LibraryEntityImage = {
     let imageView = LibraryEntityImage(frame: .zero)
     imageView.backgroundColor = .clear
-    #if targetEnvironment(macCatalyst) // ok
-      artworkOverlay.translatesAutoresizingMaskIntoConstraints = false
-      imageView.addSubview(artworkOverlay)
-      NSLayoutConstraint.activate([
-        artworkOverlay.centerXAnchor.constraint(equalTo: imageView.centerXAnchor),
-        artworkOverlay.centerYAnchor.constraint(equalTo: imageView.centerYAnchor),
-        artworkOverlay.widthAnchor.constraint(equalTo: imageView.widthAnchor),
-        artworkOverlay.heightAnchor.constraint(equalTo: imageView.heightAnchor),
-      ])
-
-      imageView.isUserInteractionEnabled = true
-      let miniPlayerHoverGesture = UIHoverGestureRecognizer(
-        target: self,
-        action: #selector(artworkHovered(_:))
-      )
-      let miniPlayerTapGesture = UITapGestureRecognizer(
-        target: self,
-        action: #selector(artworkClicked(_:))
-      )
-      imageView.addGestureRecognizer(miniPlayerTapGesture)
-      imageView.addGestureRecognizer(miniPlayerHoverGesture)
-    #endif
     return imageView
   }()
 
@@ -109,29 +65,6 @@ class MiniPlayerView: UIView {
     slider.preferredBehavioralStyle = .pad
     return slider
   }()
-
-  @objc
-  func artworkHovered(_ sender: UIHoverGestureRecognizer) {
-    switch sender.state {
-    case .began:
-      artworkOverlay.isHidden = false
-    case .cancelled, .ended, .failed:
-      artworkOverlay.isHidden = true
-    default:
-      break
-    }
-  }
-
-  @objc
-  func artworkClicked(_ sender: UITapGestureRecognizer) {
-    switch sender.state {
-    case .ended:
-      appDelegate.closeMainWindow()
-      appDelegate.showMiniPlayer()
-    default:
-      break
-    }
-  }
 
   @objc
   func timeSliderChanged(_ slider: UISlider) {
@@ -182,13 +115,30 @@ class MiniPlayerView: UIView {
     return imageView
   }()
 
+  /// Apple Music uses fixed 36 x 36 pt images for the player bar icons. Bake every symbol into
+  /// that canvas so all buttons share one image size instead of each symbol's intrinsic size.
+  private static func barIcon(_ image: UIImage) -> UIImage {
+    let canvas = CGSize(width: 36, height: 36)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = UIScreen.main.scale
+    format.opaque = false
+    let symbol = image.withConfiguration(
+      UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
+    )
+    let rendered = UIGraphicsImageRenderer(size: canvas, format: format).image { _ in
+      symbol.draw(
+        at: CGPoint(
+          x: (canvas.width - symbol.size.width) / 2,
+          y: (canvas.height - symbol.size.height) / 2
+        )
+      )
+    }
+    return rendered.withRenderingMode(.alwaysTemplate)
+  }
+
   fileprivate lazy var moreButton: UIButton = {
     let button = UIButton()
-    button.setImage(
-      .ellipsis.withConfiguration(UIImage.SymbolConfiguration(scale: .medium))
-        .withRenderingMode(.alwaysTemplate),
-      for: .normal
-    )
+    button.setImage(Self.barIcon(.ellipsis), for: .normal)
     button.imageView?.tintColor = .label
     button.showsMenuAsPrimaryAction = true
     return button
@@ -277,11 +227,8 @@ class MiniPlayerView: UIView {
 
   fileprivate lazy var lyricsButton: UIButton = {
     var config = UIButton.Configuration.plain()
-    config.image = .lyrics
-      .withConfiguration(
-        UIImage
-          .SymbolConfiguration(pointSize: PlayerUIHandler.bigButtonImagePointSize)
-      )
+    config.contentInsets = .zero
+    config.image = PlayerBarIcon.lyrics
     let button = UIButton(configuration: config)
     button.tintColor = .label
     button.addTarget(self, action: #selector(Self.lyricsPressed), for: .touchUpInside)
@@ -292,6 +239,7 @@ class MiniPlayerView: UIView {
   func lyricsPressed() {
     appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
     if appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
+      appDelegate.storage.settings.user.isPlayerQueueDisplayed = false
       appDelegate.storage.settings.user.playerDisplayStyle = .large
     }
     playerHandler?.refreshDisplayLyrisButton(displayLyricsButton: lyricsButton)
@@ -303,11 +251,8 @@ class MiniPlayerView: UIView {
 
   fileprivate lazy var playlistButton: UIButton = {
     var config = UIButton.Configuration.plain()
-    config.image = .playlist
-      .withConfiguration(
-        UIImage
-          .SymbolConfiguration(pointSize: PlayerUIHandler.bigButtonImagePointSize)
-      )
+    config.contentInsets = .zero
+    config.image = PlayerBarIcon.queue
     let button = UIButton(configuration: config)
     button.tintColor = .label
     button.addTarget(self, action: #selector(Self.playlistPressed), for: .touchUpInside)
@@ -316,8 +261,8 @@ class MiniPlayerView: UIView {
 
   @IBAction
   func playlistPressed() {
-    appDelegate.storage.settings.user.playerDisplayStyle.switchToNextStyle()
-    if appDelegate.storage.settings.user.playerDisplayStyle == .compact {
+    appDelegate.storage.settings.user.isPlayerQueueDisplayed.toggle()
+    if appDelegate.storage.settings.user.isPlayerQueueDisplayed {
       appDelegate.storage.settings.user.isPlayerLyricsDisplayed = false
     }
     playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
@@ -329,29 +274,23 @@ class MiniPlayerView: UIView {
 
   fileprivate lazy var airplayButton: UIButton = {
     var config = UIButton.Configuration.plain()
-    config.image = .airplayaudio
-      .withConfiguration(
-        UIImage
-          .SymbolConfiguration(pointSize: PlayerUIHandler.bigButtonImagePointSize)
-      )
+    config.contentInsets = .zero
+    config.image = PlayerBarIcon.airplay
     let button = UIButton(configuration: config)
     button.tintColor = .label
-    button.addTarget(self, action: #selector(Self.airplayButtonPushed), for: .touchUpInside)
+    button.addTarget(self, action: #selector(Self.airplayPressed), for: .touchUpInside)
     return button
   }()
 
-  @objc
-  func airplayButtonPushed(_ sender: UIButton) {
+  @IBAction
+  func airplayPressed() {
     playerHandler?.airplayButtonPushed(rootView: self)
   }
 
   fileprivate lazy var volumeButton: UIButton = {
     var config = UIButton.Configuration.plain()
-    config.image = .volumeMax
-      .withConfiguration(
-        UIImage
-          .SymbolConfiguration(pointSize: PlayerUIHandler.bigButtonImagePointSize)
-      )
+    config.contentInsets = .zero
+    config.image = PlayerBarIcon.volume
     let button = UIButton(configuration: config)
     button.tintColor = .label
     button.addTarget(self, action: #selector(Self.volumeButtonPushed), for: .touchUpInside)
@@ -369,12 +308,10 @@ class MiniPlayerView: UIView {
     self.titleLabel.translatesAutoresizingMaskIntoConstraints = false
     (subtitleLabel).translatesAutoresizingMaskIntoConstraints = false
     (artworkImage).translatesAutoresizingMaskIntoConstraints = false
-    (moreButton).translatesAutoresizingMaskIntoConstraints = false
 
     view.addSubview(titleLabel)
     view.addSubview(subtitleLabel)
     view.addSubview(artworkImage)
-    view.addSubview(moreButton)
 
     NSLayoutConstraint.activate([
       artworkImage.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 0),
@@ -386,7 +323,7 @@ class MiniPlayerView: UIView {
       self.titleLabel.heightAnchor.constraint(equalTo: self.subtitleLabel.heightAnchor),
       self.titleLabel.leadingAnchor.constraint(equalTo: artworkImage.trailingAnchor, constant: 10),
       self.titleLabel.trailingAnchor.constraint(
-        equalTo: self.moreButton.leadingAnchor,
+        equalTo: view.trailingAnchor,
         constant: 0
       ),
       self.subtitleLabel.topAnchor.constraint(equalTo: self.titleLabel.bottomAnchor),
@@ -395,21 +332,13 @@ class MiniPlayerView: UIView {
         constant: 10
       ),
       self.subtitleLabel.trailingAnchor.constraint(
-        equalTo: self.moreButton.leadingAnchor,
+        equalTo: view.trailingAnchor,
         constant: 0
       ),
       self.subtitleLabel.bottomAnchor.constraint(
         equalTo: view.bottomAnchor,
         constant: -3
       ),
-
-      self.moreButton.widthAnchor.constraint(equalToConstant: 30),
-      self.moreButton.heightAnchor.constraint(equalToConstant: 30),
-      self.moreButton.trailingAnchor.constraint(
-        equalTo: view.trailingAnchor,
-        constant: 0
-      ),
-      self.moreButton.centerYAnchor.constraint(equalTo: view.centerYAnchor),
     ])
 
     return view
@@ -493,20 +422,23 @@ class MiniPlayerView: UIView {
   }()
 
   public lazy var trailingButtonsView: UIStackView = {
+    self.moreButton.translatesAutoresizingMaskIntoConstraints = false
     self.lyricsButton.translatesAutoresizingMaskIntoConstraints = false
     self.playlistButton.translatesAutoresizingMaskIntoConstraints = false
     self.airplayButton.translatesAutoresizingMaskIntoConstraints = false
     self.volumeButton.translatesAutoresizingMaskIntoConstraints = false
 
     let stack = UIStackView(arrangedSubviews: [
+      moreButton,
       lyricsButton,
       playlistButton,
       airplayButton,
       volumeButton,
     ])
     stack.axis = .horizontal
-    stack.distribution = .equalSpacing
+    stack.distribution = .fillEqually
     stack.alignment = .center
+
     return stack
   }()
 
@@ -514,11 +446,16 @@ class MiniPlayerView: UIView {
     guard let playerHandler else { return }
     if playerHandler.isLyricsButtonAllowedToDisplay {
       lyricsButton.isHidden = false
-      trailingButtonsViewWidthConstraint?.constant = 140
+      trailingButtonsViewWidthConstraint?.constant = 180
     } else {
       lyricsButton.isHidden = true
-      trailingButtonsViewWidthConstraint?.constant = 100
+      trailingButtonsViewWidthConstraint?.constant = 144
     }
+  }
+
+  public func refreshInspectorButtons() {
+    playerHandler?.refreshDisplayLyrisButton(displayLyricsButton: lyricsButton)
+    playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
   }
 
   func refreshMoreButton() {
@@ -530,7 +467,8 @@ class MiniPlayerView: UIView {
     if let currentlyPlaying,
        let hostVC = AppDelegate.mainWindowHostVC as? UIViewController {
       moreButton.menu = UIMenu.lazyMenu {
-        EntityPreviewActionBuilder(container: currentlyPlaying, on: hostVC).createMenuActions()
+        EntityPreviewActionBuilder(container: currentlyPlaying, on: hostVC)
+          .createMenuActions()
       }
     }
   }
@@ -591,6 +529,10 @@ class MiniPlayerView: UIView {
     addSubview(leadingButtonsView)
     addSubview(trailingButtonsView)
 
+    infoView.addGestureRecognizer(
+      UITapGestureRecognizer(target: self, action: #selector(miniPlayerGotTouched))
+    )
+
     trailingButtonsViewWidthConstraint = trailingButtonsView.widthAnchor
       .constraint(equalToConstant: 160)
 
@@ -599,26 +541,26 @@ class MiniPlayerView: UIView {
     timeSlider.addTarget(self, action: #selector(timeSliderIsChanging(_:)), for: .touchDragOutside)
 
     NSLayoutConstraint.activate([
-      leadingButtonsView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+      leadingButtonsView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
       leadingButtonsView.topAnchor.constraint(equalTo: topAnchor, constant: 0),
       leadingButtonsView.bottomAnchor.constraint(equalTo: bottomAnchor),
-      leadingButtonsView.widthAnchor.constraint(equalToConstant: 150),
+      leadingButtonsView.widthAnchor.constraint(equalToConstant: 164),
 
       sliderAndinfoView.leadingAnchor.constraint(
         equalTo: leadingButtonsView.trailingAnchor,
-        constant: 10
+        constant: 14
       ),
       sliderAndinfoView.topAnchor.constraint(equalTo: topAnchor, constant: 0),
       sliderAndinfoView.bottomAnchor.constraint(equalTo: bottomAnchor),
       sliderAndinfoView.trailingAnchor.constraint(
         equalTo: trailingButtonsView.leadingAnchor,
-        constant: -10
+        constant: -14
       ),
 
       trailingButtonsView.topAnchor.constraint(equalTo: topAnchor, constant: 0),
       trailingButtonsView.bottomAnchor.constraint(equalTo: bottomAnchor),
       trailingButtonsViewWidthConstraint!,
-      trailingButtonsView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      trailingButtonsView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -14),
     ])
     refreshPlayer()
   }
@@ -716,12 +658,10 @@ class MiniPlayerView: UIView {
   public func openPlayerView(completion: (() -> ())? = nil) {
     guard let hostVC = AppDelegate.mainWindowHostVC as? UIViewController else { return }
     let popupPlayer = PopupPlayerVC()
-    popupPlayer.modalPresentationStyle = .pageSheet
-    if let sheet = popupPlayer.sheetPresentationController {
-      sheet.detents = [.large()]
-      sheet.prefersGrabberVisible = true
-      sheet.preferredCornerRadius = 24
-    }
+    // Apple Music swaps the library window content for the player; a full screen modal
+    // matches that in-window behavior instead of the sheet's floating panel.
+    popupPlayer.modalPresentationStyle = .fullScreen
+    popupPlayer.modalTransitionStyle = .crossDissolve
     hostVC.present(popupPlayer, animated: true, completion: completion)
   }
 
@@ -844,6 +784,7 @@ class MiniPlayerView: UIView {
     playerHandler?.refreshPlayButton(playButton)
     playerHandler?.refreshPrevNextButtons(previousButton: previousButton, nextButton: nextButton)
     playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: playlistButton)
+    playerHandler?.refreshDisplayLyrisButton(displayLyricsButton: lyricsButton)
     playerHandler?.refreshRepeatButton(repeatButton: repeatButton)
     playerHandler?.refreshShuffleButton(shuffleButton: shuffleButton)
     playerHandler?.refreshTimeInfo(

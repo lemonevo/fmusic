@@ -29,33 +29,36 @@ struct SettingsTabView: View {
   private var columnVisibility = NavigationSplitViewVisibility.doubleColumn
   @State
   private var detailPath = NavigationPath()
+  @Environment(\.colorScheme)
+  private var colorScheme
 
   var body: some View {
     NavigationSplitView(columnVisibility: $columnVisibility) {
       List(NavigationTarget.allCases, id: \.self) { menuElement in
-        HStack {
-          HStack {
-            Image(uiImage: menuElement.icon.withRenderingMode(.alwaysTemplate))
-            Text(menuElement.displayName)
-          }
-          .foregroundStyle(
-            selectedMenu == menuElement
-              ? Color.systemBackground
-              : Color.label
-          )
-          .padding(8)
-          .frame(maxWidth: .infinity, alignment: .leading)
+        HStack(spacing: 10) {
+          Image(uiImage: menuElement.icon.withRenderingMode(.alwaysTemplate))
+            .font(.system(size: 16))
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 22, height: 22)
+          Text(menuElement.displayName)
+            .font(.system(size: 13))
+            .foregroundStyle(Color.label)
+            .lineLimit(1)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .listRowInsets(EdgeInsets())
         .background(
-          selectedMenu == menuElement
-            ? Color.accentColor
-            : Color.clear
+          RoundedRectangle(cornerRadius: 8)
+            .fill(selectedMenu == menuElement ? selectionColor : Color.clear)
         )
-        .cornerRadius(8)
         .contentShape(Rectangle())
         .onTapGesture { selectedMenu = menuElement }
       }
       .listStyle(.sidebar)
+      .environment(\.defaultMinListRowHeight, 32)
+      .navigationSplitViewColumnWidth(min: 210, ideal: 210, max: 260)
     } detail: {
       NavigationStack(path: $detailPath) {
         AnyView(selectedMenu.view())
@@ -66,5 +69,12 @@ struct SettingsTabView: View {
         detailPath = NavigationPath()
       }
     }
+  }
+
+  /// Same neutral selection as the main sidebar (Apple Music style).
+  private var selectionColor: Color {
+    colorScheme == .dark
+      ? Color.white.opacity(0.12)
+      : Color.black.opacity(0.07)
   }
 }

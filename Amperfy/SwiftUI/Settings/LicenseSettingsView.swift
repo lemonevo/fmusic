@@ -19,20 +19,21 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import AmperfyKit
 import SwiftUI
 
 // MARK: - LicenseSettingsView
 
 struct LicenseSettingsView: View {
-  var licenseText = """
+  var licenseText: String = """
   Copyright © 2019-2026 Maximilian Bauer
   All rights reserved.
   GPLv3 Licensed
 
   __________________________________
 
-  This software contains additional third party software.
-  All the third party software included or linked is redistributed under the terms and conditions of their original licenses.
+  \(L10n.tr("This software contains additional third party software."))
+  \(L10n.tr("All the third party software included or linked is redistributed under the terms and conditions of their original licenses."))
 
   __________________________________
 
@@ -546,7 +547,7 @@ struct LicenseSettingsView: View {
           .padding([.leading, .trailing, .top, .bottom], 16)
       }
     }
-    .navigationTitle("Licenses")
+    .navigationTitle(L10n.tr("Licenses"))
     .navigationBarTitleDisplayMode(.inline)
   }
 }

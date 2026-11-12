@@ -58,8 +58,6 @@ class SyncVC: UIViewController {
       if self.appDelegate.storage.settings.accounts.allAccounts.count <= 1 {
         self.appDelegate.storage.settings.app.isLibrarySynced = false
       }
-      self.appDelegate.storage.main.library.cleanStorageOfObsoleteAccountEntries(account: account)
-
       do {
         try await self.appDelegate.getMeta(account.info).librarySyncer
           .syncInitial(statusNotifyier: self)
@@ -85,7 +83,7 @@ class SyncVC: UIViewController {
     guard !syncFinished else { return }
 
     syncFinished = true
-    progressInfo.text = "Done"
+    progressInfo.text = L10n.tr("Done")
     activitySpinner.stopAnimating()
     activitySpinner.isHidden = true
     progressLabel.isHidden = true
@@ -119,18 +117,20 @@ class SyncVC: UIViewController {
   @IBAction
   func skipPressed(_ sender: Any) {
     let alert = UIAlertController(
-      title: "Skip Sync",
-      message: "Skipping initial sync results in an incomplete library. Missing library elements can later be synced via various search/update functionalities.",
+      title: L10n.tr("Skip Sync"),
+      message: L10n.tr(
+        "Skipping initial sync results in an incomplete library. Missing library elements can later be synced via various search/update functionalities."
+      ),
       preferredStyle: .alert
     )
-    let skip = UIAlertAction(title: "Skip", style: .destructive, handler: { action in
+    let skip = UIAlertAction(title: L10n.tr("Skip"), style: .destructive, handler: { action in
       self.appDelegate.storage.settings.accounts
         .updateSetting(self.account.info) { accountSettings in
           accountSettings.initialSyncCompletionStatus = .skipped
         }
       self.finishSync()
     })
-    let cancel = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+    let cancel = UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: nil)
     alert.addAction(skip)
     alert.addAction(cancel)
     present(alert, animated: true, completion: nil)
@@ -177,19 +177,19 @@ extension SyncVC: SyncCallbacks {
 
       switch parsedObjectType {
       case .artist:
-        self.updateSyncInfo(infoText: "Syncing artists ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing artists ..."), percentParsed: 0.0)
       case .album:
-        self.updateSyncInfo(infoText: "Syncing albums ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing albums ..."), percentParsed: 0.0)
       case .song:
-        self.updateSyncInfo(infoText: "Syncing songs ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing songs ..."), percentParsed: 0.0)
       case .playlist:
-        self.updateSyncInfo(infoText: "Syncing playlists ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing playlists ..."), percentParsed: 0.0)
       case .genre:
-        self.updateSyncInfo(infoText: "Syncing genres ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing genres ..."), percentParsed: 0.0)
       case .podcast:
-        self.updateSyncInfo(infoText: "Syncing podcasts ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Syncing podcasts ..."), percentParsed: 0.0)
       case .cache:
-        self.updateSyncInfo(infoText: "Applying cache ...", percentParsed: 0.0)
+        self.updateSyncInfo(infoText: L10n.tr("Applying cache ..."), percentParsed: 0.0)
       }
     }
   }

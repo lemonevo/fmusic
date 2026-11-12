@@ -76,11 +76,149 @@ class PlayerControlView: UIView {
   @IBOutlet
   weak var optionsButton: UIButton!
 
+  private var shuffleButton: UIButton?
+  private var repeatButton: UIButton?
+  private var utilityCluster: UIStackView?
+  private var utilityClusterInternalConstraints: [NSLayoutConstraint] = []
+
   required init?(coder aDecoder: NSCoder) {
     super.init(coder: aDecoder)
     self.layoutMargins = Self.margin
     self.player = appDelegate.player
     player.addNotifier(notifier: self)
+  }
+
+  /// The utility icons in the XIB use different symbol scales, so their optical sizes drift
+  /// apart. Give all of them the same symbol configuration instead.
+  private func applyUtilityIcon(_ button: UIButton, systemName: String) {
+    let configuration = PlayerUIHandler.utilitySymbolConfiguration
+    button.setImage(
+      UIImage(systemName: systemName, withConfiguration: configuration),
+      for: .normal
+    )
+    button.setPreferredSymbolConfiguration(configuration, forImageIn: .normal)
+  }
+
+  /// Apple Music puts five transport controls in one row. The popup player additionally keeps
+  /// the queue toggles in the bottom-right corner instead of a second centered row.
+  private func configureTransportControls() {
+    guard let transportStack = playButton.superview as? UIStackView else { return }
+
+    skipBackwardButton.isHidden = true
+    skipForwardButton.isHidden = true
+    skipBackwardButton.removeFromSuperview()
+    skipForwardButton.removeFromSuperview()
+
+    let shuffle = makeToggleButton(imageName: "shuffle")
+    shuffle.addTarget(self, action: #selector(shuffleButtonPushed), for: .touchUpInside)
+    let repeatToggle = makeToggleButton(imageName: "repeat")
+    repeatToggle.addTarget(self, action: #selector(repeatButtonPushed), for: .touchUpInside)
+    transportStack.insertArrangedSubview(shuffle, at: 0)
+    transportStack.addArrangedSubview(repeatToggle)
+    shuffleButton = shuffle
+    repeatButton = repeatToggle
+
+    // Keep the play control clearly dominant, like Apple Music, but not oversized.
+    playButton.setPreferredSymbolConfiguration(
+      UIImage.SymbolConfiguration(pointSize: 30),
+      forImageIn: .normal
+    )
+    previousButton.setPreferredSymbolConfiguration(
+      UIImage.SymbolConfiguration(pointSize: 22),
+      forImageIn: .normal
+    )
+    nextButton.setPreferredSymbolConfiguration(
+      UIImage.SymbolConfiguration(pointSize: 22),
+      forImageIn: .normal
+    )
+  }
+
+  private func makeToggleButton(imageName: String) -> UIButton {
+    let button = UIButton(type: .system)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.tintColor = .label
+    button.setPreferredSymbolConfiguration(
+      UIImage.SymbolConfiguration(pointSize: 17, weight: .regular),
+      forImageIn: .normal
+    )
+    button.setImage(UIImage(systemName: imageName), for: .normal)
+    return button
+  }
+
+  private func configureUtilityCluster() {
+    guard let transportStack = playButton.superview as? UIStackView else { return }
+    optionsStackView.isHidden = true
+
+    let cluster = UIStackView(arrangedSubviews: [
+      airplayButton,
+      displayPlaylistButton,
+      volumeButton,
+      optionsButton,
+    ])
+    cluster.axis = .horizontal
+    cluster.spacing = 18
+    cluster.alignment = .center
+    cluster.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(cluster)
+    utilityCluster = cluster
+    utilityClusterInternalConstraints = [
+      cluster.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+      cluster.topAnchor.constraint(equalTo: transportStack.bottomAnchor, constant: 14),
+    ]
+    NSLayoutConstraint.activate(utilityClusterInternalConstraints)
+  }
+
+  /// The large player moves the utility icons to the bottom-right of the lyrics column.
+  func attachUtilityCluster(to container: UIView) {
+    guard let utilityCluster else { return }
+    NSLayoutConstraint.deactivate(utilityClusterInternalConstraints)
+    utilityCluster.removeFromSuperview()
+    container.addSubview(utilityCluster)
+    NSLayoutConstraint.activate([
+      utilityCluster.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+      utilityCluster.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+    ])
+  }
+
+  /// Compact mode keeps the icons inside the control bar, under the transport row.
+  func restoreUtilityCluster() {
+    guard let utilityCluster else { return }
+    utilityCluster.removeFromSuperview()
+    addSubview(utilityCluster)
+    NSLayoutConstraint.activate(utilityClusterInternalConstraints)
+  }
+
+  @objc
+  private func shuffleButtonPushed() {
+    playerHandler?.shuffleButtonPushed()
+    refreshTransportToggles()
+  }
+
+  @objc
+  private func repeatButtonPushed() {
+    playerHandler?.repeatButtonPushed()
+    refreshTransportToggles()
+  }
+
+  private func refreshTransportToggles() {
+    let shuffleEnabled = appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled
+    shuffleButton?.isEnabled = shuffleEnabled
+    shuffleButton?.alpha = shuffleEnabled ? 1 : 0.35
+    shuffleButton?.tintColor = player.isShuffle ? .tintColor : .label
+
+    let repeatImage: UIImage? = switch player.repeatMode {
+    case .off: .repeatMenu
+    case .all: .repeatAll
+    case .single: .repeatOne
+    }
+    repeatButton?.setImage(repeatImage, for: .normal)
+    repeatButton?.tintColor = player.repeatMode == .off ? .label : .tintColor
+  }
+
+  /// Compact mode has its own header row, so the volume control only floats top-right in the
+  /// full player. In compact mode the volume button stays available in the utility cluster.
+  func updateVolumeControlVisibility(for displayStyle: PlayerDisplayStyle) {
+    volumeButton.isHidden = displayStyle == .large
   }
 
   func prepare(toWorkOnRootView: PopupPlayerVC?) {
@@ -93,10 +231,16 @@ class PlayerControlView: UIView {
     nextButton.tintColor = .label
     skipBackwardButton.tintColor = .label
     skipForwardButton.tintColor = .label
+    applyUtilityIcon(airplayButton, systemName: "airplayaudio")
+    applyUtilityIcon(volumeButton, systemName: "speaker.wave.3.fill")
+    applyUtilityIcon(optionsButton, systemName: "ellipsis")
     airplayButton.tintColor = .label
     playerModeButton.tintColor = .label
     volumeButton.tintColor = .label
     optionsButton.imageView?.tintColor = .label
+    configureTransportControls()
+    configureUtilityCluster()
+    updateVolumeControlVisibility(for: appDelegate.storage.settings.user.playerDisplayStyle)
     refreshPlayer()
     playerHandler?.refreshPlayerOptions(
       optionsButton: optionsButton,
@@ -229,10 +373,6 @@ class PlayerControlView: UIView {
   }
 
   func refreshPlayer() {
-    playerHandler?.refreshSkipButtons(
-      skipBackwardButton: skipBackwardButton,
-      skipForwardButton: skipForwardButton
-    )
     playerHandler?.refreshPlayButton(playButton)
     playerHandler?.refreshTimeInfo(
       timeSlider: timeSlider,
@@ -244,6 +384,7 @@ class PlayerControlView: UIView {
     )
     playerHandler?.refreshPrevNextButtons(previousButton: previousButton, nextButton: nextButton)
     playerHandler?.refreshDisplayPlaylistButton(displayPlaylistButton: displayPlaylistButton)
+    refreshTransportToggles()
     refreshPlayerModeChangeButton()
   }
 
@@ -259,7 +400,7 @@ class PlayerControlView: UIView {
       )
     }
     return UIMenu(
-      title: "Playback Rate",
+      title: L10n.tr("Playback Rate"),
       subtitle: playerPlaybackRate.description,
       image: .playbackRate,
       children: availablePlaybackRates
@@ -281,7 +422,7 @@ class PlayerControlView: UIView {
         )
       }
     return UIMenu(
-      title: "Visualizer Style",
+      title: L10n.tr("Visualizer Style"),
       subtitle: currentType.displayName,
       image: .sparkles,
       children: availableTypes
@@ -292,15 +433,19 @@ class PlayerControlView: UIView {
     var menuActions = [UIMenuElement]()
     if player.currentlyPlaying != nil || player.prevQueueCount > 0 || player
       .userQueueCount > 0 || player.nextQueueCount > 0 {
-      let clearPlayer = UIAction(title: "Clear Player", image: .clear, handler: { _ in
+      let clearPlayer = UIAction(title: L10n.tr("Clear Player"), image: .clear, handler: { _ in
         self.player.clearQueues()
       })
       menuActions.append(clearPlayer)
     }
     if player.userQueueCount > 0 {
-      let clearUserQueue = UIAction(title: "Clear User Queue", image: .playlistX, handler: { _ in
-        self.rootView?.clearUserQueue()
-      })
+      let clearUserQueue = UIAction(
+        title: L10n.tr("Clear User Queue"),
+        image: .playlistX,
+        handler: { _ in
+          self.rootView?.clearUserQueue()
+        }
+      )
       menuActions.append(clearUserQueue)
     }
 
@@ -310,22 +455,30 @@ class PlayerControlView: UIView {
     if rootView?.largeCurrentlyPlayingView?.isLyricsButtonAllowedToDisplay ?? false {
       if !appDelegate.storage.settings.user.isPlayerLyricsDisplayed ||
         appDelegate.storage.settings.user.playerDisplayStyle != .large {
-        let showLyricsAction = UIAction(title: "Show Lyrics", image: .lyrics, handler: { _ in
-          if !self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
-            self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
-            self.appDelegate.storage.settings.user.isPlayerVisualizerDisplayed = false
-            self.rootView?.largeCurrentlyPlayingView?.display(element: .lyrics)
+        let showLyricsAction = UIAction(
+          title: L10n.tr("Show Lyrics"),
+          image: .lyrics,
+          handler: { _ in
+            if !self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed {
+              self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
+              self.appDelegate.storage.settings.user.isPlayerVisualizerDisplayed = false
+              self.rootView?.largeCurrentlyPlayingView?.display(element: .lyrics)
+            }
+            if self.appDelegate.storage.settings.user.playerDisplayStyle != .large {
+              self.displayPlaylistPressed()
+            }
           }
-          if self.appDelegate.storage.settings.user.playerDisplayStyle != .large {
-            self.displayPlaylistPressed()
-          }
-        })
+        )
         menuActions.append(showLyricsAction)
       } else {
-        let hideLyricsAction = UIAction(title: "Hide Lyrics", image: .lyrics, handler: { _ in
-          self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
-          self.rootView?.largeCurrentlyPlayingView?.display(element: .artwork)
-        })
+        let hideLyricsAction = UIAction(
+          title: L10n.tr("Hide Lyrics"),
+          image: .lyrics,
+          handler: { _ in
+            self.appDelegate.storage.settings.user.isPlayerLyricsDisplayed.toggle()
+            self.rootView?.largeCurrentlyPlayingView?.display(element: .artwork)
+          }
+        )
         menuActions.append(hideLyricsAction)
       }
     }
@@ -333,7 +486,7 @@ class PlayerControlView: UIView {
     if !appDelegate.storage.settings.user.isPlayerVisualizerDisplayed ||
       appDelegate.storage.settings.user.playerDisplayStyle != .large {
       let showVisualizerAction = UIAction(
-        title: "Show Audio Visualizer",
+        title: L10n.tr("Show Audio Visualizer"),
         image: .audioVisualizer,
         handler: { _ in
           if !self.appDelegate.storage.settings.user.isPlayerVisualizerDisplayed {
@@ -349,7 +502,7 @@ class PlayerControlView: UIView {
       menuActions.append(showVisualizerAction)
     } else {
       let hideVisualizerAction = UIAction(
-        title: "Hide Audio Visualizer",
+        title: L10n.tr("Hide Audio Visualizer"),
         image: .audioVisualizer,
         handler: { _ in
           self.appDelegate.storage.settings.user.isPlayerVisualizerDisplayed = false
@@ -367,7 +520,7 @@ class PlayerControlView: UIView {
       if player.currentlyPlaying != nil || player.prevQueueCount > 0 || player.nextQueueCount > 0,
          appDelegate.storage.settings.user.isOnlineMode {
         let addContextToPlaylist = UIAction(
-          title: "Add Context Queue to Playlist",
+          title: L10n.tr("Add Context Queue to Playlist"),
           image: .playlistPlus,
           handler: { _ in
             var itemsToAdd = self.player.getAllPrevQueueItems().filterSongs()
@@ -394,7 +547,7 @@ class PlayerControlView: UIView {
     switch appDelegate.storage.settings.user.playerDisplayStyle {
     case .compact:
       let scrollToCurrentlyPlaying = UIAction(
-        title: "Scroll to currently playing",
+        title: L10n.tr("Scroll to currently playing"),
         image: .squareArrow,
         handler: { _ in
           self.rootView?.scrollToCurrentlyPlayingRow()
@@ -404,7 +557,7 @@ class PlayerControlView: UIView {
     case .large: break
     }
 
-    let playerInfo = UIAction(title: "Player Info", image: .info, handler: { _ in
+    let playerInfo = UIAction(title: L10n.tr("Player Info"), image: .info, handler: { _ in
       guard let rootView = self.rootView else { return }
       let detailVC = PlainDetailsVC()
       detailVC.display(player: self.player, on: rootView)

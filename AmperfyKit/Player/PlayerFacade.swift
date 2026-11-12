@@ -544,6 +544,9 @@ class PlayerFacadeImpl: PlayerFacade {
     guard let currentlyPlaying = currentlyPlaying else { return }
     switch currentlyPlaying.derivedType {
     case .podcastEpisode, .song:
+      // The backend reports the new position itself once the player clock actually reaches
+      // it (see BackendAudioPlayer.seek); pushing the requested time here would race with
+      // the timers that still hold the old position.
       backendAudioPlayer.seek(toSecond: toSecond)
     case .radio:
       break // do nothing

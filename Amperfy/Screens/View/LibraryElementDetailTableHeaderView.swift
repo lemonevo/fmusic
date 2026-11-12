@@ -154,13 +154,22 @@ class LibraryElementDetailTableHeaderView: UIView {
   /// isShuffleOnContextNeccessary: In AlbumsVC the albums are shuffled, keep the order when shuffle button is pressed
   func prepare(configuration: PlayShuffleInfoConfiguration) {
     config = configuration
-    playAllButton.setTitle(config?.customPlayName ?? "Play", for: .normal)
-    playAllButton.layer.cornerRadius = 10.0
-    playShuffledButton.setTitle(
-      configuration.isShuffleOnContextNeccessary ? "Shuffle" : "Random",
-      for: .normal
+    let playTitle = configuration.customPlayName ?? L10n.tr("Play")
+    let shuffleTitle = configuration.isShuffleOnContextNeccessary
+      ? L10n.tr("Shuffle")
+      : L10n.tr("Random")
+    playAllButton.configuration = Self.actionButtonConfiguration(
+      title: playTitle,
+      systemImage: "play.fill",
+      tintColor: appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
+        .asColor
     )
-    playShuffledButton.layer.cornerRadius = 10.0
+    playShuffledButton.configuration = Self.actionButtonConfiguration(
+      title: shuffleTitle,
+      systemImage: "shuffle",
+      tintColor: appDelegate.storage.settings.accounts.getSetting(nil).read.themePreference
+        .asColor
+    )
     playShuffledButton.isHidden = configuration.isShuffleHidden
     activate()
     registerForTraitChanges(
@@ -169,6 +178,26 @@ class LibraryElementDetailTableHeaderView: UIView {
         self.refresh()
       }
     )
+  }
+
+  private static func actionButtonConfiguration(
+    title: String,
+    systemImage: String,
+    tintColor: UIColor?
+  )
+    -> UIButton.Configuration {
+    var configuration = UIButton.Configuration.gray()
+    configuration.title = title
+    configuration.image = UIImage(systemName: systemImage)
+    configuration.imagePadding = 6
+    configuration.cornerStyle = .capsule
+    configuration.baseForegroundColor = tintColor ?? .label
+    configuration.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer {
+      var attributes = $0
+      attributes.font = .systemFont(ofSize: 14, weight: .medium)
+      return attributes
+    }
+    return configuration
   }
 
   func activate() {

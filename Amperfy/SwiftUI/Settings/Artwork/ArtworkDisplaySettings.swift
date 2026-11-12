@@ -66,7 +66,7 @@ struct ArtworkDisplaySettings: View {
         }
       }
     }
-    .navigationTitle("Artwork Display")
+    .navigationTitle(L10n.tr("Artwork Display"))
     .onAppear {
       updateValues()
     }

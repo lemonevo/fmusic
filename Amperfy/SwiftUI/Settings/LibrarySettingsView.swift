@@ -148,25 +148,25 @@ struct LibrarySettingsView: View {
     ZStack {
       SettingsList {
         SettingsSection(content: {
-          SettingsRow(title: "Playlists") {
+          SettingsRow(title: L10n.tr("Playlists")) {
             SecondaryText(playlistCount.description)
           }
-          SettingsRow(title: "Artists") {
+          SettingsRow(title: L10n.tr("Artists")) {
             SecondaryText(artistCount.description)
           }
-          SettingsRow(title: "Albums") {
+          SettingsRow(title: L10n.tr("Albums")) {
             SecondaryText(albumCount.description)
           }
-          SettingsRow(title: "Songs") {
+          SettingsRow(title: L10n.tr("Songs")) {
             SecondaryText(songCount.description)
           }
-          SettingsRow(title: "Podcasts") {
+          SettingsRow(title: L10n.tr("Podcasts")) {
             SecondaryText(podcastCount.description)
           }
-          SettingsRow(title: "Podcast Episodes") {
+          SettingsRow(title: L10n.tr("Podcast Episodes")) {
             SecondaryText(podcastEpisodeCount.description)
           }
-          SettingsRow(title: "Initial Sync") {
+          SettingsRow(title: L10n.tr("Initial Sync")) {
             SecondaryText(
               appDelegate.storage.settings.accounts.getSetting(settings.activeAccountInfo).read
                 .initialSyncCompletionStatus.description
@@ -174,13 +174,13 @@ struct LibrarySettingsView: View {
           }
         })
 
-        let progressTitle = "Progress"
+        let progressTitle = L10n.tr("Progress")
 
         SettingsSection(content: {
           SettingsRow(title: progressTitle) {
             SecondaryText(autoSyncProgressText)
           }
-        }, header: "Background song sync")
+        }, header: L10n.tr("Background song sync"))
 
         SettingsSection(content: {
           let changeHandler: ([String], [String]) -> () = { oldCacheString, newCacheString in
@@ -193,11 +193,13 @@ struct LibrarySettingsView: View {
             }
           }
 
-          SettingsRow(title: "Cached Songs") { SecondaryText(cachedSongCount.description) }
-          SettingsRow(title: "Cached Podcast Episodes") {
+          SettingsRow(title: L10n.tr("Cached Songs")) {
+            SecondaryText(cachedSongCount.description)
+          }
+          SettingsRow(title: L10n.tr("Cached Podcast Episodes")) {
             SecondaryText(cachedPodcastEpisodesCount.description)
           }
-          SettingsRow(title: "Complete Cache Size") {
+          SettingsRow(title: L10n.tr("Complete Cache Size")) {
             SecondaryText(completeCacheSize.description)
           }
 
@@ -211,7 +213,7 @@ struct LibrarySettingsView: View {
             .onChange(of: cacheSelection, changeHandler)
           #else
             NavigationLink(value: Destination.cacheSizeLimit) {
-              SettingsRow(title: "Cache Size Limit") {
+              SettingsRow(title: L10n.tr("Cache Size Limit")) {
                 SecondaryText(cacheSizeLimit.description)
               }
             }
@@ -219,16 +221,18 @@ struct LibrarySettingsView: View {
           #endif
 
           if let activeAccountInfo = settings.activeAccountInfo {
-            SettingsButtonRow(title: "Download all songs in library") {
+            SettingsButtonRow(title: L10n.tr("Download all songs in library")) {
               isShowDownloadSongsAlert = true
             }
             .alert(isPresented: $isShowDownloadSongsAlert) {
               Alert(
-                title: Text("Download all songs in library"),
+                title: Text(L10n.tr("Download all songs in library")),
                 message: Text(
-                  "This will add all uncached songs in your library to the download queue. This may use a lot of data and storage. Continue?"
+                  L10n.tr(
+                    "This will add all uncached songs in your library to the download queue. This may use a lot of data and storage. Continue?"
+                  )
                 ),
-                primaryButton: .default(Text("OK")) {
+                primaryButton: .default(Text(L10n.tr("OK"))) {
                   let account = appDelegate.storage.main.library
                     .getAccount(info: activeAccountInfo)
                   let allSongsToDownload = appDelegate.storage.main.library
@@ -245,17 +249,19 @@ struct LibrarySettingsView: View {
             }
 
             SettingsButtonRow(
-              title: "Delete downloaded songs and podcast episodes",
+              title: L10n.tr("Delete downloaded songs and podcast episodes"),
               actionType: .destructive
             ) {
               isShowDeleteCacheAlert = true
             }.alert(isPresented: $isShowDeleteCacheAlert) {
               Alert(
-                title: Text("Delete Cache"),
+                title: Text(L10n.tr("Delete Cache")),
                 message: Text(
-                  "Are you sure you want to delete this account’s downloaded songs and podcast episodes?"
+                  L10n.tr(
+                    "Are you sure you want to delete this account’s downloaded songs and podcast episodes?"
+                  )
                 ),
-                primaryButton: .destructive(Text("Delete")) {
+                primaryButton: .destructive(Text(L10n.tr("Delete"))) {
                   appDelegate.player.stop()
                   let account = appDelegate.storage.main.library
                     .getAccount(info: activeAccountInfo)
@@ -269,10 +275,10 @@ struct LibrarySettingsView: View {
               )
             }
           }
-        }, header: "Cache")
+        }, header: L10n.tr("Cache"))
       }
     }
-    .navigationTitle("Library")
+    .navigationTitle(L10n.tr("Library"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {
@@ -281,7 +287,7 @@ struct LibrarySettingsView: View {
           data: [("Size", byteValues), (" Bytes", [" MB", " GB"])],
           selection: $cacheSelection
         )
-        .navigationTitle("Cache Size Limit")
+        .navigationTitle(L10n.tr("Cache Size Limit"))
       }
     }
     .onAppear {

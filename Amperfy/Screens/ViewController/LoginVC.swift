@@ -22,6 +22,7 @@
 import AmperfyKit
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 extension String {
   var isHyperTextProtocolProvided: Bool {
@@ -57,8 +58,10 @@ extension UITextField {
 // MARK: - LoginVC
 
 class LoginVC: UIViewController {
-  var selectedApiType: BackenApiType = .notDetected
+  var selectedApiType: BackenApiType = .webdav
   var httpHeaders: [String: String] = [:]
+  var localFolderURL: URL?
+  var localFolderBookmark: Data?
 
   #if targetEnvironment(macCatalyst)
     static let fontSize: CGFloat = 14
@@ -87,7 +90,7 @@ class LoginVC: UIViewController {
 
   fileprivate lazy var apiLabel: UILabel = {
     let label = UILabel()
-    label.text = "API:"
+    label.text = L10n.tr("API:")
     label.font = .systemFont(ofSize: Self.fontSize)
     label.textColor = .hardLabelColor
     return label
@@ -118,7 +121,7 @@ class LoginVC: UIViewController {
   fileprivate lazy var usernameTF: UITextField = {
     let textField = UITextField()
     textField.configuteForLogin(image: .userPerson)
-    textField.placeholder = "Username"
+    textField.placeholder = L10n.tr("Username")
     textField.textContentType = .username
     textField.keyboardType = .default
     textField.autocorrectionType = .no
@@ -140,7 +143,7 @@ class LoginVC: UIViewController {
   fileprivate lazy var passwordTF: UITextField = {
     let textField = UITextField()
     textField.configuteForLogin(image: .password)
-    textField.placeholder = "Password"
+    textField.placeholder = L10n.tr("Password")
     textField.textContentType = .password
     textField.keyboardType = .default
     textField.isSecureTextEntry = true
@@ -173,8 +176,8 @@ class LoginVC: UIViewController {
     config.image = .login
     config.imagePadding = 20.0
     let button = UIButton(configuration: config)
-    button.setTitle("Login", for: .normal)
-    button.accessibilityLabel = "Login"
+    button.setTitle(L10n.tr("Login"), for: .normal)
+    button.accessibilityLabel = L10n.tr("Login")
     button.addTarget(self, action: #selector(Self.loginPressed), for: .touchUpInside)
     button.preferredBehavioralStyle = .pad
     return button
@@ -183,8 +186,8 @@ class LoginVC: UIViewController {
   fileprivate lazy var httpHeadersButton: UIButton = {
     var config = UIButton.Configuration.glass()
     let button = UIButton(configuration: config)
-    button.setTitle("Custom HTTP Headers", for: .normal)
-    button.accessibilityLabel = "Custom HTTP Headers"
+    button.setTitle(L10n.tr("Custom HTTP Headers"), for: .normal)
+    button.accessibilityLabel = L10n.tr("Custom HTTP Headers")
     button.addTarget(self, action: #selector(Self.httpHeadersPressed), for: .touchUpInside)
     button.preferredBehavioralStyle = .pad
     return button
@@ -200,7 +203,7 @@ class LoginVC: UIViewController {
       editor
         .toolbar {
           ToolbarItem(placement: .confirmationAction) {
-            Button("Done") { [weak hostingController] in
+            Button(L10n.tr("Done")) { [weak hostingController] in
               hostingController?.dismiss(animated: true)
             }
           }
@@ -417,31 +420,53 @@ class LoginVC: UIViewController {
   }()
 
   func login() {
+    if selectedApiType == .local {
+      guard let localFolderURL, let localFolderBookmark else {
+        presentLocalFolderPicker()
+        return
+      }
+      var credentials = LoginCredentials(
+        serverUrl: localFolderURL.path,
+        username: "Local",
+        password: ""
+      )
+      credentials.backendApi = .local
+      credentials.localFolderBookmark = localFolderBookmark
+      credentials.localFolderPath = localFolderURL.path
+      performLogin(credentials: credentials)
+      return
+    }
+
     guard let serverUrl = serverUrlTF.text?.trimmingCharacters(in: .whitespacesAndNewlines),
           !serverUrl.isEmpty else {
-      showErrorMsg(message: "No server URL given!")
+      showErrorMsg(message: L10n.tr("No server URL given!"))
       return
     }
     guard serverUrl.isHyperTextProtocolProvided else {
-      showErrorMsg(message: "Please provide either 'https://' or 'http://' in your server URL.")
+      showErrorMsg(message: L10n.tr("Please provide either 'https://' or 'http://' in your server URL."))
       return
     }
     guard let username = usernameTF.text, !username.isEmpty else {
-      showErrorMsg(message: "No username given!")
+      showErrorMsg(message: L10n.tr("No username given!"))
       return
     }
     guard let password = passwordTF.text, !password.isEmpty else {
-      showErrorMsg(message: "No password given!")
+      showErrorMsg(message: L10n.tr("No password given!"))
       return
     }
 
     var credentials = LoginCredentials(serverUrl: serverUrl, username: username, password: password)
     credentials.httpHeaders = httpHeaders
+    performLogin(credentials: credentials)
+  }
+
+  func performLogin(credentials: LoginCredentials) {
+    var credentials = credentials
     var accountInfo = Account.createInfo(credentials: credentials)
 
     guard !appDelegate.storage.settings.accounts.allAccounts.contains(where: { $0 == accountInfo })
     else {
-      showErrorMsg(message: "Account already added!")
+      showErrorMsg(message: L10n.tr("Account already added!"))
       return
     }
 
@@ -491,8 +516,12 @@ class LoginVC: UIViewController {
   }
 
   func showErrorMsg(message: String) {
-    let alert = UIAlertController(title: "Login failed", message: message, preferredStyle: .alert)
-    alert.addAction(UIAlertAction(title: "OK", style: .default))
+    let alert = UIAlertController(
+      title: L10n.tr("Login failed"),
+      message: message,
+      preferredStyle: .alert
+    )
+    alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
     present(alert, animated: true, completion: nil)
   }
 
@@ -501,21 +530,13 @@ class LoginVC: UIViewController {
     updateApiSelectorText()
 
     apiSelectorButton.showsMenuAsPrimaryAction = true
-    apiSelectorButton.menu = UIMenu(title: "Select API", children: [
-      UIAction(title: BackenApiType.notDetected.selectorDescription, handler: { _ in
-        self.selectedApiType = .notDetected
+    apiSelectorButton.menu = UIMenu(title: L10n.tr("Select Source"), children: [
+      UIAction(title: BackenApiType.local.selectorDescription, handler: { _ in
+        self.selectedApiType = .local
         self.updateApiSelectorText()
       }),
-      UIAction(title: BackenApiType.ampache.selectorDescription, handler: { _ in
-        self.selectedApiType = .ampache
-        self.updateApiSelectorText()
-      }),
-      UIAction(title: BackenApiType.subsonic.selectorDescription, handler: { _ in
-        self.selectedApiType = .subsonic
-        self.updateApiSelectorText()
-      }),
-      UIAction(title: BackenApiType.subsonic_legacy.selectorDescription, handler: { _ in
-        self.selectedApiType = .subsonic_legacy
+      UIAction(title: BackenApiType.webdav.selectorDescription, handler: { _ in
+        self.selectedApiType = .webdav
         self.updateApiSelectorText()
       }),
     ])
@@ -629,12 +650,17 @@ class LoginVC: UIViewController {
 
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
-    if let credentials = appDelegate.storage.settings.accounts.getSetting(nil).read
-      .loginCredentials {
-      serverUrlTF.text = credentials.serverUrl
-      usernameTF.text = credentials.username
-      httpHeaders = credentials.httpHeaders
-    }
+    guard let credentials = appDelegate.storage.settings.accounts.getSetting(nil).read
+      .loginCredentials else { return }
+    // Only prefill when logging in the first account or adding another account
+    // of the same source type. A local folder path must not leak into the
+    // WebDAV form (and vice versa).
+    guard appDelegate.storage.settings.accounts.allAccounts.isEmpty
+      || credentials.backendApi == selectedApiType
+    else { return }
+    serverUrlTF.text = credentials.serverUrl
+    usernameTF.text = credentials.username
+    httpHeaders = credentials.httpHeaders
   }
 
   override func viewWillAppear(_ animated: Bool) {
@@ -646,5 +672,53 @@ class LoginVC: UIViewController {
 
   func updateApiSelectorText() {
     apiSelectorButton.setTitle("\(selectedApiType.selectorDescription)", for: .normal)
+    updateLoginForm()
+  }
+
+  func updateLoginForm() {
+    let isLocal = selectedApiType == .local
+    usernameTF.isHidden = isLocal
+    passwordTF.isHidden = isLocal
+    httpHeadersButton.isHidden = isLocal
+    serverUrlTF.isUserInteractionEnabled = !isLocal
+    serverUrlTF.placeholder = isLocal
+      ? L10n.tr("Tap Login to choose a music folder")
+      : "https://dav.example.com/music"
+    apiLabel.text = isLocal ? L10n.tr("Source:") : L10n.tr("API:")
+    if isLocal {
+      serverUrlTF.text = localFolderURL?.path
+    } else if serverUrlTF.text == localFolderURL?.path {
+      serverUrlTF.text = nil
+    }
+  }
+
+  func presentLocalFolderPicker() {
+    let picker = UIDocumentPickerViewController(
+      forOpeningContentTypes: [.folder],
+      asCopy: false
+    )
+    picker.delegate = self
+    picker.allowsMultipleSelection = false
+    present(picker, animated: true)
+  }
+}
+
+// MARK: UIDocumentPickerDelegate
+
+extension LoginVC: UIDocumentPickerDelegate {
+  func documentPicker(
+    _ controller: UIDocumentPickerViewController,
+    didPickDocumentsAt urls: [URL]
+  ) {
+    guard let folderURL = urls.first else { return }
+    do {
+      let bookmark = try LocalFolderAccess.createBookmark(for: folderURL)
+      localFolderURL = folderURL
+      localFolderBookmark = bookmark
+      serverUrlTF.text = folderURL.path
+      login()
+    } catch {
+      showErrorMsg(message: error.localizedDescription)
+    }
   }
 }

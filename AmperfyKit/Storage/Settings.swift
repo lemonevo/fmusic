@@ -42,6 +42,12 @@ public struct AppSettings: Sendable, Codable {
     get { _librarySyncVersion }
     set { _librarySyncVersion = newValue }
   }
+
+  private var _didMigrateToAppleMusicTheme: Bool?
+  public var didMigrateToAppleMusicTheme: Bool {
+    get { _didMigrateToAppleMusicTheme ?? false }
+    set { _didMigrateToAppleMusicTheme = newValue }
+  }
 }
 
 // MARK: - UserSettings
@@ -142,6 +148,12 @@ public struct UserSettings: Sendable, Codable {
   public var isPlayerLyricsDisplayed: Bool {
     get { _isPlayerLyricsDisplayed }
     set { _isPlayerLyricsDisplayed = newValue }
+  }
+
+  private var _isPlayerQueueDisplayed: Bool = false
+  public var isPlayerQueueDisplayed: Bool {
+    get { _isPlayerQueueDisplayed }
+    set { _isPlayerQueueDisplayed = newValue }
   }
 
   private var _isPlayerVisualizerDisplayed: Bool = false
@@ -386,6 +398,12 @@ public struct AccountSetting: Sendable, Codable {
     set { _libraryDisplaySettings = newValue }
   }
 
+  private var _libraryIndexVersion: Int?
+  public var libraryIndexVersion: Int? {
+    get { _libraryIndexVersion }
+    set { _libraryIndexVersion = newValue }
+  }
+
   private var _loginCredentials: LoginCredentials? = nil
   public var loginCredentials: LoginCredentials? {
     get { _loginCredentials }
@@ -481,18 +499,8 @@ public struct AccountSettings: Sendable, Codable {
   }
 
   private var themeColorForNextNewAccount: ThemePreference {
-    var theme = ThemePreference.blue
-    let usedThemes = Set(_accounts.compactMap { $0.value.themePreference })
-    let allThemes = Set(ThemePreference.allCases)
-    let availableThemes = allThemes.subtracting(usedThemes)
-    if let firstAvailable = availableThemes.sorted(by: { $0.rawValue < $1.rawValue }).first {
-      theme = firstAvailable
-    } else if let activeAccount = _activeAccount {
-      let activeTheme = getSetting(activeAccount).read.themePreference
-      theme = allThemes.subtracting(Set([activeTheme])).sorted(by: { $0.rawValue < $1.rawValue })
-        .first ?? .blue
-    }
-    return theme
+    // Apple Music uses one fixed accent color for every account.
+    .red
   }
 }
 

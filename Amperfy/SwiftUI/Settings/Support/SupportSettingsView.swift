@@ -42,7 +42,7 @@ struct SupportSettingsView: View {
       SettingsList {
         SettingsSection {
           SettingsButtonRow(
-            title: "Report an issue on GitHub",
+            title: L10n.tr("Report an issue on GitHub"),
             splitPercentage: splitPercentage
           ) {
             if let url = URL(string: "https://github.com/BLeeEZ/amperfy/issues") {
@@ -50,7 +50,7 @@ struct SupportSettingsView: View {
             }
           }
           SettingsButtonRow(
-            title: "Send issue or feedback to developer",
+            title: L10n.tr("Send issue or feedback to developer"),
             splitPercentage: splitPercentage
           ) {
             if MFMailComposeViewController.canSendMail() {
@@ -59,7 +59,9 @@ struct SupportSettingsView: View {
               appDelegate.eventLogger.info(
                 topic: "Email Info",
                 statusCode: .emailError,
-                message: "Email is not configured in settings app or Amperfy is not able to send an email.",
+                message: L10n.tr(
+                  "Email is not configured in settings app or Amperfy is not able to send an email."
+                ),
                 displayPopup: true
               )
             }
@@ -68,27 +70,23 @@ struct SupportSettingsView: View {
             item: AmperfyLogExport(),
             preview: SharePreview(AmperfyLogExport.fileName)
           ) {
-            Text("Export log")
+            Text(L10n.tr("Export log"))
           }
         }
 
         SettingsSection {
           NavigationLink(value: Destination.eventLog) {
-            Text("Event Log")
+            Text(L10n.tr("Event Log"))
           }
         }
       }
       .sheet(isPresented: $isShowingMailView) {
         MailView(
           result: $result,
-          subject: "Amperfy support",
-          messageBody: """
-          \nPlease describe your issue.
-          \nFeedback is always welcome too.
-          \n
-          \n
-          --- Please don't remove the attachment ---
-          """,
+          subject: L10n.tr("Amperfy support"),
+          messageBody: L10n.isChinese
+            ? "\n请描述你遇到的问题。\n\n也欢迎留下反馈。\n\n\n--- 请勿删除附件 ---"
+            : "\nPlease describe your issue.\n\nFeedback is always welcome too.\n\n\n--- Please don't remove the attachment ---",
           recipients: ["amperfy@familie-zimba.de"],
           attachments: [MailAttachment(
             data: LogData.collectInformation(amperfyData: AmperKit.shared).asJSONData(),
@@ -98,7 +96,7 @@ struct SupportSettingsView: View {
         )
       }
     }
-    .navigationTitle("Support")
+    .navigationTitle(L10n.tr("Support"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {

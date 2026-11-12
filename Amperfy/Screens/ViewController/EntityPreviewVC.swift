@@ -425,7 +425,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createPlayAction() -> UIAction {
-    UIAction(title: "Play", image: .play) { action in
+    UIAction(title: L10n.tr("Play"), image: .play) { action in
       guard !self.entityPlayables.isEmpty else { return }
       if let playerIndex = self.playerIndexCb?() {
         self.appDelegate.player.play(playerIndex: playerIndex)
@@ -441,7 +441,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createPlayShuffledAction() -> UIAction {
-    UIAction(title: "Shuffle", image: .shuffle) { action in
+    UIAction(title: L10n.tr("Shuffle"), image: .shuffle) { action in
       guard !self.entityPlayables.isEmpty else { return }
       if let context = self.playContextCb?() {
         self.appDelegate.player.playShuffled(context: context)
@@ -455,7 +455,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createInstantMixAction() -> UIAction {
-    UIAction(title: "Instant Mix", image: .instantMix) { [weak self] action in
+    UIAction(title: L10n.tr("Instant Mix"), image: .instantMix) { [weak self] action in
       guard let self = self,
             let song = (entityContainer as? AbstractPlayable)?.asSong
       else { return }
@@ -512,20 +512,20 @@ class EntityPreviewActionBuilder {
   }
 
   private func createMusicQueueAction() -> UIMenuElement {
-    UIMenu(title: "Music Queue", image: .listBullet, children: [
-      UIAction(title: "Insert Context Queue", image: .contextQueueInsert) { action in
+    UIMenu(title: L10n.tr("Music Queue"), image: .listBullet, children: [
+      UIAction(title: L10n.tr("Insert Context Queue"), image: .contextQueueInsert) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.insertContextQueue(playables: self.entityPlayables)
       },
-      UIAction(title: "Append Context Queue", image: .contextQueueAppend) { action in
+      UIAction(title: L10n.tr("Append Context Queue"), image: .contextQueueAppend) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.appendContextQueue(playables: self.entityPlayables)
       },
-      UIAction(title: "Insert User Queue", image: .userQueueInsert) { action in
+      UIAction(title: L10n.tr("Insert User Queue"), image: .userQueueInsert) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.insertUserQueue(playables: self.entityPlayables)
       },
-      UIAction(title: "Append User Queue", image: .userQueueAppend) { action in
+      UIAction(title: L10n.tr("Append User Queue"), image: .userQueueAppend) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.appendUserQueue(playables: self.entityPlayables)
       },
@@ -534,11 +534,11 @@ class EntityPreviewActionBuilder {
 
   private func createPodcastQueueAction() -> UIMenuElement {
     UIMenu(image: .listBullet, options: .displayInline, children: [
-      UIAction(title: "Insert Podcast Queue", image: .podcastQueueInsert) { action in
+      UIAction(title: L10n.tr("Insert Podcast Queue"), image: .podcastQueueInsert) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.insertPodcastQueue(playables: self.entityPlayables)
       },
-      UIAction(title: "Append Podcast Queue", image: .podcastQueueAppend) { action in
+      UIAction(title: L10n.tr("Append Podcast Queue"), image: .podcastQueueAppend) { action in
         guard !self.entityPlayables.isEmpty else { return }
         self.appDelegate.player.appendPodcastQueue(playables: self.entityPlayables)
       },
@@ -547,8 +547,8 @@ class EntityPreviewActionBuilder {
 
   private func createFavoriteMenu(libraryEntity: AbstractLibraryEntity) -> UIAction {
     libraryEntity.isFavorite ?
-      UIAction(title: "Unmark favorite", image: .heartSlash) { action in self.toggleFavorite() } :
-      UIAction(title: "Favorite", image: .heartEmpty) { action in self.toggleFavorite() }
+      UIAction(title: L10n.tr("Unmark favorite"), image: .heartSlash) { action in self.toggleFavorite() } :
+      UIAction(title: L10n.tr("Favorite"), image: .heartEmpty) { action in self.toggleFavorite() }
   }
 
   private func toggleFavorite() {
@@ -569,39 +569,39 @@ class EntityPreviewActionBuilder {
   }
 
   private func createRatingMenu(libraryEntity: AbstractLibraryEntity) -> UIMenu {
-    let rating = libraryEntity
-      .rating == 0 ? "Not rated" :
-      "\(libraryEntity.rating) Star\(libraryEntity.rating > 1 ? "s" : "")"
+    let rating = libraryEntity.rating == 0
+      ? L10n.tr("Not rated")
+      : L10n.tr(libraryEntity.rating > 1 ? "%d Stars" : "%d Star", libraryEntity.rating)
     let menuIcon = libraryEntity
       .rating == 0 ? UIImage.starEmpty : UIImage.starFill
     let children = [
-      UIAction(title: "No Rating", image: .ban) { action in self.setRating(rating: 0) },
+      UIAction(title: L10n.tr("No Rating"), image: .ban) { action in self.setRating(rating: 0) },
       UIAction(
-        title: "1 Star",
+        title: L10n.tr("%d Star", 1),
         image: libraryEntity.rating >= 1 ? .starFill : .starEmpty
       ) { action in
         self.setRating(rating: 1)
       },
       UIAction(
-        title: "2 Stars",
+        title: L10n.tr("%d Stars", 2),
         image: libraryEntity.rating >= 2 ? .starFill : .starEmpty
       ) { action in self
         .setRating(rating: 2)
       },
       UIAction(
-        title: "3 Stars",
+        title: L10n.tr("%d Stars", 3),
         image: libraryEntity.rating >= 3 ? .starFill : .starEmpty
       ) { action in self
         .setRating(rating: 3)
       },
       UIAction(
-        title: "4 Stars",
+        title: L10n.tr("%d Stars", 4),
         image: libraryEntity.rating >= 4 ? .starFill : .starEmpty
       ) { action in self
         .setRating(rating: 4)
       },
       UIAction(
-        title: "5 Stars",
+        title: L10n.tr("%d Stars", 5),
         image: libraryEntity.rating >= 5 ? .starFill : .starEmpty
       ) { action in self
         .setRating(rating: 5)
@@ -609,7 +609,7 @@ class EntityPreviewActionBuilder {
     ]
 
     return UIMenu(
-      title: "Rating: \(rating)",
+      title: L10n.tr("Rating: %@", rating),
       image: menuIcon,
       options: .displayAsPalette,
       children: children
@@ -656,7 +656,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createAddToPlaylistAction() -> UIAction {
-    UIAction(title: "Add to Playlist", image: .playlistPlus) { action in
+    UIAction(title: L10n.tr("Add to Playlist"), image: .playlistPlus) { action in
       guard !self.entityPlayables.isEmpty,
             let account = self.entityContainer.account else { return }
       let selectPlaylistVC = AppStoryboard.Main
@@ -667,7 +667,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createShowAlbumAction() -> UIAction {
-    UIAction(title: "Show Album", image: .album) { action in
+    UIAction(title: L10n.tr("Show Album"), image: .album) { action in
       self.showAlbum()
     }
   }
@@ -694,7 +694,7 @@ class EntityPreviewActionBuilder {
 
   private func createShowArtistAction() -> UIAction {
     let title = ((entityContainer as? AbstractPlayable)?.isPodcastEpisode ?? false) ?
-      "Show Podcast" : "Show Artist"
+      L10n.tr("Show Podcast") : L10n.tr("Show Artist")
     let image = ((entityContainer as? AbstractPlayable)?.isPodcastEpisode ?? false) ? UIImage
       .squareArrow : UIImage.artist
     return UIAction(title: title, image: image) { action in
@@ -739,7 +739,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createDownloadAction() -> UIAction {
-    UIAction(title: "Download", image: .download) { action in
+    UIAction(title: L10n.tr("Download"), image: .download) { action in
       if !self.entityPlayables.isEmpty,
          let accountInfo = self.entityPlayables.first?.account?.info {
         self.appDelegate.getMeta(accountInfo).playableDownloadManager
@@ -749,23 +749,25 @@ class EntityPreviewActionBuilder {
   }
 
   private func createDeleteCacheAction() -> UIAction {
-    UIAction(title: "Delete Cache", image: .trash) { action in
+    UIAction(title: L10n.tr("Delete Cache"), image: .trash) { action in
       guard self.entityPlayables.hasCachedItems,
             let account = self.entityContainer.account else { return }
 
       let alert = UIAlertController(
         title: nil,
-        message: "Are you sure to delete the cached file\(self.entityPlayables.count > 1 ? "s" : "")?",
+        message: self.entityPlayables.count > 1
+          ? L10n.tr("Are you sure to delete the cached files?")
+          : L10n.tr("Are you sure to delete the cached file?"),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Delete"), style: .destructive, handler: { _ in
         self.appDelegate.getMeta(account.info).playableDownloadManager
           .removeFinishedDownload(for: self.entityPlayables)
         self.appDelegate.storage.main.library.deleteCache(of: self.entityPlayables)
         self.appDelegate.storage.main.saveContext()
         self.reloadRootView()
       }))
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
         // do nothing
       }))
       self.rootView.present(alert, animated: true, completion: nil)
@@ -773,7 +775,7 @@ class EntityPreviewActionBuilder {
   }
 
   private func createDeleteOnServerAction() -> UIAction {
-    UIAction(title: "Delete on Server", image: .cloudX) { action in
+    UIAction(title: L10n.tr("Delete on Server"), image: .cloudX) { action in
       guard let playable = self.entityContainer as? AbstractPlayable,
             let podcastEpisode = playable.asPodcastEpisode,
             let account = podcastEpisode.account
@@ -781,10 +783,10 @@ class EntityPreviewActionBuilder {
 
       let alert = UIAlertController(
         title: nil,
-        message: "Are you sure to delete the podcast episode on the server?",
+        message: L10n.tr("Are you sure to delete the podcast episode on the server?"),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: "Delete", style: .destructive, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Delete"), style: .destructive, handler: { _ in
         Task { @MainActor in do {
           try await self.appDelegate.getMeta(account.info).librarySyncer
             .requestPodcastEpisodeDelete(podcastEpisode: podcastEpisode)
@@ -795,7 +797,7 @@ class EntityPreviewActionBuilder {
           self.appDelegate.eventLogger.report(topic: "Podcast Episode Delete Sync", error: error)
         }}
       }))
-      alert.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: { _ in
+      alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
         // do nothing
       }))
       self.rootView.present(alert, animated: true, completion: nil)
@@ -804,7 +806,7 @@ class EntityPreviewActionBuilder {
 
   private func createShareAction(playable: AbstractPlayable) -> UIAction {
     UIAction(
-      title: "Share",
+      title: L10n.tr("Share"),
       image: UIImage(systemName: "square.and.arrow.up")
     ) { [weak self] _ in
       // Used if the song is not cached, otherwise never called
@@ -828,19 +830,19 @@ class EntityPreviewActionBuilder {
   }
 
   private func createGoToSiteUrl(url: URL) -> UIAction {
-    UIAction(title: "Go to Site", image: .followLink) { action in
+    UIAction(title: L10n.tr("Go to Site"), image: .followLink) { action in
       UIApplication.shared.open(url)
     }
   }
 
   private func createShowPodcastDetailsAction(podcast: Podcast) -> UIAction {
-    UIAction(title: "Show Podcast Description", image: .info) { action in
+    UIAction(title: L10n.tr("Show Podcast Description"), image: .info) { action in
       self.showPodcastDetails()
     }
   }
 
   private func createShowEpisodeDetailsAction(podcastEpisode: PodcastEpisode) -> UIAction {
-    UIAction(title: "Show Episode Description", image: .info) { action in
+    UIAction(title: L10n.tr("Show Episode Description"), image: .info) { action in
       self.showPodcastDetails()
     }
   }
@@ -868,7 +870,7 @@ class EntityPreviewActionBuilder {
           let lyricsAccount = song.account
     else { return nil }
 
-    return UIAction(title: "Show Lyrics", image: .lyrics) { action in
+    return UIAction(title: L10n.tr("Show Lyrics"), image: .lyrics) { action in
       self.showLyrics(lyricsRelFilePath: lyricsRelFilePath, lyricsAccount: lyricsAccount)
     }
   }
@@ -886,7 +888,7 @@ class EntityPreviewActionBuilder {
   private func createCopyIdToClipboardAction() -> UIMenu {
     UIMenu(
       options: .displayInline,
-      children: [UIAction(title: "Copy ID to Clipboard", image: .clipboard) { action in
+      children: [UIAction(title: L10n.tr("Copy ID to Clipboard"), image: .clipboard) { action in
         if !self.entityContainer.id.isEmpty {
           UIPasteboard.general.string = self.entityContainer.id
         }

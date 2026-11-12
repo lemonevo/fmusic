@@ -60,14 +60,14 @@ class CommonScreenOperations {
 // MARK: - UIViewController
 
 extension UIViewController {
-  private func createUserButtonMenu() -> UIMenu {
+  func createUserButtonMenu() -> UIMenu {
     var accountActions = [UIMenuElement]()
     for accountInfo in appDelegate.storage.settings.accounts.allAccounts {
       let isActiveAccount = (accountInfo == appDelegate.storage.settings.accounts.active)
       let action = UIAction(
         title: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
           .loginCredentials?
-          .username ?? "Unknown",
+          .username ?? L10n.tr("Unknown"),
         subtitle: appDelegate.storage.settings.accounts.getSetting(accountInfo).read
           .loginCredentials?
           .displayServerUrl ?? "",
@@ -90,7 +90,7 @@ extension UIViewController {
       let addAccountImage = UIImage.userCirclePlus
     #endif
     let openAddAccount = UIAction(
-      title: "Add Account",
+      title: L10n.tr("Add Account"),
       image: addAccountImage,
       handler: { _ in
         let loginVC = AppStoryboard.Main.segueToLogin()
@@ -99,7 +99,7 @@ extension UIViewController {
       }
     )
     let openSettings = UIAction(
-      title: "Settings",
+      title: L10n.tr("Settings"),
       image: .settings,
       handler: { _ in
         #if targetEnvironment(macCatalyst)
@@ -120,36 +120,5 @@ extension UIViewController {
       options: [.displayInline],
       children: accountActions
     )
-  }
-
-  public func setupUserNavButton(
-    currentAccount: Account,
-    userButton: inout UIButton?,
-    userBarButtonItem: inout UIBarButtonItem?
-  ) {
-    let image = UIImage.userCircle(withConfiguration: UIImage.SymbolConfiguration(
-      pointSize: 24,
-      weight: .regular
-    )).withTintColor(
-      appDelegate.storage.settings.accounts.getSetting(currentAccount.info).read
-        .themePreference.asColor,
-      renderingMode: .alwaysTemplate
-    )
-
-    let button = UIButton(type: .system)
-    button.setImage(image, for: .normal)
-    button.layer.cornerRadius = 20
-    button.clipsToBounds = true
-    #if targetEnvironment(macCatalyst)
-      button.frame = CGRect(x: 0, y: 0, width: 50, height: 50)
-    #else
-      button.frame = CGRect(x: 0, y: 0, width: 40, height: 40)
-    #endif
-    button.menu = createUserButtonMenu()
-    button.showsMenuAsPrimaryAction = true
-    userButton = button
-
-    userBarButtonItem = UIBarButtonItem(customView: button)
-    navigationItem.leftBarButtonItem = userBarButtonItem!
   }
 }

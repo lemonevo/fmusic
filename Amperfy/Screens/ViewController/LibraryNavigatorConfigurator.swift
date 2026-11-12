@@ -64,8 +64,8 @@ enum TabNavigatorItem: Int, Hashable, CaseIterable {
 
   var title: String {
     switch self {
-    case .home: return "Home"
-    case .search: return "Search"
+    case .home: return L10n.tr("Home")
+    case .search: return L10n.tr("Search")
     }
   }
 
@@ -94,6 +94,11 @@ typealias SideBarDiffableDataSource = UICollectionViewDiffableDataSource<Int, Li
 class LibraryNavigatorConfigurator: NSObject {
   static let sectionHeaderElementKind = "section-header-element-kind"
 
+  private static var themeAccentColor: UIColor {
+    (UIApplication.shared.delegate as! AppDelegate).storage.settings.accounts
+      .getSetting(nil).read.themePreference.asColor
+  }
+
   private let account: Account
   private let offsetData: [LibraryNavigatorItem]
   private var collectionView: UICollectionView!
@@ -120,7 +125,7 @@ class LibraryNavigatorConfigurator: NSObject {
   ) {
     self.account = account
     self.offsetData = offsetData
-    self.libraryItems = Dictionary(uniqueKeysWithValues: LibraryDisplayType.allCases.map {
+    self.libraryItems = Dictionary(uniqueKeysWithValues: LibraryDisplayType.supportedCases.map {
       ($0, LibraryNavigatorItem(title: $0.displayName, library: $0))
     })
     self.editor = ReorderableListEditor(items: [], checkedItems: [])
@@ -149,7 +154,7 @@ class LibraryNavigatorConfigurator: NSObject {
   func viewDidLoad(navigationItem: UINavigationItem, collectionView: UICollectionView) {
     self.collectionView = collectionView
     editButton = UIBarButtonItem(
-      title: "Edit",
+      title: L10n.tr("Edit"),
       style: .plain,
       target: self,
       action: #selector(editingPressed)
@@ -178,7 +183,7 @@ class LibraryNavigatorConfigurator: NSObject {
   @MainActor @objc
   private func editingPressed() {
     let isInEditMode = !collectionView.isEditing
-    editButton.title = isInEditMode ? "Done" : "Edit"
+    editButton.title = isInEditMode ? L10n.tr("Done") : L10n.tr("Edit")
     editButton.style = isInEditMode ? .prominent : .plain
 
     if isInEditMode {
@@ -283,8 +288,13 @@ class LibraryNavigatorConfigurator: NSObject {
     > { [weak self] cell, indexPath, item in
       if !item.isInteractable {
         var content = cell.defaultContentConfiguration()
-        content.text = item.title
-        content.textProperties.font = .preferredFont(forTextStyle: .headline)
+        content.text = item.title.uppercased()
+        content.textProperties.font = .systemFont(ofSize: 11, weight: .semibold)
+        content.textProperties.color = .secondaryLabel
+        var margins = content.directionalLayoutMargins
+        margins.top = 20
+        margins.bottom = 2
+        content.directionalLayoutMargins = margins
         cell.accessories = []
         cell.contentConfiguration = content
       } else if let libraryItem = item.library {
@@ -308,9 +318,12 @@ class LibraryNavigatorConfigurator: NSObject {
         var content = cell.defaultContentConfiguration()
         content.text = tabItem.title
         content.image = tabItem.icon.withRenderingMode(.alwaysTemplate)
+        Self.applyRowStyle(to: &content)
         cell.contentConfiguration = content
       }
-      cell.indentationLevel = 0
+      // Apple Music indents the rows a little more than the section header.
+      cell.indentationWidth = 8
+      cell.indentationLevel = item.isInteractable ? 1 : 0
     }
 
     /// 1 - header registration
@@ -340,6 +353,29 @@ class LibraryNavigatorConfigurator: NSObject {
     editor.installReordering(on: dataSource, collectionView: collectionView)
   }
 
+  /// Apple Music style row: 13 pt text, accent-colored template icon and a little extra air
+  /// around every row.
+  @MainActor
+  private static func applyRowStyle(to content: inout UIListContentConfiguration) {
+    let accentColor = Self.themeAccentColor
+    content.textProperties.font = .systemFont(ofSize: 13)
+    content.textProperties.colorTransformer = UIConfigurationColorTransformer { _ in .label }
+    content.imageProperties.tintColor = accentColor
+    content.imageProperties.tintColorTransformer = UIConfigurationColorTransformer { _ in
+      accentColor
+    }
+    content.imageProperties.preferredSymbolConfiguration = UIImage.SymbolConfiguration(
+      pointSize: 16,
+      weight: .regular
+    )
+    content.imageProperties.maximumSize = CGSize(width: 22, height: 22)
+    content.imageProperties.reservedLayoutSize = CGSize(width: 26, height: 22)
+    var margins = content.directionalLayoutMargins
+    margins.top = 8
+    margins.bottom = 8
+    content.directionalLayoutMargins = margins
+  }
+
   @MainActor
   static func configureForLibrary(
     contentView: inout UIListContentConfiguration,
@@ -347,13 +383,7 @@ class LibraryNavigatorConfigurator: NSObject {
   ) {
     contentView.text = libraryItem.displayName
     contentView.image = libraryItem.image.withRenderingMode(.alwaysTemplate)
-    if libraryItem == .podcasts {
-      // special case for podcast icon
-      contentView.image = libraryItem.image.withRenderingMode(.alwaysTemplate)
-    }
-    let imageSize = CGSize(width: 35.0, height: 25.0)
-    contentView.imageProperties.maximumSize = imageSize
-    contentView.imageProperties.reservedLayoutSize = imageSize
+    applyRowStyle(to: &contentView)
   }
 
   private func applyInitialSnapshots() {

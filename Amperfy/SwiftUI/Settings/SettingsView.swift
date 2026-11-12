@@ -56,24 +56,29 @@ struct SettingsView: View {
     let list =
       SettingsList {
         SettingsSection {
-          SettingsRow(title: "Version") {
+          SettingsRow(title: L10n.tr("Version")) {
             SecondaryText(AppDelegate.version)
           }
-          SettingsRow(title: "Build Number") {
+          SettingsRow(title: L10n.tr("Build Number")) {
             SecondaryText(AppDelegate.buildNumber)
           }
         }
 
         SettingsSection(
           content: {
-            SettingsCheckBoxRow(title: "Offline Mode", isOn: $settings.isOfflineMode)
+            SettingsCheckBoxRow(
+              title: L10n.tr("Offline Mode"),
+              isOn: $settings.isOfflineMode
+            )
           },
           footer:
-          "Songs, podcasts, and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
+          L10n.tr(
+            "Songs, podcasts, and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
+          )
         )
 
         SettingsSection {
-          SettingsRow(title: "Prevent Screen Lock") {
+          SettingsRow(title: L10n.tr("Prevent Screen Lock")) {
             Menu(settings.screenLockPreventionPreference.description) {
               Button(
                 ScreenLockPreventionPreference.never.description,
@@ -118,12 +123,12 @@ struct SettingsView: View {
       ZStack {
         list
       }
-      .navigationTitle("General")
+      .navigationTitle(L10n.tr("General"))
       .navigationBarTitleDisplayMode(.inline)
     #else
       NavigationStack {
         list
-          .navigationTitle("Settings")
+          .navigationTitle(L10n.tr("Settings"))
           // All pushes in this stack must be value based. Mixing view based links
           // (NavigationLink(destination:)) with the value based links of the sub pages
           // results in a navigation loop.

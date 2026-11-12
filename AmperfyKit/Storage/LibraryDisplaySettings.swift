@@ -50,36 +50,42 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
     }
   }
 
+  /// Local folder and WebDAV sources have no server-side podcasts, radios or
+  /// music folders, so these library types stay hidden.
+  public static var supportedCases: [LibraryDisplayType] {
+    allCases.filter { $0 != .podcasts && $0 != .radios && $0 != .directories }
+  }
+
   public var displayName: String {
     switch self {
     case .artists:
-      return "Artists"
+      return L10n.tr("Artists")
     case .albums:
-      return "Albums"
+      return L10n.tr("Albums")
     case .songs:
-      return "Songs"
+      return L10n.tr("Songs")
     case .genres:
-      return "Genres"
+      return L10n.tr("Genres")
     case .directories:
-      return "Directories"
+      return L10n.tr("Directories")
     case .playlists:
-      return "Playlists"
+      return L10n.tr("Playlists")
     case .podcasts:
-      return "Podcasts"
+      return L10n.tr("Podcasts")
     case .downloads:
-      return "Downloads"
+      return L10n.tr("Downloads")
     case .favoriteSongs:
-      return "Favorite Songs"
+      return L10n.tr("Favorite Songs")
     case .favoriteAlbums:
-      return "Favorite Albums"
+      return L10n.tr("Favorite Albums")
     case .favoriteArtists:
-      return "Favorite Artists"
+      return L10n.tr("Favorite Artists")
     case .newestAlbums:
-      return "Newest Albums"
+      return L10n.tr("Newest Albums")
     case .recentAlbums:
-      return "Recently Played Albums"
+      return L10n.tr("Recently Played Albums")
     case .radios:
-      return "Radios"
+      return L10n.tr("Radios")
     }
   }
 
@@ -194,10 +200,7 @@ public struct LibraryDisplaySettings: Sendable, Codable {
         .recentAlbums,
         .songs,
         .favoriteSongs,
-        .directories,
         .playlists,
-        .podcasts,
-        .radios,
       ]
     )
   }

@@ -554,3 +554,19 @@ extension UIImage {
     return img.withTintColor(tintColor)
   }
 }
+
+/// Apple Music style player bar icons, fixed 36 x 36 pt images from the AmperfyKit catalog.
+@MainActor
+public enum PlayerBarIcon {
+  private static let bundle = Bundle(for: EntityImageView.self)
+
+  public static var lyrics: UIImage { image("player_bar_lyrics") }
+  public static var queue: UIImage { image("player_bar_queue") }
+  public static var airplay: UIImage { image("player_bar_airplay") }
+  public static var volume: UIImage { image("player_bar_volume") }
+
+  private static func image(_ name: String) -> UIImage {
+    (UIImage(named: name, in: bundle, compatibleWith: nil) ?? UIImage())
+      .withRenderingMode(.alwaysTemplate)
+  }
+}

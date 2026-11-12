@@ -95,32 +95,32 @@ class PlainDetailsVC: UIViewController {
   func refresh() {
     if let podcast = podcast {
       detailsTextView.text = podcast.depiction
-      headerLabel.text = "Description"
+      headerLabel.text = L10n.tr("Description")
     } else if let podcastEpisode = podcastEpisode {
       detailsTextView.text = podcastEpisode.depiction
-      headerLabel.text = "Description"
+      headerLabel.text = L10n.tr("Description")
     } else if let lyricsRelFilePath = lyricsRelFilePath, let lyricsAccount {
       detailsTextView.text = ""
-      headerLabel.text = "Lyrics"
+      headerLabel.text = L10n.tr("Lyrics")
       Task { @MainActor in do {
         let lyricsList = try await appDelegate.getMeta(lyricsAccount.info).librarySyncer
           .parseLyrics(relFilePath: lyricsRelFilePath)
         self.displayLyrics(lyricsList: lyricsList)
       } catch {
-        self.detailsTextView.text = "Lyrics are not available anymore."
+        self.detailsTextView.text = L10n.tr("Lyrics are not available anymore.")
       }}
     } else if let player = player {
-      headerLabel.text = "Player Info"
+      headerLabel.text = L10n.tr("Player Info")
       var details = ""
-      details += "Play Time\n"
-      details += "Remaining: \(player.remainingPlayDuration.asDurationString)\n"
-      details += "Total: \(player.totalPlayDuration.asDurationString)\n"
+      details += L10n.tr("Play Time") + "\n"
+      details += L10n.tr("Remaining: %@", player.remainingPlayDuration.asDurationString) + "\n"
+      details += L10n.tr("Total: %@", player.totalPlayDuration.asDurationString) + "\n"
       details += "\n"
       details += "\n"
-      details += "Queue Items\n"
-      details += "Previous: \(player.prevQueueCount)\n"
-      details += "User: \(player.userQueueCount)\n"
-      details += "Next: \(player.nextQueueCount)\n"
+      details += L10n.tr("Queue Items") + "\n"
+      details += L10n.tr("Previous: %d", player.prevQueueCount) + "\n"
+      details += L10n.tr("User: %d", player.userQueueCount) + "\n"
+      details += L10n.tr("Next: %d", player.nextQueueCount) + "\n"
       detailsTextView.text = details
     }
   }

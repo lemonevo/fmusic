@@ -28,7 +28,7 @@ import UIKit
 
 class LyricsVC: UIViewController {
   override var title: String? {
-    get { "Lyrics" }
+    get { L10n.tr("Lyrics") }
     set {}
   }
 
@@ -87,13 +87,20 @@ class LyricsVC: UIViewController {
       lyrics: structuredLyrics,
       scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling
     )
+    // Highlight the line that is playing right now instead of waiting for the next tick.
+    let elapsed = player.elapsedTime
+    DispatchQueue.main.async { [weak self] in
+      self?.lyricsView?.scroll(
+        toTime: CMTime(seconds: elapsed, preferredTimescale: 1000)
+      )
+    }
   }
 
   private func showLyricsAreNotAvailable() {
     var notAvailableLyrics = StructuredLyrics()
     notAvailableLyrics.synced = false
     var line = LyricsLine()
-    line.value = "No Lyrics"
+    line.value = L10n.tr("No Lyrics")
     notAvailableLyrics.line.append(line)
     showLyrics(structuredLyrics: notAvailableLyrics)
     lyricsView?.highlightAllLyrics()

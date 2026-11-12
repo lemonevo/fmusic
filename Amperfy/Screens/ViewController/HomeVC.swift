@@ -32,12 +32,13 @@ final class HomeVC: UICollectionViewController {
   private var dataSource: UICollectionViewDiffableDataSource<HomeSection, HomeItem>!
   private let log = OSLog(subsystem: "Amperfy", category: "HomeVC")
 
-  private static let itemWidth: CGFloat = 160.0
+  /// Apple Music style grid: four albums per row that grow and shrink with the window.
+  private static let maximumColumns = 4
+  private static let minimumItemWidth: CGFloat = 132.0
+  private static let itemSpacing: CGFloat = 16.0
+  private static let sectionHorizontalInset: CGFloat = 24.0
 
-  private var userButton: UIButton?
-  private var userBarButtonItem: UIBarButtonItem?
   private let account: Account
-  private var accountNotificationHandler: AccountNotificationHandler?
   private let sharedHome: HomeManager
 
   // MARK: - Init
@@ -69,20 +70,7 @@ final class HomeVC: UICollectionViewController {
     super.viewDidLoad()
     // ensures that the collection view stops placing items under the sidebar
     collectionView.contentInsetAdjustmentBehavior = .scrollableAxes
-    title = "Home"
-
-    accountNotificationHandler = AccountNotificationHandler(
-      storage: appDelegate.storage,
-      notificationHandler: appDelegate.notificationHandler
-    )
-    accountNotificationHandler?.registerCallbackForActiveAccountChange { [weak self] accountInfo in
-      guard let self else { return }
-      setupUserNavButton(
-        currentAccount: account,
-        userButton: &userButton,
-        userBarButtonItem: &userBarButtonItem
-      )
-    }
+    title = L10n.tr("Home")
 
     registerForTraitChanges(
       [UITraitPreferredContentSizeCategory.self],
@@ -92,8 +80,9 @@ final class HomeVC: UICollectionViewController {
     )
 
     navigationController?.navigationBar.prefersLargeTitles = true
+    navigationItem.largeTitleDisplayMode = .always
     navigationItem.rightBarButtonItem = UIBarButtonItem(
-      title: "Edit",
+      title: L10n.tr("Edit"),
       style: .plain,
       target: self,
       action: #selector(editSectionsTapped)
@@ -114,6 +103,7 @@ final class HomeVC: UICollectionViewController {
   override func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
     navigationController?.navigationBar.prefersLargeTitles = true
+    navigationItem.largeTitleDisplayMode = .always
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -124,40 +114,60 @@ final class HomeVC: UICollectionViewController {
 
   // MARK: - Layout
 
+  private static func columnCount(for containerWidth: CGFloat) -> Int {
+    guard containerWidth > 0 else { return maximumColumns }
+    let available = containerWidth - (2 * sectionHorizontalInset)
+    let fitting = Int((available + itemSpacing) / (minimumItemWidth + itemSpacing))
+    return max(1, min(maximumColumns, fitting))
+  }
+
+  private static func itemWidth(for containerWidth: CGFloat) -> CGFloat {
+    let columns = CGFloat(columnCount(for: containerWidth))
+    let available = containerWidth - (2 * sectionHorizontalInset)
+    return max(0, (available - (itemSpacing * (columns - 1))) / columns)
+  }
+
   private static func createLayout() -> UICollectionViewCompositionalLayout {
     let layout = UICollectionViewCompositionalLayout { sectionIndex, environment in
       guard let _ = HomeSection(rawValue: sectionIndex) else { return nil }
 
+      let containerWidth = environment.container.effectiveContentSize.width
+      let columns = Self.columnCount(for: containerWidth)
+      let cardWidth = Self.itemWidth(for: containerWidth)
+
       // Item: square image with title below
       let itemSize = NSCollectionLayoutSize(
-        widthDimension: .fractionalWidth(1.0),
+        widthDimension: .absolute(cardWidth),
         heightDimension: .fractionalHeight(1.0)
       )
       let item = NSCollectionLayoutItem(layoutSize: itemSize)
 
-      // Group: fixed width to show large image; height fits image + labels for the text size
+      // Group: one row of cards that fills the available width
       let labelAreaHeight = AlbumCollectionCell
         .labelAreaHeight(for: environment.traitCollection, defaultHeight: 50.0)
       let groupSize = NSCollectionLayoutSize(
-        widthDimension: .absolute(itemWidth),
-        heightDimension: .absolute(itemWidth + labelAreaHeight)
+        widthDimension: .fractionalWidth(1.0),
+        heightDimension: .absolute(cardWidth + labelAreaHeight)
       )
-      let group = NSCollectionLayoutGroup.horizontal(layoutSize: groupSize, subitems: [item])
+      let group = NSCollectionLayoutGroup.horizontal(
+        layoutSize: groupSize,
+        subitems: Array(repeating: item, count: columns)
+      )
+      group.interItemSpacing = .fixed(itemSpacing)
 
       let sectionLayout = NSCollectionLayoutSection(group: group)
-      sectionLayout.orthogonalScrollingBehavior = .continuous
-      sectionLayout.interGroupSpacing = 12
+      sectionLayout.interGroupSpacing = 20
       sectionLayout.contentInsets = NSDirectionalEdgeInsets(
-        top: 8,
-        leading: 16,
-        bottom: 24,
-        trailing: 16
+        top: 12,
+        leading: sectionHorizontalInset,
+        bottom: 28,
+        trailing: sectionHorizontalInset
       )
 
       // Header
       let headerSize = NSCollectionLayoutSize(
         widthDimension: .fractionalWidth(1.0),
-        heightDimension: .estimated(44)
+        heightDimension: sectionIndex == 0 ? .absolute(112) : .estimated(44)
       )
       let header = NSCollectionLayoutBoundarySupplementaryItem(
         layoutSize: headerSize,
@@ -199,10 +209,11 @@ final class HomeVC: UICollectionViewController {
         withReuseIdentifier: AlbumCollectionCell.typeName,
         for: indexPath
       ) as! AlbumCollectionCell
+      let contentWidth = collectionView.bounds.width > 0 ? collectionView.bounds.width : 800
       cell.display(
         container: item.playableContainable,
         rootView: self,
-        itemWidth: Self.itemWidth,
+        itemWidth: Self.itemWidth(for: contentWidth),
         initialIndexPath: indexPath
       )
       return cell
@@ -220,6 +231,7 @@ final class HomeVC: UICollectionViewController {
         return nil
       }
       header.title = section.title
+      header.largeTitle = indexPath.section == 0 ? L10n.tr("Home") : nil
       if section == .randomAlbums {
         header.showsRefreshButton = true
         header.setRefreshHandler { [weak self] in self?.refreshRandomAlbumsSection() }
@@ -460,9 +472,20 @@ final class SectionHeaderView: UICollectionReusableView {
     btn.translatesAutoresizingMaskIntoConstraints = false
     btn.setImage(UIImage.refresh, for: .normal)
     btn.isHidden = true
-    btn.accessibilityLabel = "Refresh Randoms"
+    btn.accessibilityLabel = L10n.tr("Refresh Randoms")
     return btn
   }()
+
+  private let largeTitleLabel: UILabel = {
+    let label = UILabel()
+    label.translatesAutoresizingMaskIntoConstraints = false
+    label.font = .systemFont(ofSize: 34, weight: .bold)
+    label.textColor = .label
+    label.isHidden = true
+    return label
+  }()
+
+  private var largeTitleHeightConstraint: NSLayoutConstraint!
 
   private let titleLabel: UILabel = {
     let lbl = ScaledLabel()
@@ -492,36 +515,41 @@ final class SectionHeaderView: UICollectionReusableView {
     didSet { titleLabel.text = title }
   }
 
+  var largeTitle: String? {
+    didSet {
+      largeTitleLabel.text = largeTitle
+      largeTitleLabel.isHidden = largeTitle == nil
+      largeTitleHeightConstraint.constant = largeTitle == nil ? 0 : 52
+    }
+  }
+
   override init(frame: CGRect) {
     super.init(frame: frame)
-    addSubview(titleLabel)
-    addSubview(refreshButton)
-    NSLayoutConstraint.activate([
-      titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-      titleLabel.trailingAnchor.constraint(
-        lessThanOrEqualTo: refreshButton.leadingAnchor,
-        constant: -8
-      ),
-      titleLabel.topAnchor.constraint(equalTo: topAnchor),
-      titleLabel.bottomAnchor.constraint(equalTo: bottomAnchor),
-      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-      refreshButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-    ])
+    configure()
   }
 
   required init?(coder: NSCoder) {
     super.init(coder: coder)
+    configure()
+  }
+
+  private func configure() {
+    largeTitleHeightConstraint = largeTitleLabel.heightAnchor.constraint(equalToConstant: 0)
+    addSubview(largeTitleLabel)
     addSubview(titleLabel)
     addSubview(refreshButton)
     NSLayoutConstraint.activate([
-      titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+      largeTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
+      largeTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+      largeTitleHeightConstraint,
+      titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 24),
       titleLabel.trailingAnchor.constraint(
         lessThanOrEqualTo: refreshButton.leadingAnchor,
         constant: -8
       ),
-      titleLabel.topAnchor.constraint(equalTo: topAnchor),
+      titleLabel.topAnchor.constraint(equalTo: largeTitleLabel.bottomAnchor),
       titleLabel.bottomAnchor.constraint(equalTo: bottomAnchor),
-      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+      refreshButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
       refreshButton.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
   }

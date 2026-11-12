@@ -107,6 +107,19 @@ public class MetaManager {
     self.eventLogger = eventLogger
     self.notificationHandler = notificationHandler
     self.localNotificationManager = localNotificationManager
+
+    if account.apiType == .local || account.apiType == .notDetected,
+       let credentials = storage.settings.accounts.getSetting(account.info).read.loginCredentials {
+      do {
+        _ = try LocalFolderAccess.shared.activate(credentials: credentials)
+      } catch {
+        os_log(
+          "Local folder access could not be activated: %s",
+          type: .error,
+          error.localizedDescription
+        )
+      }
+    }
   }
 
   private var scrobbleSyncer: ScrobbleSyncer?

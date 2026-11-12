@@ -91,10 +91,10 @@ class SliderMenuView: UIView {
 class AlbumsCommonVCInteractions {
   var sceneTitle: String? {
     switch displayFilter {
-    case .all: "Albums"
-    case .newest: "Newest Albums"
-    case .recent: "Recently Played Albums"
-    case .favorites: "Favorite Albums"
+    case .all: L10n.tr("Albums")
+    case .newest: L10n.tr("Newest Albums")
+    case .recent: L10n.tr("Recently Played Albums")
+    case .favorites: L10n.tr("Favorite Albums")
     }
   }
 
@@ -112,7 +112,7 @@ class AlbumsCommonVCInteractions {
   public var optionsButton: UIBarButtonItem = .createOptionsBarButton()
   public var displayFilter: DisplayCategoryFilter = .all
   public var sortType: AlbumElementSortType = .name
-  public var filterTitle = "Albums"
+  public var filterTitle = L10n.tr("Albums")
   public var newestElementsOffsetsSynced = Set<Int>()
   public var isIndexTitelsHidden = false {
     didSet {
@@ -146,27 +146,27 @@ class AlbumsCommonVCInteractions {
   lazy var emptyContentConfig: UIContentUnavailableConfiguration = {
     var config = UIContentUnavailableConfiguration.empty()
     config.image = .album
-    config.text = "No " + filterTitle
-    config.secondaryText = "Your " + filterTitle.lowercased() + " will appear here."
+    config.text = L10n.tr("No %@", filterTitle)
+    config.secondaryText = L10n.tr("Your %@ will appear here.", filterTitle.lowercased())
     return config
   }()
 
   func applyFilter() {
     switch displayFilter {
     case .all:
-      filterTitle = "Albums"
+      filterTitle = L10n.tr("Albums")
       isIndexTitelsHidden = false
       change(sortType: appDelegate.storage.settings.user.albumsSortSetting)
     case .newest:
-      filterTitle = "Newest Albums"
+      filterTitle = L10n.tr("Newest Albums")
       isIndexTitelsHidden = true
       change(sortType: .newest)
     case .recent:
-      filterTitle = "Recently Played Albums"
+      filterTitle = L10n.tr("Recently Played Albums")
       isIndexTitelsHidden = true
       change(sortType: .recent)
     case .favorites:
-      filterTitle = "Favorite Albums"
+      filterTitle = L10n.tr("Favorite Albums")
       isIndexTitelsHidden = false
       change(sortType: appDelegate.storage.settings.user.albumsSortSetting)
     }
@@ -285,7 +285,7 @@ class AlbumsCommonVCInteractions {
 
   private func createSortButtonMenu() -> UIMenu {
     let sortByName = UIAction(
-      title: "Name",
+      title: L10n.tr("Name"),
       image: sortType == .name ? .check : nil,
       handler: { _ in
         self.change(sortType: .name)
@@ -299,7 +299,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     let sortByRating = UIAction(
-      title: "Rating",
+      title: L10n.tr("Rating"),
       image: sortType == .rating ? .check : nil,
       handler: { _ in
         self.change(sortType: .rating)
@@ -313,7 +313,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     let sortByArtist = UIAction(
-      title: "Artist",
+      title: L10n.tr("Artist"),
       image: sortType == .artist ? .check : nil,
       handler: { _ in
         self.change(sortType: .artist)
@@ -327,7 +327,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     let sortByDuration = UIAction(
-      title: "Duration",
+      title: L10n.tr("Duration"),
       image: sortType == .duration ? .check : nil,
       handler: { _ in
         self.change(sortType: .duration)
@@ -341,7 +341,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     let sortByYear = UIAction(
-      title: "Year",
+      title: L10n.tr("Year"),
       image: sortType == .year ? .check : nil,
       handler: { _ in
         self.change(sortType: .year)
@@ -355,7 +355,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     return UIMenu(
-      title: "Sort",
+      title: L10n.tr("Sort"),
       image: .sort,
       options: [],
       children: [sortByName, sortByRating, sortByArtist, sortByDuration, sortByYear]
@@ -410,7 +410,7 @@ class AlbumsCommonVCInteractions {
 
   private func createStyleButtonMenu() -> UIMenu {
     let tableStyle = UIAction(
-      title: "Table",
+      title: L10n.tr("Table"),
       image: appDelegate.storage.settings.user.albumsStyleSetting == .table ? .check : nil,
       handler: { _ in
         self.appDelegate.storage.settings.user.albumsStyleSetting = .table
@@ -426,7 +426,7 @@ class AlbumsCommonVCInteractions {
       }
     )
     let gridStyle = UIAction(
-      title: "Grid",
+      title: L10n.tr("Grid"),
       image: appDelegate.storage.settings.user.albumsStyleSetting == .grid ? .check : nil,
       handler: { _ in
         self.appDelegate.storage.settings.user.albumsStyleSetting = .grid
@@ -441,14 +441,14 @@ class AlbumsCommonVCInteractions {
         )
       }
     )
-    let changeGridSize = UIAction(title: "Change Grid Size", image: .resize, handler: { _ in
+    let changeGridSize = UIAction(title: L10n.tr("Change Grid Size"), image: .resize, handler: { _ in
       self.showSliderMenu()
     })
     changeGridSize
       .attributes = (appDelegate.storage.settings.user.albumsStyleSetting != .grid) ? .disabled : []
 
     return UIMenu(
-      title: "Style",
+      title: L10n.tr("Style"),
       image: .grid,
       options: [],
       children: [tableStyle, gridStyle, changeGridSize]
@@ -457,7 +457,7 @@ class AlbumsCommonVCInteractions {
 
   private func createActionButtonMenu() -> UIMenu {
     let action = UIAction(
-      title: "Download \(filterTitle)",
+      title: L10n.tr("Download %@", filterTitle),
       image: UIImage.startDownload,
       handler: { _ in
         var albums = [Album]()

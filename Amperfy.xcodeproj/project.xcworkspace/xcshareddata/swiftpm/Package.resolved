@@ -1,5 +1,5 @@
 {
-  "originHash" : "342b7059071c9c126ae06cb9cd10980536fa811e6732c2bf56264654476707eb",
+  "originHash" : "36fbba38b2066a1981359aec7a3cfd6230b47c1c670895bc09de66012a3a9ecb",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -8,15 +8,6 @@
       "state" : {
         "revision" : "8dd85aee02e39dd280c75eef88ffdb86eed4b07b",
         "version" : "5.6.2"
-      }
-    },
-    {
-      "identity" : "audiostreaming",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/dimitris-c/AudioStreaming",
-      "state" : {
-        "revision" : "a729ee28fece29d80a749419d96df0693200f124",
-        "version" : "1.4.4"
       }
     },
     {

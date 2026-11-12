@@ -41,58 +41,58 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   public var displayName: String {
     switch self {
     case .insertUserQueue:
-      return "Insert User Queue"
+      return L10n.tr("Insert User Queue")
     case .appendUserQueue:
-      return "Append User Queue"
+      return L10n.tr("Append User Queue")
     case .insertContextQueue:
-      return "Insert Context Queue"
+      return L10n.tr("Insert Context Queue")
     case .appendContextQueue:
-      return "Append Context Queue"
+      return L10n.tr("Append Context Queue")
     case .download:
-      return "Download"
+      return L10n.tr("Download")
     case .removeFromCache:
-      return "Remove from Cache"
+      return L10n.tr("Remove from Cache")
     case .addToPlaylist:
-      return "Add to Playlist"
+      return L10n.tr("Add to Playlist")
     case .play:
-      return "Play"
+      return L10n.tr("Play")
     case .playShuffled:
-      return "Play shuffled"
+      return L10n.tr("Play shuffled")
     case .insertPodcastQueue:
-      return "Insert Podcast Queue"
+      return L10n.tr("Insert Podcast Queue")
     case .appendPodcastQueue:
-      return "Append Podcast Queue"
+      return L10n.tr("Append Podcast Queue")
     case .favorite:
-      return "Favorite"
+      return L10n.tr("Favorite")
     }
   }
 
   public var settingsName: String {
     switch self {
     case .insertUserQueue:
-      return "Insert in User Queue"
+      return L10n.tr("Insert in User Queue")
     case .appendUserQueue:
-      return "Append to User Queue"
+      return L10n.tr("Append to User Queue")
     case .insertContextQueue:
-      return "Insert in Context Queue"
+      return L10n.tr("Insert in Context Queue")
     case .appendContextQueue:
-      return "Append to Context Queue"
+      return L10n.tr("Append to Context Queue")
     case .download:
-      return "Download"
+      return L10n.tr("Download")
     case .removeFromCache:
-      return "Remove from Cache"
+      return L10n.tr("Remove from Cache")
     case .addToPlaylist:
-      return "Add to Playlist"
+      return L10n.tr("Add to Playlist")
     case .play:
-      return "Play"
+      return L10n.tr("Play")
     case .playShuffled:
-      return "Play shuffled"
+      return L10n.tr("Play shuffled")
     case .insertPodcastQueue:
-      return "Insert in Podcast Queue"
+      return L10n.tr("Insert in Podcast Queue")
     case .appendPodcastQueue:
-      return "Append to Podcast Queue"
+      return L10n.tr("Append to Podcast Queue")
     case .favorite:
-      return "Mark as Favorite"
+      return L10n.tr("Mark as Favorite")
     }
   }
 

@@ -30,6 +30,9 @@ extension PopupPlayerVC {
     refreshCellMasks()
     refreshCellsContent()
     refreshCurrentlyPlayingInfoView()
+    #if targetEnvironment(macCatalyst)
+      windowVolumeControl?.syncFromPlayer()
+    #endif
   }
 
   func refreshCurrentlyPlayingInfoView() {

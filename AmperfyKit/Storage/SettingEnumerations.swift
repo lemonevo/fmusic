@@ -36,11 +36,11 @@ public enum ArtworkDownloadSetting: Int, CaseIterable, Sendable, Codable {
   public var description: String {
     switch self {
     case .updateOncePerSession:
-      return "Download once per session (change detection)"
+      return L10n.tr("Download once per session (change detection)")
     case .onlyOnce:
-      return "Download only once"
+      return L10n.tr("Download only once")
     case .never:
-      return "Never"
+      return L10n.tr("Never")
     }
   }
 }
@@ -58,13 +58,13 @@ public enum ArtworkDisplayPreference: Int, CaseIterable, Sendable, Codable {
   public var description: String {
     switch self {
     case .id3TagOnly:
-      return "Only ID3 tag artworks"
+      return L10n.tr("Only ID3 tag artworks")
     case .serverArtworkOnly:
-      return "Only server artworks"
+      return L10n.tr("Only server artworks")
     case .preferServerArtwork:
-      return "Prefer server artwork over ID3 tag"
+      return L10n.tr("Prefer server artwork over ID3 tag")
     case .preferId3Tag:
-      return "Prefer ID3 tag over server artwork"
+      return L10n.tr("Prefer ID3 tag over server artwork")
     }
   }
 }
@@ -81,11 +81,11 @@ public enum ScreenLockPreventionPreference: Int, CaseIterable, Sendable, Codable
   public var description: String {
     switch self {
     case .always:
-      return "Always"
+      return L10n.tr("Always")
     case .never:
-      return "Never"
+      return L10n.tr("Never")
     case .onlyIfCharging:
-      return "When connected to charger"
+      return L10n.tr("When connected to charger")
     }
   }
 }
@@ -107,7 +107,7 @@ public enum StreamingMaxBitratePreference: Int, CaseIterable, Sendable, Codable 
   public var description: String {
     switch self {
     case .noLimit:
-      return "No Limit (default)"
+      return L10n.tr("No Limit (default)")
     default:
       return "\(rawValue) kbps"
     }
@@ -141,11 +141,11 @@ public enum StreamingFormatPreference: Int, CaseIterable, Sendable, Codable {
   public var description: String {
     switch self {
     case .mp3:
-      return "mp3 (default)"
+      return L10n.tr("mp3 (default)")
     case .raw:
-      return "Raw/Original"
+      return L10n.tr("Raw/Original")
     case .serverConfig:
-      return "Server chooses Codec"
+      return L10n.tr("Server chooses Codec")
     }
   }
 }
@@ -217,10 +217,10 @@ public enum EqualizerPreset: Int, CaseIterable, Sendable, Codable {
 
   public var description: String {
     switch self {
-    case .off: return "Off"
-    case .increasedBass: return "Increased Bass"
-    case .reducedBass: return "Reduced Bass"
-    case .increasedTreble: return "Increased Treble"
+    case .off: return L10n.tr("Off")
+    case .increasedBass: return L10n.tr("Increased Bass")
+    case .reducedBass: return L10n.tr("Reduced Bass")
+    case .increasedTreble: return L10n.tr("Increased Treble")
     }
   }
 
@@ -250,11 +250,11 @@ public enum SyncCompletionStatus: Int, CaseIterable, Sendable, Codable {
   public var description: String {
     switch self {
     case .completed:
-      return "Completed"
+      return L10n.tr("Completed")
     case .skipped:
-      return "Skipped"
+      return L10n.tr("Skipped")
     case .aborted:
-      return "Aborted"
+      return L10n.tr("Aborted")
     }
   }
 }
@@ -269,7 +269,7 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
   case orange = 4
   case purple = 5
 
-  public static let defaultValue: ThemePreference = .blue
+  public static let defaultValue: ThemePreference = .red
 
   public var description: String {
     switch self {
@@ -295,7 +295,7 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     case .green:
       return .green
     case .red:
-      return .red
+      return Color(red: 0.98, green: 0.18, blue: 0.33)
     case .yellow:
       return .yellow
     case .orange:
@@ -312,7 +312,7 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     case .green:
       return .systemGreen
     case .red:
-      return .systemRed
+      return UIColor(red: 0.98, green: 0.18, blue: 0.33, alpha: 1.0)
     case .yellow:
       return .systemYellow
     case .orange:
@@ -352,11 +352,11 @@ public enum CacheTranscodingFormatPreference: Int, CaseIterable, Sendable, Codab
   public var description: String {
     switch self {
     case .mp3:
-      return "mp3 (default)"
+      return L10n.tr("mp3 (default)")
     case .raw:
-      return "Raw/Original"
+      return L10n.tr("Raw/Original")
     case .serverConfig:
-      return "Server chooses Codec"
+      return L10n.tr("Server chooses Codec")
     }
   }
 }
@@ -373,10 +373,10 @@ public enum VisualizerType: String, CaseIterable, Sendable, Codable {
 
   public var displayName: String {
     switch self {
-    case .ring: return "Ring"
-    case .waveform: return "Waveform"
-    case .spectrumBars: return "Spectrum Bars"
-    case .generativeArt: return "Generative Art"
+    case .ring: return L10n.tr("Ring")
+    case .waveform: return L10n.tr("Waveform")
+    case .spectrumBars: return L10n.tr("Spectrum Bars")
+    case .generativeArt: return L10n.tr("Generative Art")
     }
   }
 
