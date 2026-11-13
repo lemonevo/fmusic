@@ -91,7 +91,7 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     }
   }
 
-  /// Filled variants sized like the main sidebar rows (SF Symbol 16 pt regular, 22 pt box).
+  /// Filled variants sized like the main sidebar rows: SF Symbol 16 pt regular in a 22 pt box.
   @MainActor
   var icon: UIImage {
     let configuration = UIImage.SymbolConfiguration(pointSize: 16, weight: .regular)

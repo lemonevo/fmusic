@@ -56,6 +56,8 @@ public enum L10n {
     "Remove": "移除",
     "Removing “%@” deletes its login credentials and all downloaded files for this account. Your original music files are not touched.\n\nDo you want to remove this account?": "移除“%@”会删除该账户的登录凭据及其所有已下载文件；原始音乐文件不会被删除。\n\n要移除这个账户吗？",
     "Settings": "设置",
+    "Search Settings": "搜索设置",
+    "No Settings Found": "未找到设置",
     "Back to App": "返回应用",
     "Unknown": "未知",
 
