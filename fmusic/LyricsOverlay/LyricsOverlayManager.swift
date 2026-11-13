@@ -52,7 +52,13 @@
           desktopPanel = makeDesktopPanel()
         }
         if let panel = desktopPanel {
-          panel.setPointSize(user.desktopLyricsFontSize.pointSize)
+          panel.apply(style: DesktopLyricsStyle(
+            pointSize: user.desktopLyricsFontSize.pointSize,
+            backgroundOpacity: Double(user.desktopLyricsBackgroundOpacity) / 100.0,
+            alignment: user.desktopLyricsAlignment,
+            showsNextLine: user.isDesktopLyricsNextLineShown
+          ))
+          panel.setAlwaysOnTop(user.isDesktopLyricsAlwaysOnTop)
           panel.setLocked(user.isDesktopLyricsLocked)
           if player.currentlyPlaying != nil {
             panel.show()
@@ -221,17 +227,20 @@
         desktopPanel.show()
       }
 
+      let showsNextLine = storage.settings.user.isDesktopLyricsNextLineShown
       if let snapshot {
         desktopPanel.update(content: DesktopLyricsContent(
           currentText: snapshot.currentText,
-          nextText: snapshot.nextText,
+          nextText: showsNextLine ? snapshot.nextText : nil,
           syllables: snapshot.syllables,
           syllableProgress: snapshot.syllableProgress
         ))
       } else {
         desktopPanel.update(content: DesktopLyricsContent(
           currentText: playable.title,
-          nextText: playable.creatorName.isEmpty ? nil : playable.creatorName,
+          nextText: showsNextLine && !playable.creatorName.isEmpty
+            ? playable.creatorName
+            : nil,
           syllables: [],
           syllableProgress: []
         ))

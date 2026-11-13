@@ -335,6 +335,24 @@ public enum DesktopLyricsFontSize: Int, CaseIterable, Sendable, Codable {
   }
 }
 
+// MARK: - DesktopLyricsAlignment
+
+public enum DesktopLyricsAlignment: Int, CaseIterable, Sendable, Codable {
+  case left = 0
+  case center = 1
+  case right = 2
+
+  public static let defaultValue: DesktopLyricsAlignment = .center
+
+  public var description: String {
+    switch self {
+    case .left: return L10n.tr("Left")
+    case .center: return L10n.tr("Center")
+    case .right: return L10n.tr("Right")
+    }
+  }
+}
+
 // MARK: - UIUserInterfaceStyle
 
 extension UIUserInterfaceStyle: @retroactive Encodable, @retroactive Decodable {

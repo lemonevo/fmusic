@@ -206,6 +206,49 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.updateLyricsOverlays()
     }))
 
+    settings.desktopLyricsBackgroundOpacity = appDelegate.storage.settings.user
+      .desktopLyricsBackgroundOpacity
+    changesAgent.append(settings.$desktopLyricsBackgroundOpacity.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user
+        .desktopLyricsBackgroundOpacity != newValue
+      else { return }
+      self.appDelegate.storage.settings.user.desktopLyricsBackgroundOpacity = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.isDesktopLyricsNextLineShown = appDelegate.storage.settings.user
+      .isDesktopLyricsNextLineShown
+    changesAgent.append(settings.$isDesktopLyricsNextLineShown.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user
+        .isDesktopLyricsNextLineShown != newValue
+      else { return }
+      self.appDelegate.storage.settings.user.isDesktopLyricsNextLineShown = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.desktopLyricsAlignment = appDelegate.storage.settings.user.desktopLyricsAlignment
+    changesAgent.append(settings.$desktopLyricsAlignment.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user.desktopLyricsAlignment != newValue else {
+        return
+      }
+      self.appDelegate.storage.settings.user.desktopLyricsAlignment = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.isDesktopLyricsAlwaysOnTop = appDelegate.storage.settings.user
+      .isDesktopLyricsAlwaysOnTop
+    changesAgent.append(settings.$isDesktopLyricsAlwaysOnTop.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user
+        .isDesktopLyricsAlwaysOnTop != newValue
+      else { return }
+      self.appDelegate.storage.settings.user.isDesktopLyricsAlwaysOnTop = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
     settings.isMenuBarLyricsEnabled = appDelegate.storage.settings.user.isMenuBarLyricsEnabled
     changesAgent.append(settings.$isMenuBarLyricsEnabled.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }

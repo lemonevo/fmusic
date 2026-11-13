@@ -131,6 +131,31 @@ public struct UserSettings: Sendable, Codable {
     set { _isDesktopLyricsLocked = newValue }
   }
 
+  // 0 = fully transparent background, 100 = opaque card
+  private var _desktopLyricsBackgroundOpacity: Int = 74
+  public var desktopLyricsBackgroundOpacity: Int {
+    get { _desktopLyricsBackgroundOpacity }
+    set { _desktopLyricsBackgroundOpacity = min(100, max(0, newValue)) }
+  }
+
+  private var _isDesktopLyricsNextLineShown: Bool = true
+  public var isDesktopLyricsNextLineShown: Bool {
+    get { _isDesktopLyricsNextLineShown }
+    set { _isDesktopLyricsNextLineShown = newValue }
+  }
+
+  private var _desktopLyricsAlignment: DesktopLyricsAlignment = .defaultValue
+  public var desktopLyricsAlignment: DesktopLyricsAlignment {
+    get { _desktopLyricsAlignment }
+    set { _desktopLyricsAlignment = newValue }
+  }
+
+  private var _isDesktopLyricsAlwaysOnTop: Bool = true
+  public var isDesktopLyricsAlwaysOnTop: Bool {
+    get { _isDesktopLyricsAlwaysOnTop }
+    set { _isDesktopLyricsAlwaysOnTop = newValue }
+  }
+
   private var _isMenuBarLyricsEnabled: Bool = false
   public var isMenuBarLyricsEnabled: Bool {
     get { _isMenuBarLyricsEnabled }

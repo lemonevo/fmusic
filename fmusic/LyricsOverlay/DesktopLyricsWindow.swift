@@ -24,6 +24,14 @@
     let syllableProgress: [CGFloat]
   }
 
+  struct DesktopLyricsStyle {
+    var pointSize: CGFloat
+    // 0 = fully transparent background, 1 = opaque card
+    var backgroundOpacity: Double
+    var alignment: DesktopLyricsAlignment
+    var showsNextLine: Bool
+  }
+
   // MARK: - DesktopLyricsRenderer
 
   @MainActor
@@ -33,18 +41,21 @@
     private static let bottomInset: CGFloat = 10
     private static let gap: CGFloat = 3
 
-    static func panelSize(pointSize: CGFloat) -> CGSize {
-      let currentHeight = ceil(pointSize * 1.32)
-      let nextHeight = ceil(max(13, pointSize * 0.5) * 1.4)
+    static func panelSize(style: DesktopLyricsStyle) -> CGSize {
+      let currentHeight = ceil(style.pointSize * 1.32)
+      let nextHeight = style.showsNextLine
+        ? ceil(max(13, style.pointSize * 0.5) * 1.4)
+        : 0
+      let gapHeight = style.showsNextLine ? gap : 0
       return CGSize(
         width: 760,
-        height: currentHeight + nextHeight + topInset + bottomInset + gap + 4
+        height: currentHeight + nextHeight + topInset + bottomInset + gapHeight + 4
       )
     }
 
     static func render(
       content: DesktopLyricsContent,
-      pointSize: CGFloat,
+      style: DesktopLyricsStyle,
       size: CGSize,
       scale: CGFloat
     )
@@ -59,7 +70,7 @@
       return renderer.image { context in
         draw(
           content: content,
-          pointSize: pointSize,
+          style: style,
           size: size,
           context: context.cgContext
         )
@@ -68,41 +79,53 @@
 
     private static func draw(
       content: DesktopLyricsContent,
-      pointSize: CGFloat,
+      style: DesktopLyricsStyle,
       size: CGSize,
       context: CGContext
     ) {
       let bounds = CGRect(origin: .zero, size: size)
 
-      let card = UIBezierPath(
-        roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
-        cornerRadius: 16
-      )
-      UIColor(white: 0.04, alpha: 0.74).setFill()
-      card.fill()
-      UIColor.white.withAlphaComponent(0.12).setStroke()
-      card.lineWidth = 1
-      card.stroke()
+      let backgroundOpacity = min(1, max(0, style.backgroundOpacity))
+      let hasBackground = backgroundOpacity > 0.001
+      // A faint card barely darkens the desktop, so low-opacity text needs the outline too.
+      let needsOutline = backgroundOpacity < 0.5
+      if hasBackground {
+        let card = UIBezierPath(
+          roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
+          cornerRadius: 16
+        )
+        UIColor(white: 0.04, alpha: backgroundOpacity).setFill()
+        card.fill()
+        UIColor.white.withAlphaComponent(min(0.18, backgroundOpacity * 0.16)).setStroke()
+        card.lineWidth = 1
+        card.stroke()
+      }
 
       let contentWidth = max(0, size.width - 2 * horizontalInset)
       guard contentWidth > 0 else { return }
 
       let paragraph = NSMutableParagraphStyle()
-      paragraph.alignment = .center
+      paragraph.alignment = textAlignment(for: style.alignment)
       paragraph.lineBreakMode = .byTruncatingTail
 
       let shadow = NSShadow()
-      shadow.shadowColor = UIColor.black.withAlphaComponent(0.55)
-      shadow.shadowBlurRadius = 5
+      shadow.shadowColor = UIColor.black.withAlphaComponent(hasBackground ? 0.55 : 0.7)
+      shadow.shadowBlurRadius = hasBackground ? 5 : 2
       shadow.shadowOffset = CGSize(width: 0, height: 1)
 
       func attributes(color: UIColor) -> [NSAttributedString.Key: Any] {
-        [
-          .font: UIFont.systemFont(ofSize: pointSize, weight: .bold),
+        var values: [NSAttributedString.Key: Any] = [
+          .font: UIFont.systemFont(ofSize: style.pointSize, weight: .bold),
           .foregroundColor: color,
           .paragraphStyle: paragraph,
           .shadow: shadow,
         ]
+        // White text on a bright desktop needs an outline; a shadow alone washes out.
+        if needsOutline {
+          values[.strokeColor] = UIColor.black.withAlphaComponent(0.9)
+          values[.strokeWidth] = -5
+        }
+        return values
       }
 
       let lineText = content.currentText.isEmpty ? "♪" : content.currentText
@@ -126,7 +149,7 @@
       )
 
       let nextFont = UIFont.systemFont(
-        ofSize: max(13, pointSize * 0.5),
+        ofSize: max(13, style.pointSize * 0.5),
         weight: .medium
       )
       let nextHeight = content.nextText == nil ? 0 : ceil(nextFont.lineHeight)
@@ -154,13 +177,17 @@
 
       if let nextText = content.nextText {
         let nextParagraph = NSMutableParagraphStyle()
-        nextParagraph.alignment = .center
+        nextParagraph.alignment = textAlignment(for: style.alignment)
         nextParagraph.lineBreakMode = .byTruncatingTail
-        let nextAttributes: [NSAttributedString.Key: Any] = [
+        var nextAttributes: [NSAttributedString.Key: Any] = [
           .font: nextFont,
-          .foregroundColor: UIColor.white.withAlphaComponent(0.42),
+          .foregroundColor: UIColor.white.withAlphaComponent(hasBackground ? 0.42 : 0.75),
           .paragraphStyle: nextParagraph,
         ]
+        if needsOutline {
+          nextAttributes[.strokeColor] = UIColor.black.withAlphaComponent(0.85)
+          nextAttributes[.strokeWidth] = -4
+        }
         let nextRect = CGRect(
           x: horizontalInset,
           y: size.height - bottomInset - nextHeight,
@@ -168,6 +195,14 @@
           height: nextHeight
         )
         (nextText as NSString).draw(in: nextRect, withAttributes: nextAttributes)
+      }
+    }
+
+    private static func textAlignment(for alignment: DesktopLyricsAlignment) -> NSTextAlignment {
+      switch alignment {
+      case .left: return .left
+      case .center: return .center
+      case .right: return .right
       }
     }
 
@@ -211,7 +246,12 @@
     private let contentLayer: CALayer
     private let contentView: NSObject
 
-    private var currentPointSize = DesktopLyricsFontSize.medium.pointSize
+    private var style = DesktopLyricsStyle(
+      pointSize: DesktopLyricsFontSize.medium.pointSize,
+      backgroundOpacity: 0.74,
+      alignment: .defaultValue,
+      showsNextLine: true
+    )
     private var currentContent: DesktopLyricsContent?
 
     private init(window: NSObject, view: NSObject, layer: CALayer) {
@@ -257,14 +297,23 @@
       _ = window.perform(NSSelectorFromString("orderOut:"), with: nil)
     }
 
-    func setPointSize(_ pointSize: CGFloat) {
-      guard abs(pointSize - currentPointSize) > 0.5 else { return }
-      currentPointSize = pointSize
-      let size = DesktopLyricsRenderer.panelSize(pointSize: pointSize)
-      var frame = currentFrame
-      frame.size = size
-      applyFrame(frame)
+    func apply(style: DesktopLyricsStyle) {
+      self.style = style
+      let size = DesktopLyricsRenderer.panelSize(style: style)
+      let frame = currentFrame
+      if abs(size.width - frame.width) > 0.5 || abs(size.height - frame.height) > 0.5 {
+        var newFrame = frame
+        newFrame.size = size
+        applyFrame(newFrame)
+      }
       renderCurrentContent()
+    }
+
+    func setAlwaysOnTop(_ isAlwaysOnTop: Bool) {
+      window.setValue(
+        NSNumber(value: isAlwaysOnTop ? Self.windowLevelFloating : 0),
+        forKey: "level"
+      )
     }
 
     func setLocked(_ locked: Bool) {
@@ -283,7 +332,7 @@
       let size = currentFrame.size
       guard let image = DesktopLyricsRenderer.render(
         content: content,
-        pointSize: currentPointSize,
+        style: style,
         size: size,
         scale: screenScale
       )
@@ -410,7 +459,7 @@
     }
 
     private func restoreFrame() {
-      let size = DesktopLyricsRenderer.panelSize(pointSize: currentPointSize)
+      let size = DesktopLyricsRenderer.panelSize(style: style)
       var frame = CGRect(origin: Self.defaultOrigin(for: size), size: size)
       if let stored = UserDefaults.standard.array(forKey: Self.frameDefaultsKey) as? [Double],
          stored.count == 4 {

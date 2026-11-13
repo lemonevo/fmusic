@@ -60,6 +60,14 @@ final class Settings: ObservableObject {
   @Published
   var isDesktopLyricsLocked = false
   @Published
+  var desktopLyricsBackgroundOpacity = 74
+  @Published
+  var isDesktopLyricsNextLineShown = true
+  @Published
+  var desktopLyricsAlignment: DesktopLyricsAlignment = .defaultValue
+  @Published
+  var isDesktopLyricsAlwaysOnTop = true
+  @Published
   var isMenuBarLyricsEnabled = false
   @Published
   var swipeActionSettings = SwipeActionSettings(leading: [], trailing: [])

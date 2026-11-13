@@ -37,6 +37,19 @@ struct DisplaySettingsView: View {
     appDelegate.setAppAppearanceMode(style: style)
   }
 
+  private var backgroundOpacityBinding: Binding<Double> {
+    Binding(
+      get: { Double(settings.desktopLyricsBackgroundOpacity) },
+      set: { settings.desktopLyricsBackgroundOpacity = Int($0.rounded()) }
+    )
+  }
+
+  private var opacityLabel: String {
+    settings.desktopLyricsBackgroundOpacity == 0
+      ? L10n.tr("Transparent")
+      : "\(settings.desktopLyricsBackgroundOpacity)%"
+  }
+
   var body: some View {
     ZStack {
       SettingsList {
@@ -118,6 +131,41 @@ struct DisplaySettingsView: View {
                   .pickerStyle(.menu)
                   .labelsHidden()
                 }
+                SettingsRow(title: L10n.tr("Alignment")) {
+                  Picker("", selection: $settings.desktopLyricsAlignment) {
+                    ForEach(DesktopLyricsAlignment.allCases, id: \.self) { alignment in
+                      Text(alignment.description).tag(alignment)
+                    }
+                  }
+                  .pickerStyle(.menu)
+                  .labelsHidden()
+                }
+                SettingsRow(title: L10n.tr("Background Opacity")) {
+                  HStack(spacing: 10) {
+                    Slider(value: backgroundOpacityBinding, in: 0 ... 100, step: 1)
+                      .frame(width: 150)
+                    Text(opacityLabel)
+                      .font(.system(size: 12))
+                      .foregroundStyle(.secondary)
+                      .monospacedDigit()
+                      .frame(width: 52, alignment: .trailing)
+                  }
+                }
+                SettingsCheckBoxRow(
+                  title: L10n.tr("Show Next Line"),
+                  isOn: $settings.isDesktopLyricsNextLineShown
+                )
+                SettingsCheckBoxRow(
+                  title: L10n.tr("Always on Top"),
+                  isOn: $settings.isDesktopLyricsAlwaysOnTop
+                )
+              },
+              footer:
+              L10n.tr("At 0% the background is fully transparent and only the lyrics remain.")
+            )
+
+            SettingsSection(
+              content: {
                 SettingsCheckBoxRow(
                   title: L10n.tr("Lock Desktop Lyrics"),
                   isOn: $settings.isDesktopLyricsLocked
