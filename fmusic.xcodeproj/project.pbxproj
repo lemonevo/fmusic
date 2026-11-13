@@ -404,6 +404,10 @@
 		6333C8E12C6FDB5200CCA50A /* SecondaryText.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6333C8E02C6FDB5200CCA50A /* SecondaryText.swift */; };
 		637A28B52C79409C0082FACC /* MiniPlayerSceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */; };
 		C0A1B0032EEE000000000003 /* MacWindowHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0022EEE000000000002 /* MacWindowHelper.swift */; };
+		C0A1B0212EEE000000000021 /* LyricsLineTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0222EEE000000000022 /* LyricsLineTracker.swift */; };
+		C0A1B0232EEE000000000023 /* DesktopLyricsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0242EEE000000000024 /* DesktopLyricsWindow.swift */; };
+		C0A1B0252EEE000000000025 /* MenuBarLyricsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0262EEE000000000026 /* MenuBarLyricsController.swift */; };
+		C0A1B0272EEE000000000027 /* LyricsOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0282EEE000000000028 /* LyricsOverlayManager.swift */; };
 		638920F02C8C8E9000932EE8 /* SettingsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 638920EF2C8C8E9000932EE8 /* SettingsList.swift */; };
 		63AD7E4830A283A000BBC0E1 /* AppIconCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AD7E4730A283A000BBC0E1 /* AppIconCategory.swift */; };
 		63AD7E4A30A283B700BBC0E1 /* AppIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */; };
@@ -863,6 +867,10 @@
 		6333C8E02C6FDB5200CCA50A /* SecondaryText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecondaryText.swift; sourceTree = "<group>"; };
 		637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerSceneDelegate.swift; sourceTree = "<group>"; };
 		C0A1B0022EEE000000000002 /* MacWindowHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacWindowHelper.swift; sourceTree = "<group>"; };
+		C0A1B0222EEE000000000022 /* LyricsLineTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLineTracker.swift; sourceTree = "<group>"; };
+		C0A1B0242EEE000000000024 /* DesktopLyricsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindow.swift; sourceTree = "<group>"; };
+		C0A1B0262EEE000000000026 /* MenuBarLyricsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuBarLyricsController.swift; sourceTree = "<group>"; };
+		C0A1B0282EEE000000000028 /* LyricsOverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsOverlayManager.swift; sourceTree = "<group>"; };
 		638920EF2C8C8E9000932EE8 /* SettingsList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsList.swift; sourceTree = "<group>"; };
 		63AD7E4730A283A000BBC0E1 /* AppIconCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconCategory.swift; sourceTree = "<group>"; };
 		63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconOption.swift; sourceTree = "<group>"; };
@@ -1222,6 +1230,7 @@
 				63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */,
 				637A28B42C79409B0082FACC /* MiniPlayerSceneDelegate.swift */,
 				C0A1B0022EEE000000000002 /* MacWindowHelper.swift */,
+				C0A1B0202EEE000000000020 /* LyricsOverlay */,
 				50CFBC532E464EDE00EAA7BC /* AppDelegateMainMenuExtension.swift */,
 				509001B72716C8F400A8056D /* AppDelegateNotificationExtensions.swift */,
 				509001B52716C7F600A8056D /* AppDelegateAlertExtensions.swift */,
@@ -1239,6 +1248,17 @@
 				A1C500000000000000000002 /* Localizable.strings */,
 			);
 			path = fmusic;
+			sourceTree = "<group>";
+		};
+		C0A1B0202EEE000000000020 /* LyricsOverlay */ = {
+			isa = PBXGroup;
+			children = (
+				C0A1B0222EEE000000000022 /* LyricsLineTracker.swift */,
+				C0A1B0242EEE000000000024 /* DesktopLyricsWindow.swift */,
+				C0A1B0262EEE000000000026 /* MenuBarLyricsController.swift */,
+				C0A1B0282EEE000000000028 /* LyricsOverlayManager.swift */,
+			);
+			path = LyricsOverlay;
 			sourceTree = "<group>";
 		};
 		5086F87322384A4300546F5A /* Api */ = {
@@ -2099,6 +2119,10 @@
 				50A30E5C2B7556FB00722894 /* PopupPlayer+TableViewExtension.swift in Sources */,
 				637A28B52C79409C0082FACC /* MiniPlayerSceneDelegate.swift in Sources */,
 				C0A1B0032EEE000000000003 /* MacWindowHelper.swift in Sources */,
+				C0A1B0212EEE000000000021 /* LyricsLineTracker.swift in Sources */,
+				C0A1B0232EEE000000000023 /* DesktopLyricsWindow.swift in Sources */,
+				C0A1B0252EEE000000000025 /* MenuBarLyricsController.swift in Sources */,
+				C0A1B0272EEE000000000027 /* LyricsOverlayManager.swift in Sources */,
 				505CA2112B88ECC700AA81CD /* SingleFetchedResultsTableViewController.swift in Sources */,
 				50C9D717285075E3007F18D0 /* UtilitiesExtensions.swift in Sources */,
 				505CA2142B88ED6100AA81CD /* SingleSnapshotFetchedResultsTableViewController.swift in Sources */,

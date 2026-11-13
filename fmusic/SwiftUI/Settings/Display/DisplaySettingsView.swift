@@ -94,6 +94,50 @@ struct DisplaySettingsView: View {
             footer:
             L10n.tr("Keep the mini player window floating above all other windows.")
           )
+
+          SettingsSection(
+            content: {
+              SettingsCheckBoxRow(
+                title: L10n.tr("Desktop Lyrics"),
+                isOn: $settings.isDesktopLyricsEnabled
+              )
+            },
+            footer:
+            L10n.tr("Show the current lyric line in a floating window above all other windows. Drag it to move it.")
+          )
+
+          if settings.isDesktopLyricsEnabled {
+            SettingsSection(
+              content: {
+                SettingsRow(title: L10n.tr("Desktop Lyrics Font Size")) {
+                  Picker("", selection: $settings.desktopLyricsFontSize) {
+                    ForEach(DesktopLyricsFontSize.allCases, id: \.self) { size in
+                      Text(size.description).tag(size)
+                    }
+                  }
+                  .pickerStyle(.menu)
+                  .labelsHidden()
+                }
+                SettingsCheckBoxRow(
+                  title: L10n.tr("Lock Desktop Lyrics"),
+                  isOn: $settings.isDesktopLyricsLocked
+                )
+              },
+              footer:
+              L10n.tr("Lock the desktop lyrics in place and let mouse clicks pass through.")
+            )
+          }
+
+          SettingsSection(
+            content: {
+              SettingsCheckBoxRow(
+                title: L10n.tr("Menu Bar Lyrics"),
+                isOn: $settings.isMenuBarLyricsEnabled
+              )
+            },
+            footer:
+            L10n.tr("Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area.")
+          )
         #endif
 
         SettingsSection(

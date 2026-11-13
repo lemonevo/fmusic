@@ -182,6 +182,38 @@ class SettingsHostVC: UIViewController {
       self.appDelegate.storage.settings.user.isLyricsSmoothScrolling = newValue
     }))
 
+    settings.isDesktopLyricsEnabled = appDelegate.storage.settings.user.isDesktopLyricsEnabled
+    changesAgent.append(settings.$isDesktopLyricsEnabled.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user.isDesktopLyricsEnabled != newValue else { return }
+      self.appDelegate.storage.settings.user.isDesktopLyricsEnabled = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.desktopLyricsFontSize = appDelegate.storage.settings.user.desktopLyricsFontSize
+    changesAgent.append(settings.$desktopLyricsFontSize.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user.desktopLyricsFontSize != newValue else { return }
+      self.appDelegate.storage.settings.user.desktopLyricsFontSize = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.isDesktopLyricsLocked = appDelegate.storage.settings.user.isDesktopLyricsLocked
+    changesAgent.append(settings.$isDesktopLyricsLocked.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user.isDesktopLyricsLocked != newValue else { return }
+      self.appDelegate.storage.settings.user.isDesktopLyricsLocked = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
+    settings.isMenuBarLyricsEnabled = appDelegate.storage.settings.user.isMenuBarLyricsEnabled
+    changesAgent.append(settings.$isMenuBarLyricsEnabled.sink(receiveValue: { [weak self] newValue in
+      guard let self else { return }
+      guard self.appDelegate.storage.settings.user.isMenuBarLyricsEnabled != newValue else { return }
+      self.appDelegate.storage.settings.user.isMenuBarLyricsEnabled = newValue
+      self.appDelegate.updateLyricsOverlays()
+    }))
+
     settings.screenLockPreventionPreference = appDelegate.storage.settings.user
       .screenLockPreventionPreference
     changesAgent.append(settings.$screenLockPreventionPreference.sink(receiveValue: { [weak self] newValue in

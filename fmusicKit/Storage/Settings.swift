@@ -113,6 +113,30 @@ public struct UserSettings: Sendable, Codable {
     set { _isLyricsSmoothScrolling = newValue }
   }
 
+  private var _isDesktopLyricsEnabled: Bool = false
+  public var isDesktopLyricsEnabled: Bool {
+    get { _isDesktopLyricsEnabled }
+    set { _isDesktopLyricsEnabled = newValue }
+  }
+
+  private var _desktopLyricsFontSize: DesktopLyricsFontSize = .defaultValue
+  public var desktopLyricsFontSize: DesktopLyricsFontSize {
+    get { _desktopLyricsFontSize }
+    set { _desktopLyricsFontSize = newValue }
+  }
+
+  private var _isDesktopLyricsLocked: Bool = false
+  public var isDesktopLyricsLocked: Bool {
+    get { _isDesktopLyricsLocked }
+    set { _isDesktopLyricsLocked = newValue }
+  }
+
+  private var _isMenuBarLyricsEnabled: Bool = false
+  public var isMenuBarLyricsEnabled: Bool {
+    get { _isMenuBarLyricsEnabled }
+    set { _isMenuBarLyricsEnabled = newValue }
+  }
+
   // limit in byte
   private var _cacheLimit: Int = 0
   public var cacheLimit: Int {

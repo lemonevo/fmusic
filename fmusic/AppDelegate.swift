@@ -122,6 +122,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   var miniPlayerSceneSession: UISceneSession?
 
+  #if targetEnvironment(macCatalyst)
+    lazy var lyricsOverlayManager = LyricsOverlayManager(player: player, storage: storage)
+  #endif
+
   var sleepTimer: Timer?
 
   var isKeepScreenAlive: Bool {
@@ -251,6 +255,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       isAlreadyRegisteredToPlayer = true
       player.addNotifier(notifier: self)
     }
+    updateLyricsOverlays()
   }
 
   func startManagerForNormalOperation() {
@@ -262,6 +267,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     isAlreadyRegisteredToPlayer = true
     player.addNotifier(notifier: self)
+    updateLyricsOverlays()
   }
 
   func setAppTheme(color: UIColor) {

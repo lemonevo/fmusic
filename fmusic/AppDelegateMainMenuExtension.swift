@@ -351,6 +351,12 @@ extension AppDelegate {
     #endif
   }
 
+  func updateLyricsOverlays() {
+    #if targetEnvironment(macCatalyst)
+      lyricsOverlayManager.start()
+    #endif
+  }
+
   func createSleepTimerMenu(refreshCB: VoidFunctionCallback?) -> UIMenuElement {
     if let timer = sleepTimer {
       let actionTitle = L10n.tr("Turn Off (Pause at: %@)", timer.fireDate.asShortHrMinString)

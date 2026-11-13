@@ -28,6 +28,22 @@ struct LyricsSyllableTiming {
 }
 
 enum LyricsTimingMap {
+  /// Estimated time a line stays highlighted. Font metrics are not available here, so the
+  /// duration comes from the character count and the gap to the next timestamp.
+  static func estimatedDurations(for lines: [LyricsLine]) -> [Double] {
+    lines.indices.map { index in
+      let line = lines[index]
+      let characterCount = line.value.reduce(0) { $0 + ($1.isWhitespace ? 0 : 1) }
+      let estimated = Double(characterCount) * 0.36
+      guard let start = line.start else { return max(estimated, 0.4) }
+      let nextStart = lines[(index + 1)...].first(where: { $0.start != nil })?.start
+      guard let nextStart else { return max(estimated, 0.4) }
+      let gap = Double(nextStart - start) / 1_000
+      guard gap > 0 else { return max(estimated, 0.4) }
+      return max(0.4, min(estimated, gap * 0.9))
+    }
+  }
+
   /// Maps word timings onto the displayed characters. YRC words concatenate to the line,
   /// so ranges are exact; if they ever diverge the words share the line proportionally.
   /// LRC has no word data, so characters get an even share of the estimated duration.
@@ -119,15 +135,20 @@ final class LyricsTextLayout {
   let manager: NSLayoutManager
   let container: NSTextContainer
 
-  init(text: NSAttributedString, width: CGFloat) {
+  init(
+    text: NSAttributedString,
+    width: CGFloat,
+    maximumNumberOfLines: Int = LyricsTextLayout.maxLines,
+    lineBreakMode: NSLineBreakMode = .byWordWrapping
+  ) {
     storage = NSTextStorage(attributedString: text)
     manager = NSLayoutManager()
     container = NSTextContainer(
       size: CGSize(width: max(width, 1), height: .greatestFiniteMagnitude)
     )
     container.lineFragmentPadding = 0
-    container.maximumNumberOfLines = Self.maxLines
-    container.lineBreakMode = .byWordWrapping
+    container.maximumNumberOfLines = maximumNumberOfLines
+    container.lineBreakMode = lineBreakMode
     storage.addLayoutManager(manager)
     manager.addTextContainer(container)
     manager.ensureLayout(for: container)
@@ -159,11 +180,11 @@ final class LyricsTextLayout {
     return result
   }
 
-  func draw() {
+  func draw(at origin: CGPoint = .zero) {
     guard manager.numberOfGlyphs > 0 else { return }
     manager.drawGlyphs(
       forGlyphRange: NSRange(location: 0, length: manager.numberOfGlyphs),
-      at: .zero
+      at: origin
     )
   }
 }

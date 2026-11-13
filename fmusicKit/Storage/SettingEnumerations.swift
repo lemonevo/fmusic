@@ -309,6 +309,32 @@ public enum VisualizerType: String, CaseIterable, Sendable, Codable {
   }
 }
 
+// MARK: - DesktopLyricsFontSize
+
+public enum DesktopLyricsFontSize: Int, CaseIterable, Sendable, Codable {
+  case small = 0
+  case medium = 1
+  case large = 2
+
+  public static let defaultValue: DesktopLyricsFontSize = .medium
+
+  public var description: String {
+    switch self {
+    case .small: return L10n.tr("Small")
+    case .medium: return L10n.tr("Medium")
+    case .large: return L10n.tr("Large")
+    }
+  }
+
+  public var pointSize: CGFloat {
+    switch self {
+    case .small: return 24
+    case .medium: return 30
+    case .large: return 36
+    }
+  }
+}
+
 // MARK: - UIUserInterfaceStyle
 
 extension UIUserInterfaceStyle: @retroactive Encodable, @retroactive Decodable {

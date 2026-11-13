@@ -346,7 +346,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
       return
     }
 
-    lineFillDurations = Self.fillDurations(for: lyrics.line)
+    lineFillDurations = LyricsTimingMap.estimatedDurations(for: lyrics.line)
     for (index, lyric) in lyrics.line.enumerated() {
       let model = LyricTableCellModel(
         lyric: lyric,
@@ -355,20 +355,6 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
       lyricModels.append(model)
     }
     reloadData()
-  }
-
-  private static func fillDurations(for lines: [LyricsLine]) -> [Double] {
-    lines.indices.map { index in
-      let line = lines[index]
-      let characterCount = line.value.reduce(0) { $0 + ($1.isWhitespace ? 0 : 1) }
-      let estimated = Double(characterCount) * 0.36
-      guard let start = line.start else { return max(estimated, 0.4) }
-      let nextStart = lines[(index + 1)...].first(where: { $0.start != nil })?.start
-      guard let nextStart else { return max(estimated, 0.4) }
-      let gap = Double(nextStart - start) / 1_000
-      guard gap > 0 else { return max(estimated, 0.4) }
-      return max(0.4, min(estimated, gap * 0.9))
-    }
   }
 
   private func updateActiveFill(rawSeconds: Double) {
