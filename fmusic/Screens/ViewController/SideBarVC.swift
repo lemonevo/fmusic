@@ -138,7 +138,7 @@ class SideBarVC: KeyCommandCollectionViewController {
 
     let name = UILabel()
     name.translatesAutoresizingMaskIntoConstraints = false
-    name.font = .systemFont(ofSize: 13, weight: .semibold)
+    name.font = .systemFont(ofSize: 15, weight: .semibold)
     name.textColor = .label
 
     let stack = UIStackView(arrangedSubviews: [avatar, name])
@@ -148,23 +148,28 @@ class SideBarVC: KeyCommandCollectionViewController {
     stack.spacing = 14
     stack.isUserInteractionEnabled = false
 
-    let settingsButton = UIButton(type: .system)
+    let settingsButton = UIControl()
     settingsButton.translatesAutoresizingMaskIntoConstraints = false
-    settingsButton.setImage(
-      UIImage(
-        systemName: "gearshape",
-        withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)
-      ),
-      for: .normal
-    )
-    settingsButton.tintColor = .secondaryLabel
+    settingsButton.isAccessibilityElement = true
     settingsButton.accessibilityLabel = L10n.tr("Settings")
+    settingsButton.accessibilityTraits = .button
     settingsButton.addTarget(self, action: #selector(showSettings), for: .touchUpInside)
+
+    let gearView = UIImageView(
+      image: UIImage(
+        systemName: "gearshape",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .regular)
+      )
+    )
+    gearView.translatesAutoresizingMaskIntoConstraints = false
+    gearView.contentMode = .scaleAspectFit
+    gearView.tintColor = .secondaryLabel
 
     guard let containerView = navigationController?.view ?? view else { return }
     containerView.addSubview(footer)
     footer.addSubview(button)
     footer.addSubview(settingsButton)
+    settingsButton.addSubview(gearView)
     button.addSubview(stack)
 
     NSLayoutConstraint.activate([
@@ -185,6 +190,11 @@ class SideBarVC: KeyCommandCollectionViewController {
       settingsButton.centerYAnchor.constraint(equalTo: button.centerYAnchor),
       settingsButton.widthAnchor.constraint(equalToConstant: 28),
       settingsButton.heightAnchor.constraint(equalToConstant: 28),
+
+      gearView.widthAnchor.constraint(equalToConstant: 18),
+      gearView.heightAnchor.constraint(equalToConstant: 18),
+      gearView.centerXAnchor.constraint(equalTo: settingsButton.centerXAnchor),
+      gearView.centerYAnchor.constraint(equalTo: settingsButton.centerYAnchor),
 
       stack.leadingAnchor.constraint(equalTo: button.leadingAnchor),
       stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
@@ -511,7 +521,7 @@ private final class AccountSwitcherView: UIView {
     minusButton.setImage(
       UIImage(
         systemName: "minus.circle",
-        withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 17, weight: .medium)
       ),
       for: .normal
     )
