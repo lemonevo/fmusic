@@ -30,17 +30,17 @@ class LyricTableCellModel {
   // White on the player's dark surface, and a dark gray on the light lyrics panel. This is
   // the same brightness adaptation Apple Music applies to lyrics over different backdrops.
   private static let activeTextColor = UIColor { traits in
-    traits.userInterfaceStyle == .dark ? .white : UIColor(white: 0.12, alpha: 1)
+    traits.userInterfaceStyle == .dark ? .white : UIColor(white: 0.32, alpha: 1)
   }
   private static let activeDimTextColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor.white.withAlphaComponent(0.55)
-      : UIColor(white: 0.12, alpha: 0.55)
+      : UIColor(white: 0.32, alpha: 0.55)
   }
   private static let inactiveTextColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor.white.withAlphaComponent(0.6)
-      : UIColor(white: 0.4, alpha: 1)
+      : UIColor(white: 0.5, alpha: 1)
   }
 
   let lyric: LyricsLine?
