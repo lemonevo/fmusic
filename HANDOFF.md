@@ -7,7 +7,7 @@
 
 ## 0. 先读：硬约束
 
-1. 这是用户自用的 fmusic 项目，仓库 `origin` 为 `lemonevo/fmusic`（私有），用户已授权推送；`upstream` 指向最初的原始项目，仅作参考，不要推送。
+1. 这是用户自用的 fmusic 项目，仓库 `origin` 为 `lemonevo/fmusic`（私有）。**推送/tag/发版前必须等用户明确同意**（用户要求先在本地改完 bug 再推）；`upstream` 指向原始项目，仅作参考，不要推送。
 2. 工作区应当是干净的（2026-11-13 已提交全量改名）；不要 `git reset --hard`、不要 `git checkout --`。
 3. 删除文件默认用 `trash <path>`（用户的 `rm` 就是 trash）；确需永久删除才用 `/bin/rm`。
 4. 仓库不放二进制/大文件。
