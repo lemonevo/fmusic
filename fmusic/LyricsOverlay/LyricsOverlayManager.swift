@@ -9,7 +9,6 @@
 
   import AppKit
   import CoreMedia
-  import QuartzCore
   import fmusicKit
 
   // MARK: - LyricsOverlayManager
@@ -28,7 +27,6 @@
     private var resolvedSongID: String?
     private var isLoadingLyrics = false
     private var isRegistered = false
-    private var lastDesktopRenderTime: CFTimeInterval = 0
 
     init(player: PlayerFacade, storage: PersistentStorage) {
       self.player = player
@@ -227,10 +225,6 @@
         desktopPanel.hide()
         return
       }
-
-      let now = CACurrentMediaTime()
-      guard now - lastDesktopRenderTime >= 1.0 / 30.0 else { return }
-      lastDesktopRenderTime = now
 
       if !desktopPanel.isVisible {
         desktopPanel.show()
