@@ -40,15 +40,9 @@ class LyricsVC: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    // Match the sidebar material instead of painting an opaque panel, so both sidebars read
-    // as the same surface. The lyric colors adapt to the appearance for contrast.
+    // The inspector column already draws the sidebar surface; keeping the root view clear
+    // makes the lyrics panel match the left sidebar exactly.
     view.backgroundColor = .clear
-
-    let backgroundEffectView = UIVisualEffectView(
-      effect: UIBlurEffect(style: .systemThinMaterial)
-    )
-    backgroundEffectView.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(backgroundEffectView)
 
     let lyricsView = LyricsView()
     lyricsView.translatesAutoresizingMaskIntoConstraints = false
@@ -56,10 +50,6 @@ class LyricsVC: UIViewController {
     view.addSubview(lyricsView)
 
     NSLayoutConstraint.activate([
-      backgroundEffectView.topAnchor.constraint(equalTo: view.topAnchor),
-      backgroundEffectView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-      backgroundEffectView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-      backgroundEffectView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
       lyricsView.topAnchor.constraint(equalTo: view.topAnchor),
       lyricsView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
       lyricsView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
