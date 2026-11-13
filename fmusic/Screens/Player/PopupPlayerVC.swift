@@ -370,19 +370,16 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
 
   func updateVolumeControlVisibility(for displayStyle: PlayerDisplayStyle) {
     #if targetEnvironment(macCatalyst)
-      // Apple Music keeps the slider in the title bar row; the in-content capsule is only
-      // the fallback when the scene exposes no title bar.
-      if displayStyle == .large {
-        windowVolumeControl?.attach(to: view.window?.windowScene)
-      } else {
-        windowVolumeControl?.detach()
-      }
-      volumeSliderControl?.isHidden = displayStyle != .large
-        || (windowVolumeControl?.isAttached ?? false)
+      // The title bar slider is part of the player's chrome in every display style; the
+      // in-content capsule is only the fallback when the scene exposes no title bar.
+      windowVolumeControl?.attach(to: view.window?.windowScene)
+      let hasTitlebarVolume = windowVolumeControl?.isAttached ?? false
+      volumeSliderControl?.isHidden = hasTitlebarVolume
+      controlView?.updateVolumeControlVisibility(for: displayStyle)
     #else
       volumeSliderControl?.isHidden = displayStyle != .large
+      controlView?.updateVolumeControlVisibility(for: displayStyle)
     #endif
-    controlView?.updateVolumeControlVisibility(for: displayStyle)
   }
 
   override func viewDidLayoutSubviews() {
@@ -392,12 +389,15 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
     applyGradientBackground()
     #if targetEnvironment(macCatalyst)
       // The window scene exists once the player is actually in a window.
-      if isPlayerVisible,
-         appDelegate.storage.settings.user.playerDisplayStyle == .large {
+      if isPlayerVisible {
         if !(windowVolumeControl?.isAttached ?? false) {
           windowVolumeControl?.attach(to: view.window?.windowScene)
         }
-        volumeSliderControl?.isHidden = windowVolumeControl?.isAttached ?? false
+        let hasTitlebarVolume = windowVolumeControl?.isAttached ?? false
+        volumeSliderControl?.isHidden = hasTitlebarVolume
+        controlView?.updateVolumeControlVisibility(
+          for: appDelegate.storage.settings.user.playerDisplayStyle
+        )
       }
     #endif
   }

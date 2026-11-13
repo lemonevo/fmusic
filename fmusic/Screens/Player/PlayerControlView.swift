@@ -228,10 +228,14 @@ class PlayerControlView: UIView {
     )
   }
 
-  /// Compact mode has its own header row, so the volume control only floats top-right in the
-  /// full player. In compact mode the volume button stays available in the utility cluster.
+  /// The utility cluster mirrors the full player in every display style: on Mac the volume
+  /// always lives in the top-right title bar control, so the cluster keeps the same three icons.
   func updateVolumeControlVisibility(for displayStyle: PlayerDisplayStyle) {
-    volumeButton.isHidden = displayStyle == .large
+    #if targetEnvironment(macCatalyst)
+      volumeButton.isHidden = true
+    #else
+      volumeButton.isHidden = displayStyle == .large
+    #endif
   }
 
   func prepare(toWorkOnRootView: PopupPlayerVC?) {
