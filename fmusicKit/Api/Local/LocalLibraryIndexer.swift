@@ -92,8 +92,17 @@ final class LocalLibraryIndexer: LibrarySyncer {
     var items = [LocalFileItem]()
     items.reserveCapacity(files.count)
     var artworkAlbumIDs = Set<String>()
+    // One cover read per folder instead of once per track in that folder.
+    let folderArtwork = await Self.folderArtworkMap(
+      for: Set(files.map { $0.deletingLastPathComponent() })
+    )
     for fileURL in files {
-      guard var item = await Self.read(fileURL: fileURL, rootURL: folderURL) else {
+      guard var item = await Self.read(
+        fileURL: fileURL,
+        rootURL: folderURL,
+        folderArtwork: folderArtwork[fileURL.deletingLastPathComponent().path]
+      )
+      else {
         statusNotifyier?.notifyParsedObject(ofType: .song)
         continue
       }
@@ -155,7 +164,12 @@ final class LocalLibraryIndexer: LibrarySyncer {
     return files.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
   }
 
-  nonisolated private static func read(fileURL: URL, rootURL: URL) async -> LocalFileItem? {
+  nonisolated private static func read(
+    fileURL: URL,
+    rootURL: URL,
+    folderArtwork: Data?
+  ) async
+    -> LocalFileItem? {
     let songRelativePath = relativePath(of: fileURL, rootURL: rootURL)
     guard !songRelativePath.isEmpty else { return nil }
 
@@ -224,7 +238,7 @@ final class LocalLibraryIndexer: LibrarySyncer {
     )
 
     let artwork = flacTags?.picture ?? mp3Tags?.picture ?? artworkData
-      ?? folderArtwork(in: albumFolderURL)
+      ?? folderArtwork
     let lyrics = sidecarLyrics(for: fileURL) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
 
     return LocalFileItem(
@@ -290,6 +304,19 @@ final class LocalLibraryIndexer: LibrarySyncer {
       rest = rest.dropFirst()
     }
     return (number, String(rest))
+  }
+
+  nonisolated private static func folderArtworkMap(
+    for folders: Set<URL>
+  ) async
+    -> [String: Data] {
+    var result = [String: Data]()
+    for folder in folders {
+      if let data = folderArtwork(in: folder) {
+        result[folder.path] = data
+      }
+    }
+    return result
   }
 
   nonisolated private static func folderArtwork(in folderURL: URL) -> Data? {

@@ -331,8 +331,15 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
     notifierList.append(WeakMusicPlayable(notifier))
   }
 
+  private func compactNotifiers() {
+    // Notifications fire at the 60 Hz lyrics rate; avoid rebuilding the array
+    // unless a weak target actually disappeared.
+    guard notifierList.contains(where: { $0.value == nil }) else { return }
+    notifierList.removeAll { $0.value == nil }
+  }
+
   func notifyItemStartedPlayingFromBeginning() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didStartPlayingFromBeginning()
     }
@@ -340,7 +347,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   }
 
   func notifyItemStartedPlaying() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didStartPlaying()
     }
@@ -348,70 +355,70 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
 
   // BackendAudioPlayerNotifiable
   func notifyErrorOccurred(error: Error) {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.errorOccurred(error: error)
     }
   }
 
   func notifyItemPaused() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didPause()
     }
   }
 
   func notifyPlayerStopped() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didStopPlaying()
     }
   }
 
   func notifyElapsedTimeChanged() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didElapsedTimeChange()
     }
   }
 
   func notifyLyricsTimeChanged(time: CMTime) {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didLyricsTimeChange(time: time)
     }
   }
 
   func notifyPlaylistUpdated() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didPlaylistChange()
     }
   }
 
   func notifyNowPlayingInfoChanged() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didNowPlayingInfoChange()
     }
   }
 
   func notifyShuffleUpdated() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didShuffleChange()
     }
   }
 
   func notifyRepeatUpdated() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didRepeatChange()
     }
   }
 
   func notifyPlaybackRateUpdated() {
-    notifierList = notifierList.filter { $0.value != nil }
+    compactNotifiers()
     for notifier in notifierList {
       notifier.value?.didPlaybackRateChange()
     }

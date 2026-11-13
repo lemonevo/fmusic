@@ -204,6 +204,15 @@ final class WebDAVClient: @unchecked Sendable {
 private final class WebDAVMultiStatusParser: NSObject, XMLParserDelegate {
   private let baseURL: URL
   private let basePath: String
+  // One formatter per response instead of one per PROPFIND entry: creating a
+  // DateFormatter is far more expensive than parsing the date itself.
+  private let httpDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+    return formatter
+  }()
   private var entries = [WebDAVEntry]()
   private var currentHref: String?
   private var currentIsDirectory = false
@@ -276,7 +285,7 @@ private final class WebDAVMultiStatusParser: NSObject, XMLParserDelegate {
     case "getcontenttype":
       currentContentType = value.isEmpty ? nil : value
     case "getlastmodified":
-      currentLastModified = Self.parseHTTPDate(value)
+      currentLastModified = httpDateFormatter.date(from: value)
     case "resourcetype":
       isInsideResourceType = false
     case "response":
@@ -318,13 +327,5 @@ private final class WebDAVMultiStatusParser: NSObject, XMLParserDelegate {
   private func localName(of elementName: String) -> String {
     guard let separator = elementName.firstIndex(of: ":") else { return elementName }
     return String(elementName[elementName.index(after: separator)...])
-  }
-
-  private static func parseHTTPDate(_ value: String) -> Date? {
-    let formatter = DateFormatter()
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-    return formatter.date(from: value)
   }
 }
