@@ -27,6 +27,23 @@ CRC-8 validated) and:
 Ogg Vorbis and the other decoders are untouched. `closeFileStreamIfNeeded()` clears the
 pending correction.
 
+### Frame-aligned restart (`AudioFileStreamProcessor.swift`, `RemoteAudioSource.swift`)
+
+`AudioFileStreamParseBytes` does not reliably resync when the first bytes after a seek start
+inside an FLAC frame. With small network chunks (slow WebDAV, small TCP reads) the parser
+returns `memFullErr` (-108) on some data, which the app shows as “Couldn't parse the bytes
+from the stream. Status: An unknown error occurred” because -108 is not one of the
+AudioFileStream error codes. Reproduced offline: feeding 512 byte / 1 KB chunks from a
+mid-frame offset fails at a fixed position; feeding the same chunks from the next frame sync
+never fails.
+
+The correction now drops chunks until a complete, CRC-validated frame header is found and
+then parses only from that header onward (previously the leading fragment was passed to the
+parser). After 512 KB without a plausible frame the ±30 s plausibility window is widened so
+a wildly off bitrate estimate still converges. `RemoteAudioSource` also stamps each stream
+request with a generation and ignores chunks that arrive after `close()`, so late data from
+a replaced seek request cannot reach the parser.
+
 ## Seek requested while paused (`AudioPlayer.swift`)
 
 `seek(to:)` only records `seekRequest`, and `processSource()` returns immediately while

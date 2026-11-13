@@ -7,6 +7,7 @@ import AudioToolbox
 import AVFoundation
 import Foundation
 import Network
+import OSLog
 
 enum RemoteAudioSourceError: Error {
     case mp4NotSeekable
@@ -36,6 +37,11 @@ public class RemoteAudioSource: AudioStreamSource {
     private var relativePosition: Int
     private var seekOffset: Int
     private var supportsSeek: Bool
+
+    /// Chunks that arrive after `close()` belong to a request that has already been replaced
+    /// and must not reach the parser, otherwise stale audio is mixed into the new position.
+    private let generationLock = NSLock()
+    private var streamGeneration: UInt64 = 0
 
     var metadataStreamProcessor: MetadataStreamSource
 
@@ -138,6 +144,9 @@ public class RemoteAudioSource: AudioStreamSource {
     }
 
     public func close() {
+        generationLock.lock()
+        streamGeneration &+= 1
+        generationLock.unlock()
         retrierTimeout.cancel()
         streamOperationQueue.isSuspended = false
         streamOperationQueue.cancelAllOperations()
@@ -148,6 +157,12 @@ public class RemoteAudioSource: AudioStreamSource {
         streamRequest = nil
     }
 
+    private func currentGeneration() -> UInt64 {
+        generationLock.lock()
+        defer { generationLock.unlock() }
+        return streamGeneration
+    }
+
     public func seek(at offset: Int) {
         close()
 
@@ -155,8 +170,10 @@ public class RemoteAudioSource: AudioStreamSource {
         seekOffset = offset
 
         if !supportsSeek, offset != relativePosition {
+            os_log(.error, "RemoteAudioSource seek ignored: supportsSeek=false offset=%d length=%d", offset, length)
             return
         }
+        os_log(.debug, "RemoteAudioSource seek: offset=%d supportsSeek=%d length=%d", offset, supportsSeek ? 1 : 0, length)
 
         mp4Restructure.clear()
         retrierTimeout.cancel()
@@ -283,8 +300,9 @@ public class RemoteAudioSource: AudioStreamSource {
             delegate?.errorOccurred(source: self, error: NetworkError.missingData)
             return
         }
+        let generation = currentGeneration()
         addStreamOperation { [weak self] in
-            guard let self = self else { return }
+            guard let self = self, self.currentGeneration() == generation else { return }
             if self.shouldTryParsingIcycastHeaders {
                 let (header, extractedAudio) = self.icycastHeadersProcessor.process(data: audioData)
                 if let header = header {

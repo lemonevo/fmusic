@@ -66,12 +66,23 @@ final class AudioFileStreamProcessor {
         var byteOffset: Int64
         var attempts: Int
         var blockSize: Int
+        var scannedBytes: Int
+    }
+
+    private enum FlacSeekHandling {
+        case notPending
+        case swallow
+        case parse(from: Int)
     }
 
     private var flacSeekCorrection: FlacSeekCorrection?
     private let flacSeekLock = NSLock()
     private let flacSeekMaxAttempts = 2
     private let flacSeekTolerance = 0.25
+    /// A seek estimate can land far from any frame header when the bitrate is still
+    /// approximate. After this many unmatched bytes, accept any CRC-valid frame instead of
+    /// only frames within the plausibility window.
+    private let flacSeekWidenAfterBytes = 512 * 1024
 
     var isFileStreamOpen: Bool {
         audioFileStream != nil || isProcessingOggVorbis
@@ -141,16 +152,39 @@ final class AudioFileStreamProcessor {
             return oggVorbisProcessor.parseOggVorbisData(data: data)
         }
 
-        // Data that belongs to a byte offset we are about to replace must not reach the parser.
-        if handleFlacSeekCorrectionIfNeeded(data: data) {
+        var parseData = data
+        switch handleFlacSeekCorrectionIfNeeded(data: data) {
+        case .notPending:
+            break
+        case .swallow:
             return noErr
+        case let .parse(offset):
+            // Never start the parser in the middle of a frame: with small network chunks the
+            // FLAC parser can fail with memFullErr (-108) instead of resyncing.
+            if offset > 0 {
+                parseData = data[offset...]
+            }
         }
 
         guard let stream = audioFileStream else { return 0 }
         let flags: AudioFileStreamParseFlags = discontinuous ? .discontinuity : .init()
-        return data.withUnsafeBytes { buffer -> OSStatus in
+        let status = parseData.withUnsafeBytes { buffer -> OSStatus in
             AudioFileStreamParseBytes(stream, UInt32(buffer.count), buffer.baseAddress, flags)
         }
+        if status != noErr {
+            flacSeekLock.lock()
+            let pending = flacSeekCorrection
+            flacSeekLock.unlock()
+            let seekInfo = pending.map {
+                "attempt=\($0.attempts) req=\($0.requestedTime) byte=\($0.byteOffset)"
+            } ?? "none"
+            let head = data.prefix(24).map { String(format: "%02x", $0) }.joined()
+            os_log(.error, "AFL parse failed status=%d bytes=%d state=%ld seekPending=%@ offset=%lld head=%@",
+                   status, data.count, playerContext.internalState.rawValue,
+                   seekInfo, Int64(playerContext.audioReadingEntry?.audioStreamState.dataOffset ?? 0),
+                   head)
+        }
+        return status
     }
 
     // MARK: - FLAC seek correction
@@ -162,30 +196,41 @@ final class AudioFileStreamProcessor {
         let blockSize: Int
     }
 
-    /// Returns true when the chunk belongs to an offset that was replaced by a correction seek
-    /// and therefore must not be parsed.
-    private func handleFlacSeekCorrectionIfNeeded(data: Data) -> Bool {
+    private func handleFlacSeekCorrectionIfNeeded(data: Data) -> FlacSeekHandling {
         flacSeekLock.lock()
         let pending = flacSeekCorrection
         flacSeekLock.unlock()
-        guard var correction = pending, let entry = correction.entry else { return false }
+        guard var correction = pending, let entry = correction.entry else { return .notPending }
 
         let sampleRate = Double(entry.audioStreamFormat.mSampleRate)
         guard sampleRate > 0 else {
+            os_log(.default, "FLAC seek correction: no sample rate yet, letting %d bytes through", data.count)
             clearFlacSeekCorrection()
-            return false
+            return .notPending
         }
 
-        guard let frame = data.withUnsafeBytes({ buffer -> FlacFrameHeader? in
+        let timeWindow = correction.scannedBytes > flacSeekWidenAfterBytes ? Double.infinity : 30
+        let frame = data.withUnsafeBytes { buffer -> FlacFrameHeader? in
             guard let base = buffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else {
                 return nil
             }
             return firstValidFlacFrame(in: base, count: buffer.count,
                                        expectedTime: correction.requestedTime,
-                                       sampleRate: sampleRate)
-        }) else {
-            // No complete frame yet; keep waiting for the next chunk.
-            return false
+                                       sampleRate: sampleRate,
+                                       timeWindow: timeWindow)
+        }
+
+        guard let frame else {
+            // The chunk starts inside a frame. Feeding those bytes to AudioFileStreamParseBytes
+            // can make the FLAC parser fail with memFullErr (-108) instead of resyncing, so the
+            // fragment is dropped until the next real frame header shows up.
+            correction.scannedBytes += data.count
+            flacSeekLock.lock()
+            flacSeekCorrection = correction
+            flacSeekLock.unlock()
+            os_log(.debug, "FLAC seek correction: no frame in %d bytes (req=%.3f byte=%lld scanned=%d)",
+                   data.count, correction.requestedTime, correction.byteOffset, correction.scannedBytes)
+            return .swallow
         }
 
         if correction.blockSize == 0 {
@@ -195,7 +240,7 @@ final class AudioFileStreamProcessor {
         let blockSize = correction.blockSize > 0 ? correction.blockSize : frame.blockSize
         guard blockSize > 0 else {
             clearFlacSeekCorrection()
-            return false
+            return .parse(from: frame.bytePosition)
         }
 
         let sample = frame.blockingStrategy == 0
@@ -213,19 +258,20 @@ final class AudioFileStreamProcessor {
                 entry.seekTime = actualTime
                 entry.lock.unlock()
                 clearFlacSeekCorrection()
-                return false
+                return .parse(from: frame.bytePosition)
             }
             let minOffset = Int64(entry.audioStreamState.dataOffset)
             let maxOffset = Int64(max(entry.length - 2 * Int(entry.processedPacketsState.bufferSize), 0))
             let corrected = min(max(correction.byteOffset + Int64(delta * bytesPerSecond), minOffset), maxOffset)
             correction.attempts += 1
             correction.byteOffset = corrected
+            correction.scannedBytes = 0
             flacSeekLock.lock()
             flacSeekCorrection = correction
             flacSeekLock.unlock()
             os_log(.default, "FLAC seek correction: requested=%.3f landed=%.3f, retrying at byte %lld", correction.requestedTime, actualTime, corrected)
             applySeekOffset(corrected, entry: entry)
-            return true
+            return .swallow
         }
 
         entry.lock.lock()
@@ -233,7 +279,7 @@ final class AudioFileStreamProcessor {
         entry.lock.unlock()
         clearFlacSeekCorrection()
         os_log(.default, "FLAC seek correction: requested=%.3f landed=%.3f attempts=%d", correction.requestedTime, actualTime, correction.attempts)
-        return false
+        return .parse(from: frame.bytePosition)
     }
 
 
@@ -294,7 +340,8 @@ final class AudioFileStreamProcessor {
     }
 
     private func firstValidFlacFrame(in bytes: UnsafePointer<UInt8>, count: Int,
-                                     expectedTime: Double, sampleRate: Double) -> FlacFrameHeader? {
+                                     expectedTime: Double, sampleRate: Double,
+                                     timeWindow: Double) -> FlacFrameHeader? {
         var index = 0
         while index < count - 8 {
             guard let frame = flacFrameHeader(in: bytes, count: count, at: index) else {
@@ -308,7 +355,7 @@ final class AudioFileStreamProcessor {
                     : Double(frame.number) / sampleRate
                 // A false sync in compressed data rarely passes the header CRC, but keep the
                 // position plausible anyway.
-                if abs(time - expectedTime) < 30 {
+                if timeWindow.isInfinite || abs(time - expectedTime) < timeWindow {
                     return frame
                 }
             }
@@ -458,6 +505,9 @@ final class AudioFileStreamProcessor {
         readingEntry.lock.unlock()
 
         let bitrate = readingEntry.calculatedBitrate()
+        os_log(.debug, "Seek: time=%.3f duration=%.3f dataOffset=%.0f dataLength=%.0f bitrate=%.0f offset=%lld length=%d format=%d",
+               readingEntry.seekRequest.time, duration, dataOffset, dataLengthInBytes, bitrate,
+               seekByteOffset, readingEntry.length, readingEntry.audioStreamFormat.mFormatID)
         if readingEntry.packetDuration > 0, bitrate > 0 {
             var ioFlags = AudioFileStreamSeekFlags(rawValue: 0)
             var packetsAlignedByteOffset: Int64 = 0
@@ -485,7 +535,8 @@ final class AudioFileStreamProcessor {
                 requestedTime: readingEntry.seekRequest.time,
                 byteOffset: seekByteOffset,
                 attempts: 0,
-                blockSize: 0
+                blockSize: 0,
+                scannedBytes: 0
             )
             flacSeekLock.unlock()
             
