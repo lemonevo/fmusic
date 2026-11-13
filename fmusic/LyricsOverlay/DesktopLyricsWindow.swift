@@ -87,8 +87,6 @@
 
       let backgroundOpacity = min(1, max(0, style.backgroundOpacity))
       let hasBackground = backgroundOpacity > 0.001
-      // A faint card barely darkens the desktop, so low-opacity text needs the outline too.
-      let needsOutline = backgroundOpacity < 0.5
       if hasBackground {
         let card = UIBezierPath(
           roundedRect: bounds.insetBy(dx: 0.5, dy: 0.5),
@@ -114,18 +112,12 @@
       shadow.shadowOffset = CGSize(width: 0, height: 1)
 
       func attributes(color: UIColor) -> [NSAttributedString.Key: Any] {
-        var values: [NSAttributedString.Key: Any] = [
+        [
           .font: UIFont.systemFont(ofSize: style.pointSize, weight: .bold),
           .foregroundColor: color,
           .paragraphStyle: paragraph,
           .shadow: shadow,
         ]
-        // White text on a bright desktop needs an outline; a shadow alone washes out.
-        if needsOutline {
-          values[.strokeColor] = UIColor.black.withAlphaComponent(0.9)
-          values[.strokeWidth] = -5
-        }
-        return values
       }
 
       let lineText = content.currentText.isEmpty ? "♪" : content.currentText
@@ -179,15 +171,11 @@
         let nextParagraph = NSMutableParagraphStyle()
         nextParagraph.alignment = textAlignment(for: style.alignment)
         nextParagraph.lineBreakMode = .byTruncatingTail
-        var nextAttributes: [NSAttributedString.Key: Any] = [
+        let nextAttributes: [NSAttributedString.Key: Any] = [
           .font: nextFont,
           .foregroundColor: UIColor.white.withAlphaComponent(hasBackground ? 0.42 : 0.75),
           .paragraphStyle: nextParagraph,
         ]
-        if needsOutline {
-          nextAttributes[.strokeColor] = UIColor.black.withAlphaComponent(0.85)
-          nextAttributes[.strokeWidth] = -4
-        }
         let nextRect = CGRect(
           x: horizontalInset,
           y: size.height - bottomInset - nextHeight,
