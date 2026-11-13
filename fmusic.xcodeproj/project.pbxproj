@@ -286,9 +286,6 @@
 		50C9D69E284FAA6C007F18D0 /* AbstractLibraryEntityMO+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F81ECD23BF6B1D00EAAC3E /* AbstractLibraryEntityMO+CoreDataProperties.swift */; };
 		50C9D69F284FAA6C007F18D0 /* ArtistMO+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50F81EC923BF6B1D00EAAC3E /* ArtistMO+CoreDataProperties.swift */; };
 		50C9D6A1284FAA6C007F18D0 /* GenreMO+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505AD87B2615C834001319B6 /* GenreMO+CoreDataProperties.swift */; };
-		50C9D6A2284FAA77007F18D0 /* MappingModelV4toV5.xcmappingmodel in Sources */ = {isa = PBXBuildFile; fileRef = 50D92CCA25E3ED700017E91D /* MappingModelV4toV5.xcmappingmodel */; };
-		50C9D6A3284FAA77007F18D0 /* MigrationPolicyV4toV5.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D92CCE25E3FE560017E91D /* MigrationPolicyV4toV5.swift */; };
-		50C9D6A4284FAA77007F18D0 /* MappingModelV10toV11.xcmappingmodel in Sources */ = {isa = PBXBuildFile; fileRef = 505A45F3268B53D30031B08B /* MappingModelV10toV11.xcmappingmodel */; };
 		50C9D6A5284FAA7F007F18D0 /* CoreDataMigrationStep.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A85F06268A4BA800FB3E31 /* CoreDataMigrationStep.swift */; };
 		50C9D6A6284FAA7F007F18D0 /* CoreDataMigrationVersion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A85F04268A4B8D00FB3E31 /* CoreDataMigrationVersion.swift */; };
 		50C9D6A7284FAA7F007F18D0 /* CoreDataMigrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A85F02268A4B6D00FB3E31 /* CoreDataMigrator.swift */; };
@@ -488,7 +485,6 @@
 		5003D8FA267B3390006946BF /* LibrarySyncPopupVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncPopupVC.swift; sourceTree = "<group>"; };
 		50048F9427590FAD0087EDFB /* PlayerDownloadPreparationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDownloadPreparationHandler.swift; sourceTree = "<group>"; };
 		50048F962759186A0087EDFB /* EmbeddedArtworkExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedArtworkExtractor.swift; sourceTree = "<group>"; };
-		50048F9E275A9AA10087EDFB /* fmusic v17.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v17.xcdatamodel"; sourceTree = "<group>"; };
 		50048FFE2671EFBD00064433 /* LibraryEntityImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryEntityImage.swift; sourceTree = "<group>"; };
 		5005938828E2D4EF008C8DF6 /* CommonCollectionSectionHeader.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = CommonCollectionSectionHeader.xib; sourceTree = "<group>"; };
 		5005938A28E2D4FB008C8DF6 /* CommonCollectionSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonCollectionSectionHeader.swift; sourceTree = "<group>"; };
@@ -513,7 +509,6 @@
 		500B97CC2B7BC67F005554BF /* EntityPreviewVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityPreviewVC.swift; sourceTree = "<group>"; };
 		500B97CF2B7C9546005554BF /* EntityPreviewVC.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = EntityPreviewVC.xib; sourceTree = "<group>"; };
 		500BB45521CAA73700D367CF /* PersistentStorage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PersistentStorage.swift; sourceTree = "<group>"; };
-		500BB49621CAAA2700D367CF /* fmusic.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = fmusic.xcdatamodel; sourceTree = "<group>"; };
 		500DA64A2F087221005578C7 /* CarPlayHomeTabExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayHomeTabExtension.swift; sourceTree = "<group>"; };
 		500DA64C2F087307005578C7 /* CarPlayLibraryTabExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayLibraryTabExtension.swift; sourceTree = "<group>"; };
 		500DA64E2F0873DB005578C7 /* CarPlayCachedTabExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlayCachedTabExtension.swift; sourceTree = "<group>"; };
@@ -528,10 +523,6 @@
 		50120A2026280C9200B037B1 /* FetchedResultsControllers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchedResultsControllers.swift; sourceTree = "<group>"; };
 		50120A2426281C1900B037B1 /* BasicTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicTableViewController.swift; sourceTree = "<group>"; };
 		7049C69DC0AAE33A2158D8F5 /* SearchDebouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchDebouncer.swift; sourceTree = "<group>"; };
-		5013DC8B2B49997F00EC191E /* fmusic v30.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v30.xcdatamodel"; sourceTree = "<group>"; };
-		5013DC8C2B49EEC100EC191E /* fmusic v31.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v31.xcdatamodel"; sourceTree = "<group>"; };
-		5013DC8D2B4EC02A00EC191E /* fmusic v32.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v32.xcdatamodel"; sourceTree = "<group>"; };
-		5017996127CFB292002554E5 /* fmusic v22.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v22.xcdatamodel"; sourceTree = "<group>"; };
 		501858F7265F779B00F2E13A /* Directory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Directory.swift; sourceTree = "<group>"; };
 		501944162B78F97F00082D2E /* LargeCurrentlyPlayingPlayerView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = LargeCurrentlyPlayingPlayerView.xib; sourceTree = "<group>"; };
 		501944172B78F97F00082D2E /* LargeCurrentlyPlayingPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeCurrentlyPlayingPlayerView.swift; sourceTree = "<group>"; };
@@ -556,7 +547,6 @@
 		5021B1272BC723F400893C33 /* FuzzySearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzySearcher.swift; sourceTree = "<group>"; };
 		A1B2C3D4E5F60718293A4B01 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
 		50223EF2264543EA007445BC /* LibrarySyncVersion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncVersion.swift; sourceTree = "<group>"; };
-		5023D9AE2BD8408B00310144 /* fmusic v37.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v37.xcdatamodel"; sourceTree = "<group>"; };
 		5023D9AF2BD9A55E00310144 /* CacheFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheFileManager.swift; sourceTree = "<group>"; };
 		5023D9B12BDAA48200310144 /* UpdateVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateVC.swift; sourceTree = "<group>"; };
 		50253F78284614A100BCCFB2 /* DuplicateEntitiesResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DuplicateEntitiesResolver.swift; sourceTree = "<group>"; };
@@ -574,13 +564,9 @@
 		502B98EC2D03A02D000FE187 /* PlaylistEditVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistEditVC.swift; sourceTree = "<group>"; };
 		502E56BA27561AD900638BD2 /* UserQueueSectionHeader.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = UserQueueSectionHeader.xib; sourceTree = "<group>"; };
 		502E56BB27561AD900638BD2 /* UserQueueSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserQueueSectionHeader.swift; sourceTree = "<group>"; };
-		50377A53266E130300F0C3F3 /* fmusic v9.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v9.xcdatamodel"; sourceTree = "<group>"; };
 		503BAF332E4A1EAC00AE50B4 /* SettingsTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTabView.swift; sourceTree = "<group>"; };
-		5040B2C2269C451A00911451 /* fmusic v12.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v12.xcdatamodel"; sourceTree = "<group>"; };
-		5042B71F2D82FFA50086B9C4 /* fmusic v45.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v45.xcdatamodel"; sourceTree = "<group>"; };
 		504415C62EE865D1005E8429 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
 		504627E92B73B44C00F481F8 /* PopupPlayerVC.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = PopupPlayerVC.xib; sourceTree = "<group>"; };
-		5046DAF02689A66E00B3C37E /* fmusic v11.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v11.xcdatamodel"; sourceTree = "<group>"; };
 		5046DAF12689B97600B3C37E /* AbstractPlayableMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AbstractPlayableMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		5046DAF22689B97600B3C37E /* AbstractPlayableMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AbstractPlayableMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		5047B7072E3CB8D400D5090C /* PlayerUIHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerUIHandler.swift; sourceTree = "<group>"; };
@@ -597,19 +583,15 @@
 		504C719023BAD112001F82C7 /* SongTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongTest.swift; sourceTree = "<group>"; };
 		45B693103EB659F5851BB3CF /* SongsFetchedResultsControllerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsFetchedResultsControllerTest.swift; sourceTree = "<group>"; };
 		A8E1C0DE5E77100000000001 /* SettingsTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTest.swift; sourceTree = "<group>"; };
-		504D26262D4168DE003FDEB3 /* fmusic v41.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v41.xcdatamodel"; sourceTree = "<group>"; };
 		505362D02C23682500846C53 /* AlbumsCollectionVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumsCollectionVC.swift; sourceTree = "<group>"; };
 		505362D22C2425C200846C53 /* AlbumsCommonVCInteractions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumsCommonVCInteractions.swift; sourceTree = "<group>"; };
 		5058708F21DEBBCA0043896F /* PopupPlayerVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopupPlayerVC.swift; sourceTree = "<group>"; };
 		505905BB261D980C007C34CB /* PlayableContainable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayableContainable.swift; sourceTree = "<group>"; };
 		5059A31B28A9ED680068E4D2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		5059A31D28ABDDCD0068E4D2 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
-		505A45F3268B53D30031B08B /* MappingModelV10toV11.xcmappingmodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcmappingmodel; path = MappingModelV10toV11.xcmappingmodel; sourceTree = "<group>"; };
-		505AD8712615B4D8001319B6 /* fmusic v7.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v7.xcdatamodel"; sourceTree = "<group>"; };
 		505AD87A2615C834001319B6 /* GenreMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GenreMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		505AD87B2615C834001319B6 /* GenreMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GenreMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		505CA1F42B848B8300AA81CD /* QuickActionsHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsHandler.swift; sourceTree = "<group>"; };
-		505CA1F62B8730D100AA81CD /* fmusic v35.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v35.xcdatamodel"; sourceTree = "<group>"; };
 		505CA1F72B87387600AA81CD /* SearchHistoryItemMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SearchHistoryItemMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		505CA1F82B87387600AA81CD /* SearchHistoryItemMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SearchHistoryItemMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		505CA1FD2B8739AE00AA81CD /* SearchHistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchHistoryItem.swift; sourceTree = "<group>"; };
@@ -620,17 +602,10 @@
 		505CA2132B88ED6100AA81CD /* SingleSnapshotFetchedResultsTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleSnapshotFetchedResultsTableViewController.swift; sourceTree = "<group>"; };
 		5064F3962B96FBAE00DE61C1 /* NotificationDetailVC.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = NotificationDetailVC.xib; sourceTree = "<group>"; };
 		5064F3972B96FBAE00DE61C1 /* NotificationDetailVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationDetailVC.swift; sourceTree = "<group>"; };
-		506640D12B683AAF007434A8 /* fmusic v33.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v33.xcdatamodel"; sourceTree = "<group>"; };
-		5067016125E3ADA200A3EF89 /* fmusic v5.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v5.xcdatamodel"; sourceTree = "<group>"; };
 		50675E6C25F61163005737FD /* BasicTableCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicTableCell.swift; sourceTree = "<group>"; };
-		5067E37727916AE100807A78 /* fmusic v18.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v18.xcdatamodel"; sourceTree = "<group>"; };
-		506890E428CF2737009722B0 /* fmusic v26.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v26.xcdatamodel"; sourceTree = "<group>"; };
-		506890E528CF3696009722B0 /* fmusic v27.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v27.xcdatamodel"; sourceTree = "<group>"; };
 		5068D37F26A85C2D0006710D /* DownloadError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownloadError.swift; sourceTree = "<group>"; };
-		506B3A3823B4539D00E31F21 /* fmusic v2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v2.xcdatamodel"; sourceTree = "<group>"; };
 		506C314D2EE6D2100011A2C3 /* fmusic v49.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v49.xcdatamodel"; sourceTree = "<group>"; };
 		506C31502EE6D2100011A2C3 /* fmusic v50.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v50.xcdatamodel"; sourceTree = "<group>"; };
-		5070ED2C2D46979A00EB2972 /* fmusic v42.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v42.xcdatamodel"; sourceTree = "<group>"; };
 		507148AB2B767FE200557904 /* ContextQueuePrevSectionHeader.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = ContextQueuePrevSectionHeader.xib; sourceTree = "<group>"; };
 		507148AC2B767FE200557904 /* ContextQueuePrevSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextQueuePrevSectionHeader.swift; sourceTree = "<group>"; };
 		50722746286794FC00910574 /* AppDelegateKeyboardCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateKeyboardCommands.swift; sourceTree = "<group>"; };
@@ -662,15 +637,12 @@
 		507BA5C62F01BCA300B4EA8B /* SetRepeatIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetRepeatIntent.swift; sourceTree = "<group>"; };
 		507BA5C82F01CED000B4EA8B /* SetOnlineOfflineModeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetOnlineOfflineModeIntent.swift; sourceTree = "<group>"; };
 		507BA5CA2F01CFA800B4EA8B /* OnlineOfflineModeAppEnum.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineOfflineModeAppEnum.swift; sourceTree = "<group>"; };
-		507C9AD82E29905D001589F8 /* fmusic v47.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v47.xcdatamodel"; sourceTree = "<group>"; };
-		50814C9E27D9FE460072738F /* fmusic v23.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v23.xcdatamodel"; sourceTree = "<group>"; };
 		508385E421C5965B00C4BB32 /* fmusic.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = fmusic.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		508385E721C5965B00C4BB32 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		508385E921C5965B00C4BB32 /* LoginVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginVC.swift; sourceTree = "<group>"; };
 		508385EC21C5965B00C4BB32 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		508385EE21C5965E00C4BB32 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		508385F321C5965E00C4BB32 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		5084F70C2ED9D87500D8D3DA /* fmusic v48.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v48.xcdatamodel"; sourceTree = "<group>"; };
 		5084F70D2ED9E2F400D8D3DA /* AccountMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccountMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		5084F70E2ED9E2F400D8D3DA /* AccountMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AccountMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		5084F7112ED9E47100D8D3DA /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Account.swift; sourceTree = "<group>"; };
@@ -687,26 +659,17 @@
 		508FDE4F21F64ED6005A0724 /* TabBarVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBarVC.swift; sourceTree = "<group>"; };
 		509001B52716C7F600A8056D /* AppDelegateAlertExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateAlertExtensions.swift; sourceTree = "<group>"; };
 		509001B72716C8F400A8056D /* AppDelegateNotificationExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateNotificationExtensions.swift; sourceTree = "<group>"; };
-		509001BD2717120900A8056D /* fmusic v14.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v14.xcdatamodel"; sourceTree = "<group>"; };
 		5090963726496A9500DD9826 /* UtilitiesTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilitiesTest.swift; sourceTree = "<group>"; };
 		B5A5CE010000000000000002 /* ShareSongActionTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareSongActionTest.swift; sourceTree = "<group>"; };
 		509357512E3BF47800CD4075 /* MiniPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniPlayerView.swift; sourceTree = "<group>"; };
-		509362EC28E041FF005C2AAC /* fmusic v28.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v28.xcdatamodel"; sourceTree = "<group>"; };
-		50947E0427DD37AD00C368D7 /* fmusic v24.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v24.xcdatamodel"; sourceTree = "<group>"; };
 		5095F98B23C8389E008B0805 /* MusicPlayerTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicPlayerTest.swift; sourceTree = "<group>"; };
-		50964D5723B54BBA00B685B2 /* fmusic v3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v3.xcdatamodel"; sourceTree = "<group>"; };
-		509A7D80280594D5009791D1 /* fmusic v25.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v25.xcdatamodel"; sourceTree = "<group>"; };
 		509A7D8128059A0D009791D1 /* BackgroundLibrarySyncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundLibrarySyncer.swift; sourceTree = "<group>"; };
 		509A7D832806A232009791D1 /* AutoDownloadLibrarySyncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoDownloadLibrarySyncer.swift; sourceTree = "<group>"; };
-		509B430C2B72631A005E8130 /* fmusic v34.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v34.xcdatamodel"; sourceTree = "<group>"; };
 		509D55E6280FD5E000E0E0B5 /* PlayIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayIndicator.swift; sourceTree = "<group>"; };
 		509D55E8280FDAE100E0E0B5 /* PlayerNotificationAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerNotificationAdapter.swift; sourceTree = "<group>"; };
-		50A01FBD27BCD4BD000368EF /* fmusic v20.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v20.xcdatamodel"; sourceTree = "<group>"; };
-		50A12F402739203E00E7B2AA /* fmusic v15.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v15.xcdatamodel"; sourceTree = "<group>"; };
 		50A12F412739239800E7B2AA /* EmbeddedArtworkMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmbeddedArtworkMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		50A12F422739239800E7B2AA /* EmbeddedArtworkMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EmbeddedArtworkMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		50A12F4527392B2400E7B2AA /* EmbeddedArtwork.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedArtwork.swift; sourceTree = "<group>"; };
-		50A12F47273BBF7300E7B2AA /* fmusic v16.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v16.xcdatamodel"; sourceTree = "<group>"; };
 		50A30E4D2B73DDC800722894 /* PlayerControlView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerControlView.swift; sourceTree = "<group>"; };
 		50A30E4E2B73DDC800722894 /* PlayerControlView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = PlayerControlView.xib; sourceTree = "<group>"; };
 		50A30E532B7408DB00722894 /* ContextQueueNextSectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContextQueueNextSectionHeader.swift; sourceTree = "<group>"; };
@@ -714,7 +677,6 @@
 		50A30E5B2B7556FB00722894 /* PopupPlayer+TableViewExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PopupPlayer+TableViewExtension.swift"; sourceTree = "<group>"; };
 		50A30E612B756CA400722894 /* CurrentlyPlayingTableCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CurrentlyPlayingTableCell.swift; sourceTree = "<group>"; };
 		50A30E632B756CE700722894 /* CurrentlyPlayingTableCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = CurrentlyPlayingTableCell.xib; sourceTree = "<group>"; };
-		50A79E0C27A80E2A002E0D2D /* fmusic v19.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v19.xcdatamodel"; sourceTree = "<group>"; };
 		50A7BB30284F3F6400C02990 /* NSUserActivity+IntentData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSUserActivity+IntentData.swift"; sourceTree = "<group>"; };
 		50A85EEA2689C0A500FB3E31 /* AbstractPlayable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbstractPlayable.swift; sourceTree = "<group>"; };
 		50A85F02268A4B6D00FB3E31 /* CoreDataMigrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataMigrator.swift; sourceTree = "<group>"; };
@@ -737,7 +699,6 @@
 		50ACAF1327B277B50039913C /* fmusic.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = fmusic.entitlements; sourceTree = "<group>"; };
 		50AD70DA2D5FBAFB00E369BF /* AsyncOperation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AsyncOperation.swift; sourceTree = "<group>"; };
 		50AE79AB2C1CCBEC0085CBB3 /* DeveloperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperView.swift; sourceTree = "<group>"; };
-		50AE79BD2C1F704B0085CBB3 /* fmusic v38.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v38.xcdatamodel"; sourceTree = "<group>"; };
 		50AE79BF2C206EF10085CBB3 /* LyricTableCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricTableCell.swift; sourceTree = "<group>"; };
 		50AE79C12C20709C0085CBB3 /* LyricsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsView.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000051 /* LyricsLineLayers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLineLayers.swift; sourceTree = "<group>"; };
@@ -754,7 +715,6 @@
 		50B137012EFC85D700738475 /* AccountAppEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAppEntity.swift; sourceTree = "<group>"; };
 		50B137032EFC8A4800738475 /* SwitchAccountIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchAccountIntent.swift; sourceTree = "<group>"; };
 		50B166AB2ED4E68400F7A1D6 /* HomeVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeVC.swift; sourceTree = "<group>"; };
-		50B7989B23B6C77700551E62 /* fmusic v4.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v4.xcdatamodel"; sourceTree = "<group>"; };
 		50B798A023B6CA5400551E62 /* Song.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Song.swift; sourceTree = "<group>"; };
 		50B798A223B6CCE800551E62 /* AbstractLibraryEntity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AbstractLibraryEntity.swift; sourceTree = "<group>"; };
 		50B798A823B6E5FF00551E62 /* PlaylistItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistItem.swift; sourceTree = "<group>"; };
@@ -801,7 +761,6 @@
 		50C171592D107E7600C0C53A /* PlaylistAddDirectoriesVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaylistAddDirectoriesVC.swift; sourceTree = "<group>"; };
 		50C3B9AB2EED848B00F5CAB7 /* LegacySettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LegacySettings.swift; sourceTree = "<group>"; };
 		50C3B9AD2EED882D00F5CAB7 /* SettingEnumerations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingEnumerations.swift; sourceTree = "<group>"; };
-		50C86CA22B23545400385328 /* fmusic v29.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v29.xcdatamodel"; sourceTree = "<group>"; };
 		50C9D605284FA847007F18D0 /* fmusicKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = fmusicKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		50C9D607284FA847007F18D0 /* fmusicKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = fmusicKit.h; sourceTree = "<group>"; };
 		50C9D608284FA847007F18D0 /* fmusicKit.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = fmusicKit.docc; sourceTree = "<group>"; };
@@ -813,16 +772,13 @@
 		50C9D6EC284FADB8007F18D0 /* PlayerDisplayStyleType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerDisplayStyleType.swift; sourceTree = "<group>"; };
 		50C9D6EF28506EBC007F18D0 /* fmusicKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = fmusicKit.swift; sourceTree = "<group>"; };
 		50C9D716285075E3007F18D0 /* UtilitiesExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilitiesExtensions.swift; sourceTree = "<group>"; };
-		50CA61222D4B658200EEF515 /* fmusic v43.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v43.xcdatamodel"; sourceTree = "<group>"; };
 		50CA61252D4D191100EEF515 /* PodcastEpisodeTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PodcastEpisodeTest.swift; sourceTree = "<group>"; };
-		50CA61272D4D72F600EEF515 /* fmusic v44.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v44.xcdatamodel"; sourceTree = "<group>"; };
 		50CCD0562B6C38670073793B /* PlainDetailsVC.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = PlainDetailsVC.xib; sourceTree = "<group>"; };
 		50CCD0582B6C388B0073793B /* PlainDetailsVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlainDetailsVC.swift; sourceTree = "<group>"; };
 		50CDF201264BB1C000F83EF6 /* EventLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventLogger.swift; sourceTree = "<group>"; };
 		50CDF207264BC6BB00F83EF6 /* LogEntryMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LogEntryMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		50CDF208264BC6BB00F83EF6 /* LogEntryMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LogEntryMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		50CDF20B264BC72800F83EF6 /* LogEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogEntry.swift; sourceTree = "<group>"; };
-		50CEC63B2D1EDB9500D0E696 /* fmusic v40.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v40.xcdatamodel"; sourceTree = "<group>"; };
 		50CEC63C2D1EDCE500D0E696 /* RadioMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RadioMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		50CEC63D2D1EDCE500D0E696 /* RadioMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RadioMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		50CEC6402D1EDE1100D0E696 /* Radio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Radio.swift; sourceTree = "<group>"; };
@@ -839,8 +795,6 @@
 		50D54B652E30F9350078631E /* ShapeType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeType.swift; sourceTree = "<group>"; };
 		50D54B662E30F9350078631E /* WindowType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowType.swift; sourceTree = "<group>"; };
 		50D7709E2E4F1D1C0075D3BF /* fmusicAppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = fmusicAppIcon.icon; sourceTree = "<group>"; };
-		50D92CCA25E3ED700017E91D /* MappingModelV4toV5.xcmappingmodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcmappingmodel; path = MappingModelV4toV5.xcmappingmodel; sourceTree = "<group>"; };
-		50D92CCE25E3FE560017E91D /* MigrationPolicyV4toV5.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MigrationPolicyV4toV5.swift; sourceTree = "<group>"; };
 		50DB118626650D630033BFFA /* UnitTestHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitTestHelper.swift; sourceTree = "<group>"; };
 		50DE29EA2B8FCEB700ABA78E /* LibraryNavigatorConfigurator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryNavigatorConfigurator.swift; sourceTree = "<group>"; };
 		50DE29EC2B8FCFC500ABA78E /* LibraryDisplayType+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryDisplayType+Extension.swift"; sourceTree = "<group>"; };
@@ -852,7 +806,6 @@
 		50DEEE06265E27070073FF20 /* DirectoryTableCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = DirectoryTableCell.xib; sourceTree = "<group>"; };
 		50DEEE09265E392C0073FF20 /* IndexesVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexesVC.swift; sourceTree = "<group>"; };
 		50DEEE0B265E3F9D0073FF20 /* DirectoriesVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoriesVC.swift; sourceTree = "<group>"; };
-		50DEEE0D265E89590073FF20 /* fmusic v8.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v8.xcdatamodel"; sourceTree = "<group>"; };
 		50DEEE12265ED5790073FF20 /* DirectoryMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DirectoryMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		50DEEE13265ED5790073FF20 /* DirectoryMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DirectoryMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		50DEEE14265ED5790073FF20 /* MusicFolderMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MusicFolderMO+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -860,8 +813,6 @@
 		50DEEE1A265ED65B0073FF20 /* MusicFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicFolder.swift; sourceTree = "<group>"; };
 		50DF1E5428DDE3FA00F3EA00 /* AlbumCollectionCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumCollectionCell.swift; sourceTree = "<group>"; };
 		50DF1E5928DDECEA00F3EA00 /* AlbumCollectionCell.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = AlbumCollectionCell.xib; sourceTree = "<group>"; };
-		50DF56C727C7753A00F106BA /* fmusic v21.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v21.xcdatamodel"; sourceTree = "<group>"; };
-		50E15407261311590021F47D /* fmusic v6.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v6.xcdatamodel"; sourceTree = "<group>"; };
 		50E1D3972B8A82BA0001A572 /* KeyCommandTableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyCommandTableViewController.swift; sourceTree = "<group>"; };
 		50E1D3992B8BEA540001A572 /* SplitVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitVC.swift; sourceTree = "<group>"; };
 		50E1D39B2B8BED4C0001A572 /* SideBarVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SideBarVC.swift; sourceTree = "<group>"; };
@@ -875,7 +826,6 @@
 		50ED030C2E2788200092E6DC /* CoreAudio.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreAudio.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk/System/Library/Frameworks/CoreAudio.framework; sourceTree = DEVELOPER_DIR; };
 		50ED2B9027B7AE8500331BF7 /* EventNotificationHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventNotificationHandler.swift; sourceTree = "<group>"; };
 		50ED756528CBC5D200E5D347 /* LibrarySyncerProxy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncerProxy.swift; sourceTree = "<group>"; };
-		50F800202685B8DA0015844D /* fmusic v10.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v10.xcdatamodel"; sourceTree = "<group>"; };
 		50F81E8523BAF25900EAAC3E /* Album.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Album.swift; sourceTree = "<group>"; };
 		50F81E8723BB29CD00EAAC3E /* AlbumTest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlbumTest.swift; sourceTree = "<group>"; };
 		50F81E8923BB5FC500EAAC3E /* Artist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Artist.swift; sourceTree = "<group>"; };
@@ -901,10 +851,8 @@
 		50F81EDB23BF6B1E00EAAC3E /* SongMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SongMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		50FA36522F560D670058AB56 /* SeekableTimeSlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeekableTimeSlider.swift; sourceTree = "<group>"; };
 		50FBE7DD262DD86500114278 /* BasicFetchedResultsController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicFetchedResultsController.swift; sourceTree = "<group>"; };
-		50FE808B26A55A8300CB434D /* fmusic v13.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v13.xcdatamodel"; sourceTree = "<group>"; };
 		50FE808C26A55CEA00CB434D /* DownloadMO+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadMO+CoreDataClass.swift"; sourceTree = "<group>"; };
 		50FE808D26A55CEA00CB434D /* DownloadMO+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DownloadMO+CoreDataProperties.swift"; sourceTree = "<group>"; };
-		50FF31192BBB27AC00C2C3B9 /* fmusic v36.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v36.xcdatamodel"; sourceTree = "<group>"; };
 		50FF311A2BBC4D8000C2C3B9 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
 		50RA71NG2F5A01230085CBB3 /* RatingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingView.swift; sourceTree = "<group>"; };
 		631C166A2C6D3D9A0085F62E /* SettingsRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsRow.swift; sourceTree = "<group>"; };
@@ -920,8 +868,6 @@
 		63AD7E4930A283B700BBC0E1 /* AppIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconOption.swift; sourceTree = "<group>"; };
 		63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSceneDelegate.swift; sourceTree = "<group>"; };
 		641708582C13BF5100BA2619 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
-		643A04712CD29AB20012DEA3 /* fmusic v39.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v39.xcdatamodel"; sourceTree = "<group>"; };
-		64C433822E1391FA0082A165 /* fmusic v46.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "fmusic v46.xcdatamodel"; sourceTree = "<group>"; };
 		A1C400000000000000000002 /* fmusicGreen.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = fmusicGreen.icon; sourceTree = "<group>"; };
 		A1C400000000000000000003 /* fmusicOrange.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = fmusicOrange.icon; sourceTree = "<group>"; };
 		A1C400000000000000000004 /* fmusicPurple.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = fmusicPurple.icon; sourceTree = "<group>"; };
@@ -1041,7 +987,6 @@
 			isa = PBXGroup;
 			children = (
 				50A85EFF268A4B1B00FB3E31 /* Migration */,
-				50A85EF42689EF1D00FB3E31 /* VersionMappings */,
 				500BB49521CAAA2700D367CF /* fmusic.xcdatamodeld */,
 				5084F70D2ED9E2F400D8D3DA /* AccountMO+CoreDataClass.swift */,
 				5084F70E2ED9E2F400D8D3DA /* AccountMO+CoreDataProperties.swift */,
@@ -1412,16 +1357,6 @@
 				50A30E532B7408DB00722894 /* ContextQueueNextSectionHeader.swift */,
 			);
 			path = SectionHeader;
-			sourceTree = "<group>";
-		};
-		50A85EF42689EF1D00FB3E31 /* VersionMappings */ = {
-			isa = PBXGroup;
-			children = (
-				505A45F3268B53D30031B08B /* MappingModelV10toV11.xcmappingmodel */,
-				50D92CCA25E3ED700017E91D /* MappingModelV4toV5.xcmappingmodel */,
-				50D92CCE25E3FE560017E91D /* MigrationPolicyV4toV5.swift */,
-			);
-			path = VersionMappings;
 			sourceTree = "<group>";
 		};
 		50A85EFF268A4B1B00FB3E31 /* Migration */ = {
@@ -3121,54 +3056,6 @@
 			children = (
 				506C31502EE6D2100011A2C3 /* fmusic v50.xcdatamodel */,
 				506C314D2EE6D2100011A2C3 /* fmusic v49.xcdatamodel */,
-				5084F70C2ED9D87500D8D3DA /* fmusic v48.xcdatamodel */,
-				507C9AD82E29905D001589F8 /* fmusic v47.xcdatamodel */,
-				64C433822E1391FA0082A165 /* fmusic v46.xcdatamodel */,
-				5042B71F2D82FFA50086B9C4 /* fmusic v45.xcdatamodel */,
-				50CA61272D4D72F600EEF515 /* fmusic v44.xcdatamodel */,
-				50CA61222D4B658200EEF515 /* fmusic v43.xcdatamodel */,
-				5070ED2C2D46979A00EB2972 /* fmusic v42.xcdatamodel */,
-				504D26262D4168DE003FDEB3 /* fmusic v41.xcdatamodel */,
-				50CEC63B2D1EDB9500D0E696 /* fmusic v40.xcdatamodel */,
-				643A04712CD29AB20012DEA3 /* fmusic v39.xcdatamodel */,
-				50AE79BD2C1F704B0085CBB3 /* fmusic v38.xcdatamodel */,
-				5023D9AE2BD8408B00310144 /* fmusic v37.xcdatamodel */,
-				50FF31192BBB27AC00C2C3B9 /* fmusic v36.xcdatamodel */,
-				505CA1F62B8730D100AA81CD /* fmusic v35.xcdatamodel */,
-				509B430C2B72631A005E8130 /* fmusic v34.xcdatamodel */,
-				506640D12B683AAF007434A8 /* fmusic v33.xcdatamodel */,
-				5013DC8D2B4EC02A00EC191E /* fmusic v32.xcdatamodel */,
-				5013DC8C2B49EEC100EC191E /* fmusic v31.xcdatamodel */,
-				5013DC8B2B49997F00EC191E /* fmusic v30.xcdatamodel */,
-				50C86CA22B23545400385328 /* fmusic v29.xcdatamodel */,
-				509362EC28E041FF005C2AAC /* fmusic v28.xcdatamodel */,
-				506890E528CF3696009722B0 /* fmusic v27.xcdatamodel */,
-				506890E428CF2737009722B0 /* fmusic v26.xcdatamodel */,
-				509A7D80280594D5009791D1 /* fmusic v25.xcdatamodel */,
-				50947E0427DD37AD00C368D7 /* fmusic v24.xcdatamodel */,
-				50814C9E27D9FE460072738F /* fmusic v23.xcdatamodel */,
-				5017996127CFB292002554E5 /* fmusic v22.xcdatamodel */,
-				50DF56C727C7753A00F106BA /* fmusic v21.xcdatamodel */,
-				50A01FBD27BCD4BD000368EF /* fmusic v20.xcdatamodel */,
-				50A79E0C27A80E2A002E0D2D /* fmusic v19.xcdatamodel */,
-				5067E37727916AE100807A78 /* fmusic v18.xcdatamodel */,
-				50048F9E275A9AA10087EDFB /* fmusic v17.xcdatamodel */,
-				50A12F47273BBF7300E7B2AA /* fmusic v16.xcdatamodel */,
-				50A12F402739203E00E7B2AA /* fmusic v15.xcdatamodel */,
-				509001BD2717120900A8056D /* fmusic v14.xcdatamodel */,
-				50FE808B26A55A8300CB434D /* fmusic v13.xcdatamodel */,
-				5040B2C2269C451A00911451 /* fmusic v12.xcdatamodel */,
-				5046DAF02689A66E00B3C37E /* fmusic v11.xcdatamodel */,
-				50F800202685B8DA0015844D /* fmusic v10.xcdatamodel */,
-				50377A53266E130300F0C3F3 /* fmusic v9.xcdatamodel */,
-				50DEEE0D265E89590073FF20 /* fmusic v8.xcdatamodel */,
-				505AD8712615B4D8001319B6 /* fmusic v7.xcdatamodel */,
-				50E15407261311590021F47D /* fmusic v6.xcdatamodel */,
-				5067016125E3ADA200A3EF89 /* fmusic v5.xcdatamodel */,
-				50B7989B23B6C77700551E62 /* fmusic v4.xcdatamodel */,
-				50964D5723B54BBA00B685B2 /* fmusic v3.xcdatamodel */,
-				506B3A3823B4539D00E31F21 /* fmusic v2.xcdatamodel */,
-				500BB49621CAAA2700D367CF /* fmusic.xcdatamodel */,
 			);
 			currentVersion = 506C31502EE6D2100011A2C3 /* fmusic v50.xcdatamodel */;
 			path = fmusic.xcdatamodeld;

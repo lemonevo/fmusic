@@ -1,6 +1,6 @@
 # fmusic fork 交接文档
 
-最后更新：2026-11-13（Mac Catalyst / macOS 27 / Xcode 27.1）
+最后更新：2026-11-13（Mac Catalyst / macOS 27 / Xcode 27.1；已更名 fmusic，CI 只出 arm64）
 适用对象：接手继续改这个仓库的 AI。先读完第 0、1 节再动代码。
 
 ---
@@ -291,6 +291,10 @@ pkill -f "fmusic.app/Contents/MacOS/fmusic"; sleep 2; open <fmusic.app 路径>
 ---
 
 ## 6. 已知坑 / 注意
+
+- **Core Data 模型只剩 v49/v50**：新增实体/字段必须加 `fmusic v51.xcdatamodel`，同步改迁移枚举和 `.xccurrentversion`；v48 及更老的库无法再迁移。
+- **发布包是 arm64-only**（CI `ARCHS=arm64`）；需要 Intel 时在 workflow 去掉该参数。
+- 播客/电台占位图和图标预览图已删除；Catalyst 上不支持切换备用图标，设置页不会出现图标选择器。
 
 1. **Mac idiom + UISlider**：不要去掉 `preferredBehavioralStyle = .pad`，也不要在 Mac idiom 下调用 track tint API；会直接崩。播放器音量已改为自绘 `VolumeSlider`，不受此限制；但如果新代码又要用 UISlider，记住这条。
 2. **XIB 封面溢出**：`LargeCurrentlyPlayingPlayerView.xib` 的封面是 1:1、最大 360，而槽位高度由 stack 决定；不要删除 `z4T-8m-Q1a` 高度上限，否则较矮窗口又会压到音量条。

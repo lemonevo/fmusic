@@ -10,13 +10,17 @@ UI 目标是对齐 Apple Music：210 pt 侧栏、专辑网格、两栏大播放�
 App 版本 2.1.2 (1)，Bundle ID `lol.levo.fmusic`，Deployment Target iOS 26（Catalyst），需 Xcode 27 / macOS 27 SDK。
 
 - 仓库：`/Users/apple/Desktop/AI/Quder/fmusic`
-- 分支：`feature/webdav-local`（**只在本地提交，不要 push，除非用户明确要求**）
-- 最近提交：
-  - `24ecdc4` Settings: shorten sidebar, nest detail pages, add language switch
-  - `2725621` Fork: local/WebDAV library with Apple Music-style UI and dark mode
-  - `dbba5a5` Snapshot: local/WebDAV fork before refactor
+- 分支：`feature/webdav-local`，`origin` = `lemonevo/fmusic`（用户已授权推送；涉及 workflow 文件时用 SSH-over-443）
+- 提交历史：`git log --oneline`（2026-11-13 已完成全项目改名与体积优化）
 - 构建产物：`~/Library/Developer/Xcode/DerivedData/fmusic-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/fmusic.app`
   （DerivedData 哈希可能变，用 `xcodebuild -showBuildSettings` 或 `mdfind` 重新定位；启动时用**带哈希的完整路径**，否则可能拉起旧包）
+
+## 1.1 打包与体积（2026-11-13）
+
+- CI 只构建 **arm64**（`ARCHS=arm64`），DMG 约 9–10 MB、安装后约 19 MB；不支持 Intel。
+- Core Data 只保留 `fmusic v49` / `v50` 两个模型；新增结构变更时必须添加 `v51`、更新 `CoreDataMigrationVersion` 与 `.xccurrentversion`。低于 v49 的旧库不能迁移。
+- 已删除播客/电台占位图与旧图标预览（Catalyst 下 `supportsAlternateIcons == false`，图标选择器不会显示）。
+- 构建缓存：`BuildTools/.build` 约 600 MB，可随时删除；CI 产物在 Actions Artifact / Release。
 
 ## 2. 构建与运行
 

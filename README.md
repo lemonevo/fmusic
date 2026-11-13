@@ -23,7 +23,7 @@ flac  mp3  m4a  mp4  aac  wav  aiff  aif  ogg  oga  opus
 ## 系统要求
 
 - macOS 26 或更高
-- Apple Silicon 与 Intel
+- Apple Silicon（arm64）
 
 ## 安装
 
