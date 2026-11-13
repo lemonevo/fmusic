@@ -2058,8 +2058,8 @@
 				5007CE4521EF639200BC5CBA /* PlaylistTableCell.xib in Resources */,
 				50CCD0572B6C38670073793B /* PlainDetailsVC.xib in Resources */,
 				508EBB282850C8D90053D9F0 /* Assets.xcassets in Resources */,
-								A1C500000000000000000001 /* Localizable.strings in Resources */,,
-								508385ED21C5965B00C4BB32 /* Main.storyboard in Resources */,,
+				A1C500000000000000000001 /* Localizable.strings in Resources */,
+				508385ED21C5965B00C4BB32 /* Main.storyboard in Resources */,
 				500B97D02B7C9555005554BF /* EntityPreviewVC.xib in Resources */,
 				50A30E642B756CF100722894 /* CurrentlyPlayingTableCell.xib in Resources */,
 			);
