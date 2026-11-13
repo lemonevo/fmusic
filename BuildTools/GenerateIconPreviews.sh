@@ -3,8 +3,8 @@
 # Generates the light and dark app icon previews shown in
 # Settings > Display > App Icon from the Icon Composer files (*.icon).
 #
-# For every AmperfyKit/Assets/<Name>.icon this writes
-#   AmperfyKit/Assets/Assets.xcassets/<Name>Preview.imageset/
+# For every fmusicKit/Assets/<Name>.icon this writes
+#   fmusicKit/Assets/Assets.xcassets/<Name>Preview.imageset/
 #     <Name>Preview@1x.png       (light, @1x)
 #     <Name>Preview.png          (light, @2x)
 #     <Name>Preview@3x.png       (light, @3x)
@@ -17,7 +17,7 @@
 #
 # Usage:
 #   ./BuildTools/generateIconPreviews.sh                 # all icons
-#   ./BuildTools/generateIconPreviews.sh AmperfyTeal ... # only the given icons
+#   ./BuildTools/generateIconPreviews.sh fmusicTeal ... # only the given icons
 #
 # Set ICTOOL=/path/to/ictool to use a specific ictool binary.
 
@@ -27,7 +27,7 @@ set -euo pipefail
 PREVIEW_POINTS=60
 
 repo_root="$(cd "$(dirname "$0")/.." && pwd)"
-icon_dir="$repo_root/AmperfyKit/Assets"
+icon_dir="$repo_root/fmusicKit/Assets"
 catalog_dir="$icon_dir/Assets.xcassets"
 
 find_ictool() {

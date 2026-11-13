@@ -1,0 +1,821 @@
+//
+//  BackendAudioPlayer.swift
+//  fmusicKit
+//
+//  Created by Maximilian Bauer on 09.03.19.
+//  Copyright (c) 2019 Maximilian Bauer. All rights reserved.
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+import AudioStreaming
+import AVFoundation
+import Foundation
+import os.log
+import UIKit
+
+// MARK: - BackendAudioPlayerNotifiable
+
+@MainActor
+protocol BackendAudioPlayerNotifiable {
+  func didElapsedTimeChange()
+  func didLyricsTimeChange(time: CMTime) // high refresh count
+  func stop()
+  func playPrevious()
+  func playNext()
+  func didItemFinishedPlaying()
+  func notifyItemPreparationFinished()
+  func notifyErrorOccurred(error: Error)
+  func didReadStreamMetadata(_ metadata: [String: String])
+}
+
+// MARK: - AudioStreamingPlayer
+
+public class AudioStreamingPlayer: AudioStreaming.AudioPlayer {
+  public func elapsedTime() -> Double {
+    progress
+  }
+
+  public func getState() -> AudioStreaming.AudioPlayerState {
+    state
+  }
+}
+
+// MARK: - PlayType
+
+public enum PlayType {
+  case stream
+  case cache
+}
+
+public typealias CreateAudioStreamingPlayerCallback = () -> AudioStreamingPlayer
+public typealias TriggerReinsertPlayableCallback = @MainActor () -> ()
+typealias NextPlayablePreloadCallback = () -> AbstractPlayable?
+
+// MARK: - BackendAudioQueueType
+
+enum BackendAudioQueueType {
+  case play
+  case queue
+}
+
+// MARK: - BackendAudioPlayer
+
+@MainActor
+class BackendAudioPlayer: NSObject {
+  private let getPlayableDownloaderCB: GetPlayableDownloadManagerCallback
+  private let cacheProxy: PlayableFileCachable
+  private let getBackendApiCB: GetBackendApiCallback
+  private let userStatistics: UserStatistics
+  private let createAudioStreamingPlayerCB: CreateAudioStreamingPlayerCallback
+  private let eventLogger: EventLogger
+  private let networkMonitor: NetworkMonitorFacade
+  private let updateElapsedTimeInterval = CMTime(
+    seconds: 0.2,
+    preferredTimescale: CMTimeScale(NSEC_PER_SEC)
+  )
+  private let updateLyricsTimeInterval = CMTime(
+    seconds: 1.0 / 60.0,
+    preferredTimescale: CMTimeScale(NSEC_PER_SEC)
+  )
+  private let fileManager = CacheFileManager.shared
+  private var audioSessionHandler: AudioSessionHandler
+  private var isTriggerReinsertPlayableAllowed = true
+  private var wasPlayingBeforeErrorOccurred: Bool = false
+  private var userDefinedPlaybackRate: PlaybackRate = .one
+  private var currentPreparedUrl: String = ""
+  private var currentPlayUrl: String = ""
+  private var nextPreloadedPlayable: AbstractPlayable?
+  private var nextPreloadedUrl: String = ""
+  /// Duration from the server metadata, used while the player can't determine it
+  private var currentMetadataDuration: Double = 0.0
+  private var currentPlayable: AbstractPlayable?
+  private var isPreviousPlaylableFinshed = true
+  private var isAutoStartPlayback = true
+  private var seekTimeWhenStarted: Double?
+  private var timerElapsedTimeInterval: Timer?
+  private var timerLyricsTimeInterval: Timer?
+  private var volumePlayer: Float = 1.0
+
+  private var player: AudioStreamingPlayer?
+  private var equalizer: AVAudioUnitEQ?
+  private var replayGainNode: AVAudioMixerNode?
+  public private(set) var audioAnalyzer: AudioAnalyzer
+
+  // ReplayGain Settings
+  private var isReplayGainEnabled: Bool = true
+  private var currentReplayGainValue: Float = 0.0 // ReplayGain in dB
+  // EQ Settings
+  private var equalizerVolumeCompensation: Float = 1.0
+  private var isEqualizerEnabled: Bool = true
+  private var currentEqualizerSetting: EqualizerSetting = .off
+
+  public var isOfflineMode: Bool = false
+  public var isAutoCachePlayedItems: Bool = true
+  /// Crossfade duration in seconds; 0 disables crossfading.
+  public var crossfadeDuration: Double = 0 {
+    didSet { player?.crossfadeDuration = crossfadeDuration }
+  }
+  public var nextPlayablePreloadCB: NextPlayablePreloadCallback?
+  public var triggerReinsertPlayableCB: TriggerReinsertPlayableCallback?
+  public private(set) var isPlaying: Bool = false
+  public private(set) var isErrorOccurred: Bool = false
+  public private(set) var playType: PlayType?
+  private var perloadedPlayType: PlayType?
+  var responder: BackendAudioPlayerNotifiable?
+  var volume: Float {
+    get {
+      volumePlayer
+    }
+    set {
+      volumePlayer = newValue
+      player?.volume = newValue
+    }
+  }
+
+  var isStopped: Bool {
+    playType == nil
+  }
+
+  var elapsedTime: Double {
+    player?.elapsedTime() ?? 0.0
+  }
+
+  var duration: Double {
+    guard isPlayerDurationKnown else { return currentMetadataDuration }
+    return player?.duration ?? 0.0
+  }
+
+  private var isPlayerDurationKnown: Bool {
+    let playerDuration = player?.duration ?? 0.0
+    return playerDuration.isFinite && playerDuration > 0
+  }
+
+  var playbackRate: PlaybackRate {
+    userDefinedPlaybackRate
+  }
+
+  var canBeContinued: Bool {
+    currentPlayUrl != "" &&
+      (
+        player?.getState() == .paused || player?.getState() == .playing || player?
+          .getState() == .bufferring
+      )
+  }
+
+  init(
+    createAudioStreamingPlayerCB: @escaping CreateAudioStreamingPlayerCallback,
+    audioSessionHandler: AudioSessionHandler,
+    eventLogger: EventLogger,
+    getBackendApiCB: @escaping GetBackendApiCallback,
+    networkMonitor: NetworkMonitorFacade,
+    getPlayableDownloaderCB: @escaping GetPlayableDownloadManagerCallback,
+    cacheProxy: PlayableFileCachable,
+    userStatistics: UserStatistics
+  ) {
+    self.createAudioStreamingPlayerCB = createAudioStreamingPlayerCB
+    self.audioSessionHandler = audioSessionHandler
+    self.getBackendApiCB = getBackendApiCB
+    self.networkMonitor = networkMonitor
+    self.eventLogger = eventLogger
+    self.getPlayableDownloaderCB = getPlayableDownloaderCB
+    self.cacheProxy = cacheProxy
+    self.userStatistics = userStatistics
+    self.audioAnalyzer = AudioAnalyzer()
+
+    super.init()
+
+    initAudioStreamingPlayerAndNodes()
+  }
+
+  private func startTimers() {
+    stopTimers()
+    timerElapsedTimeInterval = Timer.scheduledTimer(
+      withTimeInterval: updateElapsedTimeInterval.seconds,
+      repeats: true
+    ) { [weak self] timer in
+      Task { @MainActor in
+        guard let self = self else { return }
+        self.checkForPreloadNextPlayerItem()
+        self.responder?.didElapsedTimeChange()
+      }
+    }
+    timerLyricsTimeInterval = Timer.scheduledTimer(
+      withTimeInterval: updateLyricsTimeInterval.seconds,
+      repeats: true
+    ) { [weak self] timer in
+      MainActor.assumeIsolated {
+        guard let self = self else { return }
+        let cmTime = CMTime(value: Int64(self.elapsedTime * 1_000), timescale: 1_000)
+        self.responder?.didLyricsTimeChange(time: cmTime)
+      }
+    }
+    // `scheduledTimer` only registers for the default mode; keep the clocks running while
+    // the user scrolls a list or holds a menu open.
+    if let timer = timerElapsedTimeInterval { RunLoop.main.add(timer, forMode: .common) }
+    if let timer = timerLyricsTimeInterval { RunLoop.main.add(timer, forMode: .common) }
+  }
+
+  private func stopTimers() {
+    timerElapsedTimeInterval?.invalidate()
+    timerLyricsTimeInterval?.invalidate()
+  }
+
+  private func checkForPreloadNextPlayerItem() {
+    guard isAutoStartPlayback else { return }
+    if nextPreloadedPlayable == nil, elapsedTime.isFinite, elapsedTime > 0, duration.isFinite,
+       duration > 0 {
+      let remainingTime = duration - elapsedTime
+      let preloadThreshold = max(10, crossfadeDuration + 8)
+      if remainingTime > 0, remainingTime < preloadThreshold {
+        nextPreloadedPlayable = nextPlayablePreloadCB?()
+        guard let nextPreloadedPlayable = nextPreloadedPlayable else { return }
+        os_log(.default, "Preloading: %s", nextPreloadedPlayable.displayString)
+        if nextPreloadedPlayable.isCached {
+          insertCachedPlayable(playable: nextPreloadedPlayable, queueType: .queue)
+        } else if !isOfflineMode {
+          Task { @MainActor in
+            do {
+              try await insertStreamPlayable(playable: nextPreloadedPlayable, queueType: .queue)
+              if self.isAutoCachePlayedItems, nextPreloadedPlayable.isDownloadAvailable,
+                 let accountInfo = nextPreloadedPlayable.account?.info {
+                self.getPlayableDownloaderCB(accountInfo).download(object: nextPreloadedPlayable)
+              }
+            } catch {
+              self.nextPreloadedPlayable = nil
+              self.eventLogger.report(topic: "Player", error: error)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @MainActor
+  private func itemFinishedPlaying() {
+    isTriggerReinsertPlayableAllowed = true
+    isPreviousPlaylableFinshed = true
+    if nextPreloadedPlayable != nil {
+      isPlaying = true
+      startTimers()
+    } else {
+      isPlaying = false
+      stopTimers()
+    }
+    responder?.didItemFinishedPlaying()
+  }
+
+  private func handleError(error: Error) {
+    isErrorOccurred = true
+    wasPlayingBeforeErrorOccurred = isPlaying
+    pause()
+    nextPreloadedPlayable = nil
+    nextPreloadedUrl = ""
+    isPreviousPlaylableFinshed = true
+    restartPlayer()
+    eventLogger.report(topic: "Player Status", error: error)
+    responder?.notifyErrorOccurred(error: error)
+    if isTriggerReinsertPlayableAllowed {
+      isTriggerReinsertPlayableAllowed = false
+      triggerReinsertPlayableCB?()
+    }
+  }
+
+  func continuePlay() {
+    isPlaying = true
+    player?.resume()
+    startTimers()
+    player?.rate = Float(userDefinedPlaybackRate.asDouble)
+    audioAnalyzer.play()
+  }
+
+  func pause() {
+    isPlaying = false
+    player?.pause()
+    stopTimers()
+    audioAnalyzer.stop()
+  }
+
+  func stop() {
+    isPlaying = false
+    clearPlayer()
+    audioAnalyzer.stop()
+  }
+
+  func setPlaybackRate(_ newValue: PlaybackRate) {
+    userDefinedPlaybackRate = newValue
+    player?.rate = Float(newValue.asDouble)
+  }
+
+  func seek(toSecond: Double) {
+    // before the stream has started, the seek is applied in didStartPlaying
+    if currentPlayUrl != "",
+              player?.getState() == .playing || player?.getState() == .paused {
+      seekTimeWhenStarted = nil
+      player?.seek(to: toSecond)
+      // The player reports the requested position as soon as the seek is requested, so the bar
+      // and the lyrics (which share this clock) can move now instead of on the next tick.
+      notifyCurrentTime()
+    } else {
+      seekTimeWhenStarted = toSecond
+    }
+  }
+
+  private func notifyCurrentTime() {
+    let time = CMTime(value: Int64(elapsedTime * 1_000), timescale: 1_000)
+    responder?.didElapsedTimeChange()
+    responder?.didLyricsTimeChange(time: time)
+  }
+
+  private func restartPlayer() {
+    player = nil
+    initAudioStreamingPlayerAndNodes()
+  }
+
+  private func initAudioStreamingPlayerAndNodes() {
+    guard player == nil else { return }
+    player = createAudioStreamingPlayerCB()
+
+    equalizer = AVAudioUnitEQ(numberOfBands: 10)
+    replayGainNode = AVAudioMixerNode()
+    audioAnalyzer = AudioAnalyzer()
+
+    guard let player,
+          let eq = equalizer,
+          let replayGain = replayGainNode
+    else { return }
+
+    player.volume = volumePlayer
+    player.crossfadeDuration = crossfadeDuration
+    player.delegate = self
+
+    player.attach(nodes: [eq, replayGain])
+
+    audioAnalyzer.install(on: equalizer!)
+
+    setupEqualizerBands()
+    applyEqualizerSetting(eqSetting: currentEqualizerSetting)
+    applyReplayGain()
+    os_log(.debug, "Player setup completed with EQ and ReplayGain support")
+  }
+
+  var shouldPlaybackStart: Bool {
+    (!isErrorOccurred && isAutoStartPlayback) || (isErrorOccurred && wasPlayingBeforeErrorOccurred)
+  }
+
+  func requestToPlay(
+    playable: AbstractPlayable,
+    playbackRate: PlaybackRate,
+    autoStartPlayback: Bool
+  ) {
+    userDefinedPlaybackRate = playbackRate
+    player?.rate = Float(userDefinedPlaybackRate.asDouble)
+    isAutoStartPlayback = autoStartPlayback
+    handleRequest(playable: playable)
+  }
+
+  private func handleRequest(playable: AbstractPlayable) {
+    currentMetadataDuration = Double(playable.duration)
+    currentPlayable = playable
+    if isPreviousPlaylableFinshed, let nextPreloadedPlayable = nextPreloadedPlayable,
+       nextPreloadedPlayable == playable {
+      // Do nothing next preloaded playable has already been queued to player
+      os_log(.default, "Play Preloaded: %s", nextPreloadedPlayable.displayString)
+      currentPreparedUrl = ""
+      currentPlayUrl = nextPreloadedUrl
+      playType = perloadedPlayType
+      perloadedPlayType = nil
+      isPreviousPlaylableFinshed = false
+      currentReplayGainValue = nextPreloadedPlayable.replayGainTrackGain
+      applyReplayGain()
+      self.nextPreloadedPlayable = nil
+      nextPreloadedUrl = ""
+      responder?.notifyItemPreparationFinished()
+    } else if let relFilePath = playable.relFilePath,
+              fileManager.fileExits(relFilePath: relFilePath) {
+      currentPlayUrl = ""
+      nextPreloadedPlayable = nil
+      nextPreloadedUrl = ""
+      guard playable.isPlayableOniOS else {
+        reactToIncompatibleContentType(
+          contentType: playable.fileContentType ?? "",
+          playableDisplayTitle: playable.displayString
+        )
+        return
+      }
+      currentReplayGainValue = playable.replayGainTrackGain
+      applyReplayGain()
+      insertCachedPlayable(playable: playable)
+      isPlaying = shouldPlaybackStart
+      responder?.notifyItemPreparationFinished()
+    } else if !isOfflineMode {
+      currentPlayUrl = ""
+      nextPreloadedPlayable = nil
+      nextPreloadedUrl = ""
+      guard playable.isPlayableOniOS else {
+        reactToIncompatibleContentType(
+          contentType: playable.fileContentType ?? "",
+          playableDisplayTitle: playable.displayString
+        )
+        return
+      }
+      if let radio = playable.asRadio {
+        // radios must have a valid URL
+        guard let urlString = radio.url,
+              URL(string: urlString) != nil
+        else {
+          reactToInvalidRadioUrl(playableDisplayTitle: playable.displayString)
+          return
+        }
+      }
+
+      Task { @MainActor in
+        do {
+          currentReplayGainValue = playable.replayGainTrackGain
+          applyReplayGain()
+          try await insertStreamPlayable(playable: playable)
+          isPlaying = shouldPlaybackStart
+          if self.isAutoCachePlayedItems, !playable.isRadio,
+             let accountInfo = playable.account?.info {
+            self.getPlayableDownloaderCB(accountInfo).download(object: playable)
+          }
+          self.responder?.notifyItemPreparationFinished()
+        } catch {
+          self.responder?.notifyErrorOccurred(error: error)
+          self.responder?.notifyItemPreparationFinished()
+          self.eventLogger.report(topic: "Player", error: error)
+        }
+      }
+    } else {
+      clearPlayer()
+      responder?.notifyItemPreparationFinished()
+    }
+  }
+
+  private func reactToIncompatibleContentType(contentType: String, playableDisplayTitle: String) {
+    clearPlayer()
+    eventLogger.info(
+      topic: "Player Info",
+      statusCode: .playerError,
+      message: L10n.tr(
+        "Content type \"%@\" of \"%@\" is not playable via fmusic.",
+        contentType,
+        playableDisplayTitle
+      ),
+      displayPopup: true
+    )
+    responder?.notifyItemPreparationFinished()
+  }
+
+  private func reactToInvalidRadioUrl(playableDisplayTitle: String) {
+    clearPlayer()
+    eventLogger.info(
+      topic: "Player Info",
+      statusCode: .playerError,
+      message: L10n.tr("Radio \"%@\" has an invalid stream URL.", playableDisplayTitle),
+      displayPopup: true
+    )
+    responder?.notifyItemPreparationFinished()
+  }
+
+  private func clearPlayer() {
+    isPreviousPlaylableFinshed = true
+    currentPreparedUrl = ""
+    currentPlayUrl = ""
+    nextPreloadedPlayable = nil
+    nextPreloadedUrl = ""
+    currentMetadataDuration = 0.0
+    currentPlayable = nil
+    playType = nil
+    perloadedPlayType = nil
+    seekTimeWhenStarted = nil
+    isPlaying = false
+    playType = nil
+
+    stopTimers()
+    audioAnalyzer.stop()
+    player?.stop()
+  }
+
+  private func insertCachedPlayable(
+    playable: AbstractPlayable,
+    queueType: BackendAudioQueueType = .play
+  ) {
+    guard let fileURL = cacheProxy.getFileURL(forPlayable: playable) else {
+      return
+    }
+    if queueType == .play {
+      playType = .cache
+      perloadedPlayType = nil
+      os_log(.default, "Play Cache: %s (%s)", playable.displayString, fileURL.absoluteString)
+    } else {
+      perloadedPlayType = .cache
+      os_log(.default, "Insert Cache: %s (%s)", playable.displayString, fileURL.absoluteString)
+    }
+    if playable.isSong { userStatistics.playedSong(isPlayedFromCache: true) }
+    insert(playable: playable, withUrl: fileURL, queueType: queueType)
+  }
+
+  @MainActor
+  private func insertStreamPlayable(
+    playable: AbstractPlayable,
+    queueType: BackendAudioQueueType = .play
+  ) async throws {
+    var httpHeaders: [String: String] = [:]
+    @MainActor
+    func provideUrl() async throws -> URL {
+      if let radio = playable.asRadio {
+        guard let streamUrlString = radio.url,
+              let streamUrl = URL(string: streamUrlString)
+        else {
+          throw BackendError.invalidUrl
+        }
+        playType = .stream
+        return streamUrl
+      } else {
+        if queueType == .play {
+          playType = .stream
+          perloadedPlayType = nil
+        } else {
+          perloadedPlayType = .stream
+        }
+        guard let accountInfo = playable.account?.info else {
+          throw BackendError.noCredentials
+        }
+        let backendApi = getBackendApiCB(accountInfo)
+        httpHeaders = backendApi.httpHeaders
+        return try await backendApi.generateUrl(forStreamingPlayable: playable.info)
+      }
+    }
+    let streamUrl = try await provideUrl()
+
+    os_log(
+      .default,
+      "%s Stream: %s",
+      queueType == .play ? "Play" : "Insert",
+      playable.displayString
+    )
+    if playable.isSong { userStatistics.playedSong(isPlayedFromCache: false) }
+    insert(playable: playable, withUrl: streamUrl, queueType: queueType, httpHeaders: httpHeaders)
+  }
+
+  private func insert(
+    playable: AbstractPlayable,
+    withUrl url: URL,
+    queueType: BackendAudioQueueType,
+    httpHeaders: [String: String] = [:]
+  ) {
+    if queueType == .play {
+      seekTimeWhenStarted = nil
+      player?.pause()
+      audioSessionHandler.configureBackgroundPlayback()
+    }
+
+    var asset: AVURLAsset?
+    if let mimeType = playable.iOsCompatibleContentType {
+      asset = AVURLAsset(url: url, options: ["AVURLAssetOutOfBandMIMETypeKey": mimeType])
+    } else {
+      asset = AVURLAsset(url: url)
+    }
+    playInPlayer(asset: asset, queueType: queueType, httpHeaders: httpHeaders)
+  }
+
+  private func playInPlayer(
+    asset: AVURLAsset?,
+    queueType: BackendAudioQueueType,
+    httpHeaders: [String: String] = [:]
+  ) {
+    guard let asset = asset else {
+      clearPlayer()
+      return
+    }
+
+    switch queueType {
+    case .play:
+      currentPreparedUrl = asset.url.absoluteString
+      if httpHeaders.isEmpty {
+        player?.play(url: asset.url)
+      } else {
+        player?.play(url: asset.url, headers: httpHeaders)
+      }
+    case .queue:
+      nextPreloadedUrl = asset.url.absoluteString
+      if httpHeaders.isEmpty {
+        player?.queue(url: asset.url)
+      } else {
+        player?.queue(url: asset.url, headers: httpHeaders)
+      }
+    }
+  }
+
+  // MARK: - EQ Implementation
+
+  func updateEqualizerEnabled(isEnabled: Bool) {
+    isEqualizerEnabled = isEnabled
+    os_log(.debug, "Equalizer enabled: %s", isEnabled.description)
+    applyEqualizerToActiveContent()
+  }
+
+  func updateEqualizerSetting(eqSetting: EqualizerSetting) {
+    let oldSetting = currentEqualizerSetting
+    currentEqualizerSetting = eqSetting
+    os_log(
+      .debug,
+      "Equalizer changed from %s to %s",
+      oldSetting.description,
+      eqSetting.description
+    )
+    applyEqualizerToActiveContent()
+  }
+
+  private func applyEqualizerToActiveContent() {
+    if isEqualizerEnabled {
+      applyEqualizerSetting(eqSetting: currentEqualizerSetting)
+    } else {
+      applyEqualizerSetting(eqSetting: .off)
+    }
+    applyReplayGain()
+  }
+
+  private func setupEqualizerBands() {
+    guard let equalizer else { return }
+
+    for (index, frequency) in EqualizerSetting.frequencies.enumerated() {
+      guard index < equalizer.bands.count else { break }
+
+      let band = equalizer.bands[index]
+      band.frequency = frequency
+      band.bandwidth = 1.0
+      band.filterType = .parametric
+      band.gain = 0.0
+      band.bypass = false
+    }
+  }
+
+  private func applyEqualizerSetting(eqSetting: EqualizerSetting) {
+    guard let equalizer else { return }
+
+    // EQ band gains
+    for (index, gain) in eqSetting.gains.enumerated() {
+      guard index < equalizer.bands.count else { break }
+
+      let band = equalizer.bands[index]
+
+      band.filterType = .parametric
+      band.bandwidth = 1.0
+      band.gain = gain
+      band.bypass = false
+    }
+
+    equalizerVolumeCompensation = isEqualizerEnabled ? eqSetting.compensatedVolume : 1.0
+
+    os_log(.debug, "   EQ '%s'", eqSetting.description)
+    os_log(
+      .debug,
+      "   EQ Gains: [%@] dB",
+      eqSetting.gains.map { String(format: "%.1f", $0) }.joined(separator: ", ")
+    )
+    os_log(.debug, "   EQ Gain Compensation: %.1f dB", eqSetting.gainCompensation)
+    os_log(.debug, "   EQ linear Volume Compensation: %.2f", eqSetting.compensatedVolume)
+    os_log(.debug, "   Active EQ linear Volume Compensation: %.2f", equalizerVolumeCompensation)
+  }
+
+  // MARK: - ReplayGain Implementation
+
+  func updateReplayGainEnabled(isEnabled: Bool) {
+    isReplayGainEnabled = isEnabled
+    applyReplayGain()
+  }
+
+  private func applyReplayGain() {
+    guard let replayGain = replayGainNode else { return }
+
+    let eqCompensation = isEqualizerEnabled ? equalizerVolumeCompensation : 1.0
+
+    if isReplayGainEnabled, currentReplayGainValue != 0.0 {
+      // Convert dB to linear scale: gain = pow(10, dB / 20)
+      let linearGain = pow(10.0, currentReplayGainValue / 20.0)
+      replayGain.outputVolume = linearGain * eqCompensation
+      os_log(
+        .debug,
+        "ReplayGain: %.2f dB → %.3f linear gain (EQ Compensation: %.2f)",
+        currentReplayGainValue,
+        linearGain,
+        eqCompensation
+      )
+    } else {
+      replayGain.outputVolume = eqCompensation
+      os_log(
+        .debug,
+        "ReplayGain: disabled or no gain data (EQ Compensation: %.2f)",
+        eqCompensation
+      )
+    }
+  }
+}
+
+// MARK: AudioStreaming.AudioPlayerDelegate
+
+extension BackendAudioPlayer: AudioStreaming.AudioPlayerDelegate {
+  nonisolated func audioPlayerDidStartPlaying(
+    player: AudioStreaming.AudioPlayer,
+    with entryId: AudioStreaming.AudioEntryId
+  ) {
+    let entryID = entryId.id
+    Task { @MainActor in
+      didStartPlaying(url: entryID)
+    }
+  }
+
+  @MainActor
+  public func didStartPlaying(url: String) {
+    if currentPreparedUrl == url {
+      if let sampleRate = player?.mainMixerNode.outputFormat(forBus: 0).sampleRate {
+        audioAnalyzer.playing(sampleRate: Float(sampleRate))
+      }
+
+      currentPreparedUrl = ""
+      currentPlayUrl = url
+      let pendingSeekTime = seekTimeWhenStarted
+      if shouldPlaybackStart {
+        continuePlay()
+        audioAnalyzer.play()
+      } else {
+        pause()
+        audioAnalyzer.stop()
+      }
+
+      if let seekTimeWhenStarted {
+        self.seekTimeWhenStarted = nil
+        player?.seek(to: seekTimeWhenStarted)
+      }
+      // the bar and lyrics share the player clock; push the landed position right away
+      if pendingSeekTime != nil { notifyCurrentTime() }
+    }
+  }
+
+  nonisolated func audioPlayerDidFinishBuffering(
+    player: AudioStreaming.AudioPlayer,
+    with entryId: AudioStreaming.AudioEntryId
+  ) {}
+
+  nonisolated func audioPlayerStateChanged(
+    player: AudioStreaming.AudioPlayer,
+    with newState: AudioStreaming.AudioPlayerState,
+    previous: AudioStreaming.AudioPlayerState
+  ) {}
+
+  nonisolated func audioPlayerDidFinishPlaying(
+    player: AudioStreaming.AudioPlayer,
+    entryId: AudioStreaming.AudioEntryId,
+    stopReason: AudioStreaming.AudioPlayerStopReason,
+    progress: Double,
+    duration: Double
+  ) {
+    let entryID = entryId.id
+    Task { @MainActor in
+      if self.currentPlayUrl == entryID {
+        self.currentPlayUrl = ""
+        self.itemFinishedPlaying()
+      }
+    }
+  }
+
+  nonisolated func audioPlayerUnexpectedError(
+    player: AudioStreaming.AudioPlayer,
+    error: AudioStreaming.AudioPlayerError
+  ) {
+    Task { @MainActor in
+      self.handleError(error: error)
+    }
+  }
+
+  nonisolated func audioPlayerDidCancel(
+    player: AudioStreaming.AudioPlayer,
+    queuedItems: [AudioStreaming.AudioEntryId]
+  ) {
+    Task { @MainActor in
+      self.currentPlayUrl = ""
+    }
+  }
+
+  nonisolated func audioPlayerDidReadMetadata(
+    player: AudioStreaming.AudioPlayer,
+    metadata: [String: String]
+  ) {
+    Task { @MainActor in
+      self.responder?.didReadStreamMetadata(metadata)
+    }
+  }
+}

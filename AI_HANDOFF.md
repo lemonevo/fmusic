@@ -1,53 +1,53 @@
-# Amperfy 本地/WebDAV Fork — AI 接续说明
+# fmusic 本地/WebDAV Fork — AI 接续说明
 
 > 写给接手的 AI：这份文档是当前状态的最小充分上下文，直接读它就能接着干。
 > 更长的逐日改动日志在仓库根目录 `HANDOFF.md`（约 48 KB），遇到具体历史问题再去搜。
 
 ## 1. 这是什么
 
-Amperfy 的一个 macOS Catalyst fork，只保留**本地文件夹 + WebDAV**两种音源（Subsonic / Ampache 后端已删）。
+fmusic 的一个 macOS Catalyst fork，只保留**本地文件夹 + WebDAV**两种音源（Subsonic / Ampache 后端已删）。
 UI 目标是对齐 Apple Music：210 pt 侧栏、专辑网格、两栏大播放器、毛玻璃迷你条。
-App 版本 2.1.2 (1)，Bundle ID `de.familie-zimba.amperfy-music`，Deployment Target iOS 26（Catalyst），需 Xcode 27 / macOS 27 SDK。
+App 版本 2.1.2 (1)，Bundle ID `lol.levo.fmusic`，Deployment Target iOS 26（Catalyst），需 Xcode 27 / macOS 27 SDK。
 
-- 仓库：`/Users/apple/Desktop/AI/Quder/amperfy`
+- 仓库：`/Users/apple/Desktop/AI/Quder/fmusic`
 - 分支：`feature/webdav-local`（**只在本地提交，不要 push，除非用户明确要求**）
 - 最近提交：
   - `24ecdc4` Settings: shorten sidebar, nest detail pages, add language switch
   - `2725621` Fork: local/WebDAV library with Apple Music-style UI and dark mode
   - `dbba5a5` Snapshot: local/WebDAV fork before refactor
-- 构建产物：`~/Library/Developer/Xcode/DerivedData/Amperfy-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/Amperfy.app`
+- 构建产物：`~/Library/Developer/Xcode/DerivedData/fmusic-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/fmusic.app`
   （DerivedData 哈希可能变，用 `xcodebuild -showBuildSettings` 或 `mdfind` 重新定位；启动时用**带哈希的完整路径**，否则可能拉起旧包）
 
 ## 2. 构建与运行
 
 ```bash
-cd /Users/apple/Desktop/AI/Quder/amperfy
-xcodebuild -project Amperfy.xcodeproj -scheme Amperfy -configuration Debug \
+cd /Users/apple/Desktop/AI/Quder/fmusic
+xcodebuild -project fmusic.xcodeproj -scheme fmusic -configuration Debug \
   -destination 'platform=macOS,variant=Mac Catalyst' \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
-open -a "/Users/apple/Library/Developer/Xcode/DerivedData/Amperfy-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/Amperfy.app"
+open -a "/Users/apple/Library/Developer/Xcode/DerivedData/fmusic-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/fmusic.app"
 ```
 
 - 必须带 `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`，否则没有 provisioning profile 会失败。
 - 没有 CI 门禁；改完至少 `xcodebuild` 成功 + 真实打开 App 看目标界面。
-- 测试 target `AmperfyKitTests` 存在，但当前工作流以构建 + 手工 UI 验证为主。
+- 测试 target `fmusicKitTests` 存在，但当前工作流以构建 + 手工 UI 验证为主。
 
 ## 3. 代码地图
 
 | 路径 | 作用 |
 |---|---|
-| `Amperfy/SceneDelegate.swift` | 主窗口、根 VC、外观/文字大小应用、设置 modal 防悬挂 |
-| `Amperfy/MiniPlayerSceneDelegate.swift` | 迷你播放器独立 Scene（继承 App 内外观） |
-| `Amperfy/AppDelegate.swift` | 全局单例入口、外观/主题/文字大小、语言、账户增删、顶部 VC |
-| `Amperfy/Screens/Player/` | 大播放器 `PopupPlayerVC`、控制条、迷你条、歌词、AirPlay 输出选择 |
-| `Amperfy/Screens/ViewController/SettingsHostVC.swift` | 设置容器；把 SwiftUI `Settings` (@Published) 与持久化设置双向绑定 |
-| `Amperfy/SwiftUI/Settings/` | 设置页；`NavigationTarget` 定义侧栏与页面，`SettingsTabView` 画侧栏 |
-| `AmperfyKit/Storage/` | Core Data 库、`UserSettings` 等设置模型、同步/缓存 |
-| `AmperfyKit/Common/L10n.swift` | App 自身文案的中英词典（英文即 key） |
-| `AmperfyKit/Common/M3UPlaylist.swift` | M3U/M3U8 解析、导出与按曲库匹配（导入/导出 UI 在 `PlaylistsVC` / `PlaylistDetailVC`） |
-| `Amperfy/zh-Hans.lproj/Localizable.strings` | 只负责系统 UI（菜单栏、标准按钮）的中文 |
-| `AmperfyKit/Player/` | 播放核心、ReplayGain、EQ、Now Playing |
+| `fmusic/SceneDelegate.swift` | 主窗口、根 VC、外观/文字大小应用、设置 modal 防悬挂 |
+| `fmusic/MiniPlayerSceneDelegate.swift` | 迷你播放器独立 Scene（继承 App 内外观） |
+| `fmusic/AppDelegate.swift` | 全局单例入口、外观/主题/文字大小、语言、账户增删、顶部 VC |
+| `fmusic/Screens/Player/` | 大播放器 `PopupPlayerVC`、控制条、迷你条、歌词、AirPlay 输出选择 |
+| `fmusic/Screens/ViewController/SettingsHostVC.swift` | 设置容器；把 SwiftUI `Settings` (@Published) 与持久化设置双向绑定 |
+| `fmusic/SwiftUI/Settings/` | 设置页；`NavigationTarget` 定义侧栏与页面，`SettingsTabView` 画侧栏 |
+| `fmusicKit/Storage/` | Core Data 库、`UserSettings` 等设置模型、同步/缓存 |
+| `fmusicKit/Common/L10n.swift` | App 自身文案的中英词典（英文即 key） |
+| `fmusicKit/Common/M3UPlaylist.swift` | M3U/M3U8 解析、导出与按曲库匹配（导入/导出 UI 在 `PlaylistsVC` / `PlaylistDetailVC`） |
+| `fmusic/zh-Hans.lproj/Localizable.strings` | 只负责系统 UI（菜单栏、标准按钮）的中文 |
+| `fmusicKit/Player/` | 播放核心、ReplayGain、EQ、Now Playing |
 | `Vendor/AudioStreaming/` | 内嵌流式播放引擎（环形缓冲、gapless、交叉淡入淡出 `AudioPlayer.swift` / `AudioPlayerRenderProcessor.swift`） |
 
 ## 4. 当前产品状态（已验证）
@@ -66,17 +66,17 @@ open -a "/Users/apple/Library/Developer/Xcode/DerivedData/Amperfy-eyetrzidtspoev
 - 语言：设置 → 通用 → 语言（跟随系统 / 简体中文 / English）。写 App 自己的 `AppleLanguages`，**重启后生效**（会弹窗提示）；不要期待运行期整窗切换。
 - 已中文化：App 文案、系统菜单（zh-Hans.lproj）、未知元数据占位符（`L10n.trPlaceholder`）。
 - 歌词偏移：播放器「更多」→ 歌词偏移（已同步 / 提前 0.2–1.0s / 延后 0.2–1.0s）。含 LRC `[offset:]`，手动值存 `settings.user._lyricsOffsetMs`（±5000ms），行切换与词级高亮、点歌词 seek 共用同一偏移。
-- 歌单 M3U：播放列表「更多」→ 导入 M3U 歌单（UTType m3u/m3u8，按相对路径/文件名/曲名/艺人-曲名匹配，导入后弹“已导入 N 首，跳过 N 条”）；歌单详情「更多」→ 导出 M3U（`#EXTM3U` + `#EXTINF`，相对 `song.url`，分享面板）。编解码与匹配在 `AmperfyKit/Common/M3UPlaylist.swift`。
-- 无缝播放 & 交叉淡入淡出：跨曲共用同一个 `AudioStreamingPlayer` 环形缓冲，不重置。播到剩余 `max(10, crossfade+8)` 秒时预加载下一首；配置了淡入淡出时，引擎在 ring 里把 outgoing 最后 N 秒与 incoming 开头 N 秒做线性混音，切歌瞬间跳过 incoming 已混音的 N 帧（`framesState.played = N`，所以新曲 UI 从 N 秒开始），样本级连续、无静音。设置 → 播放 → 交叉淡入淡出（关闭 / 3 / 5 / 8 秒，**默认关闭**），存 `settings.user._crossfadeSeconds`；引擎缓冲 30s（`AmperfyKit.createPlayer`）。改这块先读 `Vendor/AudioStreaming/.../AudioPlayer.swift` 的 Crossfade 段和 `AudioPlayerRenderProcessor.inRender` 的 crossfade 分支。注意 `DispatchTimerSource.deinit` 只在 `state == .suspended` 时 resume——激活状态的定时器再 resume 会让 `restartPlayer()` 在 deinit 时 SIGTRAP。
+- 歌单 M3U：播放列表「更多」→ 导入 M3U 歌单（UTType m3u/m3u8，按相对路径/文件名/曲名/艺人-曲名匹配，导入后弹“已导入 N 首，跳过 N 条”）；歌单详情「更多」→ 导出 M3U（`#EXTM3U` + `#EXTINF`，相对 `song.url`，分享面板）。编解码与匹配在 `fmusicKit/Common/M3UPlaylist.swift`。
+- 无缝播放 & 交叉淡入淡出：跨曲共用同一个 `AudioStreamingPlayer` 环形缓冲，不重置。播到剩余 `max(10, crossfade+8)` 秒时预加载下一首；配置了淡入淡出时，引擎在 ring 里把 outgoing 最后 N 秒与 incoming 开头 N 秒做线性混音，切歌瞬间跳过 incoming 已混音的 N 帧（`framesState.played = N`，所以新曲 UI 从 N 秒开始），样本级连续、无静音。设置 → 播放 → 交叉淡入淡出（关闭 / 3 / 5 / 8 秒，**默认关闭**），存 `settings.user._crossfadeSeconds`；引擎缓冲 30s（`fmusicKit.createPlayer`）。改这块先读 `Vendor/AudioStreaming/.../AudioPlayer.swift` 的 Crossfade 段和 `AudioPlayerRenderProcessor.inRender` 的 crossfade 分支。注意 `DispatchTimerSource.deinit` 只在 `state == .suspended` 时 resume——激活状态的定时器再 resume 会让 `restartPlayer()` 在 deinit 时 SIGTRAP。
 - 性能约束（2026-11-12 优化）：歌词只在可见时做 60 Hz 更新（`LyricsView.scroll` 不可见即返回；行查找二分）；视觉分析器 30 fps 节流；播放/歌词 Timer 注册到 `.common` 模式（滚动时不停）；恢复进度每 5 s 更新一次；交叉淡化关闭时不跑 250ms 定时器。
-- 状态：**没有 Last.fm / scrobble**。上游的 `ScrobbleSyncer`、`ScrobbleEntry`（Core Data 实体与 MO/包装器）、`scrobble`/`syncNowPlaying` 协议方法、`isScrobbleStreamedItems` 设置、Account/AbstractPlayable 关系都已移除；Core Data 当前模型是 `Amperfy v50`。
+- 状态：**没有 Last.fm / scrobble**。上游的 `ScrobbleSyncer`、`ScrobbleEntry`（Core Data 实体与 MO/包装器）、`scrobble`/`syncNowPlaying` 协议方法、`isScrobbleStreamedItems` 设置、Account/AbstractPlayable 关系都已移除；Core Data 当前模型是 `fmusic v50`。
 - 当前用户数据：WebDAV 账户、约 40 艺人 / 38 专辑 / 53 歌曲、缓存约 1.8 GB（测试环境，勿清空）。
 
 ## 5. 设置与持久化（改设置页前必读）
 
 - 底层：`UserDefaults` 三个 Data key：`settings.user` / `settings.account` / `settings.app`，内容为 JSON。
-- 模型：`AmperfyKit/Storage/Settings.swift` 的 `UserSettings` / `AccountSettings` / `AppSettings`。
-- **新增字段是安全的**：`AmperfySettings.decodeFillingMissingKeys` 会用默认值补齐旧 JSON 缺的键；解码结果按原始 Data 缓存。
+- 模型：`fmusicKit/Storage/Settings.swift` 的 `UserSettings` / `AccountSettings` / `AppSettings`。
+- **新增字段是安全的**：`fmusicSettings.decodeFillingMissingKeys` 会用默认值补齐旧 JSON 缺的键；解码结果按原始 Data 缓存。
 - UI 绑定：SwiftUI 用 `ObservableSettings.swift` 里的 `Settings: ObservableObject`（一堆 `@Published`）；`SettingsHostVC.viewIsAppearing` 建立每个字段的 Combine sink，写回 `appDelegate.storage.settings…` 并执行副作用。新增设置项必须同时：加模型字段 → 加 `@Published` → 在 `SettingsHostVC` 里初始值和 sink。
 - 外观值：`_appearanceMode`（0/1/2，对应 `UIUserInterfaceStyle`）。
 - 语言值：`_appLanguage`（`system` / `english` / `simplifiedChinese`），由 `AppDelegate.applyAppLanguage` 映射到 `AppleLanguages`。
@@ -85,7 +85,7 @@ open -a "/Users/apple/Library/Developer/Xcode/DerivedData/Amperfy-eyetrzidtspoev
 ```bash
 python3 - <<'EOF'
 import plistlib, json, os
-p = os.path.expanduser("~/Library/Preferences/de.familie-zimba.amperfy-music.plist")
+p = os.path.expanduser("~/Library/Preferences/lol.levo.fmusic.plist")
 d = plistlib.load(open(p, 'rb'))
 j = json.loads(d["settings.user"].decode('utf-8'))
 j["_appearanceMode"] = 2          # 0=系统 1=浅色 2=深色
@@ -142,10 +142,10 @@ killall cfprefsd
 ## 9. 开工前 30 秒检查
 
 ```bash
-cd /Users/apple/Desktop/AI/Quder/amperfy
+cd /Users/apple/Desktop/AI/Quder/fmusic
 git status --short          # 应干净
 git log --oneline -3
-pgrep -fl "Amperfy.app/Contents/MacOS/Amperfy" || echo not-running
+pgrep -fl "fmusic.app/Contents/MacOS/fmusic" || echo not-running
 ```
 
 先读 `HANDOFF.md` 里对应模块的最新 bullet，再动代码。

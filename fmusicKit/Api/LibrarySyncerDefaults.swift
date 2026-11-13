@@ -1,0 +1,257 @@
+//
+//  LibrarySyncerDefaults.swift
+//  fmusicKit
+//
+//  This program is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+
+import Foundation
+
+/// File based library sources have no server side catalogue: everything is
+/// already stored in Core Data after indexing. These defaults keep the
+/// server oriented `LibrarySyncer` surface usable for local and WebDAV sources.
+@MainActor
+extension LibrarySyncer {
+  public func sync(genre: Genre) async throws {}
+  public func sync(artist: Artist) async throws {}
+  public func sync(album: Album) async throws {}
+  public func sync(song: Song) async throws {}
+  public func sync(podcast: Podcast) async throws {}
+  public func syncNewestAlbums(offset: Int, count: Int) async throws {}
+  public func syncRecentAlbums(offset: Int, count: Int) async throws {}
+  public func syncNewestPodcastEpisodes() async throws {}
+  public func syncFavoriteLibraryElements() async throws {}
+  public func syncRadios() async throws {}
+  public func syncDownPlaylistsWithoutSongs() async throws {}
+  public func syncDown(playlist: Playlist) async throws {}
+  public func syncUpload(playlistToUpdateName playlist: Playlist) async throws {}
+  public func syncUpload(playlistToAddSongs playlist: Playlist, songs: [Song]) async throws {}
+  public func syncUpload(playlistToDeleteSong playlist: Playlist, index: Int) async throws {}
+  public func syncUpload(playlistToUpdateOrder playlist: Playlist) async throws {}
+  public func syncUpload(playlistIdToDelete id: String) async throws {}
+  public func syncDownPodcastsWithoutEpisodes() async throws {}
+  public func searchArtists(searchText: String) async throws {}
+  public func searchAlbums(searchText: String) async throws {}
+  public func searchSongs(searchText: String) async throws {}
+  public func syncMusicFolders() async throws {}
+  public func syncIndexes(musicFolder: MusicFolder) async throws {}
+  public func sync(directory: Directory) async throws {}
+  public func requestRandomSongs(playlist: Playlist, count: Int) async throws {}
+  public func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] { [] }
+  public func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws {}
+
+  public func setRating(song: Song, rating: Int) async throws {
+    song.rating = rating
+  }
+
+  public func setRating(album: Album, rating: Int) async throws {
+    album.rating = rating
+  }
+
+  public func setRating(artist: Artist, rating: Int) async throws {
+    artist.rating = rating
+  }
+
+  public func setFavorite(song: Song, isFavorite: Bool) async throws {
+    song.isFavorite = isFavorite
+    song.starredDate = isFavorite ? Date() : nil
+  }
+
+  public func setFavorite(album: Album, isFavorite: Bool) async throws {
+    album.isFavorite = isFavorite
+    album.starredDate = isFavorite ? Date() : nil
+  }
+
+  public func setFavorite(artist: Artist, isFavorite: Bool) async throws {
+    artist.isFavorite = isFavorite
+    artist.starredDate = isFavorite ? Date() : nil
+  }
+
+  public func parseLyrics(relFilePath: URL) async throws -> LyricsList {
+    let fileManager = CacheFileManager.shared
+    guard let absoluteFilePath = fileManager.getAbsolutefmusicPath(relFilePath: relFilePath),
+          let content = try? String(contentsOf: absoluteFilePath, encoding: .utf8)
+    else { return LyricsList() }
+    return LyricsTextParser.parse(content)
+  }
+}
+
+// MARK: - LyricsTextParser
+
+enum LyricsTextParser {
+  static func parse(_ content: String) -> LyricsList {
+    YRCFileParser.isYRC(content) ? YRCFileParser.parse(content) : LRCFileParser.parse(content)
+  }
+}
+
+// MARK: - YRCFileParser
+
+/// NetEase word-synced lyrics: `[lineStart,lineDuration](wordStart,wordDuration,0)word`
+enum YRCFileParser {
+  private static let linePattern = try? NSRegularExpression(
+    pattern: "^\\[(\\d{1,9}),(\\d{1,9})\\]",
+    options: []
+  )
+  private static let wordTagPattern = try? NSRegularExpression(
+    pattern: "\\((\\d{1,9}),(\\d{1,9}),(\\d{1,3})\\)",
+    options: []
+  )
+
+  static func isYRC(_ content: String) -> Bool {
+    content.components(separatedBy: .newlines).contains { rawLine in
+      let line = rawLine.trimmingCharacters(in: .whitespaces)
+      guard !line.isEmpty, !line.hasPrefix("{") else { return false }
+      return linePattern?.firstMatch(in: line, range: NSRange(line.startIndex..., in: line))
+        != nil
+    }
+  }
+
+  static func parse(_ content: String) -> LyricsList {
+    var lines = [LyricsLine]()
+    for rawLine in content.components(separatedBy: .newlines) {
+      guard let line = parseLine(rawLine) else { continue }
+      lines.append(line)
+    }
+
+    var lyrics = StructuredLyrics()
+    lyrics.lang = "und"
+    lyrics.synced = !lines.isEmpty
+    lyrics.line = lines.sorted { ($0.start ?? 0) < ($1.start ?? 0) }
+    var list = LyricsList()
+    list.lyrics = [lyrics]
+    return list
+  }
+
+  private static func parseLine(_ rawLine: String) -> LyricsLine? {
+    // Credit rows are JSON objects, not timed text.
+    let trimmed = rawLine.trimmingCharacters(in: .whitespaces)
+    guard !trimmed.isEmpty, !trimmed.hasPrefix("{"), let linePattern else { return nil }
+
+    let text = trimmed as NSString
+    let fullRange = NSRange(location: 0, length: text.length)
+    guard let header = linePattern.firstMatch(in: trimmed, range: fullRange),
+          let start = Int(text.substring(with: header.range(at: 1)))
+    else { return nil }
+
+    let bodyStart = header.range.location + header.range.length
+    let bodyRange = NSRange(location: bodyStart, length: text.length - bodyStart)
+    let tags = wordTagPattern?.matches(in: trimmed, range: bodyRange) ?? []
+    guard !tags.isEmpty else { return nil }
+
+    var words = [LyricWord]()
+    for (index, tag) in tags.enumerated() {
+      let wordStart = Int(text.substring(with: tag.range(at: 1))) ?? 0
+      let duration = Int(text.substring(with: tag.range(at: 2))) ?? 0
+      let wordTextStart = tag.range.location + tag.range.length
+      let wordTextEnd = index + 1 < tags.count ? tags[index + 1].range.location : text.length
+      guard wordTextEnd >= wordTextStart else { continue }
+      let wordText = text.substring(
+        with: NSRange(location: wordTextStart, length: wordTextEnd - wordTextStart)
+      )
+      words.append(LyricWord(start: wordStart, duration: duration, value: wordText))
+    }
+
+    let value = words.map(\.value).joined()
+    guard !value.trimmingCharacters(in: .whitespaces).isEmpty else { return nil }
+
+    var line = LyricsLine()
+    line.start = start
+    line.value = value
+    line.words = words
+    return line
+  }
+}
+
+// MARK: - LRCFileParser
+
+enum LRCFileParser {
+  private static let timestampPattern = try? NSRegularExpression(
+    pattern: "^\\[(\\d{1,3}):(\\d{1,2})(?:[.:](\\d{1,3}))?\\]",
+    options: []
+  )
+  private static let offsetPattern = try? NSRegularExpression(
+    pattern: "\\[offset:\\s*([+-]?\\d+)\\s*\\]",
+    options: [.caseInsensitive]
+  )
+
+  static func parse(_ content: String) -> LyricsList {
+    var lines = [LyricsLine]()
+    var isSynced = false
+    var offsetMs = 0
+
+    if let offsetPattern,
+       let match = offsetPattern.firstMatch(
+         in: content,
+         range: NSRange(content.startIndex..., in: content)
+       ),
+       let valueRange = Range(match.range(at: 1), in: content),
+       let value = Int(content[valueRange]) {
+      offsetMs = value
+    }
+
+    for rawLine in content.components(separatedBy: .newlines) {
+      var remaining = rawLine.trimmingCharacters(in: .whitespaces)
+      guard !remaining.isEmpty else { continue }
+
+      if remaining.hasPrefix("["),
+         let closingIndex = remaining.dropFirst().firstIndex(of: "]") {
+        let tag = remaining[remaining.index(after: remaining.startIndex) ..< closingIndex]
+        if tag.contains(":") {
+          let key = tag.split(separator: ":", maxSplits: 1).first?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+          let isTimestamp = !key.isEmpty && key.allSatisfy(\.isNumber)
+          if !isTimestamp { continue }
+        }
+      }
+
+      var timestamps = [Int]()
+      while let match = timestampPattern?.firstMatch(
+        in: remaining,
+        range: NSRange(remaining.startIndex..., in: remaining)
+      ) {
+        guard let minutesRange = Range(match.range(at: 1), in: remaining),
+              let secondsRange = Range(match.range(at: 2), in: remaining),
+              let minutes = Int(remaining[minutesRange]),
+              let seconds = Int(remaining[secondsRange])
+        else { break }
+        var milliseconds = 0
+        if let fractionRange = Range(match.range(at: 3), in: remaining),
+           let fraction = Int(remaining[fractionRange]) {
+          let digits = remaining[fractionRange].count
+          milliseconds = digits == 1 ? fraction * 100 : (digits == 2 ? fraction * 10 : fraction)
+        }
+        timestamps.append(((minutes * 60) + seconds) * 1000 + milliseconds)
+        guard let fullRange = Range(match.range, in: remaining) else { break }
+        remaining = String(remaining[fullRange.upperBound...])
+          .trimmingCharacters(in: .whitespaces)
+      }
+
+      guard !remaining.isEmpty else { continue }
+      if timestamps.isEmpty {
+        var line = LyricsLine()
+        line.value = remaining
+        lines.append(line)
+      } else {
+        isSynced = true
+        for timestamp in timestamps {
+          var line = LyricsLine()
+          line.start = timestamp
+          line.value = remaining
+          lines.append(line)
+        }
+      }
+    }
+
+    var lyrics = StructuredLyrics()
+    lyrics.lang = "und"
+    lyrics.synced = isSynced
+    lyrics.offset = offsetMs
+    lyrics.line = isSynced ? lines.sorted { ($0.start ?? 0) < ($1.start ?? 0) } : lines
+    var list = LyricsList()
+    list.lyrics = [lyrics]
+    return list
+  }
+}

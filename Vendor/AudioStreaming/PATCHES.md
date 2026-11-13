@@ -47,4 +47,4 @@ not started twice.
 ## When updating the vendored copy
 
 Re-apply these patches and bump the revision above. Keep the dependency pointing at
-`Vendor/AudioStreaming` (`XCLocalSwiftPackageReference` in `Amperfy.xcodeproj`).
+`Vendor/AudioStreaming` (`XCLocalSwiftPackageReference` in `fmusic.xcodeproj`).

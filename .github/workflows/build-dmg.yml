@@ -27,8 +27,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
-            -project Amperfy.xcodeproj \
-            -scheme Amperfy \
+            -project fmusic.xcodeproj \
+            -scheme fmusic \
             -configuration Release \
             -destination 'platform=macOS,variant=Mac Catalyst' \
             -derivedDataPath build \
@@ -40,7 +40,7 @@ jobs:
       - name: Package DMG
         run: |
           set -euo pipefail
-          APP="build/Build/Products/Release-maccatalyst/Amperfy.app"
+          APP="build/Build/Products/Release-maccatalyst/fmusic.app"
           if [ ! -d "$APP" ]; then
             echo "App bundle not found at $APP"
             find build/Build/Products -maxdepth 2 -name "*.app" || true
