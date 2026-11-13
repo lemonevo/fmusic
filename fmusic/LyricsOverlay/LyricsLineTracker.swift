@@ -12,16 +12,10 @@ import Foundation
 // MARK: - LyricsSnapshot
 
 struct LyricsSnapshot {
-  let lineIndex: Int
   let currentText: String
   let nextText: String?
   let syllables: [LyricsSyllableTiming]
   let syllableProgress: [CGFloat]
-  let isSynced: Bool
-
-  var isBlankLine: Bool {
-    currentText.trimmingCharacters(in: .whitespaces).isEmpty
-  }
 }
 
 // MARK: - LyricsLineTracker
@@ -31,7 +25,7 @@ final class LyricsLineTracker {
   // Mirrors the player's lyrics view so the overlay changes lines at the same moment.
   private static let leadTime: TimeInterval = 0.25
 
-  private(set) var lyrics: StructuredLyrics?
+  private var lyrics: StructuredLyrics?
   private var syllableCache = [[LyricsSyllableTiming]]()
 
   var hasLyrics: Bool {
@@ -58,12 +52,10 @@ final class LyricsLineTracker {
 
     guard lyrics.synced else {
       return LyricsSnapshot(
-        lineIndex: 0,
         currentText: lyrics.line.first?.value ?? "",
         nextText: nil,
         syllables: [],
-        syllableProgress: [],
-        isSynced: false
+        syllableProgress: []
       )
     }
 
@@ -93,12 +85,10 @@ final class LyricsLineTracker {
       .value
 
     return LyricsSnapshot(
-      lineIndex: lineIndex,
       currentText: lyrics.line[lineIndex].value,
       nextText: nextText,
       syllables: syllables,
-      syllableProgress: progress,
-      isSynced: true
+      syllableProgress: progress
     )
   }
 }

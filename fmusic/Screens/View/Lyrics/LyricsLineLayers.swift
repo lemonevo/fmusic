@@ -180,11 +180,11 @@ final class LyricsTextLayout {
     return result
   }
 
-  func draw(at origin: CGPoint = .zero) {
+  func draw() {
     guard manager.numberOfGlyphs > 0 else { return }
     manager.drawGlyphs(
       forGlyphRange: NSRange(location: 0, length: manager.numberOfGlyphs),
-      at: origin
+      at: .zero
     )
   }
 }

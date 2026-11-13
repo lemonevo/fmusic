@@ -24,7 +24,7 @@
     let syllableProgress: [CGFloat]
   }
 
-  struct DesktopLyricsStyle {
+  struct DesktopLyricsStyle: Equatable {
     var pointSize: CGFloat
     // 0 = fully transparent background, 1 = opaque card
     var backgroundOpacity: Double
@@ -121,7 +121,8 @@
       }
 
       let lineText = content.currentText.isEmpty ? "♪" : content.currentText
-      let baseLayout = LyricsTextLayout(
+      // The dim layer only exists to show what is not sung yet.
+      let baseLayout = content.syllables.isEmpty ? nil : LyricsTextLayout(
         text: NSAttributedString(
           string: lineText,
           attributes: attributes(color: UIColor.white.withAlphaComponent(0.48))
@@ -151,14 +152,14 @@
       )
       let currentOrigin = CGPoint(
         x: horizontalInset,
-        y: topInset + max(0, (currentArea - baseLayout.height) / 2)
+        y: topInset + max(0, (currentArea - highlightLayout.height) / 2)
       )
 
       context.saveGState()
       context.translateBy(x: currentOrigin.x, y: currentOrigin.y)
       // Without timings (unsynced lyrics or the no-lyrics placeholder) there is nothing to
       // fill, so the line is drawn fully instead of in the dim unsung color.
-      (content.syllables.isEmpty ? highlightLayout : baseLayout).draw()
+      (baseLayout ?? highlightLayout).draw()
       context.restoreGState()
 
       drawSungPortion(
@@ -232,7 +233,6 @@
 
     private let window: NSObject
     private let contentLayer: CALayer
-    private let contentView: NSObject
 
     private var style = DesktopLyricsStyle(
       pointSize: DesktopLyricsFontSize.medium.pointSize,
@@ -241,14 +241,15 @@
       showsNextLine: true
     )
     private var currentContent: DesktopLyricsContent?
+    private var screenScale: CGFloat = 2
 
-    private init(window: NSObject, view: NSObject, layer: CALayer) {
+    private init(window: NSObject, layer: CALayer) {
       self.window = window
-      contentView = view
       contentLayer = layer
       super.init()
 
       configureWindow()
+      screenScale = Self.currentScreenScale(for: window)
       restoreFrame()
       NotificationCenter.default.addObserver(
         self,
@@ -260,11 +261,7 @@
 
     static func make() -> DesktopLyricsPanelController? {
       guard let created = makeWindow() else { return nil }
-      return DesktopLyricsPanelController(
-        window: created.window,
-        view: created.view,
-        layer: created.layer
-      )
+      return DesktopLyricsPanelController(window: created.window, layer: created.layer)
     }
 
     deinit {
@@ -278,6 +275,7 @@
     }
 
     func show() {
+      screenScale = Self.currentScreenScale(for: window)
       window.perform(NSSelectorFromString("orderFrontRegardless"))
     }
 
@@ -286,6 +284,7 @@
     }
 
     func apply(style: DesktopLyricsStyle) {
+      guard style != self.style else { return }
       self.style = style
       let size = DesktopLyricsRenderer.panelSize(style: style)
       let frame = currentFrame
@@ -309,6 +308,13 @@
     }
 
     func update(content: DesktopLyricsContent) {
+      if let currentContent,
+         currentContent.currentText == content.currentText,
+         currentContent.nextText == content.nextText,
+         currentContent.syllables.count == content.syllables.count,
+         currentContent.syllableProgress == content.syllableProgress {
+        return
+      }
       currentContent = content
       renderCurrentContent()
     }
@@ -328,19 +334,19 @@
       contentLayer.contents = image
     }
 
-    private var screenScale: CGFloat {
-      guard let screenClass = NSClassFromString("NSScreen") as? NSObject.Type,
-            let screen = screenClass.perform(NSSelectorFromString("mainScreen"))?
-            .takeUnretainedValue() as? NSObject,
-            let number = screen.value(forKey: "backingScaleFactor") as? NSNumber
+    private static func currentScreenScale(for window: NSObject) -> CGFloat {
+      let screen = (window.value(forKey: "screen") as? NSObject)
+        ?? (NSClassFromString("NSScreen") as? NSObject.Type)?
+        .perform(NSSelectorFromString("mainScreen"))?
+        .takeUnretainedValue() as? NSObject
+      guard let number = screen?.value(forKey: "backingScaleFactor") as? NSNumber
       else { return 2 }
       return CGFloat(number.doubleValue)
     }
 
     // MARK: Window setup
 
-    private static func makeWindow()
-      -> (window: NSObject, view: NSObject, layer: CALayer)? {
+    private static func makeWindow() -> (window: NSObject, layer: CALayer)? {
       guard let windowClass = NSClassFromString("NSWindow") as? NSObject.Type,
             let viewClass = NSClassFromString("NSView") as? NSObject.Type,
             let allocatedWindow = windowClass.perform(NSSelectorFromString("alloc"))?
@@ -390,7 +396,7 @@
       layer.magnificationFilter = .linear
       layer.isOpaque = false
 
-      return (window, view, layer)
+      return (window, layer)
     }
 
     private static func createView(class viewClass: NSObject.Type) -> NSObject? {
@@ -475,6 +481,11 @@
     @objc
     private func windowDidMove(_ notification: Notification) {
       saveFrame()
+      let scale = Self.currentScreenScale(for: window)
+      if abs(scale - screenScale) > 0.01 {
+        screenScale = scale
+        renderCurrentContent()
+      }
     }
 
     private static func defaultOrigin(for size: CGSize) -> CGPoint {

@@ -23,6 +23,9 @@
     private var desktopPanel: DesktopLyricsPanelController?
     private var menuBarController: MenuBarLyricsController?
     private var loadedSongID: String?
+    // Set once the lyrics lookup for the current song returned, so settings changes do not
+    // re-read the same missing or empty lyrics file on every refresh.
+    private var resolvedSongID: String?
     private var isLoadingLyrics = false
     private var isRegistered = false
     private var lastDesktopRenderTime: CFTimeInterval = 0
@@ -43,7 +46,7 @@
 
     // MARK: Settings
 
-    func refreshFromSettings() {
+    private func refreshFromSettings() {
       let user = storage.settings.user
       let isAnyFeatureEnabled = user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled
 
@@ -134,6 +137,7 @@
     private func resetPlaybackState() {
       tracker.setLyrics(nil)
       loadedSongID = nil
+      resolvedSongID = nil
       isLoadingLyrics = false
       desktopPanel?.hide()
       menuBarController?.update(title: "fmusic")
@@ -155,15 +159,18 @@
       }
 
       let songID = song.id
-      if loadedSongID == songID, tracker.hasLyrics || isLoadingLyrics {
+      if loadedSongID == songID,
+         tracker.hasLyrics || isLoadingLyrics || resolvedSongID == songID {
         return
       }
       loadedSongID = songID
+      resolvedSongID = nil
       tracker.setLyrics(nil)
 
       guard let account = song.account,
             let lyricsRelFilePath = song.lyricsRelFilePath
       else {
+        resolvedSongID = songID
         render(at: player.elapsedTime)
         return
       }
@@ -175,10 +182,14 @@
             self.isLoadingLyrics = false
           }
         }
+        // A failed read may be transient, so only a completed lookup marks the song as
+        // resolved; an empty result (no lyrics file) is a valid answer.
         guard let lyricsList = try? await self.appDelegate.getMeta(account.info)
           .librarySyncer.parseLyrics(relFilePath: lyricsRelFilePath),
-          self.loadedSongID == songID,
-          let structuredLyrics = lyricsList.getFirstSyncedLyricsOrUnsyncedAsDefault()
+          self.loadedSongID == songID
+        else { return }
+        self.resolvedSongID = songID
+        guard let structuredLyrics = lyricsList.getFirstSyncedLyricsOrUnsyncedAsDefault()
         else { return }
         self.tracker.setLyrics(structuredLyrics)
         guard self.player.currentlyPlaying?.id == songID else { return }
@@ -189,13 +200,11 @@
     // MARK: Rendering
 
     private func render(at seconds: Double) {
-      guard isAnyFeatureEnabled else { return }
-      let snapshot = tracker.snapshot(
-        at: seconds,
-        userOffsetMs: storage.settings.user.lyricsOffsetMs
-      )
+      let user = storage.settings.user
+      guard user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled else { return }
+      let snapshot = tracker.snapshot(at: seconds, userOffsetMs: user.lyricsOffsetMs)
       updateMenuBar(with: snapshot)
-      updateDesktopPanel(with: snapshot)
+      updateDesktopPanel(with: snapshot, user: user)
     }
 
     private func updateMenuBar(with snapshot: LyricsSnapshot?) {
@@ -210,9 +219,9 @@
       }
     }
 
-    private func updateDesktopPanel(with snapshot: LyricsSnapshot?) {
+    private func updateDesktopPanel(with snapshot: LyricsSnapshot?, user: UserSettings) {
       guard let desktopPanel,
-            storage.settings.user.isDesktopLyricsEnabled
+            user.isDesktopLyricsEnabled
       else { return }
       guard let playable = player.currentlyPlaying else {
         desktopPanel.hide()
@@ -227,7 +236,7 @@
         desktopPanel.show()
       }
 
-      let showsNextLine = storage.settings.user.isDesktopLyricsNextLineShown
+      let showsNextLine = user.isDesktopLyricsNextLineShown
       if let snapshot {
         desktopPanel.update(content: DesktopLyricsContent(
           currentText: snapshot.currentText,
