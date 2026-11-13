@@ -27,6 +27,11 @@
     private var resolvedSongID: String?
     private var isLoadingLyrics = false
     private var isRegistered = false
+    // Cached switch state: the 60 Hz playback clock must not re-read and decode
+    // the whole settings blob just to discover that both overlays are off.
+    private var isFeatureEnabled = false
+    private static let songOffsetDefaultsKey = "fmusic.desktopLyrics.songOffsets"
+    private var overlaySongOffsetsCache: [String: Int]?
 
     init(player: PlayerFacade, storage: PersistentStorage) {
       self.player = player
@@ -47,6 +52,7 @@
     private func refreshFromSettings() {
       let user = storage.settings.user
       let isAnyFeatureEnabled = user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled
+      isFeatureEnabled = isAnyFeatureEnabled
 
       if user.isDesktopLyricsEnabled {
         if desktopPanel == nil {
@@ -110,6 +116,7 @@
     func didPause() {}
 
     func didLyricsTimeChange(time: CMTime) {
+      guard isFeatureEnabled else { return }
       render(at: time.seconds)
     }
 
@@ -128,8 +135,7 @@
     // MARK: Lyrics loading
 
     private var isAnyFeatureEnabled: Bool {
-      storage.settings.user.isDesktopLyricsEnabled ||
-        storage.settings.user.isMenuBarLyricsEnabled
+      isFeatureEnabled
     }
 
     private func resetPlaybackState() {
@@ -200,7 +206,14 @@
     private func render(at seconds: Double) {
       let user = storage.settings.user
       guard user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled else { return }
-      let snapshot = tracker.snapshot(at: seconds, userOffsetMs: user.lyricsOffsetMs)
+      // The overlay adds a per-song correction to the global lyrics offset so
+      // the sync panel can tune one track without touching every song.
+      let songOffset = player.currentlyPlaying
+        .flatMap { overlaySongOffsets[$0.id] } ?? 0
+      let snapshot = tracker.snapshot(
+        at: seconds,
+        userOffsetMs: user.lyricsOffsetMs + songOffset
+      )
       updateMenuBar(with: snapshot)
       updateDesktopPanel(with: snapshot, user: user)
     }
@@ -231,8 +244,12 @@
       }
 
       let showsNextLine = user.isDesktopLyricsNextLineShown
+      let header = playable.creatorName.isEmpty
+        ? playable.title
+        : "\(playable.title) · \(playable.creatorName)"
       if let snapshot {
         desktopPanel.update(content: DesktopLyricsContent(
+          headerText: header,
           currentText: snapshot.currentText,
           nextText: showsNextLine ? snapshot.nextText : nil,
           syllables: snapshot.syllables,
@@ -240,6 +257,7 @@
         ))
       } else {
         desktopPanel.update(content: DesktopLyricsContent(
+          headerText: nil,
           currentText: playable.title,
           nextText: showsNextLine && !playable.creatorName.isEmpty
             ? playable.creatorName
@@ -253,7 +271,72 @@
     // MARK: Controllers
 
     private func makeDesktopPanel() -> DesktopLyricsPanelController? {
-      DesktopLyricsPanelController.make()
+      guard let panel = DesktopLyricsPanelController.make() else { return nil }
+      panel.onOpenMainWindow = { [weak self] in
+        self?.appDelegate.openMainWindow()
+      }
+      panel.onHideDesktopLyrics = { [weak self] in
+        guard let self else { return }
+        self.storage.settings.user.isDesktopLyricsEnabled = false
+        self.appDelegate.updateLyricsOverlays()
+      }
+      panel.offsetSnapshot = { [weak self] in
+        self?.overlayOffsetSnapshot()
+      }
+      panel.adjustSongOffset = { [weak self] songID, milliseconds in
+        self?.setOverlaySongOffset(milliseconds, for: songID)
+      }
+      panel.resetSongOffset = { [weak self] songID in
+        self?.setOverlaySongOffset(0, for: songID)
+      }
+      panel.onClickThroughChanged = { [weak self] enabled in
+        guard let self else { return }
+        self.storage.settings.user.isDesktopLyricsLocked = enabled
+        self.appDelegate.updateLyricsOverlays()
+      }
+      return panel
+    }
+
+    // MARK: Overlay lyrics offset
+
+    private var overlaySongOffsets: [String: Int] {
+      get {
+        if let cache = overlaySongOffsetsCache { return cache }
+        let loaded = UserDefaults.standard.dictionary(
+          forKey: Self.songOffsetDefaultsKey
+        ) as? [String: Int] ?? [:]
+        overlaySongOffsetsCache = loaded
+        return loaded
+      }
+      set {
+        overlaySongOffsetsCache = newValue
+        UserDefaults.standard.set(newValue, forKey: Self.songOffsetDefaultsKey)
+      }
+    }
+
+    private func overlayOffsetSnapshot() -> OverlayOffsetSnapshot? {
+      guard let playable = player.currentlyPlaying else { return nil }
+      return OverlayOffsetSnapshot(
+        songID: playable.id,
+        songMilliseconds: overlaySongOffsets[playable.id] ?? 0,
+        globalMilliseconds: storage.settings.user.lyricsOffsetMs
+      )
+    }
+
+    private func setOverlaySongOffset(
+      _ milliseconds: Int,
+      for songID: String
+    ) -> OverlayOffsetSnapshot? {
+      var offsets = overlaySongOffsets
+      let clamped = min(5_000, max(-5_000, milliseconds))
+      if clamped == 0 {
+        offsets.removeValue(forKey: songID)
+      } else {
+        offsets[songID] = clamped
+      }
+      overlaySongOffsets = offsets
+      render(at: player.elapsedTime)
+      return overlayOffsetSnapshot()
     }
 
     private func makeMenuBarController() -> MenuBarLyricsController? {

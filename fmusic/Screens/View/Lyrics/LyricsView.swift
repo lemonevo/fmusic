@@ -82,8 +82,11 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
   public var onLyricSelected: ((LyricsLine) -> ())?
 
   private var lastScrollTime: CMTime?
+  // The scroll clock runs at 60 Hz; decode-free access keeps the settings blob
+  // out of that path. `.lyricsOffsetChanged` refreshes the cached value.
+  private var cachedLyricsOffsetMs = 0
   private var userLyricsOffsetSeconds: Double {
-    Double(appDelegate.storage.settings.user.lyricsOffsetMs) / 1_000
+    Double(cachedLyricsOffsetMs) / 1_000
   }
 
   override init(frame: CGRect, style: UITableView.Style) {
@@ -115,6 +118,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
       name: .lyricsOffsetChanged,
       object: nil
     )
+    cachedLyricsOffsetMs = appDelegate.storage.settings.user.lyricsOffsetMs
   }
 
   override func layoutSubviews() {
@@ -144,6 +148,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
   public func display(lyrics: StructuredLyrics, scrollAnimation: Bool) {
     self.lyrics = lyrics
     self.scrollAnimation = scrollAnimation
+    cachedLyricsOffsetMs = appDelegate.storage.settings.user.lyricsOffsetMs
     reloadViewModels()
   }
 
@@ -522,6 +527,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
 
   @objc
   private func handleLyricsOffsetChanged() {
+    cachedLyricsOffsetMs = appDelegate.storage.settings.user.lyricsOffsetMs
     guard let lastScrollTime else { return }
     scroll(toTime: lastScrollTime)
   }

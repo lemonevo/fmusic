@@ -176,6 +176,18 @@ enum LRCFileParser {
     pattern: "\\[offset:\\s*([+-]?\\d+)\\s*\\]",
     options: [.caseInsensitive]
   )
+  private static let creditPattern = try? NSRegularExpression(
+    pattern: "^(作词|作曲|编曲|制作人|监制|出品|发行|混音|母带|录音|和声|吉他|贝斯|鼓|弦乐|键盘|词|曲)\\s*[:：]",
+    options: []
+  )
+
+  private static func isCreditLine(_ text: String) -> Bool {
+    guard let creditPattern else { return false }
+    return creditPattern.firstMatch(
+      in: text,
+      range: NSRange(text.startIndex..., in: text)
+    ) != nil
+  }
 
   static func parse(_ content: String) -> LyricsList {
     var lines = [LyricsLine]()
@@ -230,6 +242,9 @@ enum LRCFileParser {
       }
 
       guard !remaining.isEmpty else { continue }
+      // Malformed tags such as `[00:00.00-1]` survive timestamp parsing; a
+      // bracket left at the start is metadata, never sung text.
+      if remaining.hasPrefix("[") || isCreditLine(remaining) { continue }
       if timestamps.isEmpty {
         var line = LyricsLine()
         line.value = remaining

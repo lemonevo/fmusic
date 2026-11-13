@@ -14,11 +14,27 @@ import UIKit
 // MARK: - Timeline -> displayed text
 
 /// One syllable of a line, already mapped onto the rendered string.
-struct LyricsSyllableTiming {
+struct LyricsSyllableTiming: Equatable {
   let start: TimeInterval
   let end: TimeInterval
   /// UTF-16 range inside `LyricsLine.value`, i.e. the text that is actually drawn.
   let range: NSRange
+  /// True when this cue came from word-level timing (YRC). Such cues are their
+  /// own motion unit; only LRC's synthetic per-character timings get regrouped
+  /// into words.
+  let isWordTimed: Bool
+
+  init(
+    start: TimeInterval,
+    end: TimeInterval,
+    range: NSRange,
+    isWordTimed: Bool = false
+  ) {
+    self.start = start
+    self.end = end
+    self.range = range
+    self.isWordTimed = isWordTimed
+  }
 
   func progress(at seconds: TimeInterval) -> CGFloat {
     let duration = end - start
@@ -29,19 +45,24 @@ struct LyricsSyllableTiming {
 
 enum LyricsTimingMap {
   /// Estimated time a line stays highlighted. Font metrics are not available here, so the
-  /// duration comes from the character count and the gap to the next timestamp.
+  /// duration comes from the character count and the gap to the next timestamp. The next
+  /// timestamp is resolved in one reverse pass instead of scanning forward per line.
   static func estimatedDurations(for lines: [LyricsLine]) -> [Double] {
-    lines.indices.map { index in
+    var result = [Double](repeating: 0, count: lines.count)
+    var nextStart: Int?
+    for index in lines.indices.reversed() {
       let line = lines[index]
       let characterCount = line.value.reduce(0) { $0 + ($1.isWhitespace ? 0 : 1) }
-      let estimated = Double(characterCount) * 0.36
-      guard let start = line.start else { return max(estimated, 0.4) }
-      let nextStart = lines[(index + 1)...].first(where: { $0.start != nil })?.start
-      guard let nextStart else { return max(estimated, 0.4) }
-      let gap = Double(nextStart - start) / 1_000
-      guard gap > 0 else { return max(estimated, 0.4) }
-      return max(0.4, min(estimated, gap * 0.9))
+      let estimated = max(Double(characterCount) * 0.36, 0.4)
+      if let start = line.start, let upcomingStart = nextStart {
+        let gap = Double(upcomingStart - start) / 1_000
+        result[index] = gap > 0 ? max(0.4, min(estimated, gap * 0.9)) : estimated
+      } else {
+        result[index] = estimated
+      }
+      if let start = line.start { nextStart = start }
     }
+    return result
   }
 
   /// Maps word timings onto the displayed characters. YRC words concatenate to the line,
@@ -103,7 +124,12 @@ enum LyricsTimingMap {
       guard range.length > 0 else { continue }
       let start = Double(word.start) / 1_000
       let end = max(Double(word.end) / 1_000, start + 0.02)
-      result.append(LyricsSyllableTiming(start: start, end: end, range: range))
+      result.append(LyricsSyllableTiming(
+        start: start,
+        end: end,
+        range: range,
+        isWordTimed: true
+      ))
     }
     return result
   }
@@ -186,6 +212,22 @@ final class LyricsTextLayout {
       forGlyphRange: NSRange(location: 0, length: manager.numberOfGlyphs),
       at: .zero
     )
+  }
+
+  /// Draws with a different ink or shadow. Both are presentation-only attributes,
+  /// so the glyph layout is reused instead of built again for every variant.
+  func draw(foregroundColor: UIColor, shadow: NSShadow?) {
+    guard storage.length > 0 else { return }
+    let range = NSRange(location: 0, length: storage.length)
+    storage.beginEditing()
+    storage.addAttribute(.foregroundColor, value: foregroundColor, range: range)
+    if let shadow {
+      storage.addAttribute(.shadow, value: shadow, range: range)
+    } else {
+      storage.removeAttribute(.shadow, range: range)
+    }
+    storage.endEditing()
+    draw()
   }
 }
 
