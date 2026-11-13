@@ -132,7 +132,8 @@ class SideBarVC: KeyCommandCollectionViewController {
     avatar.textAlignment = .center
     avatar.textColor = .white
     avatar.backgroundColor = UIColor(red: 0.56, green: 0.65, blue: 0.91, alpha: 1.0)
-    avatar.layer.cornerRadius = 14
+    avatar.layer.cornerRadius = 9
+    avatar.layer.cornerCurve = .continuous
     avatar.clipsToBounds = true
 
     let name = UILabel()
@@ -144,12 +145,26 @@ class SideBarVC: KeyCommandCollectionViewController {
     stack.translatesAutoresizingMaskIntoConstraints = false
     stack.axis = .horizontal
     stack.alignment = .center
-    stack.spacing = 8
+    stack.spacing = 14
     stack.isUserInteractionEnabled = false
+
+    let settingsButton = UIButton(type: .system)
+    settingsButton.translatesAutoresizingMaskIntoConstraints = false
+    settingsButton.setImage(
+      UIImage(
+        systemName: "gearshape",
+        withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)
+      ),
+      for: .normal
+    )
+    settingsButton.tintColor = .secondaryLabel
+    settingsButton.accessibilityLabel = L10n.tr("Settings")
+    settingsButton.addTarget(self, action: #selector(showSettings), for: .touchUpInside)
 
     guard let containerView = navigationController?.view ?? view else { return }
     containerView.addSubview(footer)
     footer.addSubview(button)
+    footer.addSubview(settingsButton)
     button.addSubview(stack)
 
     NSLayoutConstraint.activate([
@@ -159,9 +174,17 @@ class SideBarVC: KeyCommandCollectionViewController {
       footer.heightAnchor.constraint(equalToConstant: Self.accountFooterHeight),
 
       button.leadingAnchor.constraint(equalTo: footer.leadingAnchor, constant: 16),
+      button.trailingAnchor.constraint(
+        lessThanOrEqualTo: settingsButton.leadingAnchor,
+        constant: -8
+      ),
       button.bottomAnchor.constraint(equalTo: footer.bottomAnchor, constant: -10),
-      button.widthAnchor.constraint(equalToConstant: 128),
       button.heightAnchor.constraint(equalToConstant: 28),
+
+      settingsButton.trailingAnchor.constraint(equalTo: footer.trailingAnchor, constant: -16),
+      settingsButton.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+      settingsButton.widthAnchor.constraint(equalToConstant: 28),
+      settingsButton.heightAnchor.constraint(equalToConstant: 28),
 
       stack.leadingAnchor.constraint(equalTo: button.leadingAnchor),
       stack.centerYAnchor.constraint(equalTo: button.centerYAnchor),
@@ -219,6 +242,11 @@ class SideBarVC: KeyCommandCollectionViewController {
 // MARK: - Account switcher
 
 extension SideBarVC {
+  @objc
+  private func showSettings() {
+    appDelegate.showSettings(sender: "")
+  }
+
   @objc
   private func showAccountSwitcher() {
     guard accountSwitcherOverlay == nil,
