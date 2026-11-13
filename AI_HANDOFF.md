@@ -1,155 +1,249 @@
 # fmusic 本地/WebDAV Fork — AI 接续说明
 
-> 写给接手的 AI：这份文档是当前状态的最小充分上下文，直接读它就能接着干。
-> 更长的逐日改动日志在仓库根目录 `HANDOFF.md`（约 48 KB），遇到具体历史问题再去搜。
+> 最后更新：2026-11-13 16:54（Mac Catalyst / macOS 27 / Xcode 27.1）
+> 写给接手的 AI：本文档自包含，读完就能开工。仓库里的 `HANDOFF.md` 是更早的逐日日志，
+> 部分内容已过时（例如“大面积未提交”“最后提交 bdee704”），冲突时以本文档为准。
 
-## 1. 这是什么
+## 0. 一句话状态
 
-fmusic 的一个 macOS Catalyst fork，只保留**本地文件夹 + WebDAV**两种音源（Subsonic / Ampache 后端已删）。
-UI 目标是对齐 Apple Music：210 pt 侧栏、专辑网格、两栏大播放器、毛玻璃迷你条。
-App 版本 2.1.2 (1)，Bundle ID `lol.levo.fmusic`，Deployment Target iOS 26（Catalyst），需 Xcode 27 / macOS 27 SDK。
+桌面歌词已按 LyricsX 的三层遮罩 + 玻璃面板原理重写，并在真机验证通过；
+工作树干净；本地领先 `origin/main` 4 个提交（最后一个是本文档）。
+用户明确要求“先本地改完几个 bug 再推 GitHub”——**没有明确同意不要 push / tag / 发版**。
+
+## 1. 项目与环境
 
 - 仓库：`/Users/apple/Desktop/AI/Quder/fmusic`
-- 分支：`feature/webdav-local`，`origin` = `lemonevo/fmusic`（用户已授权推送；涉及 workflow 文件时用 SSH-over-443）
-- 提交历史：`git log --oneline`（2026-11-13 已完成全项目改名与体积优化）
-- 构建产物：`~/Library/Developer/Xcode/DerivedData/fmusic-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/fmusic.app`
-  （DerivedData 哈希可能变，用 `xcodebuild -showBuildSettings` 或 `mdfind` 重新定位；启动时用**带哈希的完整路径**，否则可能拉起旧包）
+- 分支：`feature/webdav-local`；`origin` = `lemonevo/fmusic`（私有），`upstream` 只作参考，不要推。
+- App：版本 2.1.2 (1)，Bundle ID `lol.levo.fmusic`，Deployment Target iOS 26（Catalyst），需 Xcode 27 / macOS 27 SDK。
+- 只保留 **本地文件夹 + WebDAV** 两种音源；Subsonic/Ampache 已删；没有 Last.fm/scrobble。
+- 用户数据：WebDAV 账号、约 40 艺人 / 38 专辑 / 53 首歌、播放缓存约 1.8 GB。
+  **不要清 `~/Library/Application Support/fmusic`、不要清播放缓存、不要重装账号。**
+- 调试 App 可能正在后台播放（用户在用）；重启用
+  `osascript -e 'tell application "fmusic" to quit'`，等 2 秒再 `open <app>`，不要 `kill -9`。
 
-## 1.1 打包与体积（2026-11-13）
+本地未推送提交（`git log --oneline origin/main..HEAD`）：
 
-- CI 只构建 **arm64**（`ARCHS=arm64`），DMG 约 9–10 MB、安装后约 19 MB；不支持 Intel。
-- Core Data 只保留 `fmusic v49` / `v50` 两个模型；新增结构变更时必须添加 `v51`、更新 `CoreDataMigrationVersion` 与 `.xccurrentversion`。低于 v49 的旧库不能迁移。
-- 已删除播客/电台占位图与旧图标预览（Catalyst 下 `supportsAlternateIcons == false`，图标选择器不会显示）。
-- 构建缓存：`BuildTools/.build` 约 600 MB，可随时删除；CI 产物在 Actions Artifact / Release。
+| 提交 | 内容 |
+|---|---|
+| `47c5ce7` | 去重图标素材，缩小包体（DMG ≈ 10.5 MB） |
+| `38989ef` | WebDAV FLAC 流式 seek 从帧边界重新解析（修 -108） |
+| `b1975cc` | 桌面歌词按 LyricsX 原理重写（玻璃 + 逐字遮罩 + 行进动效） |
+| 本文档提交 | 交接文档 |
 
-## 2. 构建与运行
+## 2. 构建、运行、验证
 
 ```bash
 cd /Users/apple/Desktop/AI/Quder/fmusic
 xcodebuild -project fmusic.xcodeproj -scheme fmusic -configuration Debug \
   -destination 'platform=macOS,variant=Mac Catalyst' \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+  -derivedDataPath /tmp/fmusic-build \
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
-open -a "/Users/apple/Library/Developer/Xcode/DerivedData/fmusic-eyetrzidtspoevgufmttlsihklja/Build/Products/Debug-maccatalyst/fmusic.app"
+open /tmp/fmusic-build/Build/Products/Debug-maccatalyst/fmusic.app
 ```
 
-- 必须带 `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`，否则没有 provisioning profile 会失败。
-- 没有 CI 门禁；改完至少 `xcodebuild` 成功 + 真实打开 App 看目标界面。
-- 测试 target `fmusicKitTests` 存在，但当前工作流以构建 + 手工 UI 验证为主。
+- 必须带 `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`，否则没有 provisioning profile 会直接失败。
+- 当前调试产物固定在 `/tmp/fmusic-build/...`；如果换目录，`open` 时用**完整路径**，防止拉起 DerivedData 里的旧包。
+- 没有 CI 门禁：`xcodebuild` 成功不代表界面正确，视觉改动必须打开 App 看真实渲染。
 
-## 3. 代码地图
+### 2.1 窗口与截图（看清浮窗最可靠的方式）
 
-| 路径 | 作用 |
-|---|---|
-| `fmusic/SceneDelegate.swift` | 主窗口、根 VC、外观/文字大小应用、设置 modal 防悬挂 |
-| `fmusic/MiniPlayerSceneDelegate.swift` | 迷你播放器独立 Scene（继承 App 内外观） |
-| `fmusic/AppDelegate.swift` | 全局单例入口、外观/主题/文字大小、语言、账户增删、顶部 VC |
-| `fmusic/Screens/Player/` | 大播放器 `PopupPlayerVC`、控制条、迷你条、歌词、AirPlay 输出选择 |
-| `fmusic/Screens/ViewController/SettingsHostVC.swift` | 设置容器；把 SwiftUI `Settings` (@Published) 与持久化设置双向绑定 |
-| `fmusic/SwiftUI/Settings/` | 设置页；`NavigationTarget` 定义侧栏与页面，`SettingsTabView` 画侧栏 |
-| `fmusicKit/Storage/` | Core Data 库、`UserSettings` 等设置模型、同步/缓存 |
-| `fmusicKit/Common/L10n.swift` | App 自身文案的中英词典（英文即 key） |
-| `fmusicKit/Common/M3UPlaylist.swift` | M3U/M3U8 解析、导出与按曲库匹配（导入/导出 UI 在 `PlaylistsVC` / `PlaylistDetailVC`） |
-| `fmusic/zh-Hans.lproj/Localizable.strings` | 只负责系统 UI（菜单栏、标准按钮）的中文 |
-| `fmusicKit/Player/` | 播放核心、ReplayGain、EQ、Now Playing |
-| `Vendor/AudioStreaming/` | 内嵌流式播放引擎（环形缓冲、gapless、交叉淡入淡出 `AudioPlayer.swift` / `AudioPlayerRenderProcessor.swift`） |
+`CGWindowList` 坐标是**屏幕左上原点**，AppKit `window.frame` 是**左下原点**，换算：
+`cgY = screenHeight − frame.origin.y − frame.height`（本机屏幕 1710×1112 pt）。
 
-## 4. 当前产品状态（已验证）
-
-- 侧栏 / 首页 / 专辑网格：Apple Music 风；侧栏 210 pt、行高 38（32 高亮 + 间距）、13 pt 文案、实心 16 pt 图标。
-- 封面：加载时用 ImageIO 降采样到最长边 1024 px，静态缓存上限 64 MB / 300 张（`LibraryEntityImage`）；不要再改回无上限 `NSCache`。
-- WebDAV 曲库：启动/切回前台时自动做增量扫描（15 秒去抖，仅 WebDAV + 非离线 + 初始同步完成时；见 `AppDelegate.triggerWebDAVIncrementalScanIfNeeded`），不必手动“重新同步资料库”；本地文件夹仍需手动。
-- 大播放器：主窗口内 `.fullScreen` 上滑（不是 sheet），两栏（左封面+信息+传输键，右歌词列）；**固定深色**（Apple Music 风格，不受外观设置影响）；ESC / 左上 chevron 关闭。
-- 独立歌词栏（SplitVC 右侧 `LyricsVC`）已固定深色，与大播放器一致。
-- 迷你条：Liquid Glass（`UIGlassEffect(.regular)`）；点封面/标题打开大播放器。
-- AirPlay 键：自绘 window 级玻璃浮层（`AudioOutputPicker.swift`），CoreAudio 枚举输出设备，过滤 `CADefaultDeviceAggregate*`。
-- 音量：180×36 毛玻璃胶囊 + 细轨滑块；大播放器标题栏与 compact 播放器都有。
-- 码率行（如 “FLAC 888 kbps”）已隐藏；传输键 85% 白、尺寸 19/21/27 pt，随机/循环激活时用主题红。
-- 设置：窗口内整页覆盖，侧栏 6 项——通用 / 账户 / 播放 / 显示 / 资料库 / 支持与关于；二级页：均衡器（播放）、轻扫操作（显示）、封面与缓存（资料库）、第三方许可 / X-Callback URL / 开发者工具 / 版本信息（支持与关于）。
-- 外观：设置 → 显示 → 外观（系统/浅色/深色），全 App 语义色；强制深色启动无白闪；新窗口继承 App 内选择。
-- 语言：设置 → 通用 → 语言（跟随系统 / 简体中文 / English）。写 App 自己的 `AppleLanguages`，**重启后生效**（会弹窗提示）；不要期待运行期整窗切换。
-- 已中文化：App 文案、系统菜单（zh-Hans.lproj）、未知元数据占位符（`L10n.trPlaceholder`）。
-- 歌词偏移：播放器「更多」→ 歌词偏移（已同步 / 提前 0.2–1.0s / 延后 0.2–1.0s）。含 LRC `[offset:]`，手动值存 `settings.user._lyricsOffsetMs`（±5000ms），行切换与词级高亮、点歌词 seek 共用同一偏移。
-- 歌单 M3U：播放列表「更多」→ 导入 M3U 歌单（UTType m3u/m3u8，按相对路径/文件名/曲名/艺人-曲名匹配，导入后弹“已导入 N 首，跳过 N 条”）；歌单详情「更多」→ 导出 M3U（`#EXTM3U` + `#EXTINF`，相对 `song.url`，分享面板）。编解码与匹配在 `fmusicKit/Common/M3UPlaylist.swift`。
-- 无缝播放 & 交叉淡入淡出：跨曲共用同一个 `AudioStreamingPlayer` 环形缓冲，不重置。播到剩余 `max(10, crossfade+8)` 秒时预加载下一首；配置了淡入淡出时，引擎在 ring 里把 outgoing 最后 N 秒与 incoming 开头 N 秒做线性混音，切歌瞬间跳过 incoming 已混音的 N 帧（`framesState.played = N`，所以新曲 UI 从 N 秒开始），样本级连续、无静音。设置 → 播放 → 交叉淡入淡出（关闭 / 3 / 5 / 8 秒，**默认关闭**），存 `settings.user._crossfadeSeconds`；引擎缓冲 30s（`fmusicKit.createPlayer`）。改这块先读 `Vendor/AudioStreaming/.../AudioPlayer.swift` 的 Crossfade 段和 `AudioPlayerRenderProcessor.inRender` 的 crossfade 分支。注意 `DispatchTimerSource.deinit` 只在 `state == .suspended` 时 resume——激活状态的定时器再 resume 会让 `restartPlayer()` 在 deinit 时 SIGTRAP。
-- 性能约束（2026-11-12 优化）：歌词只在可见时做 60 Hz 更新（`LyricsView.scroll` 不可见即返回；行查找二分）；视觉分析器 30 fps 节流；播放/歌词 Timer 注册到 `.common` 模式（滚动时不停）；恢复进度每 5 s 更新一次；交叉淡化关闭时不跑 250ms 定时器。
-- 状态：**没有 Last.fm / scrobble**。上游的 `ScrobbleSyncer`、`ScrobbleEntry`（Core Data 实体与 MO/包装器）、`scrobble`/`syncNowPlaying` 协议方法、`isScrobbleStreamedItems` 设置、Account/AbstractPlayable 关系都已移除；Core Data 当前模型是 `fmusic v50`。
-- 当前用户数据：WebDAV 账户、约 40 艺人 / 38 专辑 / 53 歌曲、缓存约 1.8 GB（测试环境，勿清空）。
-
-## 5. 设置与持久化（改设置页前必读）
-
-- 底层：`UserDefaults` 三个 Data key：`settings.user` / `settings.account` / `settings.app`，内容为 JSON。
-- 模型：`fmusicKit/Storage/Settings.swift` 的 `UserSettings` / `AccountSettings` / `AppSettings`。
-- **新增字段是安全的**：`fmusicSettings.decodeFillingMissingKeys` 会用默认值补齐旧 JSON 缺的键；解码结果按原始 Data 缓存。
-- UI 绑定：SwiftUI 用 `ObservableSettings.swift` 里的 `Settings: ObservableObject`（一堆 `@Published`）；`SettingsHostVC.viewIsAppearing` 建立每个字段的 Combine sink，写回 `appDelegate.storage.settings…` 并执行副作用。新增设置项必须同时：加模型字段 → 加 `@Published` → 在 `SettingsHostVC` 里初始值和 sink。
-- 外观值：`_appearanceMode`（0/1/2，对应 `UIUserInterfaceStyle`）。
-- 语言值：`_appLanguage`（`system` / `english` / `simplifiedChinese`），由 `AppDelegate.applyAppLanguage` 映射到 `AppleLanguages`。
-- 调试时可直接改 defaults（先退出 App，改完 `killall cfprefsd`）：
+```swift
+// /tmp/winlist.swift：列出 fmusic 的所有在屏窗口
+import CoreGraphics
+import Foundation
+let opts: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+for info in (CGWindowListCopyWindowInfo(opts, kCGNullWindowID) as? [[String: Any]] ?? []) {
+  guard (info[kCGWindowOwnerName as String] as? String ?? "").lowercased().contains("fmusic") else { continue }
+  print(info[kCGWindowOwnerPID as String] ?? "", info[kCGWindowNumber as String] ?? "",
+        info[kCGWindowLayer as String] ?? "", info[kCGWindowBounds as String] ?? "")
+}
+```
 
 ```bash
+xcrun swiftc -O /tmp/winlist.swift -o /tmp/winlist && /tmp/winlist
+screencapture -x -R467,937,760,82 /tmp/panel.png   # -R 用左上原点的屏幕坐标
+```
+
+桌面歌词浮窗特征：`layer=3`、无窗口名、宽固定 760、高度随行数变化。
+逐字填充要连拍才能看清：`for i in $(seq 1 15); do screencapture -x -R<x,y,w,h> /tmp/b-$i.png; sleep 0.2; done`。
+
+### 2.2 CUA（电脑控制）
+
+- `node_repl` + `@qoder-space/computer-use`，`getApp()` 传 **App 全路径**。
+- 播放中 AX 元素 ID 每个 tick 都变：**取树和点击要在同一次调用里完成**。
+- 启动/切换歌曲优先点主窗口的播放按钮；点击会让 fmusic 抢前台，用户正在浏览时注意别反复操作。
+- 设置窗口（`Cmd+,`）有时不在 AX 树里：不要硬点，直接改 plist（见 2.3）。
+
+### 2.3 直接改设置（App 必须先退出）
+
+设置存在 `~/Library/Preferences/lol.levo.fmusic.plist` 的 `settings.user`（JSON Data）：
+
+```bash
+# 先退出 App
 python3 - <<'EOF'
 import plistlib, json, os
 p = os.path.expanduser("~/Library/Preferences/lol.levo.fmusic.plist")
 d = plistlib.load(open(p, 'rb'))
 j = json.loads(d["settings.user"].decode('utf-8'))
-j["_appearanceMode"] = 2          # 0=系统 1=浅色 2=深色
+j["_isDesktopLyricsEnabled"] = True
+j["_desktopLyricsBackgroundOpacity"] = 74   # 0=全透明 100=不透明
+j["_desktopLyricsFontSize"] = 1             # 0=24 1=30 2=36
+j["_desktopLyricsAlignment"] = 1            # 0=左 1=中 2=右
 d["settings.user"] = json.dumps(j).encode('utf-8')
 plistlib.dump(d, open(p, 'wb'))
 EOF
 killall cfprefsd
 ```
 
-## 6. 验证方法与坑
+## 3. 桌面歌词（刚重写，最可能被要求继续改）
 
-- **CUA（电脑控制）**：`node_repl` + `@qoder-space/computer-use`。用完整 App 路径 `getApp(...)`；先 `getAXState()` 拿元素 ID，再 click。SwiftUI `Menu` 常常点元素 ID 不开，改点坐标，并且**取截图/查树要在同一调用里完成**，否则菜单会被 AX 查询关掉。
-- **原生截图**（更可靠、不受 CUA 缓存帧影响）：
-  ```bash
-  swift /tmp/listwin.swift                 # 输出 windowID | 标题 | frame（脚本可能不在则重写 CGWindowList 小程序）
-  screencapture -x -o -l <windowID> /tmp/x.png
-  ```
-  截图不会覆盖同名文件，用新文件名。
-- 设置用 `Cmd+,` 打开；ESC 关闭。
-- 改完 XIB/约束必须真机看，`xcodebuild` 成功不代表布局对。
-- Catalyst 已知渲染坑：
-  - 代码 new 的 symbol UIButton，`tintColor` 可能被忽略（只渲染 ~62% 亮度）；要把颜色烘焙进图片：`UIImage(systemName:withConfiguration:)?.withTintColor(tint, renderingMode: .alwaysOriginal)`。
-  - `UIPopoverPresentationController` 箭头在 Catalyst 会变黑三角 → 账户浮层是自绘 window overlay，不要改回 popover。
-  - `.fill` 分布的 UIStackView 会把剩余高度全给第一行 → 行要显式 `heightAnchor`（AirPlay 面板踩过）。
-  - 侧栏/列表右侧分段索引字母仍为主题红（`tableView.sectionIndexColor` 无效），未解决、别误以为回归。
-  - 大播放器固定 `.dark`、独立 `LyricsVC` 仍浅色，都是有意设计，不是暗色模式 bug。
-- 用户 shell 里 `find`→`fd`、`grep`→`rg`、`rm`→`trash`；脚本/文档里写命令时注意，必要时用绝对路径 `/usr/bin/grep`。
+### 3.1 文件
 
-## 7. 协作偏好（重要）
+| 路径 | 作用 |
+|---|---|
+| `fmusic/LyricsOverlay/DesktopLyricsWindow.swift` | 渲染器 + 浮窗控制器（本次重写） |
+| `fmusic/LyricsOverlay/LyricsOverlayManager.swift` | 订阅播放时钟，喂桌面浮窗和菜单栏；已去掉 30 fps 限流 |
+| `fmusic/LyricsOverlay/LyricsLineTracker.swift` | 当前行/下一行/音节进度快照，提前 0.25 s 切行 |
+| `fmusic/LyricsOverlay/MenuBarLyricsController.swift` | 菜单栏歌词（NSStatusBar 走 runtime） |
+| `fmusic/Screens/View/Lyrics/LyricsLineLayers.swift` | 与播放器歌词视图共用：`LyricsTimingMap`、`LyricsTextLayout`、`LyricsSyllableMaskLayer` |
+| `fmusic/SwiftUI/Settings/Display/DisplaySettingsView.swift` | 设置 → 显示里的两个开关和外层参数 |
+| `fmusicKit/Storage/Settings.swift` | `UserSettings` 字段（JSON key 都是下划线前缀） |
 
-- 回复用中文、结论先行、短；不要丢一堆选项让用户选，给一个推荐和真实代价。
-- 执行类请求（“帮我改/加/提交”）直接做；只对必须本人完成的步骤（签名、OAuth、sudo、真机）留给他。
-- 视觉改动要**渲染真实截图**给他看，文字描述不算交付；先对齐现有 Apple Music 风格 token（13 pt 行、32/38 pt 行高、210 pt 侧栏、次级灰、主题红）。
-- 最小改动，不做未要求的功能；不要为假设需求加抽象/开关。
-- 本地提交用英文 commit message；**不要 push**；不要擅自 reset/clean/删除文件。
-- 每次改完更新 `HANDOFF.md` 的改动日志（一条 bullet，写清文件、原因、验证方式、坑）。
+### 3.2 结构（从下到上）
 
-## 8. 已知问题 / 待办
+```
+NSPanel（borderless + nonactivating，styleMask = 1<<7）
+└─ NSView（layer-backed，内容视图）
+   ├─ NSGlassEffectView（z=0；clear + darkAqua；缺失时回退 NSVisualEffectView HUD）
+   ├─ CAGradientLayer scrim（z=1；上深下透，替代整块黑卡）
+   ├─ CALayer 细描边（z=2）
+   └─ CALayer content（z=3）
+      ├─ nextLayer            下一句（缩小的预栅格化图）
+      ├─ previousLayer        离场行快照（淡出 + 上浮）
+      └─ primaryContainer     当前行
+         ├─ glowLayer         长音强调的径向白光
+         ├─ baseLayer         未唱（dim）图；无音节时放亮图
+         └─ sungLayer         亮图 + LyricsSyllableMaskLayer 遮罩
+```
 
-当前没有用户指派的未完成任务。以下只是已知瑕疵，除非用户点名否则不用主动做：
+- **glyph 层只做一次栅格化**：每行生成 dim/bright 两张 `CGImage`；播放时钟只改遮罩子层宽度，不重排文字。
+  60 Hz 更新来自 `BackendAudioPlayer` 的歌词 Timer（1/60 s）→ `didLyricsTimeChange` → `LyricsOverlayManager.render`。
+- 遮罩复用播放器歌词页的 `LyricsSyllableMaskLayer`（渐变羽化 2.5 pt）；TextKit 的 rect 是**左上原点**，
+  进 CALayer 前统一 `y = height - rect.maxY` 翻转。
+- **长音强调**：`DesktopLyricsEmphasis.value(progress:duration:)`，`duration > 0.45 s` 时按 LyricsX 包络
+  （`smooth((d-0.45)/1.15) * smoother(p/0.42) * (1 - smoother((p-0.70)/0.30))`）做最多 2% 放大、1.2 pt 上浮和光晕。
+- **行进动效**：切行时旧行快照淡出 + 上浮；新行从下方 10–16 pt 缩放淡入；新行恰好是上一句“下一句”时用更大的位移（promotion）。
+- **自动高度**：宽固定 760；高度 = 上/下 12 + 当前行 + (4 + 下一句)。改高度时**顶边固定**（`origin.y += oldH - newH`）。
+- 面板位置存 `UserDefaults` 的 `fmusic.desktopLyrics.frame`（左下原点数组），恢复时用存档高度，避免每次启动高度跳变导致位置漂移。
+- 面板是 `NSPanel` + nonactivating：点击不会激活 fmusic；`movableByWindowBackground` 可拖动；
+  「锁定」= `ignoresMouseEvents`；「置顶」= level 3 / level 0。
 
-1. 语言切换必须重启 App；系统菜单与 App 文案一起切换属于预期行为。
-2. iOS 真机路径未系统验证；当前主要在 macOS Catalyst 上开发。
-3. 播放缓存不会自动淘汰：`cacheLimit=0`（默认）表示无限，超过上限只阻止新下载、不删旧文件。用户缓存是离线播放数据，不要自动清空。
-4. CarPlay 7 个文件仍编进 target（Catalyst 不触发），保留是为了不丢 iOS CarPlay 能力；删除前先问用户。
+### 3.3 关键常量（要调视觉先看这里）
 
-已修（2026-11-12 全面清理）：
-- 分段索引字母已改中性灰（`BasicTableViewController` 布局时给私有 `*Index*` 子视图设 `.secondaryLabel`）。
-- 独立歌词页已固定深色。
-- 随机/循环按钮已有 `accessibilityLabel`（读屏不再读成 "go forward"）。
-- 设置页反复开关不再泄漏 SwiftUI 树（29 个 sink 全部 `[weak self]`）。
-- 启动不再同步扫描播放缓存目录（移到后台 utility task）。
+`DesktopLyricsRenderer`：宽 760、水平内边距 30、上下 12、行距 4、圆角 20；
+主字 bold（24/30/36，用户选 30）、下一句 `max(13, 0.5×主字号)` medium、kern −0.4；
+未唱白 46%、已唱 98%、下一句 62%；主文字阴影 black 0.62/8（dim）与 0.52/6（bright）。
 
-## 9. 开工前 30 秒检查
+### 3.4 设置项（`settings.user` JSON）
+
+| key | 含义 |
+|---|---|
+| `_isDesktopLyricsEnabled` | 总开关（默认 false） |
+| `_desktopLyricsFontSize` | 0/1/2 → 24/30/36 pt |
+| `_desktopLyricsBackgroundOpacity` | 0–100，0 时连玻璃一起隐藏 |
+| `_desktopLyricsAlignment` | 0 左 / 1 中 / 2 右 |
+| `_isDesktopLyricsNextLineShown` | 显示下一句 |
+| `_isDesktopLyricsAlwaysOnTop` | 窗口 level 3 / 0 |
+| `_isDesktopLyricsLocked` | 鼠标穿透 |
+| `_isMenuBarLyricsEnabled` | 菜单栏歌词（默认 false） |
+
+用户当前值：开启、30 pt、居中、显示下一句、置顶、未锁定、**背景透明度 26%**。
+26% 看起来偏亮是用户自己的选择，不要当成 bug；想更接近 Apple Music 深色玻璃就调高不透明度。
+
+### 3.5 已踩过的坑（别再踩）
+
+1. **背景 view 的 layer 会延迟挂载**：AppKit 可能在手加子层之后才把 `NSGlassEffectView` 的 layer 插进来，
+   盖住文字。必须给 scrim/border/content 设 `zPosition`（0/1/2/3），不能只依赖 addSublayer 顺序。
+2. **先 appearance 后 style**：`NSGlassEffectView` 在设置 style 时就构建背板；要先设 `appearance=darkAqua`
+   （窗口也设一次），再设 `style`（0 regular / 1 clear）和 `cornerRadius`。
+3. **KVC 必须守卫**：`NSClassFromString` 拿到的 AppKit 类全部走 runtime，KVC 前用
+   `responds(to: NSSelectorFromString("setXxx:"))` 判断；否则 NSUnknownKeyException 直接崩。
+4. **frame 用 C 函数指针**：`setFrame:display:`、`initWithContentRect:styleMask:backing:defer:` 用
+   `method_getImplementation` + `@convention(c)` 调，KVC 对 struct 参数不稳。
+5. **LRC 没有词级时间**：`LyricsTimingMap` 会给每个字平均分配行时长，长音强调可能被“估算时长”误触发；
+   YRC（`line.words` 非空）才是精确的。要更严格就只在有 word timings 时启用强调（需把标记透传到 `DesktopLyricsContent`）。
+6. **歌词没有翻译字段**：`StructuredLyrics` 只有 line/synced/offset 和 word；想做双语要改解析与 UI，不止浮窗。
+7. **没有 hover 控制条**：LyricsX 的悬停按钮条是刻意没做；用户要再加。
+8. 遮罩/快照都依赖 `LyricsTextLayout.rects(for:)`；改字体或换行策略时先确认这两处仍对齐。
+
+### 3.6 已验证
+
+- 播放《庐州月》：逐字填充（“月下的你不复”亮 / “当年模样”暗）、下一句正确、换行无残影。
+- 整机 CPU 约 3–7%，RSS ≈ 170 MB（60 Hz 只更新遮罩时）。
+- 面板在其它 App 前台时仍显示（level 3），点击不抢焦点。
+
+## 4. WebDAV FLAC seek 修复（`38989ef`）
+
+- 现象：冷缓存下从 WebDAV 开始播放后立即拖进度，顶部红条报错；等一会再拖就正常。
+- 根因：seek 后 `AudioFileStreamParseBytes` 从中途字节开始喂，解析器返回 `-108`（memFullErr，不在已映射错误里，
+  UI 显示“未知错误”）。离线探针证明：从帧同步点开始永远不会失败，半帧开始必失败。
+- 修法（`Vendor/AudioStreaming/`）：
+  - `AudioFileStreamProcessor.swift`：新增 `FlacSeekHandling`（notPending/swallow/parse(from:)）、`scannedBytes`；
+    丢弃数据直到 CRC-8 校验通过的 FLAC 帧，再从该帧位置重新喂；512 KB 后放宽时间窗到无限。
+  - `RemoteAudioSource.swift`：stream generation 计数，seek/close 后丢弃旧代数据，避免竞态把旧字节拼进新解析。
+  - 细节和复现记录在 `Vendor/AudioStreaming/PATCHES.md`。
+- 验证：冷启动 WebDAV 曲目后立即 seek 到 60%+，不再报错；不要用“清缓存”当修法。
+
+## 5. 包体 / 数据模型（`47c5ce7` 及之前）
+
+- CI 只出 **arm64**，DMG ≈ 10.5 MB，安装后 ≈ 19 MB；不支持 Intel。
+- Core Data 只剩 `fmusic v49` / `v50`；**新增字段/实体必须加 v51**，同时改 `CoreDataMigrationVersion`、`.xccurrentversion`；
+  v48 及更老的库不能迁移。
+- 图片已去重（App 图标/预览图共用一套）；不要再把大图重复塞进 Assets。
+- 构建缓存 `BuildTools/.build` 约 600 MB，可随时删；仓库不放二进制。
+
+## 6. 产品状态（已验证，改别处时当回归基线）
+
+- 侧栏 210 pt、行高 38（32 高亮）、13 pt 文案、实心 16 pt 图标；Apple Music 式首页/专辑网格。
+- 封面：ImageIO 降采样到最长边 1024，缓存上限 64 MB / 300 张（`LibraryEntityImage`）。
+- WebDAV 曲库：启动/回前台增量扫描（15 s 去抖）；本地文件夹需手动同步。
+- 大播放器：主窗口内 `.fullScreen` 上滑，两栏，**固定深色**；ESC / 左上 chevron 关闭。
+- 独立歌词栏 `LyricsVC` 固定深色；迷你条 `UIGlassEffect(.regular)`。
+- 设置：窗口内整页覆盖，顶层 6 项（通用/账户/播放/显示/资料库/支持与关于）；
+  外观、语言（重启生效）、歌词偏移、M3U 导入导出、交叉淡入淡出（默认关）。
+- 性能约束：歌词仅可见时 60 Hz；视觉分析器 30 fps；Timer 注册到 `.common`；恢复进度每 5 s 一次。
+
+## 7. 已知问题 / 可选后续（不是当前指派任务）
+
+1. 语言切换必须重启 App（预期）。
+2. 播放缓存不自动淘汰（`cacheLimit=0` 无限）；别自动清。
+3. CarPlay 7 个文件仍编进 target（Catalyst 不触发），删前先问。
+4. 桌面歌词：hover 控制条、翻译行、精确 word-timing 门控强调，都是“用户点名再做”。
+5. 菜单栏歌词最近没回归验证；改动 `LyricsOverlayManager` 时顺手看一眼开关与菜单栏标题。
+6. iOS 真机路径未系统验证；当前主要在 macOS Catalyst 开发。
+
+## 8. 协作偏好（重要）
+
+- 中文、结论先行、短；给一个推荐 + 真实代价，不要丢一串选项。
+- “帮我改/加/提交”= 直接做；只有签名、sudo、真机等必须用户本人做的步骤才留给他。
+- 视觉改动要**渲染真实截图**；先对齐现有 Apple Music token（13 pt / 32–38 pt / 210 pt / 次级灰 / 主题红）。
+- 最小改动，不加未要求的功能/开关/抽象。
+- 本地提交用英文 commit message；**不要 push**；不要 reset/clean/删文件。
+- 删除默认 `trash`，永久删除才 `/bin/rm`；`find`→`fd`、`grep`→`rg`、`rm`→`trash`。
+- 不打印/不写密码、token、Cookie；不擅自改用户的代理/服务状态。
+
+## 9. 开工前 30 秒
 
 ```bash
 cd /Users/apple/Desktop/AI/Quder/fmusic
-git status --short          # 应干净
-git log --oneline -3
+git status --short          # 应为空
+git log --oneline -4
 pgrep -fl "fmusic.app/Contents/MacOS/fmusic" || echo not-running
+/tmp/winlist 2>/dev/null || echo "rebuild winlist from section 2.1"
 ```
 
-先读 `HANDOFF.md` 里对应模块的最新 bullet，再动代码。
+先读第 3 节再动桌面歌词；先读 `Vendor/AudioStreaming/PATCHES.md` 再动流式引擎。

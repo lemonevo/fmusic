@@ -1,5 +1,7 @@
 # fmusic fork 交接文档
 
+> 当前状态与接续说明请看根目录 **`AI_HANDOFF.md`**；本文件保留为历史改动日志，部分内容已过时。
+
 最后更新：2026-11-13（Mac Catalyst / macOS 27 / Xcode 27.1；已更名 fmusic，CI 只出 arm64）
 适用对象：接手继续改这个仓库的 AI。先读完第 0、1 节再动代码。
 
