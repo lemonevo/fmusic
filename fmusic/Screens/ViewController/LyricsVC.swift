@@ -40,9 +40,8 @@ class LyricsVC: UIViewController {
 
   override func viewDidLoad() {
     super.viewDidLoad()
-    // Match the sidebar instead of forcing the player's dark surface: on Catalyst the
-    // system background follows the window appearance, so a forced dark trait turned the
-    // white lyric text invisible on a white panel in light mode.
+    // Like the Music app's lyrics, the panel follows the app surface while the typography
+    // comes from the player. The lyric colors adapt to the appearance for contrast.
     view.backgroundColor = .secondarySystemBackground
 
     let lyricsView = LyricsView()
