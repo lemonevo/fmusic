@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
@@ -55,7 +55,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
     appDelegate.userStatistics.visited(.songs)
 
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
 
     applyFilter()
     configureSearchController(
@@ -199,7 +199,7 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     if appDelegate.storage.settings.user.isOnlineMode {
       actions.append(createActionButtonMenu())
     }
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
     optionsButton.menu = UIMenu(children: actions)
     navigationItem.rightBarButtonItems = [optionsButton]
   }

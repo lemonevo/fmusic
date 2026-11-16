@@ -117,9 +117,13 @@ class EntityPreviewActionBuilder {
       gotoActions.append(createShowArtistAction())
     }
     if isShowSongDetails,
-       let song = (entityContainer as? AbstractPlayable)?.asSong,
-       let lyricsShowAction = createShowLyricsAction(song: song) {
-      gotoActions.append(lyricsShowAction)
+       let song = (entityContainer as? AbstractPlayable)?.asSong {
+      if let lyricsShowAction = createShowLyricsAction() {
+        gotoActions.append(lyricsShowAction)
+      }
+      if let searchLyricsAction = createSearchOnlineLyricsAction(song: song) {
+        gotoActions.append(searchLyricsAction)
+      }
     }
     if !gotoActions.isEmpty {
       menuActions.append(UIMenu(options: .displayInline, children: gotoActions))
@@ -418,7 +422,9 @@ class EntityPreviewActionBuilder {
 
   private func createFavoriteMenu(libraryEntity: AbstractLibraryEntity) -> UIAction {
     libraryEntity.isFavorite ?
-      UIAction(title: L10n.tr("Unmark favorite"), image: .heartSlash) { action in self.toggleFavorite() } :
+      UIAction(title: L10n.tr("Unmark favorite"), image: .heartSlash) { action in
+        self.toggleFavorite()
+      } :
       UIAction(title: L10n.tr("Favorite"), image: .heartEmpty) { action in self.toggleFavorite() }
   }
 
@@ -651,26 +657,43 @@ class EntityPreviewActionBuilder {
     }
   }
 
-  private func createShowLyricsAction(song: Song) -> UIAction? {
+  private func createShowLyricsAction() -> UIAction? {
     guard let playable = entityContainer as? AbstractPlayable,
-          let song = playable.asSong,
-          let lyricsRelFilePath = song.lyricsRelFilePath,
-          let lyricsAccount = song.account
+          playable.asSong != nil
     else { return nil }
 
-    return UIAction(title: L10n.tr("Show Lyrics"), image: .lyrics) { action in
-      self.showLyrics(lyricsRelFilePath: lyricsRelFilePath, lyricsAccount: lyricsAccount)
+    let isEnabled = appDelegate.storage.settings.user.isDesktopLyricsEnabled
+    return UIAction(
+      title: L10n.tr("Desktop Lyrics"),
+      image: .lyrics,
+      state: isEnabled ? .on : .off
+    ) { [weak self] _ in
+      guard let self else { return }
+      appDelegate.storage.settings.user.isDesktopLyricsEnabled.toggle()
+      appDelegate.updateLyricsOverlays()
     }
   }
 
-  private func showLyrics(lyricsRelFilePath: URL, lyricsAccount: Account) {
-    let lyricsVC = PlainDetailsVC()
-    lyricsVC.display(
-      lyricsRelFilePath: lyricsRelFilePath,
-      lyricsAccount: lyricsAccount,
-      on: rootView
-    )
-    rootView.present(lyricsVC, animated: true)
+  private func createSearchOnlineLyricsAction(song: Song) -> UIAction? {
+    guard song.account != nil,
+          appDelegate.storage.settings.user.isOnlineMode
+    else { return nil }
+
+    return UIAction(
+      title: L10n.tr("Search Online Lyrics"),
+      image: UIImage(systemName: "text.magnifyingglass")
+    ) { [weak self] _ in
+      guard let self else { return }
+      Task { @MainActor in
+        let found = await OnlineLyricsService.shared.matchLyrics(for: song, force: true)
+        if !found {
+          self.appDelegate.eventLogger.report(
+            topic: "Online Lyrics",
+            error: OnlineLyricsError.noMatch
+          )
+        }
+      }
+    }
   }
 
   private func createCopyIdToClipboardAction() -> UIMenu {

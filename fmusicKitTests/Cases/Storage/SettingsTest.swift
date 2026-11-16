@@ -51,14 +51,12 @@ class SettingsTest: XCTestCase {
 
   private func changedUserSettings() -> UserSettings {
     var user = UserSettings()
-    user.streamingMaxBitrateWifiPreference = .limit128
     user.screenLockPreventionPreference = .always
     user.isLyricsSmoothScrolling = false
     return user
   }
 
   private func assertChangedValuesKept(_ user: UserSettings) {
-    XCTAssertEqual(user.streamingMaxBitrateWifiPreference, .limit128)
     XCTAssertEqual(user.screenLockPreventionPreference, .always)
   }
 

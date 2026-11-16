@@ -19,10 +19,10 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-@testable import fmusicKit
 @preconcurrency @testable import AudioStreaming
 import AVFoundation
 import CoreData
+@testable import fmusicKit
 import XCTest
 
 // MARK: - MOCK_AudioStreamingPlayer
@@ -232,19 +232,9 @@ final class MOCK_BackendApi: BackendApi {
   }
 
   func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference
+    forStreamingPlayable playableInfo: AbstractPlayableInfo
   ) async throws
     -> URL { Helper.testURL }
-
-  func generateUrl(
-    forStreamingPlayable playableInfo: AbstractPlayableInfo,
-    maxBitrate: StreamingMaxBitratePreference,
-    formatPreference: StreamingFormatPreference,
-    timeOffset: Int
-  ) async throws
-    -> URL { throw BackendError.notSupported }
 
   func generateUrl(forArtwork artwork: Artwork) async throws -> URL { Helper.testURL }
   func checkForErrorResponse(response: APIDataResponse) -> ResponseError? { nil }
@@ -1715,17 +1705,6 @@ class MusicPlayerTest: XCTestCase {
       )
     let elapsedTime = testPlayer.elapsedTime
     XCTAssertEqual(elapsedTime, 3.0)
-  }
-
-  func testStreamRestartTimeOffset() {
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 20.4, duration: 35), 20)
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: -3, duration: 35), 0)
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 34, duration: 35), 34)
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 35, duration: 35), 34)
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 100, duration: 35), 34)
-    // unknown or too short metadata duration: no clamping
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 20, duration: 0), 20)
-    XCTAssertEqual(BackendAudioPlayer.streamRestartTimeOffset(forSecond: 20, duration: 0.5), 20)
   }
 
   func testPlayPreviousOrReplay_EmptyPlaylist() {

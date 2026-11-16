@@ -59,12 +59,18 @@ class LyricsVC: UIViewController {
     lyricsView.onLyricSelected = { [weak self] lyric in
       guard let self else { return }
       let target = self.lyricsView?.playbackTime(for: lyric) ?? lyric.startTime.seconds
-      self.player.seek(toSecond: target)
+      player.seek(toSecond: target)
     }
 
     self.lyricsView = lyricsView
 
     player.addNotifier(notifier: self)
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(onlineLyricsDidUpdate(_:)),
+      name: .onlineLyricsDidUpdate,
+      object: nil
+    )
   }
 
   override func viewIsAppearing(_ animated: Bool) {
@@ -87,10 +93,11 @@ class LyricsVC: UIViewController {
     }}
   }
 
-  private func showLyrics(structuredLyrics: StructuredLyrics) {
+  private func showLyrics(structuredLyrics: StructuredLyrics, centered: Bool = false) {
     lyricsView?.display(
       lyrics: structuredLyrics,
-      scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling
+      scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling,
+      centered: centered
     )
     // Highlight the line that is playing right now instead of waiting for the next tick.
     let elapsed = player.elapsedTime
@@ -107,16 +114,46 @@ class LyricsVC: UIViewController {
     var line = LyricsLine()
     line.value = L10n.tr("No Lyrics")
     notAvailableLyrics.line.append(line)
-    showLyrics(structuredLyrics: notAvailableLyrics)
+    showLyrics(structuredLyrics: notAvailableLyrics, centered: true)
     lyricsView?.highlightAllLyrics()
+  }
+
+  private func showSearchingLyrics() {
+    var searchingLyrics = StructuredLyrics()
+    searchingLyrics.synced = false
+    var line = LyricsLine()
+    line.value = L10n.tr("Searching online lyrics…")
+    searchingLyrics.line.append(line)
+    showLyrics(structuredLyrics: searchingLyrics, centered: true)
+    lyricsView?.highlightAllLyrics()
+  }
+
+  private func requestOnlineLyrics(for song: Song) {
+    guard song.account != nil,
+          OnlineLyricsService.shared.canMatchLyrics(for: song)
+    else {
+      showLyricsAreNotAvailable()
+      return
+    }
+
+    showSearchingLyrics()
+    Task { @MainActor in
+      let found = await OnlineLyricsService.shared.matchLyrics(for: song)
+      guard !found, self.player.currentlyPlaying?.asSong?.id == song.id else { return }
+      self.showLyricsAreNotAvailable()
+    }
   }
 
   func refreshLyrics() {
     guard let playable = player.currentlyPlaying,
           let song = playable.asSong,
-          let account = song.account,
-          let lyricsRelFilePath = song.lyricsRelFilePath else {
+          let account = song.account
+    else {
       showLyricsAreNotAvailable()
+      return
+    }
+    guard let lyricsRelFilePath = song.lyricsRelFilePath else {
+      requestOnlineLyrics(for: song)
       return
     }
 
@@ -132,6 +169,14 @@ class LyricsVC: UIViewController {
     } catch {
       self.showLyricsAreNotAvailable()
     }}
+  }
+
+  @objc
+  private func onlineLyricsDidUpdate(_ notification: Notification) {
+    guard let songID = notification.userInfo?["songID"] as? String,
+          player.currentlyPlaying?.asSong?.id == songID
+    else { return }
+    refreshLyrics()
   }
 
   func refreshLyricsTime(time: CMTime) {

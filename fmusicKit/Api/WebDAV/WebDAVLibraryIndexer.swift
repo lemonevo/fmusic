@@ -34,11 +34,15 @@ private struct WebDAVFileItem: Sendable {
   let addedDate: Date
 }
 
+// MARK: FileSourceMediaItem
+
 extension WebDAVFileItem: FileSourceMediaItem {
   var playablePath: String { remotePath }
   var localFileURL: URL? { nil }
   var idScope: String { "webdav" }
 }
+
+// MARK: - ExistingFileInfo
 
 private struct ExistingFileInfo: Sendable {
   let size: Int
@@ -60,7 +64,7 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
   nonisolated private static let metadataHeadBytes = 2 * 1024 * 1024
   nonisolated private static let maximumEntryCount = 100_000
   /// Bump when indexing or metadata parsing changes so unchanged files are re-read once.
-  nonisolated private static let indexVersion = 3
+  nonisolated private static let indexVersion = 6
   nonisolated private static let metadataFetchConcurrency = 6
 
   private let accountObjectId: NSManagedObjectID
@@ -76,7 +80,7 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     self.credentials = credentials
   }
 
-  private var activeIndexTask: Task<Void, Error>?
+  private var activeIndexTask: Task<(), Error>?
 
   func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
     if let activeIndexTask {
@@ -85,7 +89,7 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     }
     let indexTask = Task { [weak self] in
       guard let self else { return }
-      try await self.performIndexing(statusNotifyier: statusNotifyier)
+      try await performIndexing(statusNotifyier: statusNotifyier)
     }
     activeIndexTask = indexTask
     defer { activeIndexTask = nil }
@@ -252,6 +256,9 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     storage.settings.accounts.updateSetting(accountInfo) { accountSettings in
       accountSettings.libraryIndexVersion = Self.indexVersion
     }
+    Task { @MainActor [accountInfo] in
+      await MetadataBackfillService.shared.backfill(accountInfo: accountInfo)
+    }
     os_log(
       "WebDAV indexing finished: %d songs in %.1fs",
       log: log,
@@ -318,7 +325,8 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
       let path = directory.isEmpty ? coverName : "\(directory)/\(coverName)"
       guard filesByPath[path] != nil else { continue }
       if let data = try? await client.fetchData(relativePath: path), !data.isEmpty {
-        return data
+        // One compressed copy per folder; every song in it shares this data.
+        return ArtworkImageEncoder.compressedData(from: data)
       }
     }
     return nil
@@ -368,19 +376,33 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     let fileName = entry.fileNameWithoutExtension
     let (trackFromName, nameWithoutTrack) = trackNumber(from: fileName)
     let nameParts = nameWithoutTrack.components(separatedBy: " - ")
-    let title = flacTags?.title ?? mp3Tags?.title
-      ?? (nameParts.count >= 2 ? nameParts.dropFirst().joined(separator: " - ") : nameWithoutTrack)
-    let artistName = flacTags?.artist ?? mp3Tags?.artist
-      ?? (nameParts.count >= 2 ? nameParts.first! : "Unknown Artist")
+    let lyrics = await fetchLyrics(
+      entry: entry,
+      filesByPath: filesByPath,
+      client: client
+    ) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
+    let lyricTags = lyrics.map(LyricMetadataTags.parse)
+
+    let tagTitle = LyricMetadataTags.firstNonEmpty(flacTags?.title, mp3Tags?.title)
+    // User libraries name files "Title - Artist"; this fork previously assumed
+    // the reverse and swapped every untagged song.
+    let title = tagTitle ?? lyricTags?.title
+      ?? (nameParts.count >= 2 ? nameParts.first! : nameWithoutTrack)
+    let tagArtist = LyricMetadataTags.firstNonEmpty(flacTags?.artist, mp3Tags?.artist)
+    let artistName = tagArtist ?? lyricTags?.artist
+      ?? (nameParts.count >= 2 ? nameParts.dropFirst().joined(separator: " - ") : "Unknown Artist")
     let directoryName = entry.directoryPath.isEmpty
       ? "Unknown Album"
       : (entry.directoryPath as NSString).lastPathComponent
-    let albumTag = flacTags?.album ?? mp3Tags?.album
-    let albumName = albumTag ?? directoryName
+    let albumTag = LyricMetadataTags.firstNonEmpty(flacTags?.album, mp3Tags?.album)
+    let albumName = albumTag ?? lyricTags?.album ?? directoryName
     let albumKey: String
-    if let albumTag, !albumTag.isEmpty {
-      let albumArtist = flacTags?.albumArtist ?? mp3Tags?.albumArtist ?? artistName
+    if let albumTag {
+      let albumArtist = LyricMetadataTags
+        .firstNonEmpty(flacTags?.albumArtist, mp3Tags?.albumArtist) ?? artistName
       albumKey = "tag:\(albumArtist.lowercased())\u{1F}\(albumTag.lowercased())"
+    } else if let lyricAlbum = lyricTags?.album {
+      albumKey = "tag:\(artistName.lowercased())\u{1F}\(lyricAlbum.lowercased())"
     } else {
       albumKey = "path:\(entry.directoryPath)"
     }
@@ -391,12 +413,10 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     )
     let bitrate = duration > 0 ? (entry.size * 8) / duration : 0
 
-    let lyrics = await fetchLyrics(
-      entry: entry,
-      filesByPath: filesByPath,
-      client: client
-    ) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
-    let artwork = flacTags?.picture ?? mp3Tags?.picture ?? coverData
+    // Covers from tags are compressed here; folder covers are already
+    // compressed once per directory in fetchCover().
+    let tagArtwork = flacTags?.picture ?? mp3Tags?.picture
+    let artwork = tagArtwork.map(ArtworkImageEncoder.compressedData(from:)) ?? coverData
 
     return WebDAVFileItem(
       remotePath: entry.relativePath,
@@ -428,11 +448,12 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
       ? entry.fileNameWithoutExtension
       : "\(entry.directoryPath)/\(entry.fileNameWithoutExtension)"
     for candidate in [
-      "\(base).yrc", "\(base).YRC", "\(base).lrc", "\(base).LRC",
+      "\(base).yrc", "\(base).YRC", "\(base).qrc", "\(base).QRC",
+      "\(base).krc", "\(base).KRC", "\(base).lrc", "\(base).LRC",
     ] {
       guard filesByPath[candidate] != nil else { continue }
       if let data = try? await client.fetchData(relativePath: candidate),
-         let content = String(data: data, encoding: .utf8),
+         let content = LyricsSidecarReader.text(from: data),
          !content.isEmpty {
         return content
       }
@@ -450,5 +471,4 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     }
     return (number, String(rest))
   }
-
 }

@@ -146,15 +146,6 @@ extension Int {
 }
 
 extension String {
-  public func isFoundBy(searchText: String) -> Bool {
-    lowercased().contains(searchText.lowercased())
-  }
-
-  public var asIso8601Date: Date? {
-    let dateFormatter = ISO8601DateFormatter()
-    return dateFormatter.date(from: self)
-  }
-
   public var asByteCount: Int? {
     guard !isEmpty else { return nil }
     if hasSuffix(" GB") {
@@ -178,16 +169,6 @@ extension String {
     }
   }
 
-  public var asDurationInSeconds: Int? {
-    let components = split { $0 == ":" }.compactMap { Int($0) }
-    guard components.count == 3 else { return nil }
-    return (components[0] * 60 * 24) + (components[1] * 60) + components[2]
-  }
-
-  public static var defaultSectionInital: String.Element {
-    "?"
-  }
-
   public var sectionInitial: String {
     guard !isEmpty else { return "?" }
     let initial = String(
@@ -209,19 +190,6 @@ extension String {
 
   public static var uppercaseAsciiLetters: String {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-  }
-
-  public static func generateRandomString(ofLength length: Int) -> String {
-    let letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    return String((0 ..< length).map { _ in letters.randomElement()! })
-  }
-
-  private var html2AttributedString: NSAttributedString? {
-    Data(utf8).html2AttributedString
-  }
-
-  public var html2String: String {
-    html2AttributedString?.string.html2AttributedString?.string ?? ""
   }
 }
 
@@ -309,14 +277,6 @@ extension UIColor {
     return true
   }
 
-  public func getWithLightness(of: CGFloat) -> UIColor {
-    precondition(0 ... 1 ~= of, "input range is out of range 0...1")
-    var hue, saturation, lightness, alpha: CGFloat
-    (hue, saturation, lightness, alpha) = (0.0, 0.0, 0.0, 0.0)
-    _ = getHue(&hue, saturation: &saturation, lightness: &lightness, alpha: &alpha)
-    return UIColor(hue: hue, saturation: saturation, lightness: of, alpha: alpha)
-  }
-
   // 007AFF
   // r:0 g:122 b:255
   public static var defaultBlue: UIColor {
@@ -372,50 +332,6 @@ extension NSObject {
   }
 }
 
-extension NSData {
-  public var sizeInByte: Int64 {
-    Int64(length)
-  }
-}
-
-extension Data {
-  public static func fetch(fromUrlString urlString: String) -> Data? {
-    var data: Data?
-    guard let url = URL(string: urlString) else {
-      return nil
-    }
-    do {
-      let dataFromURL = try Data(contentsOf: url)
-      data = dataFromURL
-    } catch {}
-    return data
-  }
-
-  public var sizeInByte: Int64 {
-    Int64(count)
-  }
-
-  public func createLocalUrl(fileName: String? = nil) -> URL {
-    let tempDirectoryURL = NSURL.fileURL(withPath: NSTemporaryDirectory(), isDirectory: true)
-    let url = tempDirectoryURL.appendingPathComponent(fileName ?? UUID().uuidString)
-    try! write(to: url, options: Data.WritingOptions.atomic)
-    return url
-  }
-
-  public var html2AttributedString: NSAttributedString? {
-    try? NSAttributedString(
-      data: self,
-      options: [
-        .documentType: NSAttributedString.DocumentType.html,
-        .characterEncoding: String.Encoding.utf8.rawValue,
-      ],
-      documentAttributes: nil
-    )
-  }
-
-  public var html2String: String { html2AttributedString?.string.html2String ?? "" }
-}
-
 extension Date {
   public var asIso8601String: String {
     let dateFormatter = ISO8601DateFormatter()
@@ -456,8 +372,7 @@ extension Array {
   }
 }
 
-extension Array where Element: Equatable {
-}
+extension Array where Element: Equatable {}
 
 extension Array where Element: Hashable {
   /// The elements without duplicates, followed by the ones of `allElements` missing (e.g. new cases).

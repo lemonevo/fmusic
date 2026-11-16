@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import BackgroundTasks
+import fmusicKit
 import Intents
 import MediaPlayer
 import os.log
@@ -121,6 +121,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   }()
 
   var miniPlayerSceneSession: UISceneSession?
+  private var pendingOpenedFileURLs = [URL]()
 
   #if targetEnvironment(macCatalyst)
     lazy var lyricsOverlayManager = LyricsOverlayManager(player: player, storage: storage)
@@ -216,6 +217,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     configureDefaultNavigationBarStyle()
     configureBatteryMonitoring()
     initEventLogger()
+    OpenedFileLibrary.shared.activateBookmarks()
 
     guard let activeAccountInfo = appDelegate.storage.settings.accounts.active else {
       return true
@@ -256,6 +258,44 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
       player.addNotifier(notifier: self)
     }
     updateLyricsOverlays()
+    processPendingOpenedFiles()
+  }
+
+  /// Opens audio files handed over by Finder or `open -a fmusic`.
+  func openAudioFiles(_ urls: [URL]) {
+    let fileURLs = urls.filter(\.isFileURL)
+    guard !fileURLs.isEmpty else { return }
+    guard storage.settings.app.isLibrarySynced,
+          storage.settings.accounts.active != nil,
+          !libraryUpdater.isVisualUpadateNeeded
+    else {
+      pendingOpenedFileURLs.append(contentsOf: fileURLs)
+      return
+    }
+
+    Task { @MainActor in
+      let songs = await OpenedFileLibrary.shared.importFiles(
+        fileURLs: fileURLs,
+        storage: storage
+      )
+      guard !songs.isEmpty else {
+        let name = fileURLs.first?.lastPathComponent ?? ""
+        eventLogger.report(
+          topic: L10n.tr("Open File"),
+          error: OpenedFileError.unreadableFile(name),
+          displayPopup: true
+        )
+        return
+      }
+      player.play(context: PlayContext(name: L10n.tr("Opened Files"), playables: songs))
+    }
+  }
+
+  private func processPendingOpenedFiles() {
+    guard !pendingOpenedFileURLs.isEmpty else { return }
+    let urls = pendingOpenedFileURLs
+    pendingOpenedFileURLs = []
+    openAudioFiles(urls)
   }
 
   func startManagerForNormalOperation() {

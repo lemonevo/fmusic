@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import Foundation
 @preconcurrency import ID3TagEditor
-import UIKit
 
 final class EmbeddedArtworkExtractor: Sendable {
   private let id3TagEditor = ID3TagEditor()
@@ -51,19 +51,18 @@ final class EmbeddedArtworkExtractor: Sendable {
       )
 
       // if there is a frontCover artwork take this as embedded artwork
-      if let frontCoverArtwork = artworks.lazy.filter({ $0.type == .frontCover }).first,
-         let artworkImage = UIImage(data: frontCoverArtwork.picture) {
+      if let frontCoverArtwork = artworks.lazy.filter({ $0.type == .frontCover }).first {
         self.saveEmbeddedImageInLibrary(
           library: asyncCompanion.library,
           playable: playable,
-          embeddedImage: artworkImage
+          imageData: frontCoverArtwork.picture
         )
         // take the first other available artwork
-      } else if let artworkImage = artworks.lazy.compactMap({ UIImage(data: $0.picture) }).first {
+      } else if let firstArtwork = artworks.lazy.map(\.picture).first {
         self.saveEmbeddedImageInLibrary(
           library: asyncCompanion.library,
           playable: playable,
-          embeddedImage: artworkImage
+          imageData: firstArtwork
         )
       }
     }
@@ -72,20 +71,24 @@ final class EmbeddedArtworkExtractor: Sendable {
   private func saveEmbeddedImageInLibrary(
     library: LibraryStorage,
     playable: AbstractPlayable,
-    embeddedImage: UIImage
+    imageData: Data
   ) {
     guard let account = playable.account else { return }
     let embeddedArtwork = library.createEmbeddedArtwork(account: account)
     embeddedArtwork.owner = playable
 
-    guard let relFilePath = fileManager.createRelPath(for: embeddedArtwork),
-          let absFilePath = fileManager.getAbsolutefmusicPath(relFilePath: relFilePath),
-          let pngData = embeddedImage.pngData()
+    // Embedded covers are often several thousand pixels wide. Decode and
+    // downscale once on import instead of paying the disk and decode cost on
+    // every display. Invalid image data is skipped like before.
+    guard ArtworkImageEncoder.isDecodable(imageData),
+          let encodedData = ArtworkImageEncoder.encodedData(from: imageData),
+          let relFilePath = fileManager.createRelPath(for: embeddedArtwork),
+          let absFilePath = fileManager.getAbsolutefmusicPath(relFilePath: relFilePath)
     else { return }
 
     do {
       try fileManager.writeDataExcludedFromBackup(
-        data: pngData,
+        data: encodedData,
         to: absFilePath,
         accountInfo: account.info
       )

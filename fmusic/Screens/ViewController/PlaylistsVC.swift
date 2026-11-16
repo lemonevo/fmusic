@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 import UniformTypeIdentifiers
 
@@ -237,7 +237,7 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
     var actions = [UIMenu]()
     actions.append(createSortButtonMenu())
     actions.append(createOptionsButtonMenu())
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
     optionsButton.menu = UIMenu(children: actions)
     var barButtons = [UIBarButtonItem]()
     barButtons.append(optionsButton)
@@ -328,37 +328,41 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
   }
 
   private func createOptionsButtonMenu() -> UIMenu {
-    let fetchAllPlaylists = UIAction(title: L10n.tr("Sync All Playlists"), image: .refresh, handler: { _ in
-      Task { @MainActor in do {
-        let accountObjectId = self.account.managedObject.objectID
-        let playlistsIds = try await self.appDelegate.storage.async
-          .performAndGet { asyncCompanion in
-            let accoundAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-            let playlists = asyncCompanion.library.getPlaylists(for: accoundAsync)
-            return playlists.compactMap { $0.managedObject.objectID }
+    let fetchAllPlaylists = UIAction(
+      title: L10n.tr("Sync All Playlists"),
+      image: .refresh,
+      handler: { _ in
+        Task { @MainActor in do {
+          let accountObjectId = self.account.managedObject.objectID
+          let playlistsIds = try await self.appDelegate.storage.async
+            .performAndGet { asyncCompanion in
+              let accoundAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
+              let playlists = asyncCompanion.library.getPlaylists(for: accoundAsync)
+              return playlists.compactMap { $0.managedObject.objectID }
+            }
+          for moId in playlistsIds {
+            let playlistMainMO = self.appDelegate.storage.main.context
+              .object(with: moId) as! PlaylistMO
+            let playlistMain = Playlist(
+              library: self.appDelegate.storage.main.library,
+              managedObject: playlistMainMO
+            )
+            try await playlistMain.fetch(
+              storage: self.appDelegate.storage,
+              librarySyncer: self.appDelegate.getMeta(self.account.info).librarySyncer,
+              playableDownloadManager: self.appDelegate.getMeta(self.account.info)
+                .playableDownloadManager
+            )
           }
-        for moId in playlistsIds {
-          let playlistMainMO = self.appDelegate.storage.main.context
-            .object(with: moId) as! PlaylistMO
-          let playlistMain = Playlist(
-            library: self.appDelegate.storage.main.library,
-            managedObject: playlistMainMO
+          self.appDelegate.eventLogger.info(
+            topic: L10n.tr("Sync All Playlists"),
+            message: L10n.tr("All playlists have been synced.")
           )
-          try await playlistMain.fetch(
-            storage: self.appDelegate.storage,
-            librarySyncer: self.appDelegate.getMeta(self.account.info).librarySyncer,
-            playableDownloadManager: self.appDelegate.getMeta(self.account.info)
-              .playableDownloadManager
-          )
-        }
-        self.appDelegate.eventLogger.info(
-          topic: L10n.tr("Sync All Playlists"),
-          message: L10n.tr("All playlists have been synced.")
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Sync All Playlists", error: error)
-      }}
-    })
+        } catch {
+          self.appDelegate.eventLogger.report(topic: "Sync All Playlists", error: error)
+        }}
+      }
+    )
     return UIMenu(
       title: L10n.tr("Options"),
       image: .sort,
@@ -455,6 +459,8 @@ class PlaylistsVC: SingleSnapshotFetchedResultsTableViewController<PlaylistMO> {
     updateContentUnavailable()
   }
 }
+
+// MARK: UIDocumentPickerDelegate
 
 extension PlaylistsVC: UIDocumentPickerDelegate {
   func documentPicker(

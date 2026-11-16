@@ -179,8 +179,8 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     lyricsView = LyricsView()
     lyricsView!.onLyricSelected = { [weak self] lyric in
       guard let self else { return }
-      let target = self.lyricsView?.playbackTime(for: lyric) ?? lyric.startTime.seconds
-      self.appDelegate.player.seek(toSecond: target)
+      let target = lyricsView?.playbackTime(for: lyric) ?? lyric.startTime.seconds
+      appDelegate.player.seek(toSecond: target)
     }
     let lyricsTap = UITapGestureRecognizer(target: self, action: #selector(handleLyricsTap(_:)))
     lyricsTap.cancelsTouchesInView = false
@@ -219,6 +219,12 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       name: .offlineModeChanged,
       object: nil
     )
+    appDelegate.notificationHandler.register(
+      self,
+      selector: #selector(onlineLyricsDidUpdate(_:)),
+      name: .onlineLyricsDidUpdate,
+      object: nil
+    )
 
     displayElement = getDisplayElementBasedOnConfig()
     refresh()
@@ -227,6 +233,16 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
   @objc
   private func refreshOfflineMode() {
     refreshRating()
+  }
+
+  @objc
+  private func onlineLyricsDidUpdate(_ notification: Notification) {
+    guard let songID = notification.userInfo?["songID"] as? String,
+          rootView?.player.currentlyPlaying?.asSong?.id == songID,
+          isLyricsViewAllowedToDisplay
+    else { return }
+    rootView?.refreshOptionButton(button: optionsButton, rootView: rootView)
+    initializeLyrics()
   }
 
   private func setupRatingView() {
@@ -325,10 +341,13 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       return
     }
     guard let song = playable.asSong,
-          let account = song.account,
-          let lyricsRelFilePath = song.lyricsRelFilePath
+          let account = song.account
     else {
       showLyricsAreNotAvailable()
+      return
+    }
+    guard let lyricsRelFilePath = song.lyricsRelFilePath else {
+      requestOnlineLyrics(for: song)
       return
     }
 
@@ -430,7 +449,7 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     var line = LyricsLine()
     line.value = L10n.tr("Play a song to see the lyrics here.")
     placeholder.line.append(line)
-    showLyrics(structuredLyrics: placeholder)
+    showLyrics(structuredLyrics: placeholder, centered: true)
     lyricsView?.highlightAllLyrics()
   }
 
@@ -440,14 +459,41 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     var line = LyricsLine()
     line.value = L10n.tr("No Lyrics")
     notAvailableLyrics.line.append(line)
-    showLyrics(structuredLyrics: notAvailableLyrics)
+    showLyrics(structuredLyrics: notAvailableLyrics, centered: true)
     lyricsView?.highlightAllLyrics()
   }
 
-  private func showLyrics(structuredLyrics: StructuredLyrics) {
+  private func requestOnlineLyrics(for song: Song) {
+    guard song.account != nil,
+          OnlineLyricsService.shared.canMatchLyrics(for: song)
+    else {
+      showLyricsAreNotAvailable()
+      return
+    }
+
+    var searchingLyrics = StructuredLyrics()
+    searchingLyrics.synced = false
+    var line = LyricsLine()
+    line.value = L10n.tr("Searching online lyrics…")
+    searchingLyrics.line.append(line)
+    showLyrics(structuredLyrics: searchingLyrics, centered: true)
+    lyricsView?.highlightAllLyrics()
+
+    Task { @MainActor in
+      let found = await OnlineLyricsService.shared.matchLyrics(for: song)
+      guard !found,
+            self.rootView?.player.currentlyPlaying?.asSong?.id == song.id,
+            self.isLyricsViewAllowedToDisplay
+      else { return }
+      self.showLyricsAreNotAvailable()
+    }
+  }
+
+  private func showLyrics(structuredLyrics: StructuredLyrics, centered: Bool = false) {
     lyricsView?.display(
       lyrics: structuredLyrics,
-      scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling
+      scrollAnimation: appDelegate.storage.settings.user.isLyricsSmoothScrolling,
+      centered: centered
     )
     lyricsView?.isHidden = false
     let elapsed = appDelegate.player.elapsedTime

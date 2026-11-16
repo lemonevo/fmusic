@@ -69,17 +69,24 @@ enum FileSourceLibraryWriter {
     for genre in library.getGenres(for: account) {
       genresByName[genre.name.lowercased()] = genre
     }
+    // Loading the existing songs once turns the per-item lookup below into a
+    // dictionary hit; a full scan otherwise issued one fetch per file.
+    var songsByID = [String: Song]()
+    for song in library.getSongs(for: account) {
+      songsByID[song.id] = song
+    }
     var artworkAlbumIDs = Set<String>()
 
     for item in items {
-      let artistKey = item.artistName.lowercased()
+      let metadata = resolvedMetadata(for: item)
+      let artistKey = metadata.artistName.lowercased()
       let artist: Artist
       if let existing = artistsByName[artistKey] {
         artist = existing
       } else {
         let created = library.createArtist(account: account)
         created.id = stableID(prefix: "\(item.idScope)_artist_", value: artistKey)
-        created.name = item.artistName
+        created.name = metadata.artistName
         created.remoteStatus = .available
         artistsByName[artistKey] = created
         artist = created
@@ -103,18 +110,18 @@ enum FileSourceLibraryWriter {
       }
 
       let album: Album
-      if let existing = albumsByID[item.albumID] {
+      if let existing = albumsByID[metadata.albumID] {
         album = existing
         // The album identity is derived from the tag or folder path, so its name is stable too.
-        if album.name != item.albumName {
-          album.name = item.albumName
+        if album.name != metadata.albumName {
+          album.name = metadata.albumName
         }
       } else {
         let created = library.createAlbum(account: account)
-        created.id = item.albumID
-        created.name = item.albumName
+        created.id = metadata.albumID
+        created.name = metadata.albumName
         created.remoteStatus = .available
-        albumsByID[item.albumID] = created
+        albumsByID[metadata.albumID] = created
         album = created
       }
       album.artist = artist
@@ -123,13 +130,14 @@ enum FileSourceLibraryWriter {
       album.isSongsMetaDataSynced = true
 
       let song: Song
-      if let existing = library.getSong(for: account, id: item.songID) {
+      if let existing = songsByID[item.songID] {
         song = existing
       } else {
         song = library.createSong(account: account)
         song.id = item.songID
+        songsByID[item.songID] = song
       }
-      song.title = item.title
+      song.title = metadata.title
       song.artist = artist
       song.album = album
       song.genre = genre
@@ -166,8 +174,8 @@ enum FileSourceLibraryWriter {
         song.lyricsRelFilePath = relFilePath
       }
 
-      if !artworkAlbumIDs.contains(item.albumID), let artworkData = item.artwork {
-        let remoteInfo = ArtworkRemoteInfo(id: item.albumID, type: "album")
+      if !artworkAlbumIDs.contains(metadata.albumID), let artworkData = item.artwork {
+        let remoteInfo = ArtworkRemoteInfo(id: metadata.albumID, type: "album")
         let artwork = library.getArtwork(for: account, remoteInfo: remoteInfo)
           ?? library.createArtwork(account: account)
         artwork.remoteInfo = remoteInfo
@@ -190,11 +198,50 @@ enum FileSourceLibraryWriter {
         album.artwork = artwork
         artist.artwork = artwork
         song.artwork = artwork
-        artworkAlbumIDs.insert(item.albumID)
+        artworkAlbumIDs.insert(metadata.albumID)
       } else if let artwork = album.artwork {
         song.artwork = artwork
       }
     }
+  }
+
+  private struct ResolvedMetadata {
+    let title: String
+    let artistName: String
+    let albumName: String
+    let albumID: String
+  }
+
+  /// A persisted online result fills an unknown album on later full scans.
+  /// Real file or lyric tags always win, so a corrected file is never held
+  /// back by an old lookup.
+  private static func resolvedMetadata(for item: FileSourceMediaItem) -> ResolvedMetadata {
+    guard let override = MetadataOverrideStore.shared.override(for: item.songID),
+          item.albumName.isEmpty || item.albumName == "Unknown Album",
+          let albumName = override.album?
+          .trimmingCharacters(in: .whitespacesAndNewlines),
+          !albumName.isEmpty
+    else {
+      return ResolvedMetadata(
+        title: item.title,
+        artistName: item.artistName,
+        albumName: item.albumName,
+        albumID: item.albumID
+      )
+    }
+    func cleaned(_ value: String?) -> String? {
+      let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines)
+      return trimmed?.isEmpty == false ? trimmed : nil
+    }
+    let artistName = cleaned(override.artist) ?? item.artistName
+    let title = cleaned(override.title) ?? item.title
+    let albumKey = "tag:\(artistName.lowercased())\u{1F}\(albumName.lowercased())"
+    return ResolvedMetadata(
+      title: title,
+      artistName: artistName,
+      albumName: albumName,
+      albumID: stableID(prefix: "\(item.idScope)_album_", value: albumKey)
+    )
   }
 
   static func removeStaleEntries(
@@ -205,6 +252,8 @@ enum FileSourceLibraryWriter {
   ) {
     for song in library.getSongs(for: account) {
       guard let url = song.url, !activeSongPaths.contains(url) else { continue }
+      // Songs opened directly from Finder are not part of the scanned folder.
+      guard !OpenedFileSource.isOpenedFileURL(url) else { continue }
       if let relFilePath = song.relFilePath,
          let absoluteFilePath = cacheFileManager.getAbsolutefmusicPath(relFilePath: relFilePath) {
         try? FileManager.default.removeItem(at: absoluteFilePath)

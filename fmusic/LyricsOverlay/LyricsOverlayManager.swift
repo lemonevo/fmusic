@@ -30,6 +30,12 @@
     // Cached switch state: the 60 Hz playback clock must not re-read and decode
     // the whole settings blob just to discover that both overlays are off.
     private var isFeatureEnabled = false
+    // The same applies to the overlay style: re-read settings only when a
+    // setting change triggers refreshFromSettings().
+    private var isDesktopLyricsShown = false
+    private var isDesktopNextLineShown = true
+    private var cachedGlobalOffsetMs = 0
+    private var isLyricsOffsetObserverRegistered = false
     private static let songOffsetDefaultsKey = "fmusic.desktopLyrics.songOffsets"
     private var overlaySongOffsetsCache: [String: Int]?
 
@@ -43,6 +49,21 @@
       if !isRegistered {
         isRegistered = true
         player.addNotifier(notifier: self)
+        appDelegate.notificationHandler.register(
+          self,
+          selector: #selector(onlineLyricsDidUpdate(_:)),
+          name: .onlineLyricsDidUpdate,
+          object: nil
+        )
+        if !isLyricsOffsetObserverRegistered {
+          isLyricsOffsetObserverRegistered = true
+          appDelegate.notificationHandler.register(
+            self,
+            selector: #selector(lyricsOffsetDidChange(_:)),
+            name: .lyricsOffsetChanged,
+            object: nil
+          )
+        }
       }
       refreshFromSettings()
     }
@@ -53,6 +74,9 @@
       let user = storage.settings.user
       let isAnyFeatureEnabled = user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled
       isFeatureEnabled = isAnyFeatureEnabled
+      isDesktopLyricsShown = user.isDesktopLyricsEnabled
+      isDesktopNextLineShown = user.isDesktopLyricsNextLineShown
+      cachedGlobalOffsetMs = user.lyricsOffsetMs
 
       if user.isDesktopLyricsEnabled {
         if desktopPanel == nil {
@@ -175,6 +199,7 @@
             let lyricsRelFilePath = song.lyricsRelFilePath
       else {
         resolvedSongID = songID
+        requestOnlineLyricsIfPossible(for: song)
         render(at: player.elapsedTime)
         return
       }
@@ -201,21 +226,45 @@
       }
     }
 
+    private func requestOnlineLyricsIfPossible(for song: Song) {
+      guard OnlineLyricsService.shared.canMatchLyrics(for: song) else { return }
+      Task { @MainActor in
+        _ = await OnlineLyricsService.shared.matchLyrics(for: song)
+      }
+    }
+
+    @objc
+    private func onlineLyricsDidUpdate(_ notification: Notification) {
+      guard isAnyFeatureEnabled,
+            let songID = notification.userInfo?["songID"] as? String,
+            player.currentlyPlaying?.id == songID
+      else { return }
+      resolvedSongID = nil
+      loadLyricsIfNeeded()
+      render(at: player.elapsedTime)
+    }
+
+    @objc
+    private func lyricsOffsetDidChange(_ notification: Notification) {
+      guard isFeatureEnabled else { return }
+      cachedGlobalOffsetMs = storage.settings.user.lyricsOffsetMs
+      render(at: player.elapsedTime)
+    }
+
     // MARK: Rendering
 
     private func render(at seconds: Double) {
-      let user = storage.settings.user
-      guard user.isDesktopLyricsEnabled || user.isMenuBarLyricsEnabled else { return }
+      guard isFeatureEnabled else { return }
       // The overlay adds a per-song correction to the global lyrics offset so
       // the sync panel can tune one track without touching every song.
       let songOffset = player.currentlyPlaying
         .flatMap { overlaySongOffsets[$0.id] } ?? 0
       let snapshot = tracker.snapshot(
         at: seconds,
-        userOffsetMs: user.lyricsOffsetMs + songOffset
+        userOffsetMs: cachedGlobalOffsetMs + songOffset
       )
       updateMenuBar(with: snapshot)
-      updateDesktopPanel(with: snapshot, user: user)
+      updateDesktopPanel(with: snapshot)
     }
 
     private func updateMenuBar(with snapshot: LyricsSnapshot?) {
@@ -230,9 +279,9 @@
       }
     }
 
-    private func updateDesktopPanel(with snapshot: LyricsSnapshot?, user: UserSettings) {
+    private func updateDesktopPanel(with snapshot: LyricsSnapshot?) {
       guard let desktopPanel,
-            user.isDesktopLyricsEnabled
+            isDesktopLyricsShown
       else { return }
       guard let playable = player.currentlyPlaying else {
         desktopPanel.hide()
@@ -243,15 +292,19 @@
         desktopPanel.show()
       }
 
-      let showsNextLine = user.isDesktopLyricsNextLineShown
+      let showsNextLine = isDesktopNextLineShown
       let header = playable.creatorName.isEmpty
         ? playable.title
         : "\(playable.title) · \(playable.creatorName)"
       if let snapshot {
+        // The small preview row doubles as the translation row for bilingual lyrics.
+        let nextText = showsNextLine
+          ? (snapshot.currentTranslation ?? snapshot.nextText)
+          : nil
         desktopPanel.update(content: DesktopLyricsContent(
           headerText: header,
           currentText: snapshot.currentText,
-          nextText: showsNextLine ? snapshot.nextText : nil,
+          nextText: nextText,
           syllables: snapshot.syllables,
           syllableProgress: snapshot.syllableProgress
         ))
@@ -277,8 +330,8 @@
       }
       panel.onHideDesktopLyrics = { [weak self] in
         guard let self else { return }
-        self.storage.settings.user.isDesktopLyricsEnabled = false
-        self.appDelegate.updateLyricsOverlays()
+        storage.settings.user.isDesktopLyricsEnabled = false
+        appDelegate.updateLyricsOverlays()
       }
       panel.offsetSnapshot = { [weak self] in
         self?.overlayOffsetSnapshot()
@@ -291,8 +344,8 @@
       }
       panel.onClickThroughChanged = { [weak self] enabled in
         guard let self else { return }
-        self.storage.settings.user.isDesktopLyricsLocked = enabled
-        self.appDelegate.updateLyricsOverlays()
+        storage.settings.user.isDesktopLyricsLocked = enabled
+        appDelegate.updateLyricsOverlays()
       }
       return panel
     }
@@ -319,14 +372,15 @@
       return OverlayOffsetSnapshot(
         songID: playable.id,
         songMilliseconds: overlaySongOffsets[playable.id] ?? 0,
-        globalMilliseconds: storage.settings.user.lyricsOffsetMs
+        globalMilliseconds: cachedGlobalOffsetMs
       )
     }
 
     private func setOverlaySongOffset(
       _ milliseconds: Int,
       for songID: String
-    ) -> OverlayOffsetSnapshot? {
+    )
+      -> OverlayOffsetSnapshot? {
       var offsets = overlaySongOffsets
       let clamped = min(5_000, max(-5_000, milliseconds))
       if clamped == 0 {

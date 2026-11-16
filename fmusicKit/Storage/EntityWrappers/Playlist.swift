@@ -19,7 +19,6 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import Collections
 import CoreData
 import Foundation
 import os.log
@@ -93,20 +92,14 @@ public class Playlist: Identifyable {
       .compactMap { AbstractPlayable(managedObject: $0.playable) }
   }
 
-  /// returns number of playables that are already contained in playlist
-  public func contains(playables playablesToCheck: [AbstractPlayable])
-    -> OrderedSet<AbstractPlayable> {
-    let playableSet = OrderedSet<AbstractPlayable>(playables)
-    let playablesToCheckSet = OrderedSet<AbstractPlayable>(playablesToCheck)
-    return playableSet.intersection(playablesToCheckSet)
-  }
-
   /// return a set of playables that are not already part of this playlist
   public func notContaines(playables playablesToCheck: [AbstractPlayable])
-    -> OrderedSet<AbstractPlayable> {
-    let playableSet = OrderedSet<AbstractPlayable>(playables)
-    let playablesToCheckSet = OrderedSet<AbstractPlayable>(playablesToCheck)
-    return playablesToCheckSet.subtracting(playableSet)
+    -> [AbstractPlayable] {
+    let existing = Set(playables)
+    var seen = Set<AbstractPlayable>()
+    return playablesToCheck.filter {
+      seen.insert($0).inserted && !existing.contains($0)
+    }
   }
 
   public var songCount: Int {
@@ -589,5 +582,4 @@ extension Playlist: Hashable, Equatable {
   }
 }
 
-extension Array where Element: Playlist {
-}
+extension Array where Element: Playlist {}

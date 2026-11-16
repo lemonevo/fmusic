@@ -91,6 +91,9 @@ final class LocalServerApi: BackendApi, @unchecked Sendable {
       return playable.url ?? ""
     }
     guard !relativePath.isEmpty else { throw BackendError.notSupported }
+    if let openedFileURL = OpenedFileSource.fileURL(from: relativePath) {
+      return openedFileURL
+    }
     return try folderURL().appendingPathComponent(relativePath)
   }
 

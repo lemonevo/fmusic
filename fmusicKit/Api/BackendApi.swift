@@ -133,7 +133,9 @@ public struct LyricWord {
 public struct LyricsLine {
   public var start: Int? // The start time of the lyrics, relative to the start time of the track, in milliseconds. If this is not part of synced lyrics, start must be omitted
   public var value = "" // The actual text of this line
-  public var words = [LyricWord]() // Word/syllable timings when the source is word-synced (e.g. YRC)
+  public var translation: String? // Translation of this line when the source provides one
+  public var words =
+    [LyricWord]() // Word/syllable timings when the source is word-synced (e.g. YRC)
 
   public init() {}
   public var startTime: CMTime {

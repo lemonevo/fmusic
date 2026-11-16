@@ -19,10 +19,10 @@
 
 #if targetEnvironment(macCatalyst)
 
+  import fmusicKit
   import NaturalLanguage
   import QuartzCore
   import UIKit
-  import fmusicKit
 
   // MARK: - DesktopLyricsContent
 
@@ -232,7 +232,8 @@
       syllables: [LyricsSyllableTiming],
       style: DesktopLyricsStyle,
       scale: CGFloat
-    ) -> DesktopLyricsLineRender? {
+    )
+      -> DesktopLyricsLineRender? {
       let displayText = displayText(text)
       let width = contentWidth
       guard width > 0 else { return nil }
@@ -277,19 +278,19 @@
       let brightImage: CGImage?
       if syllableRenders.isEmpty {
         guard let dim = rasterize(
-                layout,
-                size: size,
-                scale: scale,
-                foregroundColor: DesktopLyricsInk.unsung,
-                shadow: shadow
-              ),
-              let bright = rasterize(
-                layout,
-                size: size,
-                scale: scale,
-                foregroundColor: DesktopLyricsInk.sung,
-                shadow: shadow
-              )
+          layout,
+          size: size,
+          scale: scale,
+          foregroundColor: DesktopLyricsInk.unsung,
+          shadow: shadow
+        ),
+          let bright = rasterize(
+            layout,
+            size: size,
+            scale: scale,
+            foregroundColor: DesktopLyricsInk.sung,
+            shadow: shadow
+          )
         else { return nil }
         dimImage = dim
         brightImage = bright
@@ -372,29 +373,29 @@
         )
         let origin = CGPoint(x: pad, y: pad)
         guard let dimImage = rasterize(
-                layout,
-                size: imageSize,
-                scale: scale,
-                origin: origin,
-                foregroundColor: DesktopLyricsInk.unsung,
-                shadow: shadow
-              ),
-              let brightImage = rasterize(
-                layout,
-                size: imageSize,
-                scale: scale,
-                origin: origin,
-                foregroundColor: DesktopLyricsInk.sung,
-                shadow: shadow
-              ),
-              let glowImage = rasterize(
-                layout,
-                size: imageSize,
-                scale: scale,
-                origin: origin,
-                foregroundColor: .white,
-                shadow: nil
-              )
+          layout,
+          size: imageSize,
+          scale: scale,
+          origin: origin,
+          foregroundColor: DesktopLyricsInk.unsung,
+          shadow: shadow
+        ),
+          let brightImage = rasterize(
+            layout,
+            size: imageSize,
+            scale: scale,
+            origin: origin,
+            foregroundColor: DesktopLyricsInk.sung,
+            shadow: shadow
+          ),
+          let glowImage = rasterize(
+            layout,
+            size: imageSize,
+            scale: scale,
+            origin: origin,
+            foregroundColor: .white,
+            shadow: nil
+          )
         else { continue }
         result.append(DesktopLyricsSyllableRender(
           index: index,
@@ -415,7 +416,8 @@
       text: String,
       style: DesktopLyricsStyle,
       scale: CGFloat
-    ) -> DesktopLyricsNextRender? {
+    )
+      -> DesktopLyricsNextRender? {
       guard let text = normalizedNextText(text) else { return nil }
       let width = contentWidth
       guard width > 0 else { return nil }
@@ -459,7 +461,8 @@
       text: String,
       style: DesktopLyricsStyle,
       scale: CGFloat
-    ) -> DesktopLyricsHeaderRender? {
+    )
+      -> DesktopLyricsHeaderRender? {
       guard let text = normalizedNextText(text) else { return nil }
       let width = contentWidth
       guard width > 0 else { return nil }
@@ -525,8 +528,9 @@
       color: UIColor,
       paragraph: NSParagraphStyle,
       shadow: NSShadow
-    ) -> [NSAttributedString.Key: Any] {
-      return [
+    )
+      -> [NSAttributedString.Key: Any] {
+      [
         .font: font,
         .foregroundColor: color,
         .paragraphStyle: paragraph,
@@ -608,9 +612,9 @@
       let tokenizer = NLTokenizer(unit: .word)
       tokenizer.string = text
       var wordRanges = [NSRange]()
-      tokenizer.enumerateTokens(in: text.startIndex..<text.endIndex) {
+      tokenizer.enumerateTokens(in: text.startIndex ..< text.endIndex) {
         range,
-        _ in
+          _ in
         wordRanges.append(NSRange(range, in: text))
         return true
       }
@@ -760,6 +764,7 @@
       let started: CFTimeInterval
       let duration: TimeInterval
     }
+
     private var resizeTimer: Timer?
     private var activeResize: ActiveResize?
     private var isAnimatingResize = false
@@ -771,9 +776,9 @@
     private var offsetClickMonitor: Any?
     private var offsetGlobalMonitor: Any?
 
-    var onOpenMainWindow: (() -> Void)?
-    var onHideDesktopLyrics: (() -> Void)?
-    var onClickThroughChanged: ((Bool) -> Void)?
+    var onOpenMainWindow: (() -> ())?
+    var onHideDesktopLyrics: (() -> ())?
+    var onClickThroughChanged: ((Bool) -> ())?
     var offsetSnapshot: (() -> OverlayOffsetSnapshot?)?
     var adjustSongOffset: ((String, Int) -> OverlayOffsetSnapshot?)?
     var resetSongOffset: ((String) -> OverlayOffsetSnapshot?)?
@@ -785,11 +790,11 @@
       super.init()
 
       configureWindow()
-      screenScale = Self.currentScreenScale(for: window)
+      self.screenScale = Self.currentScreenScale(for: window)
       installBackground()
       installLayers()
       installToolbar()
-      positionLocked = UserDefaults.standard.bool(forKey: Self.positionLockKey)
+      self.positionLocked = UserDefaults.standard.bool(forKey: Self.positionLockKey)
       setPositionLocked(positionLocked)
       updateToolbarImages()
       updateChrome()
@@ -1460,7 +1465,7 @@
       let selector = NSSelectorFromString("setAction:")
       guard let method = class_getInstanceMethod(type(of: target), selector)
       else { return }
-      typealias SetActionFunc = @convention(c) (AnyObject, Selector, Selector) -> Void
+      typealias SetActionFunc = @convention(c) (AnyObject, Selector, Selector) -> ()
       let function = unsafeBitCast(
         method_getImplementation(method),
         to: SetActionFunc.self
@@ -1743,11 +1748,11 @@
       guard !visible else { return }
       Task { @MainActor [weak self] in
         try? await Task.sleep(nanoseconds: 200_000_000)
-        guard let self, self.toolbarToken == token, !self.isToolbarVisible
+        guard let self, toolbarToken == token, !self.isToolbarVisible
         else { return }
-        self.toolbarContainer?.setValue(true, forKey: "hidden")
-        if self.clickThrough {
-          self.controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
+        toolbarContainer?.setValue(true, forKey: "hidden")
+        if clickThrough {
+          controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
         }
       }
     }
@@ -1768,8 +1773,10 @@
       let size = CGSize(width: 340, height: 176)
       guard let panel = Self.makeBorderlessPanel(size: size) else { return }
       panel.setValue(
-        NSNumber(value: (window.value(forKey: "level") as? Int
-          ?? Self.windowLevelFloating) + 2),
+        NSNumber(value: (
+          window.value(forKey: "level") as? Int
+            ?? Self.windowLevelFloating
+        ) + 2),
         forKey: "level"
       )
       Self.setValueIfSupported("歌词同步调节", forKey: "accessibilityLabel", on: panel)
@@ -1795,11 +1802,11 @@
           if let panelFrame = Self.frame(of: panel), panelFrame.contains(point) {
             return event
           }
-          if let toolbarFrame = self.toolbarScreenFrame(),
+          if let toolbarFrame = toolbarScreenFrame(),
              toolbarFrame.contains(point) {
             return event
           }
-          self.closeOffsetPanel()
+          closeOffsetPanel()
           return event
         }
         typealias AddMonitorFunc = @convention(c)
@@ -1819,7 +1826,7 @@
         "addGlobalMonitorForEventsMatchingMask:handler:"
       )
       if let method = class_getClassMethod(eventClass, globalSelector) {
-        typealias GlobalBlock = @convention(block) (AnyObject) -> Void
+        typealias GlobalBlock = @convention(block) (AnyObject) -> ()
         let block: GlobalBlock = { [weak self] _ in
           Task { @MainActor in self?.closeOffsetPanel() }
         }
@@ -1848,7 +1855,7 @@
       let selector = NSSelectorFromString("removeMonitor:")
       guard let method = class_getClassMethod(eventClass, selector) else { return }
       typealias RemoveFunc = @convention(c)
-        (AnyObject, Selector, AnyObject) -> Void
+        (AnyObject, Selector, AnyObject) -> ()
       let function = unsafeBitCast(
         method_getImplementation(method),
         to: RemoveFunc.self
@@ -1902,7 +1909,10 @@
         target: self,
         action: #selector(closeOffsetPressed)
       ) {
-        close.setValue(NSValue(cgRect: CGRect(x: 298, y: 141, width: 26, height: 26)), forKey: "frame")
+        close.setValue(
+          NSValue(cgRect: CGRect(x: 298, y: 141, width: 26, height: 26)),
+          forKey: "frame"
+        )
         background.perform(NSSelectorFromString("addSubview:"), with: close)
       }
 
@@ -1976,7 +1986,8 @@
       weight: CGFloat,
       monospaced: Bool,
       to parent: NSObject
-    ) -> NSObject? {
+    )
+      -> NSObject? {
       guard let fieldClass = NSClassFromString("NSTextField") as? NSObject.Type,
             let field = fieldClass.perform(
               NSSelectorFromString("labelWithString:"),
@@ -1996,7 +2007,8 @@
       _ title: String,
       frame: CGRect,
       action: Selector
-    ) -> NSObject? {
+    )
+      -> NSObject? {
       guard let buttonClass = Self.overlayButtonClass() as? NSObject.Type,
             let allocated = buttonClass.perform(NSSelectorFromString("alloc"))?
             .takeUnretainedValue(),
@@ -2018,7 +2030,8 @@
       size: CGFloat,
       weight: CGFloat,
       monospaced: Bool
-    ) -> NSObject? {
+    )
+      -> NSObject? {
       guard let fontClass: AnyClass = NSClassFromString("NSFont") else { return nil }
       let selector = NSSelectorFromString(
         monospaced ? "monospacedDigitSystemFontOfSize:weight:"
@@ -2211,7 +2224,7 @@
       guard let method = class_getInstanceMethod(type(of: window), selector)
       else { return }
       typealias SetOriginFunc = @convention(c)
-        (AnyObject, Selector, CGPoint) -> Void
+        (AnyObject, Selector, CGPoint) -> ()
       let function = unsafeBitCast(
         method_getImplementation(method),
         to: SetOriginFunc.self
@@ -2387,11 +2400,11 @@
 
       Task { @MainActor [weak self] in
         try? await Task.sleep(nanoseconds: 260_000_000)
-        guard let self, self.departureToken == token else { return }
-        self.resetSurface(surface)
-        if self.departingSurface === surface {
-          self.departingSurfaceIsA = nil
-          self.departureHeight = 0
+        guard let self, departureToken == token else { return }
+        resetSurface(surface)
+        if departingSurface === surface {
+          departingSurfaceIsA = nil
+          departureHeight = 0
         }
       }
     }
@@ -2472,6 +2485,7 @@
       if reduceTransparency {
         solidLayer.isHidden = !hasChrome
         solidLayer.backgroundColor = Self.cgColor(white: 0.12, alpha: 1)
+        solidLayer.opacity = Float(opacity)
       } else {
         solidLayer.isHidden = true
         scrimLayer.colors = [
@@ -2492,6 +2506,12 @@
           !hasChrome || reduceTransparency,
           forKey: "hidden"
         )
+        // A visible glass view is fully blurred at any alpha; scaling the whole
+        // backdrop makes the slider progress from clear to frosted instead of
+        // getting blurriest in the middle.
+        if backgroundView.responds(to: NSSelectorFromString("setAlphaValue:")) {
+          backgroundView.setValue(NSNumber(value: opacity), forKey: "alphaValue")
+        }
       }
     }
 
@@ -2851,9 +2871,9 @@
       -> (window: NSObject, contentView: NSObject, layer: CALayer)? {
       guard let panelClass = (glassPanelClass() as? NSObject.Type)
         ?? (NSClassFromString("NSPanel") as? NSObject.Type),
-            let viewClass = NSClassFromString("NSView") as? NSObject.Type,
-            let allocatedPanel = panelClass.perform(NSSelectorFromString("alloc"))?
-            .takeUnretainedValue()
+        let viewClass = NSClassFromString("NSView") as? NSObject.Type,
+        let allocatedPanel = panelClass.perform(NSSelectorFromString("alloc"))?
+        .takeUnretainedValue()
       else {
         NSLog("[fmusic] desktop lyrics: NSPanel unavailable")
         return nil
@@ -3047,7 +3067,7 @@
             let method = class_getInstanceMethod(windowClass, selector)
       else { return }
       typealias SetFrameFunc = @convention(c)
-        (AnyObject, Selector, CGRect, Bool) -> Void
+        (AnyObject, Selector, CGRect, Bool) -> ()
       let function = unsafeBitCast(
         method_getImplementation(method),
         to: SetFrameFunc.self
@@ -3067,9 +3087,9 @@
       if let stored = UserDefaults.standard.array(
         forKey: Self.frameDefaultsKey
       ) as? [Double],
-         stored.count == 4 {
+        stored.count == 4 {
         let storedHeight = stored[3]
-        let height = (44...400).contains(storedHeight)
+        let height = (44 ... 400).contains(storedHeight)
           ? storedHeight
           : size.height
         let candidate = CGRect(

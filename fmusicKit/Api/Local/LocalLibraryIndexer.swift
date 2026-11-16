@@ -36,143 +36,43 @@ private struct LocalFileItem: Sendable {
   let addedDate: Date
 }
 
+// MARK: FileSourceMediaItem
+
 extension LocalFileItem: FileSourceMediaItem {
   var playablePath: String { relativePath }
   var localFileURL: URL? { url }
   var idScope: String { "local" }
 }
 
-// MARK: - LocalLibraryIndexer
+// MARK: - FileSourceMetadata
 
-@MainActor
-final class LocalLibraryIndexer: LibrarySyncer {
-  nonisolated private static let audioExtensions: Set<String> = [
-    "flac", "mp3", "m4a", "mp4", "aac", "wav", "aiff", "aif", "ogg", "oga", "opus",
-  ]
-  nonisolated private static let coverFileNames = [
-    "cover.jpg", "cover.jpeg", "cover.png",
-    "folder.jpg", "folder.jpeg", "folder.png",
-    "front.jpg", "front.jpeg", "front.png",
-  ]
+struct FileSourceMetadata: Sendable {
+  let title: String
+  let artistName: String
+  let albumName: String
+  let albumKey: String
+  let genreName: String?
+  let year: Int
+  let track: Int
+  let duration: Int
+  let size: Int
+  let bitrate: Int
+  let contentType: String
+  let artwork: Data?
+  let lyrics: String?
+  let addedDate: Date
+}
 
-  private let accountObjectId: NSManagedObjectID
-  private let accountInfo: AccountInfo
-  private let storage: PersistentStorage
-  private let credentials: LoginCredentials?
-  private let log = OSLog(subsystem: "fmusic", category: "LocalLibraryIndexer")
+// MARK: - FileSourceMetadataReader
 
-  init(account: Account, storage: PersistentStorage, credentials: LoginCredentials?) {
-    self.accountObjectId = account.managedObject.objectID
-    self.accountInfo = account.info
-    self.storage = storage
-    self.credentials = credentials
-  }
-
-  // MARK: LibrarySyncer
-
-  func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] {
-    let account = storage.main.library.getAccount(info: accountInfo)
-    return storage.main.library.getSimilarSongs(for: account, to: song, count: count)
-  }
-
-  func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
-    guard let credentials else { throw LocalFolderError.noFolderSelected }
-    let folderURL = try LocalFolderAccess.shared.activate(credentials: credentials)
-    let files = Self.audioFiles(in: folderURL)
-
-    os_log(
-      "Local indexing started: %d files in %s",
-      log: log,
-      type: .info,
-      files.count,
-      folderURL.path
-    )
-    statusNotifyier?.notifySyncStarted(ofType: .song, totalCount: files.count)
-
-    var items = [LocalFileItem]()
-    items.reserveCapacity(files.count)
-    var artworkAlbumIDs = Set<String>()
-    // One cover read per folder instead of once per track in that folder.
-    let folderArtwork = await Self.folderArtworkMap(
-      for: Set(files.map { $0.deletingLastPathComponent() })
-    )
-    for fileURL in files {
-      guard var item = await Self.read(
-        fileURL: fileURL,
-        rootURL: folderURL,
-        folderArtwork: folderArtwork[fileURL.deletingLastPathComponent().path]
-      )
-      else {
-        statusNotifyier?.notifyParsedObject(ofType: .song)
-        continue
-      }
-      // Keep one artwork copy per album instead of one per song.
-      if item.artwork != nil, !artworkAlbumIDs.insert(item.albumID).inserted {
-        item.artwork = nil
-      }
-      items.append(item)
-      statusNotifyier?.notifyParsedObject(ofType: .song)
-    }
-
-    let itemsToWrite = items
-    let activeSongPaths = Set(files.map { Self.relativePath(of: $0, rootURL: folderURL) })
-    let accountObjectId = accountObjectId
-    let accountInfo = accountInfo
-    let cacheFileManager = CacheFileManager.shared
-    try await storage.async.perform { asyncCompanion in
-      let account = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-      FileSourceLibraryWriter.write(
-        items: itemsToWrite,
-        account: account,
-        accountInfo: accountInfo,
-        library: asyncCompanion.library,
-        cacheFileManager: cacheFileManager
-      )
-      if !files.isEmpty {
-        FileSourceLibraryWriter.removeStaleEntries(
-          library: asyncCompanion.library,
-          account: account,
-          activeSongPaths: activeSongPaths,
-          cacheFileManager: cacheFileManager
-        )
-      }
-      FileSourceLibraryWriter.updateDenormalizedValues(
-        account: account,
-        library: asyncCompanion.library
-      )
-      asyncCompanion.saveContext()
-    }
-    os_log("Local indexing finished: %d songs", log: log, type: .info, itemsToWrite.count)
-  }
-
-  // MARK: Helpers
-
-  nonisolated private static func audioFiles(in folderURL: URL) -> [URL] {
-    guard let enumerator = FileManager.default.enumerator(
-      at: folderURL,
-      includingPropertiesForKeys: [.isRegularFileKey],
-      options: [.skipsHiddenFiles, .skipsPackageDescendants]
-    ) else { return [] }
-
-    var files = [URL]()
-    for case let url as URL in enumerator {
-      guard audioExtensions.contains(url.pathExtension.lowercased()),
-            (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
-      else { continue }
-      files.append(url)
-    }
-    return files.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
-  }
-
-  nonisolated private static func read(
+/// Reads tags and file attributes for folder indexers and single-file import.
+enum FileSourceMetadataReader {
+  nonisolated static func read(
     fileURL: URL,
     rootURL: URL,
     folderArtwork: Data?
   ) async
-    -> LocalFileItem? {
-    let songRelativePath = relativePath(of: fileURL, rootURL: rootURL)
-    guard !songRelativePath.isEmpty else { return nil }
-
+    -> FileSourceMetadata? {
     let extensionName = fileURL.pathExtension.lowercased()
     let flacTags = extensionName == "flac" ? FlacTagReader.read(url: fileURL) : nil
     let mp3Tags = extensionName == "mp3" ? MP3TagReader.read(url: fileURL) : nil
@@ -209,16 +109,26 @@ final class LocalLibraryIndexer: LibrarySyncer {
     let bitrate = durationSeconds > 0 ? (size * 8) / durationSeconds : 0
     let addedDate = values?.creationDate ?? values?.contentModificationDate ?? Date()
 
+    let lyrics = sidecarLyrics(for: fileURL) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
+    let lyricTags = lyrics.map(LyricMetadataTags.parse)
+
     let fileName = fileURL.deletingPathExtension().lastPathComponent
     let (trackFromName, nameWithoutTrack) = trackNumber(from: fileName)
     let nameParts = nameWithoutTrack.components(separatedBy: " - ")
-    let title = flacTags?.title ?? mp3Tags?.title ?? metadataTitle
-      ?? (nameParts.count >= 2 ? nameParts.dropFirst().joined(separator: " - ") : nameWithoutTrack)
-    let artistName = flacTags?.artist ?? mp3Tags?.artist ?? metadataArtist
-      ?? (nameParts.count >= 2 ? nameParts.first! : "Unknown Artist")
+    let tagTitle = LyricMetadataTags
+      .firstNonEmpty(flacTags?.title, mp3Tags?.title, metadataTitle)
+    // User libraries name files "Title - Artist"; this fork previously assumed
+    // the reverse and swapped every untagged song.
+    let title = tagTitle ?? lyricTags?.title
+      ?? (nameParts.count >= 2 ? nameParts.first! : nameWithoutTrack)
+    let tagArtist = LyricMetadataTags
+      .firstNonEmpty(flacTags?.artist, mp3Tags?.artist, metadataArtist)
+    let artistName = tagArtist ?? lyricTags?.artist
+      ?? (nameParts.count >= 2 ? nameParts.dropFirst().joined(separator: " - ") : "Unknown Artist")
     let albumFolderURL = fileURL.deletingLastPathComponent()
-    let albumTag = flacTags?.album ?? mp3Tags?.album ?? metadataAlbum
-    let albumName = albumTag
+    let albumTag = LyricMetadataTags
+      .firstNonEmpty(flacTags?.album, mp3Tags?.album, metadataAlbum)
+    let albumName = albumTag ?? lyricTags?.album
       ?? (
         albumFolderURL.standardizedFileURL.path == rootURL.standardizedFileURL.path
           ? "Unknown Album"
@@ -226,9 +136,12 @@ final class LocalLibraryIndexer: LibrarySyncer {
       )
     let albumFolderKey = relativePath(of: albumFolderURL, rootURL: rootURL)
     let albumKey: String
-    if let albumTag, !albumTag.isEmpty {
-      let albumArtist = flacTags?.albumArtist ?? mp3Tags?.albumArtist ?? artistName
+    if let albumTag {
+      let albumArtist = LyricMetadataTags
+        .firstNonEmpty(flacTags?.albumArtist, mp3Tags?.albumArtist) ?? artistName
       albumKey = "tag:\(albumArtist.lowercased())\u{1F}\(albumTag.lowercased())"
+    } else if let lyricAlbum = lyricTags?.album {
+      albumKey = "tag:\(artistName.lowercased())\u{1F}\(lyricAlbum.lowercased())"
     } else {
       albumKey = "path:\(albumFolderKey)"
     }
@@ -237,18 +150,17 @@ final class LocalLibraryIndexer: LibrarySyncer {
         ?? "application/octet-stream"
     )
 
-    let artwork = flacTags?.picture ?? mp3Tags?.picture ?? artworkData
-      ?? folderArtwork
-    let lyrics = sidecarLyrics(for: fileURL) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
+    // Compress while reading: the items array lives until the whole folder has
+    // been read, so multi-megabyte embedded covers would otherwise pile up in memory.
+    // Folder covers arrive already compressed from folderArtwork(in:).
+    let tagArtwork = flacTags?.picture ?? mp3Tags?.picture ?? artworkData
+    let artwork = tagArtwork.map(ArtworkImageEncoder.compressedData(from:)) ?? folderArtwork
 
-    return LocalFileItem(
-      url: fileURL,
-      relativePath: songRelativePath,
-      songID: FileSourceLibraryWriter.stableID(prefix: "local_song_", value: songRelativePath),
-      albumID: FileSourceLibraryWriter.stableID(prefix: "local_album_", value: albumKey),
+    return FileSourceMetadata(
       title: title,
       artistName: artistName,
       albumName: albumName,
+      albumKey: albumKey,
       genreName: flacTags?.genre ?? mp3Tags?.genre,
       year: flacTags?.year ?? mp3Tags?.year ?? 0,
       track: flacTags?.track ?? mp3Tags?.track ?? trackFromName,
@@ -262,7 +174,7 @@ final class LocalLibraryIndexer: LibrarySyncer {
     )
   }
 
-  nonisolated private static func relativePath(of url: URL, rootURL: URL) -> String {
+  nonisolated static func relativePath(of url: URL, rootURL: URL) -> String {
     let rootPath = rootURL.standardizedFileURL.path
     let path = url.standardizedFileURL.path
     if path == rootPath { return "" }
@@ -306,6 +218,189 @@ final class LocalLibraryIndexer: LibrarySyncer {
     return (number, String(rest))
   }
 
+  nonisolated private static func sidecarLyrics(for fileURL: URL) -> String? {
+    for pathExtension in ["yrc", "qrc", "krc", "lrc"] {
+      let lyricsURL = fileURL.deletingPathExtension().appendingPathExtension(pathExtension)
+      if let data = try? Data(contentsOf: lyricsURL),
+         let content = LyricsSidecarReader.text(from: data),
+         !content.isEmpty {
+        return content
+      }
+    }
+    return nil
+  }
+}
+
+// MARK: - LocalLibraryIndexer
+
+@MainActor
+final class LocalLibraryIndexer: LibrarySyncer {
+  nonisolated static let audioExtensions: Set<String> = [
+    "flac", "mp3", "m4a", "mp4", "aac", "wav", "aiff", "aif", "ogg", "oga", "opus",
+  ]
+  nonisolated private static let coverFileNames = [
+    "cover.jpg", "cover.jpeg", "cover.png",
+    "folder.jpg", "folder.jpeg", "folder.png",
+    "front.jpg", "front.jpeg", "front.png",
+  ]
+
+  private let accountObjectId: NSManagedObjectID
+  private let accountInfo: AccountInfo
+  private let storage: PersistentStorage
+  private let credentials: LoginCredentials?
+  private let log = OSLog(subsystem: "fmusic", category: "LocalLibraryIndexer")
+
+  init(account: Account, storage: PersistentStorage, credentials: LoginCredentials?) {
+    self.accountObjectId = account.managedObject.objectID
+    self.accountInfo = account.info
+    self.storage = storage
+    self.credentials = credentials
+  }
+
+  // MARK: LibrarySyncer
+
+  func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] {
+    let account = storage.main.library.getAccount(info: accountInfo)
+    return storage.main.library.getSimilarSongs(for: account, to: song, count: count)
+  }
+
+  func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
+    guard let credentials else { throw LocalFolderError.noFolderSelected }
+    let folderURL = try LocalFolderAccess.shared.activate(credentials: credentials)
+    // Directory enumeration hits the filesystem for every entry; keep it off the
+    // main actor so the UI stays responsive while a large folder is scanned.
+    let files = await Task.detached(priority: .utility) {
+      Self.audioFiles(in: folderURL)
+    }.value
+
+    os_log(
+      "Local indexing started: %d files in %s",
+      log: log,
+      type: .info,
+      files.count,
+      folderURL.path
+    )
+    statusNotifyier?.notifySyncStarted(ofType: .song, totalCount: files.count)
+
+    var items = [LocalFileItem]()
+    items.reserveCapacity(files.count)
+    var artworkAlbumIDs = Set<String>()
+    // One cover read per folder instead of once per track in that folder.
+    let folderArtwork = await Self.folderArtworkMap(
+      for: Set(files.map { $0.deletingLastPathComponent() })
+    )
+    for fileURL in files {
+      guard var item = await Self.read(
+        fileURL: fileURL,
+        rootURL: folderURL,
+        folderArtwork: folderArtwork[fileURL.deletingLastPathComponent().path]
+      )
+      else {
+        statusNotifyier?.notifyParsedObject(ofType: .song)
+        continue
+      }
+      // Keep one artwork copy per album instead of one per song.
+      if item.artwork != nil, !artworkAlbumIDs.insert(item.albumID).inserted {
+        item.artwork = nil
+      }
+      items.append(item)
+      statusNotifyier?.notifyParsedObject(ofType: .song)
+    }
+
+    let itemsToWrite = items
+    let activeSongPaths = Set(
+      files.map { FileSourceMetadataReader.relativePath(of: $0, rootURL: folderURL) }
+    )
+    let accountObjectId = accountObjectId
+    let accountInfo = accountInfo
+    let cacheFileManager = CacheFileManager.shared
+    try await storage.async.perform { asyncCompanion in
+      let account = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
+      FileSourceLibraryWriter.write(
+        items: itemsToWrite,
+        account: account,
+        accountInfo: accountInfo,
+        library: asyncCompanion.library,
+        cacheFileManager: cacheFileManager
+      )
+      if !files.isEmpty {
+        FileSourceLibraryWriter.removeStaleEntries(
+          library: asyncCompanion.library,
+          account: account,
+          activeSongPaths: activeSongPaths,
+          cacheFileManager: cacheFileManager
+        )
+      }
+      FileSourceLibraryWriter.updateDenormalizedValues(
+        account: account,
+        library: asyncCompanion.library
+      )
+      asyncCompanion.saveContext()
+    }
+    os_log("Local indexing finished: %d songs", log: log, type: .info, itemsToWrite.count)
+    Task { @MainActor [accountInfo] in
+      await MetadataBackfillService.shared.backfill(accountInfo: accountInfo)
+    }
+  }
+
+  // MARK: Helpers
+
+  nonisolated private static func audioFiles(in folderURL: URL) -> [URL] {
+    guard let enumerator = FileManager.default.enumerator(
+      at: folderURL,
+      includingPropertiesForKeys: [.isRegularFileKey],
+      options: [.skipsHiddenFiles, .skipsPackageDescendants]
+    ) else { return [] }
+
+    var files = [URL]()
+    for case let url as URL in enumerator {
+      guard audioExtensions.contains(url.pathExtension.lowercased()),
+            (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+      else { continue }
+      files.append(url)
+    }
+    return files.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
+  }
+
+  nonisolated private static func read(
+    fileURL: URL,
+    rootURL: URL,
+    folderArtwork: Data?
+  ) async
+    -> LocalFileItem? {
+    let songRelativePath = FileSourceMetadataReader.relativePath(of: fileURL, rootURL: rootURL)
+    guard !songRelativePath.isEmpty,
+          let metadata = await FileSourceMetadataReader.read(
+            fileURL: fileURL,
+            rootURL: rootURL,
+            folderArtwork: folderArtwork
+          )
+    else { return nil }
+
+    return LocalFileItem(
+      url: fileURL,
+      relativePath: songRelativePath,
+      songID: FileSourceLibraryWriter.stableID(prefix: "local_song_", value: songRelativePath),
+      albumID: FileSourceLibraryWriter.stableID(
+        prefix: "local_album_",
+        value: metadata.albumKey
+      ),
+      title: metadata.title,
+      artistName: metadata.artistName,
+      albumName: metadata.albumName,
+      genreName: metadata.genreName,
+      year: metadata.year,
+      track: metadata.track,
+      duration: metadata.duration,
+      size: metadata.size,
+      bitrate: metadata.bitrate,
+      contentType: metadata.contentType,
+      artwork: metadata.artwork,
+      lyrics: metadata.lyrics,
+      addedDate: metadata.addedDate
+    )
+  }
+
   nonisolated private static func folderArtworkMap(
     for folders: Set<URL>
   ) async
@@ -319,25 +414,14 @@ final class LocalLibraryIndexer: LibrarySyncer {
     return result
   }
 
-  nonisolated private static func folderArtwork(in folderURL: URL) -> Data? {
+  nonisolated static func folderArtwork(in folderURL: URL) -> Data? {
     for coverName in coverFileNames {
       let coverURL = folderURL.appendingPathComponent(coverName)
       if let data = try? Data(contentsOf: coverURL), !data.isEmpty {
-        return data
+        // One compressed copy per folder; every song in it shares this data.
+        return ArtworkImageEncoder.compressedData(from: data)
       }
     }
     return nil
   }
-
-  nonisolated private static func sidecarLyrics(for fileURL: URL) -> String? {
-    for pathExtension in ["yrc", "lrc"] {
-      let lyricsURL = fileURL.deletingPathExtension().appendingPathExtension(pathExtension)
-      if let content = try? String(contentsOf: lyricsURL, encoding: .utf8),
-         !content.isEmpty {
-        return content
-      }
-    }
-    return nil
-  }
-
 }

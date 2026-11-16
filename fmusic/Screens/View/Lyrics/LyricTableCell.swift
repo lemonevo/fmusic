@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - LyricTableCellModel
@@ -32,18 +32,29 @@ class LyricTableCellModel {
   private static let activeTextColor = UIColor { traits in
     traits.userInterfaceStyle == .dark ? .white : UIColor(white: 0.32, alpha: 1)
   }
+
   private static let activeDimTextColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor.white.withAlphaComponent(0.55)
       : UIColor(white: 0.32, alpha: 0.55)
   }
+
   private static let inactiveTextColor = UIColor { traits in
     traits.userInterfaceStyle == .dark
       ? UIColor.white.withAlphaComponent(0.6)
       : UIColor(white: 0.5, alpha: 1)
   }
 
+  private static let activeTranslationColor = UIColor { traits in
+    traits.userInterfaceStyle == .dark
+      ? UIColor.white.withAlphaComponent(0.72)
+      : UIColor(white: 0.34, alpha: 0.82)
+  }
+
+  static let translationSpacing: CGFloat = 6
+
   let lyric: LyricsLine?
+  let translation: String?
   var isActiveLine = false
   var isFullyHighlighted = false
 
@@ -54,21 +65,33 @@ class LyricTableCellModel {
   let activeDimText: NSAttributedString?
   let activeBrightText: NSAttributedString?
   let inactiveText: NSAttributedString?
-
-  private let lineParagraphStyle: NSParagraphStyle = {
-    let style = NSMutableParagraphStyle()
-    style.lineSpacing = 6
-    style.lineBreakMode = .byWordWrapping
-    style.alignment = .left
-    style.lineBreakStrategy = []
-    return style
-  }()
+  let activeTranslationText: NSAttributedString?
+  let inactiveTranslationText: NSAttributedString?
 
   private var cachedWidth: CGFloat = 0
-  private var cachedHeight: CGFloat = 0
+  private var cachedOriginalHeight: CGFloat = 0
+  private var cachedInactiveHeight: CGFloat = 0
+  private var cachedTranslationHeight: CGFloat = 0
 
-  init(lyric: LyricsLine, estimatedDuration: TimeInterval) {
+  init(lyric: LyricsLine, estimatedDuration: TimeInterval, centered: Bool = false) {
+    let alignment: NSTextAlignment = centered ? .center : .left
+
+    let lineParagraphStyle = NSMutableParagraphStyle()
+    lineParagraphStyle.lineSpacing = 6
+    lineParagraphStyle.lineBreakMode = .byWordWrapping
+    lineParagraphStyle.alignment = alignment
+    lineParagraphStyle.lineBreakStrategy = []
+
+    let translationParagraphStyle = NSMutableParagraphStyle()
+    translationParagraphStyle.lineSpacing = 3
+    translationParagraphStyle.lineBreakMode = .byWordWrapping
+    translationParagraphStyle.alignment = alignment
+    translationParagraphStyle.lineBreakStrategy = []
+
     self.lyric = lyric
+    let translationText = lyric.translation?
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    self.translation = (translationText?.isEmpty == false) ? translationText : nil
     self.syllables = LyricsTimingMap.syllables(
       for: lyric,
       estimatedDuration: estimatedDuration
@@ -78,7 +101,7 @@ class LyricTableCellModel {
     let inactiveFont = UIFont.systemFont(ofSize: 24, weight: .semibold)
     let text = lyric.value
 
-    activeDimText = NSAttributedString(
+    self.activeDimText = NSAttributedString(
       string: text,
       attributes: [
         .font: activeFont,
@@ -86,7 +109,7 @@ class LyricTableCellModel {
         .paragraphStyle: lineParagraphStyle,
       ]
     )
-    activeBrightText = NSAttributedString(
+    self.activeBrightText = NSAttributedString(
       string: text,
       attributes: [
         .font: activeFont,
@@ -94,7 +117,7 @@ class LyricTableCellModel {
         .paragraphStyle: lineParagraphStyle,
       ]
     )
-    inactiveText = NSAttributedString(
+    self.inactiveText = NSAttributedString(
       string: text,
       attributes: [
         .font: inactiveFont,
@@ -102,18 +125,67 @@ class LyricTableCellModel {
         .paragraphStyle: lineParagraphStyle,
       ]
     )
+
+    if let translationText, !translationText.isEmpty {
+      let translationFont = UIFont.systemFont(ofSize: 17, weight: .regular)
+      self.activeTranslationText = NSAttributedString(
+        string: translationText,
+        attributes: [
+          .font: translationFont,
+          .foregroundColor: Self.activeTranslationColor,
+          .paragraphStyle: translationParagraphStyle,
+        ]
+      )
+      self.inactiveTranslationText = NSAttributedString(
+        string: translationText,
+        attributes: [
+          .font: translationFont,
+          .foregroundColor: Self.inactiveTextColor,
+          .paragraphStyle: translationParagraphStyle,
+        ]
+      )
+    } else {
+      self.activeTranslationText = nil
+      self.inactiveTranslationText = nil
+    }
   }
 
   /// Always measured with the active font so row heights stay stable while the
   /// emphasis animates in place.
   func calcHeight(containerWidth: CGFloat) -> CGFloat {
-    guard let activeBrightText else { return 0 }
+    updateCachedHeights(containerWidth: containerWidth)
+    let translationHeight = activeTranslationText == nil
+      ? 0
+      : Self.translationSpacing + cachedTranslationHeight
+    return cachedOriginalHeight + translationHeight
+  }
+
+  func calcOriginalHeight(containerWidth: CGFloat) -> CGFloat {
+    updateCachedHeights(containerWidth: containerWidth)
+    return cachedOriginalHeight
+  }
+
+  /// Height actually occupied by the line at the font size currently rendered.
+  func calcInactiveHeight(containerWidth: CGFloat) -> CGFloat {
+    updateCachedHeights(containerWidth: containerWidth)
+    return cachedInactiveHeight
+  }
+
+  func calcTranslationHeight(containerWidth: CGFloat) -> CGFloat {
+    updateCachedHeights(containerWidth: containerWidth)
+    return cachedTranslationHeight
+  }
+
+  private func updateCachedHeights(containerWidth: CGFloat) {
     let width = LyricTableCell.adjustContainerWidthForMargins(containerWidth: containerWidth)
-    if abs(width - cachedWidth) > 0.5 {
-      cachedWidth = width
-      cachedHeight = LyricsTextLayout(text: activeBrightText, width: width).height
-    }
-    return cachedHeight
+    guard abs(width - cachedWidth) > 0.5 else { return }
+    cachedWidth = width
+    cachedOriginalHeight = activeBrightText
+      .map { LyricsTextLayout(text: $0, width: width).height } ?? 0
+    cachedInactiveHeight = inactiveText
+      .map { LyricsTextLayout(text: $0, width: width).height } ?? 0
+    cachedTranslationHeight = activeTranslationText
+      .map { LyricsTextLayout(text: $0, width: width).height } ?? 0
   }
 
   /// Maps the raw playback clock (seconds, lyrics offset already applied) onto the
@@ -150,6 +222,7 @@ class LyricTableCell: UITableViewCell {
   private let sungGlyph = LyricsGlyphView()
   // Syllable layer: decides which glyphs of the line are revealed at this instant.
   private let syllableMask = LyricsSyllableMaskLayer()
+  private let translationLabel = UILabel()
 
   private var blurredImageView: UIImageView!
   private var blurredImageSize: CGSize = .zero
@@ -191,24 +264,57 @@ class LyricTableCell: UITableViewCell {
     glyphContainer.addSubview(baseGlyph)
     glyphContainer.addSubview(sungGlyph)
     sungGlyph.layer.mask = syllableMask
+
+    translationLabel.isUserInteractionEnabled = false
+    translationLabel.backgroundColor = .clear
+    translationLabel.numberOfLines = 0
+    translationLabel.lineBreakMode = .byWordWrapping
+    translationLabel.isAccessibilityElement = false
+    contentView.addSubview(translationLabel)
   }
 
   override func layoutSubviews() {
     super.layoutSubviews()
     guard let model = viewModel else { return }
     let sideInset = Self.effectiveSideInset(for: bounds.width)
-    let textHeight = min(model.calcHeight(containerWidth: bounds.width), bounds.height)
+    let originalHeight = min(
+      model.calcOriginalHeight(containerWidth: bounds.width),
+      bounds.height
+    )
+    let translationHeight = model.calcTranslationHeight(containerWidth: bounds.width)
+    let hasTranslation = model.activeTranslationText != nil
+    let totalHeight = originalHeight + (
+      hasTranslation ? LyricTableCellModel.translationSpacing + translationHeight : 0
+    )
+    let width = max(0, bounds.width - (2 * sideInset))
     let textFrame = CGRect(
       x: sideInset,
-      y: max(0, (bounds.height - textHeight) / 2),
-      width: max(0, bounds.width - (2 * sideInset)),
-      height: textHeight
+      y: max(0, (bounds.height - totalHeight) / 2),
+      width: width,
+      height: originalHeight
     )
     glyphContainer.frame = textFrame
     blurredImageView.frame = textFrame
     baseGlyph.frame = glyphContainer.bounds
     sungGlyph.frame = glyphContainer.bounds
     syllableMask.setFrameWithoutAnimation(sungGlyph.bounds)
+
+    // The row reserves the active font height so emphasis can animate in place.
+    // Inactive lines render smaller, so hang the translation below the text that
+    // is actually visible instead of below the reserved box.
+    let isEmphasized = model.isActiveLine || model.isFullyHighlighted
+    let renderedOriginalHeight = isEmphasized
+      ? originalHeight
+      : min(model.calcInactiveHeight(containerWidth: bounds.width), originalHeight)
+    translationLabel.isHidden = !hasTranslation
+    translationLabel.frame = CGRect(
+      x: sideInset,
+      y: textFrame.minY + renderedOriginalHeight + (
+        hasTranslation ? LyricTableCellModel.translationSpacing : 0
+      ),
+      width: width,
+      height: translationHeight
+    )
 
     baseGlyph.updateLayoutIfNeeded(width: textFrame.width)
     sungGlyph.updateLayoutIfNeeded(width: textFrame.width)
@@ -238,6 +344,10 @@ class LyricTableCell: UITableViewCell {
       : (isActive ? model.activeDimText : model.inactiveText)
     sungGlyph.text = isActive ? model.activeBrightText : nil
     sungGlyph.isHidden = !isActive
+    translationLabel.attributedText = (model.isActiveLine || model.isFullyHighlighted)
+      ? model.activeTranslationText
+      : model.inactiveTranslationText
+    translationLabel.isHidden = model.activeTranslationText == nil
 
     baseGlyph.updateLayoutIfNeeded(width: baseGlyph.bounds.width)
     sungGlyph.updateLayoutIfNeeded(width: sungGlyph.bounds.width)
@@ -257,6 +367,7 @@ class LyricTableCell: UITableViewCell {
         : CGAffineTransform(scaleX: 0.97, y: 0.97)
       self.glyphContainer.transform = transform
       self.blurredImageView.transform = transform
+      self.translationLabel.transform = transform
     }
     let applyBlurAlpha = {
       self.blurredImageView.alpha = (model.isActiveLine || model.isFullyHighlighted) ? 0 : 1
@@ -354,7 +465,13 @@ class LyricTableCell: UITableViewCell {
   }
 
   override var accessibilityLabel: String? {
-    get { viewModel?.lyric?.value }
+    get {
+      guard let lyric = viewModel?.lyric else { return nil }
+      guard let translation = lyric.translation,
+            !translation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+      else { return lyric.value }
+      return lyric.value + "\n" + translation
+    }
     set {}
   }
 }

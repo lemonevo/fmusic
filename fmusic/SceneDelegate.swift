@@ -134,6 +134,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     appDelegate.setAppAppearanceMode(style: appDelegate.storage.settings.user.appearanceMode)
     fmusicAppShortcuts.updateAppShortcutParameters()
+    handleURLContexts(connectionOptions.urlContexts)
   }
 
   #if targetEnvironment(macCatalyst)
@@ -263,12 +264,19 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
     os_log("openURLContexts", log: self.log, type: .info)
-    guard appDelegate.isNormalInteraction else {
-      return
-    }
+    handleURLContexts(URLContexts)
+  }
+
+  private func handleURLContexts(_ URLContexts: Set<UIOpenURLContext>) {
+    var fileURLs = [URL]()
     for URLContext in URLContexts {
-      _ = appDelegate.intentManager.handleIncoming(url: URLContext.url)
+      if URLContext.url.isFileURL {
+        fileURLs.append(URLContext.url)
+      } else if appDelegate.isNormalInteraction {
+        _ = appDelegate.intentManager.handleIncoming(url: URLContext.url)
+      }
     }
+    appDelegate.openAudioFiles(fileURLs)
   }
 
   // This is the NSUserActivity that will be used to restore state when the Scene reconnects.

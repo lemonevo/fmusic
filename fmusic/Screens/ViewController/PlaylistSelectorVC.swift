@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - AddToPlaylistSelectMode
@@ -176,7 +176,7 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
       target: self,
       selector: #selector(cancelBarButtonPressed)
     )
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
     optionsButton.menu = createSortButtonMenu()
     navigationItem.rightBarButtonItems = [closeButton, optionsButton]
   }
@@ -364,12 +364,20 @@ class PlaylistSelectorVC: SingleSnapshotFetchedResultsTableViewController<Playli
           message: L10n.tr("Some Songs are already in this Playlist."),
           preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: L10n.tr("Add Duplicates"), style: .default, handler: { _ in
-          handleSuccessfullSelection(playables: self.itemsToAdd)
-        }))
-        alert.addAction(UIAlertAction(title: L10n.tr("Skip Duplicates"), style: .default, handler: { _ in
-          handleSuccessfullSelection(playables: Array(itemsNotContained))
-        }))
+        alert.addAction(UIAlertAction(
+          title: L10n.tr("Add Duplicates"),
+          style: .default,
+          handler: { _ in
+            handleSuccessfullSelection(playables: self.itemsToAdd)
+          }
+        ))
+        alert.addAction(UIAlertAction(
+          title: L10n.tr("Skip Duplicates"),
+          style: .default,
+          handler: { _ in
+            handleSuccessfullSelection(playables: Array(itemsNotContained))
+          }
+        ))
         alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .default, handler: { _ in
           // do nothing
         }))

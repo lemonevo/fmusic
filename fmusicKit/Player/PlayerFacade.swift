@@ -315,6 +315,7 @@ class PlayerFacadeImpl: PlayerFacade {
     }
     set {
       backendAudioPlayer.volume = newValue
+      musicPlayer.persistVolume(newValue)
     }
   }
 

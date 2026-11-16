@@ -30,6 +30,72 @@ struct KeyboardCommand: Equatable {
   let modifierFlags: UIKeyModifierFlags
 }
 
+@MainActor
+private func makeEscapeBackCommand(action: Selector) -> UIKeyCommand {
+  let command = UIKeyCommand(
+    input: UIKeyCommand.inputEscape,
+    modifierFlags: [],
+    action: action
+  )
+  command.wantsPriorityOverSystemBehavior = true
+  return command
+}
+
+extension UIView {
+  fileprivate var hasFocusedTextInput: Bool {
+    if (self as? UITextField)?.isFirstResponder == true ||
+      (self as? UITextView)?.isFirstResponder == true {
+      return true
+    }
+    return subviews.contains { $0.hasFocusedTextInput }
+  }
+}
+
+@MainActor
+private func handleEscapeBack(from viewController: UIViewController) {
+  let appDelegate = viewController.appDelegate
+  if appDelegate.accountSwitcherDismissHandler != nil {
+    appDelegate.accountSwitcherDismissHandler?()
+    return
+  }
+  if appDelegate.audioOutputPickerDismissHandler != nil {
+    appDelegate.audioOutputPickerDismissHandler?()
+    return
+  }
+  let navigationController: UINavigationController?
+  if let splitViewController = viewController as? UISplitViewController,
+     let secondaryNavigation = splitViewController
+     .viewController(for: .secondary) as? UINavigationController {
+    navigationController = secondaryNavigation
+  } else if let ownNavigation = viewController.navigationController,
+            ownNavigation.viewControllers.count > 1 {
+    navigationController = ownNavigation
+  } else if let splitViewController = viewController.splitViewController,
+            let secondaryNavigation = splitViewController
+            .viewController(for: .secondary) as? UINavigationController {
+    navigationController = secondaryNavigation
+  } else {
+    navigationController = viewController.navigationController
+  }
+
+  if let searchController = navigationController?.topViewController?
+    .navigationItem.searchController,
+    searchController.isActive {
+    searchController.isActive = false
+    searchController.searchBar.resignFirstResponder()
+    viewController.view.endEditing(true)
+    return
+  }
+  if viewController.view.hasFocusedTextInput {
+    viewController.view.endEditing(true)
+    return
+  }
+  guard let navigationController,
+        navigationController.viewControllers.count > 1
+  else { return }
+  navigationController.popViewController(animated: true)
+}
+
 // MARK: - KeyboardCommands
 
 @MainActor
@@ -115,20 +181,22 @@ extension AppDelegate {
     var commands = KeyboardCommands.allCases.filter(\.isAvailable).map { cmd in
       cmd.asUIKeyCommand(action: #selector(handleKeyCommand(sender:)))
     }
-    if accountSwitcherDismissHandler != nil || audioOutputPickerDismissHandler != nil {
+    #if targetEnvironment(macCatalyst)
       commands.append(UIKeyCommand(
-        title: L10n.tr("Close"),
-        action: #selector(dismissActiveOverlayFromKeyboard),
-        input: UIKeyCommand.inputEscape
+        input: UIKeyCommand.inputEscape,
+        modifierFlags: [],
+        action: #selector(handleEscapeFromKeyboard)
       ))
-    }
+    #endif
     return commands
   }
 
   @objc
-  fileprivate func dismissActiveOverlayFromKeyboard() {
-    accountSwitcherDismissHandler?()
-    audioOutputPickerDismissHandler?()
+  fileprivate func handleEscapeFromKeyboard() {
+    guard let splitViewController = UIApplication.shared.mainWindow?.rootViewController as? SplitVC,
+          splitViewController.presentedViewController == nil
+    else { return }
+    handleEscapeBack(from: splitViewController)
   }
 
   @objc
@@ -161,8 +229,15 @@ extension AppDelegate {
 }
 
 extension KeyCommandTableViewController {
+  @objc
+  func escapeBackKeyTapped() {
+    handleEscapeBack(from: self)
+  }
+
   override var keyCommands: [UIKeyCommand]? {
     [
+      // go back
+      makeEscapeBackCommand(action: #selector(escapeBackKeyTapped)),
       // select
       UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(selectKeyTapped)), // enter
       UIKeyCommand(input: "l", modifierFlags: [], action: #selector(selectKeyTapped)),
@@ -240,8 +315,15 @@ extension KeyCommandTableViewController {
 }
 
 extension KeyCommandCollectionViewController {
+  @objc
+  func escapeBackKeyTapped() {
+    handleEscapeBack(from: self)
+  }
+
   open override var keyCommands: [UIKeyCommand]? {
     [
+      // go back
+      makeEscapeBackCommand(action: #selector(escapeBackKeyTapped)),
       // select
       UIKeyCommand(input: "\r", modifierFlags: [], action: #selector(selectKeyTapped)), // enter
       UIKeyCommand(input: "l", modifierFlags: [], action: #selector(selectKeyTapped)),

@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - SearchSection
@@ -73,6 +73,7 @@ class SearchVC: BasicTableViewController {
 
   private var diffableDataSource: SearchDiffableDataSource?
   private let searchTaskRunner = SearchTaskRunner()
+  private let searchDebouncer = SearchDebouncer(delay: 0.2)
   fileprivate var searchHistory: [SearchHistoryItem] = []
   fileprivate var artists: [Artist] = []
   fileprivate var albums: [Album] = []
@@ -510,6 +511,18 @@ class SearchVC: BasicTableViewController {
   override func updateSearchResults(for searchController: UISearchController) {
     guard let searchText = searchController.searchBar.text, let accountObjectId else { return }
     searchTaskRunner.cancelAll()
+    // Local reads are instant; only throttle the remote WebDAV searches.
+    if searchText.isEmpty || account.apiType == .local ||
+      searchController.searchBar.isCachedScopeSelected {
+      runSearch(searchText: searchText, accountObjectId: accountObjectId)
+      return
+    }
+    searchDebouncer.schedule { [weak self] in
+      self?.runSearch(searchText: searchText, accountObjectId: accountObjectId)
+    }
+  }
+
+  private func runSearch(searchText: String, accountObjectId: NSManagedObjectID) {
     if !searchText.isEmpty, !searchController.searchBar.isCachedScopeSelected {
       searchTaskRunner.runRemoteSearch(searchText: searchText) { do {
         try await self.appDelegate.getMeta(self.account.info).librarySyncer

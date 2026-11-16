@@ -61,7 +61,25 @@ afterwards, guarded by the new `isPlayerHardwareRunning` flag (set in `startPlay
 cleared in `pauseEngine`/`stopEngine`) so the paths that already started the player are
 not started twice.
 
+## Symlinked local files (`FileAudioSource.swift`, `AudioEntry.swift`)
+
+Local folders and files opened from Finder are exposed to the player as symlinks in the app
+container. `FileManager.attributesOfItem` reports the link itself (the target path string,
+e.g. 37 bytes), while `InputStream` reads the target file. A resume seek then computed
+`UInt(source.length) - UInt(dataOffset)`, where `dataOffset` is the FLAC metadata offset, and
+trapped on arithmetic underflow (`SIGTRAP` in `AudioEntry.audioDataLengthBytes()`).
+
+`FileAudioSource` now reads the file size from `url.resolvingSymlinksInPath()`, and
+`audioDataLengthBytes()` returns 0 instead of underflowing when `dataOffset >= length`.
+This also fixes resume playback for the regular local-folder library.
+
 ## When updating the vendored copy
 
 Re-apply these patches and bump the revision above. Keep the dependency pointing at
 `Vendor/AudioStreaming` (`XCLocalSwiftPackageReference` in `fmusic.xcodeproj`).
+
+## Catalyst test-build compatibility (`AudioPlayerRenderProcessor.swift`)
+
+`AUAudioUnitBusArray.isEmpty` is not available when the package is compiled for the test
+target with the current Catalyst SDK. `count > 0` is equivalent and keeps `build-for-testing`
+working.

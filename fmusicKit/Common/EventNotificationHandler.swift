@@ -47,6 +47,9 @@ extension Notification.Name {
   // posted when the manual lyrics offset changes so visible lyrics re-render while paused
   public static let lyricsOffsetChanged = Notification
     .Name(rawValue: "de.fmusic.lyrics.offset.changed")
+  // posted after online lyrics are stored for a song
+  public static let onlineLyricsDidUpdate = Notification
+    .Name(rawValue: "de.fmusic.lyrics.online.updated")
 }
 
 // MARK: - DownloadNotification

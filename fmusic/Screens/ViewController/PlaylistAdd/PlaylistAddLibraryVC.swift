@@ -19,9 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
-import Collections
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - PlaylistVCAddable
@@ -119,12 +118,14 @@ public class AddToPlaylistManager {
     rootVC: UIViewController,
     doneCB: @escaping VoidFunctionCallback
   ) {
-    let elementsToAddSet = OrderedSet<AbstractPlayable>(elementsToAdd)
-    let playableToToggleSet = OrderedSet<AbstractPlayable>(playables)
-    let itemsAlreadyAboutToGetAdded = elementsToAddSet.intersection(playableToToggleSet)
+    let playableSet = Set(playables)
+    var seen = Set<AbstractPlayable>()
+    let uniqueElements = elementsToAdd.filter { seen.insert($0).inserted }
+    let itemsAlreadyAboutToGetAdded = uniqueElements.filter { playableSet.contains($0) }
     guard itemsAlreadyAboutToGetAdded.isEmpty else {
       // unselect all provided playables
-      elementsToAdd = Array(elementsToAddSet.subtracting(itemsAlreadyAboutToGetAdded))
+      let removing = Set(itemsAlreadyAboutToGetAdded)
+      elementsToAdd = uniqueElements.filter { !removing.contains($0) }
       doneCB()
       return
     }
@@ -134,8 +135,8 @@ public class AddToPlaylistManager {
       doneCB()
     }
     let itemsNotContained = playlist.notContaines(playables: playables)
-    if itemsNotContained.count != playableToToggleSet.count {
-      let useSingular = (playableToToggleSet.count == 1)
+    if itemsNotContained.count != playableSet.count {
+      let useSingular = (playableSet.count == 1)
       let alertTitle = useSingular ?
         L10n.tr("This Song is already in your Playlist.") :
         L10n.tr("Some Songs are already in this Playlist.")
@@ -196,9 +197,13 @@ public class AddToPlaylistManager {
         message: L10n.tr("This Song is already in your Playlist."),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: L10n.tr("Add Duplicate"), style: .default, handler: { _ in
-        handleSuccessfullSelection(playables: [playable])
-      }))
+      alert.addAction(UIAlertAction(
+        title: L10n.tr("Add Duplicate"),
+        style: .default,
+        handler: { _ in
+          handleSuccessfullSelection(playables: [playable])
+        }
+      ))
       alert.addAction(UIAlertAction(title: L10n.tr("Skip"), style: .cancel, handler: { _ in
         isSelectedCB(false)
       }))
@@ -260,12 +265,19 @@ public class AddToPlaylistManager {
     if songsToAdd.count > Self.warningElementsToAddCount {
       let alert = UIAlertController(
         title: nil,
-        message: L10n.tr("Adding %d Songs to this Playlist may cause performance issues during server synchronization.", songsToAdd.count),
+        message: L10n.tr(
+          "Adding %d Songs to this Playlist may cause performance issues during server synchronization.",
+          songsToAdd.count
+        ),
         preferredStyle: .alert
       )
-      alert.addAction(UIAlertAction(title: L10n.tr("Add Songs Anyway"), style: .default, handler: { _ in
-        uploadPlaylistChanges()
-      }))
+      alert.addAction(UIAlertAction(
+        title: L10n.tr("Add Songs Anyway"),
+        style: .default,
+        handler: { _ in
+          uploadPlaylistChanges()
+        }
+      ))
       alert.addAction(UIAlertAction(title: L10n.tr("Abort"), style: .default, handler: { _ in
         self.rootView?.dismiss(animated: true, completion: nil)
       }))

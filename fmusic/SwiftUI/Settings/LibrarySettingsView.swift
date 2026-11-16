@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import Combine
+import fmusicKit
 import SwiftUI
 
 // MARK: - LibrarySettingsView
@@ -34,7 +34,6 @@ struct LibrarySettingsView: View {
   @EnvironmentObject
   private var settings: Settings
 
-  let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
   let fileManager = CacheFileManager.shared
 
   @State
@@ -70,32 +69,31 @@ struct LibrarySettingsView: View {
       stride(from: 110, through: 975, by: 25).map { $0.description }
   )
 
-  private func updateValues() {
-    Task { @MainActor in do {
+  private func updateValues() async {
+    do {
       guard let activeAccountInfo = settings.activeAccountInfo else { return }
       let accountObjectId = appDelegate.storage.main.library
         .getAccount(info: activeAccountInfo).managedObject.objectID
-      playlistCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
+      // One background context for all counts; previously this opened six
+      // separate contexts every second while the page was visible.
+      let counts = try await appDelegate.storage.async.performAndGet { asyncCompanion in
         let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getPlaylistCount(for: accountAsync)
+        return (
+          playlists: asyncCompanion.library.getPlaylistCount(for: accountAsync),
+          artists: asyncCompanion.library.getArtistCount(for: accountAsync),
+          albums: asyncCompanion.library.getAlbumCount(for: accountAsync),
+          songs: asyncCompanion.library.getSongCount(for: accountAsync),
+          syncedAlbums: asyncCompanion.library.getAlbumWithSyncedSongsCount(for: accountAsync),
+          cachedSongs: asyncCompanion.library.getCachedSongCount(for: accountAsync),
+          cacheSize: fileManager.getPlayableCacheSize(for: accountAsync.info)
+        )
       }
-      artistCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getArtistCount(for: accountAsync)
-      }
-      albumCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getAlbumCount(for: accountAsync)
-      }
-      songCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getSongCount(for: accountAsync)
-      }
-      albumWithSyncedSongsCount = try await appDelegate.storage.async
-        .performAndGet { asyncCompanion in
-          let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-          return asyncCompanion.library.getAlbumWithSyncedSongsCount(for: accountAsync)
-        }
+      playlistCount = counts.playlists
+      artistCount = counts.artists
+      albumCount = counts.albums
+      songCount = counts.songs
+      albumWithSyncedSongsCount = counts.syncedAlbums
+      cachedSongCount = counts.cachedSongs
 
       if albumCount < 1 {
         autoSyncProgressText = String(format: "%.1f", 0.0) + "%"
@@ -104,16 +102,8 @@ struct LibrarySettingsView: View {
         autoSyncProgressText = String(format: "%.1f", progress) + "%"
       }
 
-      cachedSongCount = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        return asyncCompanion.library.getCachedSongCount(for: accountAsync)
-      }
-      completeCacheSize = try await appDelegate.storage.async.performAndGet { asyncCompanion in
-        let accountAsync = asyncCompanion.library.getAccount(managedObjectId: accountObjectId)
-        let playableByteSize = fileManager.getPlayableCacheSize(for: accountAsync.info)
-        return (playableByteSize > 1_000_000) ? playableByteSize.asByteString : Int64(0)
-          .asByteString
-      }
+      completeCacheSize = (counts.cacheSize > 1_000_000) ? counts.cacheSize.asByteString : Int64(0)
+        .asByteString
 
       let curCacheSizeLimit = Int64(settings.cacheSizeLimit)
       cacheSizeLimit = curCacheSizeLimit > 0 ? curCacheSizeLimit.asByteString : L10n.tr("No Limit")
@@ -123,7 +113,7 @@ struct LibrarySettingsView: View {
       ] : ["0", " MB"]
     } catch {
       // do nothing
-    }}
+    }
   }
 
   var body: some View {
@@ -271,14 +261,15 @@ struct LibrarySettingsView: View {
       }
     }
     .onAppear {
-      updateValues()
       appDelegate.userStatistics.visited(.settingsLibrary)
     }
-    .onReceive(timer) { _ in
-      updateValues()
-    }
-    .onDisappear {
-      timer.upstream.connect().cancel()
+    .task {
+      // Update while the page is visible; the task is cancelled automatically
+      // when the view disappears, so no timer keeps running in the background.
+      while !Task.isCancelled {
+        await updateValues()
+        try? await Task.sleep(for: .seconds(1))
+      }
     }
   }
 }

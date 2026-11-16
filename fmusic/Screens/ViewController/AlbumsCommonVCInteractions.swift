@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - SliderMenuPopover
@@ -109,7 +109,7 @@ class AlbumsCommonVCInteractions {
 
   public var rootVC: UIViewController?
   public var fetchedResultsController: AlbumFetchedResultsController!
-  public var optionsButton: UIBarButtonItem = .createOptionsBarButton()
+  public var optionsButton: UIBarButtonItem = .createSortBarButton()
   public var displayFilter: DisplayCategoryFilter = .all
   public var sortType: AlbumElementSortType = .name
   public var filterTitle = L10n.tr("Albums")
@@ -134,7 +134,8 @@ class AlbumsCommonVCInteractions {
   func updateContentUnavailable() {
     if isContentUnavailable {
       if fetchedResultsController.isSearchActive {
-        rootVC?.contentUnavailableConfiguration = UIContentUnavailableConfiguration.localizedSearch()
+        rootVC?.contentUnavailableConfiguration = UIContentUnavailableConfiguration
+          .localizedSearch()
       } else {
         rootVC?.contentUnavailableConfiguration = emptyContentConfig
       }
@@ -275,7 +276,7 @@ class AlbumsCommonVCInteractions {
     }
 
     if !actions.isEmpty {
-      optionsButton = UIBarButtonItem.createOptionsBarButton()
+      optionsButton = UIBarButtonItem.createSortBarButton()
       optionsButton.menu = UIMenu(children: actions)
       rootVC?.navigationItem.rightBarButtonItems = [optionsButton]
     } else {
@@ -441,9 +442,13 @@ class AlbumsCommonVCInteractions {
         )
       }
     )
-    let changeGridSize = UIAction(title: L10n.tr("Change Grid Size"), image: .resize, handler: { _ in
-      self.showSliderMenu()
-    })
+    let changeGridSize = UIAction(
+      title: L10n.tr("Change Grid Size"),
+      image: .resize,
+      handler: { _ in
+        self.showSliderMenu()
+      }
+    )
     changeGridSize
       .attributes = (appDelegate.storage.settings.user.albumsStyleSetting != .grid) ? .disabled : []
 

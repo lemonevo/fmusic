@@ -40,6 +40,7 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
   case favoriteArtists = 10
   case newestAlbums = 12
   case recentAlbums = 13
+  case lyricsSearch = 14
 
   public static func createByDisplayName(name: String) -> LibraryDisplayType? {
     .allCases.first {
@@ -79,6 +80,8 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return L10n.tr("Newest Albums")
     case .recentAlbums:
       return L10n.tr("Recently Played Albums")
+    case .lyricsSearch:
+      return L10n.tr("Lyrics Search")
     }
   }
 
@@ -108,6 +111,8 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
       return UIImage.albumNewest
     case .recentAlbums:
       return UIImage.albumRecent
+    case .lyricsSearch:
+      return UIImage(systemName: "text.magnifyingglass") ?? UIImage.search
     }
   }
 }
@@ -151,16 +156,36 @@ public struct LibraryDisplaySettings: Sendable, Codable {
     }
 
     if mapped.count == 2 {
-      let order = decodedOrder?.compactMap { LibraryDisplayType(rawValue: $0) } ?? mapped[0] +
+      let storedOrder = decodedOrder?.compactMap { LibraryDisplayType(rawValue: $0) } ?? mapped[0] +
         mapped[1]
-      self = LibraryDisplaySettings(order: order, inUse: Set(mapped[0]))
+      let (order, inUse) = Self.migrated(order: storedOrder, inUse: Set(mapped[0]))
+      self = LibraryDisplaySettings(order: order, inUse: inUse)
     } else if let first = mapped.first {
       // If only one group present, treat it as inUse and compute notUsed
-      self = LibraryDisplaySettings(inUse: first)
+      let (order, inUse) = Self.migrated(order: first, inUse: Set(first))
+      self = LibraryDisplaySettings(order: order, inUse: inUse)
     } else {
       // Fallback to defaults if decoding produced no valid entries
       self = LibraryDisplaySettings(inUse: [])
     }
+  }
+
+  /// Settings stored before the lyrics search page existed do not mention it at all:
+  /// add it once right after the songs entry so it is visible by default, while it
+  /// can still be hidden or reordered afterwards.
+  private static func migrated(
+    order: [LibraryDisplayType],
+    inUse: Set<LibraryDisplayType>
+  )
+    -> (order: [LibraryDisplayType], inUse: Set<LibraryDisplayType>) {
+    guard !order.contains(.lyricsSearch) else { return (order, inUse) }
+    var order = order
+    if let index = order.firstIndex(of: .songs) {
+      order.insert(.lyricsSearch, at: index + 1)
+    }
+    var inUse = inUse
+    inUse.insert(.lyricsSearch)
+    return (order, inUse)
   }
 
   public func isVisible(libraryType: LibraryDisplayType) -> Bool {
@@ -188,6 +213,7 @@ public struct LibraryDisplaySettings: Sendable, Codable {
         .newestAlbums,
         .recentAlbums,
         .songs,
+        .lyricsSearch,
         .favoriteSongs,
         .playlists,
       ]

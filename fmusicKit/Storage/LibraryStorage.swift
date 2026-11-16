@@ -1658,6 +1658,7 @@ public class LibraryStorage: PlayableFileCachable {
     addCandidates(allSongs)
     return picked
   }
+
   public func getSongsCount(
     for account: Account,
     whichContainsSongsWithArtist artist: Artist
@@ -2341,16 +2342,6 @@ public class LibraryStorage: PlayableFileCachable {
     return podcastMOs?.compactMap { Podcast(managedObject: $0) } ?? [Podcast]()
   }
 
-  private func getPodcastsDict(account: Account, ids: Set<String>) -> [String: Podcast] {
-    let podcasts = getPodcasts(account: account, ids: ids)
-
-    var podcastDict = [String: Podcast]()
-    for podcast in podcasts {
-      podcastDict[podcast.id] = podcast
-    }
-    return podcastDict
-  }
-
   private func getPodcastsDictList(account: Account, ids: Set<String>) -> [String: [Podcast]] {
     let podcasts = getPodcasts(account: account, ids: ids)
 
@@ -2495,16 +2486,6 @@ public class LibraryStorage: PlayableFileCachable {
     return artistMOs?.compactMap { Artist(managedObject: $0) } ?? [Artist]()
   }
 
-  private func getArtistsDict(account: Account, ids: Set<String>) -> [String: Artist] {
-    let artists = getArtists(account: account, ids: ids)
-
-    var artistDict = [String: Artist]()
-    for artist in artists {
-      artistDict[artist.id] = artist
-    }
-    return artistDict
-  }
-
   private func getArtistsDictList(account: Account, ids: Set<String>) -> [String: [Artist]] {
     let artists = getArtists(account: account, ids: ids)
 
@@ -2514,28 +2495,6 @@ public class LibraryStorage: PlayableFileCachable {
         artistDict[artist.id] = [Artist]()
       }
       artistDict[artist.id]!.append(artist)
-    }
-    return artistDict
-  }
-
-  private func getLocalArtists(account: Account, names: Set<String>) -> [String: Artist] {
-    let fetchRequest: NSFetchRequest<ArtistMO> = ArtistMO.fetchRequest()
-    fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
-      getFetchPredicate(forAccount: account),
-      NSPredicate(format: "%K == %@", #keyPath(ArtistMO.id), ""),
-      NSPredicate(
-        format: "%K IN %@",
-        #keyPath(ArtistMO.name),
-        names
-      ),
-    ])
-    let artistMOs = try? context.fetch(fetchRequest)
-
-    var artistDict = [String: Artist]()
-    guard let artistMOs else { return artistDict }
-    for artistMO in artistMOs {
-      let artist = Artist(managedObject: artistMO)
-      artistDict[artist.name] = artist
     }
     return artistDict
   }
@@ -2552,16 +2511,6 @@ public class LibraryStorage: PlayableFileCachable {
     ])
     let albumMOs = try? context.fetch(fetchRequest)
     return albumMOs?.compactMap { Album(managedObject: $0) } ?? [Album]()
-  }
-
-  private func getAlbumsDict(account: Account, ids: Set<String>) -> [String: Album] {
-    let albums = getAlbums(account: account, ids: ids)
-
-    var albumDict = [String: Album]()
-    for album in albums {
-      albumDict[album.id] = album
-    }
-    return albumDict
   }
 
   private func getAlbumsDictList(account: Account, ids: Set<String>) -> [String: [Album]] {
@@ -2591,16 +2540,6 @@ public class LibraryStorage: PlayableFileCachable {
     return songMOs?.compactMap { Song(managedObject: $0) } ?? [Song]()
   }
 
-  private func getSongsDict(account: Account, ids: Set<String>) -> [String: Song] {
-    let songs = getSongs(account: account, ids: ids)
-
-    var songDict = [String: Song]()
-    for song in songs {
-      songDict[song.id] = song
-    }
-    return songDict
-  }
-
   private func getSongsDictList(account: Account, ids: Set<String>) -> [String: [Song]] {
     let songs = getSongs(account: account, ids: ids)
 
@@ -2626,20 +2565,6 @@ public class LibraryStorage: PlayableFileCachable {
     ])
     let podcastEpisodeMOs = try? context.fetch(fetchRequest)
     return podcastEpisodeMOs?.compactMap { PodcastEpisode(managedObject: $0) } ?? [PodcastEpisode]()
-  }
-
-  private func getPodcastEpisodesDict(
-    account: Account,
-    ids: Set<String>
-  )
-    -> [String: PodcastEpisode] {
-    let podcastEpisodes = getPodcastEpisodes(account: account, ids: ids)
-
-    var podcastEpisodeDict = [String: PodcastEpisode]()
-    for podcastEpisode in podcastEpisodes {
-      podcastEpisodeDict[podcastEpisode.id] = podcastEpisode
-    }
-    return podcastEpisodeDict
   }
 
   private func getPodcastEpisodesDictList(
@@ -2671,16 +2596,6 @@ public class LibraryStorage: PlayableFileCachable {
     ])
     let radioMOs = try? context.fetch(fetchRequest)
     return radioMOs?.compactMap { Radio(managedObject: $0) } ?? [Radio]()
-  }
-
-  private func getRadiosDict(account: Account, ids: Set<String>) -> [String: Radio] {
-    let radios = getRadios(account: account, ids: ids)
-
-    var radioDict = [String: Radio]()
-    for radio in radios {
-      radioDict[radio.id] = radio
-    }
-    return radioDict
   }
 
   private func getRadiosDictList(account: Account, ids: Set<String>) -> [String: [Radio]] {

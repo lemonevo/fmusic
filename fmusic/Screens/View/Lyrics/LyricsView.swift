@@ -19,10 +19,12 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreMedia
+import fmusicKit
 import Foundation
 import UIKit
+
+// MARK: - LyricsDisplayLinkProxy
 
 @MainActor
 private final class LyricsDisplayLinkProxy {
@@ -32,10 +34,13 @@ private final class LyricsDisplayLinkProxy {
     self.owner = owner
   }
 
-  @objc func tick(_ link: CADisplayLink) {
+  @objc
+  func tick(_ link: CADisplayLink) {
     owner?.stepScrollSpring()
   }
 }
+
+// MARK: - LyricsView
 
 class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
   private var lyrics: StructuredLyrics? = nil
@@ -44,6 +49,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
   private var lineSpacing: CGFloat = 30
   private var scrollAnimation = true
   private var suppressAutoScrollUntil: Date?
+  private var centersStatusLines = false
   private let autoScrollSuppressionInterval: TimeInterval = 5.0
   private var lastLayoutWidth: CGFloat = 0
   private var lastLayoutHeight: CGFloat = 0
@@ -145,9 +151,14 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
     layer.masksToBounds = true
   }
 
-  public func display(lyrics: StructuredLyrics, scrollAnimation: Bool) {
+  public func display(
+    lyrics: StructuredLyrics,
+    scrollAnimation: Bool,
+    centered: Bool = false
+  ) {
     self.lyrics = lyrics
     self.scrollAnimation = scrollAnimation
+    centersStatusLines = centered
     cachedLyricsOffsetMs = appDelegate.storage.settings.user.lyricsOffsetMs
     reloadViewModels()
   }
@@ -163,6 +174,7 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
   public func clear() {
     stopScrollSpring()
     lyrics = nil
+    centersStatusLines = false
     reloadViewModels()
   }
 
@@ -355,7 +367,8 @@ class LyricsView: UITableView, UITableViewDataSource, UITableViewDelegate {
     for (index, lyric) in lyrics.line.enumerated() {
       let model = LyricTableCellModel(
         lyric: lyric,
-        estimatedDuration: lineFillDurations.object(at: index) ?? 0
+        estimatedDuration: lineFillDurations.object(at: index) ?? 0,
+        centered: centersStatusLines
       )
       lyricModels.append(model)
     }

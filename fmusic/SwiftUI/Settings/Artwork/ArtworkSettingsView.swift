@@ -35,7 +35,6 @@ struct ArtworkSettingsView: View {
   @EnvironmentObject
   private var settings: Settings
 
-  let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
   let fileManager = CacheFileManager.shared
 
   @State
@@ -52,8 +51,8 @@ struct ArtworkSettingsView: View {
   @State
   var isShowDeleteArtworksAlert = false
 
-  func updateValues() {
-    Task { @MainActor in do {
+  func updateValues() async {
+    do {
       guard let activeAccountInfo = settings.activeAccountInfo else { return }
       let accountObjectId = appDelegate.storage.main.library
         .getAccount(info: activeAccountInfo).managedObject.objectID
@@ -81,7 +80,7 @@ struct ArtworkSettingsView: View {
         }
     } catch {
       // do nothing
-    }}
+    }
   }
 
   private func updateArtworkCacheSize() {
@@ -191,14 +190,15 @@ struct ArtworkSettingsView: View {
       }
     }
     .onAppear {
-      updateValues()
       updateArtworkCacheSize()
     }
-    .onReceive(timer) { _ in
-      updateValues()
-    }
-    .onDisappear {
-      timer.upstream.connect().cancel()
+    .task {
+      // Update while the page is visible; the task is cancelled automatically
+      // when the view disappears, so no timer keeps running in the background.
+      while !Task.isCancelled {
+        await updateValues()
+        try? await Task.sleep(for: .seconds(1))
+      }
     }
   }
 }

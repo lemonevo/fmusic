@@ -92,8 +92,11 @@ final class WebDAVServerApi: BackendApi, @unchecked Sendable {
       )
       return playable.url ?? ""
     }
-    guard !relativePath.isEmpty,
-          let credentials = credentials.wrappedValue,
+    guard !relativePath.isEmpty else { throw BackendError.notSupported }
+    if let openedFileURL = OpenedFileSource.fileURL(from: relativePath) {
+      return openedFileURL
+    }
+    guard let credentials = credentials.wrappedValue,
           let baseURL = Self.baseURL(from: credentials)
     else { throw BackendError.notSupported }
     return WebDAVClient.absoluteURL(

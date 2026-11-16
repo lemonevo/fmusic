@@ -5,14 +5,15 @@
 //  Shared current-line tracking for the desktop lyrics window and the menu bar item.
 //
 
-import fmusicKit
 import CoreGraphics
+import fmusicKit
 import Foundation
 
 // MARK: - LyricsSnapshot
 
 struct LyricsSnapshot {
   let currentText: String
+  let currentTranslation: String?
   let nextText: String?
   let syllables: [LyricsSyllableTiming]
   let syllableProgress: [CGFloat]
@@ -53,6 +54,7 @@ final class LyricsLineTracker {
     guard lyrics.synced else {
       return LyricsSnapshot(
         currentText: lyrics.line.first?.value ?? "",
+        currentTranslation: lyrics.line.first?.translation,
         nextText: nil,
         syllables: [],
         syllableProgress: []
@@ -86,6 +88,7 @@ final class LyricsLineTracker {
 
     return LyricsSnapshot(
       currentText: lyrics.line[lineIndex].value,
+      currentTranslation: lyrics.line[lineIndex].translation,
       nextText: nextText,
       syllables: syllables,
       syllableProgress: progress

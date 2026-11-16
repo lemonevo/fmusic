@@ -65,8 +65,6 @@
 		504B441D28D7A6330033982C /* XCallbackURLsSetttingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B441C28D7A6330033982C /* XCallbackURLsSetttingsView.swift */; };
 		504B442028D8E7880033982C /* SupportSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B441F28D8E7880033982C /* SupportSettingsView.swift */; };
 		504B442228D8EBB20033982C /* MailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504B442128D8EBB20033982C /* MailView.swift */; };
-		5052497B2D10CBC70005EEB0 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 5052497A2D10CBC70005EEB0 /* Collections */; };
-		5052497D2D10CBED0005EEB0 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = 5052497C2D10CBED0005EEB0 /* Collections */; };
 		505362D12C23682500846C53 /* AlbumsCollectionVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505362D02C23682500846C53 /* AlbumsCollectionVC.swift */; };
 		505362D32C2425C200846C53 /* AlbumsCommonVCInteractions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 505362D22C2425C200846C53 /* AlbumsCommonVCInteractions.swift */; };
 		5058709021DEBBCA0043896F /* PopupPlayerVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5058708F21DEBBCA0043896F /* PopupPlayerVC.swift */; };
@@ -117,8 +115,6 @@
 		507DFE4C2B1E57BE002BBB1D /* MarqueeLabel in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE4B2B1E57BE002BBB1D /* MarqueeLabel */; };
 		507DFE4F2B1E581D002BBB1D /* NotificationBannerSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE4E2B1E581D002BBB1D /* NotificationBannerSwift */; };
 		507DFE522B1E5848002BBB1D /* ID3TagEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE512B1E5848002BBB1D /* ID3TagEditor */; };
-		507DFE552B1E587B002BBB1D /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE542B1E587B002BBB1D /* Alamofire */; };
-		507DFE642B1E5A03002BBB1D /* Alamofire in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE632B1E5A03002BBB1D /* Alamofire */; };
 		507DFE6A2B1E62C9002BBB1D /* ID3TagEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE692B1E62C9002BBB1D /* ID3TagEditor */; };
 		507DFE902B1E7262002BBB1D /* CallbackURLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 507DFE8F2B1E7262002BBB1D /* CallbackURLKit */; };
 		508385E821C5965B00C4BB32 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 508385E721C5965B00C4BB32 /* AppDelegate.swift */; };
@@ -442,6 +438,13 @@
 		A1B2C3D40000000000000028 /* WebDAVLibraryIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000018 /* WebDAVLibraryIndexer.swift */; };
 		A1B2C3D40000000000000029 /* LibrarySyncerDefaults.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000019 /* LibrarySyncerDefaults.swift */; };
 		A1B2C3D40000000000000041 /* FileSourceLibraryWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000042 /* FileSourceLibraryWriter.swift */; };
+		A1B2C3D40000000000000060 /* OnlineLyricsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000059 /* OnlineLyricsService.swift */; };
+		A1B2C3D400000000000000A1 /* LyricMetadataTags.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000000000000A3 /* LyricMetadataTags.swift */; };
+		A1B2C3D400000000000000A2 /* MetadataBackfillService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000000000000A4 /* MetadataBackfillService.swift */; };
+		A1B2C3D40000000000000064 /* LyricsSearchVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000063 /* LyricsSearchVC.swift */; };
+		A1B2C3D40000000000000066 /* LyricsPreviewVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000065 /* LyricsPreviewVC.swift */; };
+		A1B2C3D40000000000000068 /* QQMusicQrcDecrypter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000067 /* QQMusicQrcDecrypter.swift */; };
+		A1B2C3D40000000000000057 /* OpenedFileLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000058 /* OpenedFileLibrary.swift */; };
 		A1C500000000000000000001 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = A1C500000000000000000002 /* Localizable.strings */; };
 /* End PBXBuildFile section */
 
@@ -906,6 +909,13 @@
 		A1B2C3D40000000000000018 /* WebDAVLibraryIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDAVLibraryIndexer.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000019 /* LibrarySyncerDefaults.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySyncerDefaults.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000042 /* FileSourceLibraryWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileSourceLibraryWriter.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000059 /* OnlineLyricsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnlineLyricsService.swift; sourceTree = "<group>"; };
+		A1B2C3D400000000000000A3 /* LyricMetadataTags.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricMetadataTags.swift; sourceTree = "<group>"; };
+		A1B2C3D400000000000000A4 /* MetadataBackfillService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataBackfillService.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000063 /* LyricsSearchVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSearchVC.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000065 /* LyricsPreviewVC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsPreviewVC.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000067 /* QQMusicQrcDecrypter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QQMusicQrcDecrypter.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000000000058 /* OpenedFileLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenedFileLibrary.swift; sourceTree = "<group>"; };
 		A1C500000000000000000003 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -917,8 +927,6 @@
 				50699C822ED859B20039BECD /* AudioStreaming in Frameworks */,
 				500E70D22E2FD63900636770 /* DominantColors in Frameworks */,
 				507DFE902B1E7262002BBB1D /* CallbackURLKit in Frameworks */,
-				507DFE552B1E587B002BBB1D /* Alamofire in Frameworks */,
-				5052497D2D10CBED0005EEB0 /* Collections in Frameworks */,
 				509D55F8281274F500E0E0B5 /* VYPlayIndicator in Frameworks */,
 				507DFE4C2B1E57BE002BBB1D /* MarqueeLabel in Frameworks */,
 				507DFE522B1E5848002BBB1D /* ID3TagEditor in Frameworks */,
@@ -931,11 +939,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				507DFE642B1E5A03002BBB1D /* Alamofire in Frameworks */,
 				50F40A3B2C9088B30097FE63 /* IfritStatic in Frameworks */,
 				50B166AA2ED071EC00F7A1D6 /* AudioStreaming in Frameworks */,
 				50ED03132E278C6B0092E6DC /* CoreAudio.framework in Frameworks */,
-				5052497B2D10CBC70005EEB0 /* Collections in Frameworks */,
 				50CF3CEF28A4F83100263F7C /* CryptoKit.framework in Frameworks */,
 				507DFE6A2B1E62C9002BBB1D /* ID3TagEditor in Frameworks */,
 				50BE5DA7285714A200156FC6 /* CallbackURLKit in Frameworks */,
@@ -1270,6 +1276,10 @@
 				A1B2C3D40000000000000002 /* WebDAV */,
 				A1B2C3D40000000000000019 /* LibrarySyncerDefaults.swift */,
 				A1B2C3D40000000000000042 /* FileSourceLibraryWriter.swift */,
+				A1B2C3D40000000000000059 /* OnlineLyricsService.swift */,
+				A1B2C3D400000000000000A3 /* LyricMetadataTags.swift */,
+				A1B2C3D400000000000000A4 /* MetadataBackfillService.swift */,
+				A1B2C3D40000000000000067 /* QQMusicQrcDecrypter.swift */,
 				500B2B302249607B00D14EF4 /* BackendProxy.swift */,
 				50CDF201264BB1C000F83EF6 /* EventLogger.swift */,
 				50BA92EE21CBF45D00E5901D /* LoginCredentials.swift */,
@@ -1565,6 +1575,8 @@
 				50E59A4A2ED747F000F2B65C /* HomeEditorVC.swift */,
 				50E77DB828D21A9300BDF882 /* SettingsHostVC.swift */,
 				50E1D39B2B8BED4C0001A572 /* SideBarVC.swift */,
+				A1B2C3D40000000000000063 /* LyricsSearchVC.swift */,
+				A1B2C3D40000000000000065 /* LyricsPreviewVC.swift */,
 				632F51232C83A7970032860D /* QueueVC.swift */,
 			);
 			path = ViewController;
@@ -1798,6 +1810,7 @@
 				A1B2C3D40000000000000011 /* LocalFolderAccess.swift */,
 				A1B2C3D40000000000000012 /* LocalServerApi.swift */,
 				A1B2C3D40000000000000013 /* LocalLibraryIndexer.swift */,
+				A1B2C3D40000000000000058 /* OpenedFileLibrary.swift */,
 				A1B2C3D40000000000000014 /* FlacTagReader.swift */,
 				A1B2C3D40000000000000015 /* MP3TagReader.swift */,
 			);
@@ -1848,9 +1861,7 @@
 				507DFE4B2B1E57BE002BBB1D /* MarqueeLabel */,
 				507DFE4E2B1E581D002BBB1D /* NotificationBannerSwift */,
 				507DFE512B1E5848002BBB1D /* ID3TagEditor */,
-				507DFE542B1E587B002BBB1D /* Alamofire */,
 				507DFE8F2B1E7262002BBB1D /* CallbackURLKit */,
-				5052497C2D10CBED0005EEB0 /* Collections */,
 				500E70D12E2FD63900636770 /* DominantColors */,
 				50699C812ED859B20039BECD /* AudioStreaming */,
 			);
@@ -1874,10 +1885,8 @@
 			name = fmusicKit;
 			packageProductDependencies = (
 				50BE5DA6285714A200156FC6 /* CallbackURLKit */,
-				507DFE632B1E5A03002BBB1D /* Alamofire */,
 				507DFE692B1E62C9002BBB1D /* ID3TagEditor */,
 				50F40A3A2C9088B30097FE63 /* IfritStatic */,
-				5052497A2D10CBC70005EEB0 /* Collections */,
 				50B166A92ED071EC00F7A1D6 /* AudioStreaming */,
 			);
 			productName = fmusicKit;
@@ -1955,9 +1964,7 @@
 				507DFE4A2B1E57BD002BBB1D /* XCRemoteSwiftPackageReference "MarqueeLabel" */,
 				507DFE4D2B1E581D002BBB1D /* XCRemoteSwiftPackageReference "NotificationBanner" */,
 				507DFE502B1E5848002BBB1D /* XCRemoteSwiftPackageReference "ID3TagEditor" */,
-				507DFE532B1E587B002BBB1D /* XCRemoteSwiftPackageReference "Alamofire" */,
 				50F40A392C9088B30097FE63 /* XCRemoteSwiftPackageReference "Ifrit" */,
-				505249792D10CBC70005EEB0 /* XCRemoteSwiftPackageReference "swift-collections" */,
 				500E70D02E2FD63900636770 /* XCRemoteSwiftPackageReference "DominantColors" */,
 				50B166A82ED071A100F7A1D6 /* XCLocalSwiftPackageReference "Vendor/AudioStreaming" */,
 			);
@@ -2156,6 +2163,8 @@
 				5059A31C28A9ED680068E4D2 /* SceneDelegate.swift in Sources */,
 				50DE29F12B90855100ABA78E /* KeyCommandCollectionViewController.swift in Sources */,
 				50E1D39C2B8BED4C0001A572 /* SideBarVC.swift in Sources */,
+				A1B2C3D40000000000000064 /* LyricsSearchVC.swift in Sources */,
+				A1B2C3D40000000000000066 /* LyricsPreviewVC.swift in Sources */,
 				505CA20E2B88EB9A00AA81CD /* BasicFetchedResultsTableViewController.swift in Sources */,
 				508FDE5021F64ED6005A0724 /* TabBarVC.swift in Sources */,
 				50C16C2821E8680A00F086F0 /* CommonScreenOperations.swift in Sources */,
@@ -2394,11 +2403,16 @@
 				A1B2C3D40000000000000021 /* LocalFolderAccess.swift in Sources */,
 				A1B2C3D40000000000000022 /* LocalServerApi.swift in Sources */,
 				A1B2C3D40000000000000023 /* LocalLibraryIndexer.swift in Sources */,
+				A1B2C3D40000000000000057 /* OpenedFileLibrary.swift in Sources */,
 				A1B2C3D40000000000000026 /* WebDAVClient.swift in Sources */,
 				A1B2C3D40000000000000027 /* WebDAVServerApi.swift in Sources */,
 				A1B2C3D40000000000000028 /* WebDAVLibraryIndexer.swift in Sources */,
 				A1B2C3D40000000000000029 /* LibrarySyncerDefaults.swift in Sources */,
 				A1B2C3D40000000000000041 /* FileSourceLibraryWriter.swift in Sources */,
+				A1B2C3D40000000000000060 /* OnlineLyricsService.swift in Sources */,
+				A1B2C3D400000000000000A1 /* LyricMetadataTags.swift in Sources */,
+				A1B2C3D400000000000000A2 /* MetadataBackfillService.swift in Sources */,
+				A1B2C3D40000000000000068 /* QQMusicQrcDecrypter.swift in Sources */,
 				A1B2C3D40000000000000024 /* FlacTagReader.swift in Sources */,
 				A1B2C3D40000000000000025 /* MP3TagReader.swift in Sources */,
 				50C9D6DE284FAB88007F18D0 /* PlayQueueHandler.swift in Sources */,
@@ -2923,14 +2937,6 @@
 				version = 1.2.2;
 			};
 		};
-		505249792D10CBC70005EEB0 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/apple/swift-collections.git";
-			requirement = {
-				kind = exactVersion;
-				version = 1.1.4;
-			};
-		};
 		507DFE4A2B1E57BD002BBB1D /* XCRemoteSwiftPackageReference "MarqueeLabel" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/cbpowell/MarqueeLabel";
@@ -2953,14 +2959,6 @@
 			requirement = {
 				kind = exactVersion;
 				version = 4.6.0;
-			};
-		};
-		507DFE532B1E587B002BBB1D /* XCRemoteSwiftPackageReference "Alamofire" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Alamofire/Alamofire";
-			requirement = {
-				kind = exactVersion;
-				version = 5.6.2;
 			};
 		};
 		509D55F6281274F500E0E0B5 /* XCRemoteSwiftPackageReference "VYPlayIndicator" */ = {
@@ -3004,16 +3002,6 @@
 			package = 50B166A82ED071A100F7A1D6 /* XCLocalSwiftPackageReference "Vendor/AudioStreaming" */;
 			productName = AudioStreaming;
 		};
-		5052497A2D10CBC70005EEB0 /* Collections */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 505249792D10CBC70005EEB0 /* XCRemoteSwiftPackageReference "swift-collections" */;
-			productName = Collections;
-		};
-		5052497C2D10CBED0005EEB0 /* Collections */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 505249792D10CBC70005EEB0 /* XCRemoteSwiftPackageReference "swift-collections" */;
-			productName = Collections;
-		};
 		50699C812ED859B20039BECD /* AudioStreaming */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 50B166A82ED071A100F7A1D6 /* XCLocalSwiftPackageReference "Vendor/AudioStreaming" */;
@@ -3033,16 +3021,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 507DFE502B1E5848002BBB1D /* XCRemoteSwiftPackageReference "ID3TagEditor" */;
 			productName = ID3TagEditor;
-		};
-		507DFE542B1E587B002BBB1D /* Alamofire */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 507DFE532B1E587B002BBB1D /* XCRemoteSwiftPackageReference "Alamofire" */;
-			productName = Alamofire;
-		};
-		507DFE632B1E5A03002BBB1D /* Alamofire */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 507DFE532B1E587B002BBB1D /* XCRemoteSwiftPackageReference "Alamofire" */;
-			productName = Alamofire;
 		};
 		507DFE692B1E62C9002BBB1D /* ID3TagEditor */ = {
 			isa = XCSwiftPackageProductDependency;

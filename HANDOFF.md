@@ -60,7 +60,7 @@ pkill -f "fmusic.app/Contents/MacOS/fmusic"; sleep 2; open <fmusic.app 路径>
 - 呈现方式对齐 Apple Music：点击主窗口迷你条后，在主窗口内整页进入播放器（同窗全屏、`coverVertical` 从下往上滑入），不是 sheet，也不是新窗口。
 - Apple Music 风格：侧栏 210pt、行 13pt、表头 11pt、行高 32pt、中性灰选中、4 列等比网格不裁切；设置独立窗口/sheet 也用同一套。
 - 中文界面跟随系统语言（不要新增独立语言开关）。
-- 歌词：YRC 优先（词级逐字填充），没有 YRC 时用 LRC；外挂歌词文件只认 `.yrc`/`.lrc`，不写进音频标签。
+- 歌词：逐字格式优先（YRC/QRC/KRC 都会归一化为词级模型），没有逐字信息时用 LRC；外挂歌词文件认 `.yrc`/`.qrc`/`.krc`/`.lrc`，不写进音频标签。QRC 支持明文、`QrcInfos` XML 与 hex 密文，KRC 支持文本和二进制 `krc1` 容器。
 - 播放器/歌词相关历史结论：Apple Music 式逐字高亮、句首即切、点击歌词立即跳转并回正、弹簧滚动。
 
 ---
@@ -77,13 +77,13 @@ pkill -f "fmusic.app/Contents/MacOS/fmusic"; sleep 2; open <fmusic.app 路径>
 | `fmusicKit/Api/Local/LocalFolderAccess.swift` | 安全作用域书签激活 | `activate(bookmark:key:)` L76 |
 | `fmusicKit/Api/LoginCredentials.swift` | local/webdav 凭据与本地路径 | L41 / L49 / L51 |
 
-歌词候选文件名顺序见 `WebDAVLibraryIndexer.swift` L408：`.yrc` 优先于 `.lrc`（大小写都认）。
+歌词候选文件名顺序见 `WebDAVLibraryIndexer.swift` L421：`.yrc` → `.qrc` → `.krc` → `.lrc`（大小写都认）。
 
 ### 3.2 歌词解析与显示
 
 | 文件 | 作用 | 关键入口 |
 | --- | --- | --- |
-| `fmusicKit/Api/LibrarySyncerDefaults.swift` | 歌词文件统一解析（新文件） | `parseLyrics` L75，`isYRC` L105，`YRCFileParser` L95，`LRCFileParser` L172 |
+| `fmusicKit/Api/LibrarySyncerDefaults.swift` | 歌词文件统一解析（新文件） | `parseLyrics` L73，`LyricsTextParser` L84，`QRCFileParser` L332，`KRCFileParser` L486，`YRCFileParser` L133，`LRCFileParser` L222 |
 | `fmusicKit/Api/BackendApi.swift` | `LyricWord` L124，`LyricLine.words` L143 | 词级时间模型 |
 | `fmusic/Screens/View/Lyrics/LyricsView.swift` | 歌词表格、自动滚动、按音节推进进度（30Hz 只更新遮罩） | 行间距 `lineSpacing=30` L44，点击跳转 L199，`updateActiveFill`、`refreshAllVisibleCells` |
 | `fmusic/Screens/View/Lyrics/LyricTableCell.swift` | 行层 + 字形层；模型持有音节时间轴 | 当前行 29pt bold、非当前 24pt semibold，`lineSpacing=6`；`syllableProgress`、`applyProgress` |

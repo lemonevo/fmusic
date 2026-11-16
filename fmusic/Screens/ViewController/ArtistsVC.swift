@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - ArtistDiffableDataSource
@@ -156,7 +156,7 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
     super.viewDidLoad()
     appDelegate.userStatistics.visited(.artists)
 
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
 
     applyFilter()
     change(sortType: appDelegate.storage.settings.user.artistsSortSetting)
@@ -293,7 +293,7 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
     if appDelegate.storage.settings.user.isOnlineMode {
       actions.append(createActionButtonMenu())
     }
-    optionsButton = UIBarButtonItem.createOptionsBarButton()
+    optionsButton = UIBarButtonItem.createSortBarButton()
     optionsButton.menu = UIMenu(children: actions)
     navigationItem.rightBarButtonItems = [optionsButton]
   }

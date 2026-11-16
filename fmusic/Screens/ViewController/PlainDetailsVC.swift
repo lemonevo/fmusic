@@ -98,7 +98,14 @@ class PlainDetailsVC: UIViewController {
   private func displayLyrics(lyricsList: LyricsList) {
     guard let structuredLyrics = lyricsList.lyrics.object(at: 0) else { return }
     let lyricsLines = structuredLyrics.line
-      .reduce("") { $0 == "" ? $1.value : $0 + "\n" + $1.value }
+      .map { line -> String in
+        guard let translation = line.translation?
+          .trimmingCharacters(in: .whitespacesAndNewlines),
+          !translation.isEmpty
+        else { return line.value }
+        return line.value + "\n" + translation
+      }
+      .joined(separator: "\n")
     detailsTextView.text = lyricsLines
   }
 

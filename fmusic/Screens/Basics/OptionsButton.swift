@@ -28,7 +28,8 @@ extension UIBarButtonItem {
   }
 
   static func createOptionsBarButton() -> UIBarButtonItem {
-    UIBarButtonItem(image: .ellipsis, menu: nil)
+    // Use the same three-bar filter icon as the home/list toolbars.
+    UIBarButtonItem(image: .filter, menu: nil)
   }
 
   static func createSortBarButton() -> UIBarButtonItem {

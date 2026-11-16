@@ -65,6 +65,8 @@ extension LibraryDisplayType {
         style: settings.user.albumsStyleSetting,
         category: .recent
       )
+    case .lyricsSearch:
+      return LyricsSearchVC()
     }
   }
 }

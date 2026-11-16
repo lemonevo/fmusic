@@ -1,6 +1,6 @@
 # fmusic 本地/WebDAV Fork — AI 接续说明
 
-> 最后更新：2026-11-14（Mac Catalyst / macOS 27 / Xcode 27.1）
+> 最后更新：2026-11-16（Mac Catalyst / macOS 27 / Xcode 27.1）
 > 写给接手的 AI：本文档自包含，读完就能开工。仓库里的 `HANDOFF.md` 是更早的逐日日志，
 > 部分内容已过时（例如“大面积未提交”“最后提交 bdee704”），冲突时以本文档为准。
 
@@ -8,8 +8,10 @@
 
 桌面歌词已按 LyricsX Next 重写（clear Liquid Glass、逐字波浪/长音光晕、双缓冲换行、五键控制条），
 设置侧栏已对齐首页并加入可用的设置搜索；2026-11-14 用户明确要求推送 GitHub 并发版，发布目标
-`main` + tag `v0.3.0`（CI 出 DMG 并附到 Release）。本轮提交后工作树应为干净；
-`feature/webdav-local` 与 `origin/main` 同步到同一个发布提交。
+`main` + tag `v0.3.0`（CI 出 DMG 并附到 Release）。v0.3.0 之后新增 Finder 单文件打开：
+声明 `public.audio` 文档类型，单文件会加入当前资料库并立即播放（外部文件用安全书签持久化）；
+还加入了联网歌词自动/手动匹配，以及“歌词标签 → 在线元数据”两层兜底，当前曲库未知专辑为 0；
+本轮改动已提交到 `feature/webdav-local` 并同步到 `origin/main`，由 GitHub Actions 产出 DMG。
 
 ## 1. 项目与环境
 
@@ -44,14 +46,23 @@ xcodebuild -project fmusic.xcodeproj -scheme fmusic -configuration Debug \
 codesign --force --deep --sign - --identifier lol.levo.fmusic \
   /tmp/fmusic-build/Build/Products/Debug-maccatalyst/fmusic.app
 
-open /tmp/fmusic-build/Build/Products/Debug-maccatalyst/fmusic.app
+# Finder「打开方式」不索引 /tmp 里的包（LaunchServices 标记 in-temp-dir），
+# 所以同步一份到 ~/Applications 并只运行这一份，避免同 bundle id 双实例；
+# ditto 会保留旧包里已删除的 framework，先移除旧副本再复制
+mkdir -p ~/Applications
+trash ~/Applications/fmusic.app 2>/dev/null
+ditto /tmp/fmusic-build/Build/Products/Debug-maccatalyst/fmusic.app ~/Applications/fmusic.app
+
+open ~/Applications/fmusic.app
 ```
 
 - 必须带 `CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO`，否则没有 provisioning profile 会直接失败。
 - **构建后必须 codesign**：关闭签名时 main binary 的签名标识会变成 `fmusic`，MediaRemote 就把这个 App 报成 `fmusic`；
   LyricsX Next 等 Now Playing 客户端按 bundle id 匹配不到运行中的 App，会显示“当前来源不是音乐播放器”。
   重签后 `codesign -dv` 应显示 `Identifier=lol.levo.fmusic`。`/Applications/fmusic.app` 本身是正确签名的，所以安装版没这个问题。
-- 当前调试产物固定在 `/tmp/fmusic-build/...`；如果换目录，`open` 时用**完整路径**，防止拉起 DerivedData 里的旧包。
+- **只保留一个运行实例**：`/tmp/.../fmusic.app` 与 `~/Applications/fmusic.app` bundle id 相同但路径不同，
+  同时 `open` 会起两个进程、共用同一曲库；日常用 `~/Applications/fmusic.app`，`/tmp` 目录只当构建产物。
+- `open` 时用**完整路径**，防止拉起 DerivedData 里的旧包；改完构建记得重新 `ditto` 同步。
 - 没有 CI 门禁：`xcodebuild` 成功不代表界面正确，视觉改动必须打开 App 看真实渲染。
 
 ### 2.1 Release 构建与发布
@@ -423,6 +434,61 @@ LyricsX `WordHighlight.swift` 的 `LyricEmphasisFrame`。整行的全局缩放�
   - 细节和复现记录在 `Vendor/AudioStreaming/PATCHES.md`。
 - 验证：冷启动 WebDAV 曲目后立即 seek 到 60%+，不再报错；不要用“清缓存”当修法。
 
+## 4.1 Finder 单文件打开
+
+- **注册**：`fmusic/Info.plist` 的 `CFBundleDocumentTypes` 声明 `public.audio`（Viewer、Alternate）和
+  flac/mp3/m4a/… 扩展名，`LSSupportsOpeningDocumentsInPlace = true`。Finder 的“打开方式”里会出现 fmusic；
+  不需要 `UTImportedTypeDeclarations`，macOS 已识别 `org.xiph.flac`。
+  **但 LaunchServices 不索引临时目录里的包**：运行 `/tmp/fmusic-build/.../fmusic.app` 时菜单不会出现，
+  必须有一份非 `/tmp` 的副本（本项目用 `~/Applications/fmusic.app`，见 2 节构建命令）。
+- **路由**：`SceneDelegate` 同时处理冷启动 `connectionOptions.urlContexts` 和热启动
+  `scene(_:openURLContexts:)`；`MiniPlayerSceneDelegate` 也把文件 URL 交给
+  `AppDelegate.openAudioFiles(_:)`。库未同步或没有账户时先挂起，`startManagerAfterSync()` 后补处理。
+- **入库/播放**：`fmusicKit/Api/Local/OpenedFileLibrary.swift`
+  - 文件在活动本地文件夹内：按普通本地 song ID/相对路径写入，后续文件夹扫描直接复用；
+  - 文件在本地库外：`Song.url = fmusic-file:///绝对路径`，song/album/artist 用 `opened_*` 前缀，
+    `relFilePath` 仍由 `FileSourceLibraryWriter` 建 symlink；
+  - `FileSourceLibraryWriter.removeStaleEntries` 跳过 `fmusic-file://`，两个索引器都不会清理它；
+  - 写入后把返回的 `Song` 放进 `PlayContext` 立即播放；同一路径重复打开会更新同一条记录。
+- **标签复用**：`LocalLibraryIndexer` 里的读标签/时长/MIME 逻辑抽成 `FileSourceMetadataReader`，
+  文件夹索引和单文件导入共用；`LocalFolderAccess.creationOptions` 用于文件书签。
+- **书签**：`OpenedFileBookmarkStore` 存 `Library/lol.levo.fmusic/opened-file-bookmarks.json`，
+  启动时 `activateAll()` 恢复安全作用域；外部文件移动/删除后记录仍在，播放会失败而不是崩溃。
+- **音频引擎 symlink 修复**（`Vendor/AudioStreaming`）：`FileAudioSource` 用
+  `attributesOfItem` 读 symlink 本身得到 37 B 的长度，而 `InputStream` 读的是目标文件；
+  外部/本地库文件 resume seek 时 `audioDataLengthBytes()` 下溢崩溃（SIGTRAP）。现在读取
+  `resolvingSymlinksInPath()` 后的大小，并给 `audioDataLengthBytes()` 加了 `dataOffset < length` 保护。
+  验证：同一 FLAC 播放后退出、再从 Finder 打开，resume 到保存进度不再崩溃；冷启动/热启动、
+  AIFF、重复打开同一路径均通过。详见 `Vendor/AudioStreaming/PATCHES.md`。
+
+## 4.2 在线歌词与未知专辑补全（2026-11-15/16）
+
+- **联网歌词**：`fmusicKit/Api/OnlineLyricsService.swift` 并行查网易云、QQ、酷狗、LRCLIB；
+  `OnlineLyricsRanker` 按标题/歌手/时长打分。播放时自动匹配，侧栏「歌词搜索」可手动搜索/预览/应用。
+  YRC/QRC/KRC 解析在 `QQMusicQrcDecrypter.swift` 等处，优先词级时间与双语结果。
+- **歌词内嵌元数据**：`LyricMetadataTags.parse` 在 `LRCFileParser` 丢弃 `[ti:]/[ar:]/[al:]` 之前读取，
+  WebDAV 与本地索引器用它补缺失的标题/歌手/专辑。
+- **文件名兜底是「标题 - 歌手」**（不是歌手 - 标题）。WebDAV 根目录无标签文件以前按歌手 - 标题解析，
+  导致在线查询把标题和歌手搜反、全部匹配失败；已修正，改动在 `WebDAVLibraryIndexer` 与
+  `LocalLibraryIndexer` 的 tag 回退处。
+- **未知专辑在线补全**：`MetadataBackfillService` 在索引完成后扫描原始 `Unknown Album` 歌曲，
+  调 `OnlineLyricsService.matchMetadata`（分数 ≥85，LRCLIB 优先；无专辑时回退 QQ
+  `fcg_play_single_song.fcg`，酷狗搜索直接带 `album_name`）。匹配结果写入
+  `~/Library/Application Support/fmusic/metadata-overrides.json`（按稳定 song ID 键，miss 缓存 7 天）。
+  `FileSourceLibraryWriter.resolvedMetadata` 每次扫描都重新套用覆盖，因此全量重扫不会把专辑打回未知。
+- `OnlineLyricsService.sanitizedAlbum` 会拆掉 LRCLIB 里 `Optional("不良少年")` 这类 Swift 调试串并拒绝
+  占位专辑名。专辑页「更多」在原始专辑为 `Unknown Album` 时显示「在线匹配专辑」手动入口。
+- **在线封面**：`matchMetadata` 同时返回 `artworkURL`。酷狗搜索直接给 `trans_param.union_cover`
+  （把 `{size}` 换成 400），网易云用搜索里的 album id 调 `/api/album/{id}` 拿 `picUrl`，
+  QQ 用 album mid 拼 `y.gtimg.cn/music/photo_new/T002R500x500M000<mid>.jpg`。优先同专辑候选；
+  合辑在别家找不到同名专辑时，退回到同歌曲最高分候选的封面（比占位图好）。
+- `MetadataBackfillService.fillMissingArtwork` 在每次索引后为有覆盖记录的匹配专辑补封面，
+  走 7 天 miss 缓存，不会对普通专辑反复联网。图片缩到 1024 并转 JPEG，但沿用共享的 `.png`
+  封面路径（ImageIO/UIImage 按内容嗅探，实测正常）。`artworkAttemptVersion` 升版会强制重试。
+- 验证：`WebDAVLibraryIndexer.indexVersion` 升到 6 触发全量重读后，54 首歌 / 50 张专辑 /
+  `Unknown Album` 0；12 条覆盖（9 LRCLIB、2 QQ、1 酷狗）全部保留，12 张匹配专辑全部有封面，
+  专辑页不再出现小红占位图标。
+
 ## 5. 包体 / 数据模型（`47c5ce7` 及之前）
 
 - CI 只出 **arm64**，DMG ≈ 10.5 MB，安装后 ≈ 19 MB；不支持 Intel。
@@ -435,6 +501,7 @@ LyricsX `WordHighlight.swift` 的 `LyricEmphasisFrame`。整行的全局缩放�
 
 - 侧栏 210 pt、行高 38（32 高亮）、13 pt 文案、实心 16 pt 图标；Apple Music 式首页/专辑网格。
 - 封面：ImageIO 降采样到最长边 1024，缓存上限 64 MB / 300 张（`LibraryEntityImage`）。
+- 「更多」图标：列表/详情页工具栏统一三横线 `line.3.horizontal.decrease`（`UIBarButtonItem.createOptionsBarButton`，与首页/歌曲页的排序筛选图标一致）；播放器工具组和歌曲行内的三点菜单仍用 `ellipsis.circle` / `ellipsis`。
 - WebDAV 曲库：启动/回前台增量扫描（15 s 去抖）；本地文件夹需手动同步。
 - 大播放器：主窗口内 `.fullScreen` 上滑，两栏，**固定深色**；ESC / 左上 chevron 关闭。
 - 独立歌词栏 `LyricsVC` 固定深色；迷你条 `UIGlassEffect(.regular)`。

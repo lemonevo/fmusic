@@ -19,9 +19,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CarPlay
 import CoreData
+import fmusicKit
 import Foundation
 
 extension LibraryDisplayType {
@@ -30,7 +30,7 @@ extension LibraryDisplayType {
     case .albums, .artists, .favoriteAlbums, .favoriteArtists, .favoriteSongs, .genres,
          .newestAlbums, .recentAlbums:
       return true
-    case .directories, .downloads, .songs:
+    case .directories, .downloads, .lyricsSearch, .songs:
       return false
     case .playlists:
       return false // playlists have their own tab
@@ -107,7 +107,7 @@ extension CarPlaySceneDelegate {
         sectionToDisplay = albumsNewestSection
       case .recentAlbums:
         sectionToDisplay = albumsRecentSection
-      case .directories, .downloads, .playlists, .songs:
+      case .directories, .downloads, .lyricsSearch, .playlists, .songs:
         break // do nothing
       }
       guard let sectionToDisplay else { completion(); return }

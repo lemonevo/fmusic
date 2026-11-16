@@ -59,7 +59,7 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
   private var playerStatus: PlayerStatusPersistent
   private var queueHandler: PlayQueueHandler
   private let backendAudioPlayer: BackendAudioPlayer
-  private let settings: fmusicSettings
+  private var settings: fmusicSettings
   private let userStatistics: UserStatistics
   private var notifierList: [WeakMusicPlayable] = []
   public private(set) var currentRadioNowPlaying: RadioNowPlayingInfo?
@@ -87,6 +87,13 @@ public class AudioPlayer: NSObject, BackendAudioPlayerNotifiable {
       guard let nextPlayerIndex = self.nextPlayerIndex else { return nil }
       return self.queueHandler.getPlayable(at: nextPlayerIndex)
     }
+  }
+
+  func persistVolume(_ value: Float) {
+    var user = settings.user
+    guard user.playerVolume != value else { return }
+    user.playerVolume = value
+    settings.user = user
   }
 
   private func shouldCurrentItemReplayedInsteadOfPrevious() -> Bool {

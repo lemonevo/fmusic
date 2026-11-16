@@ -13,8 +13,6 @@ public struct EqualizerView: View {
   public var gradientColors: [Color]
   @Binding
   public var sliderValues: [CGFloat]
-  @State
-  private var viewWidth: CGFloat = 300
   @Binding
   private var sliderLabel: [String]
 

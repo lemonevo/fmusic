@@ -20,8 +20,60 @@
 //
 
 import Foundation
+import ImageIO
 import SwiftUI
 import UIKit
+
+// MARK: - ArtworkImageEncoder
+
+/// Downscales and re-encodes artwork before it is written to the cache. Embedded
+/// covers are often 3000×3000 PNGs; storing them raw costs tens of MB of disk
+/// and forces a full-size decode every time a list cell displays them.
+public enum ArtworkImageEncoder {
+  public static let maxPixelSize = 1024
+  private static let quality: CGFloat = 0.85
+  /// JPEGs below this size are already cheap to store and decode; re-encoding
+  /// them would only lose quality.
+  private static let passthroughByteLimit = 512 * 1024
+
+  /// Returns bytes that are safe to write under the shared `.png` artwork path.
+  /// ImageIO sniffing makes the extension irrelevant for decoding.
+  public static func compressedData(from data: Data) -> Data {
+    if data.count <= passthroughByteLimit, isJPEG(data) { return data }
+    return encodedData(from: data) ?? data
+  }
+
+  /// True when the data is an image the cache can display. Callers use this
+  /// to skip writing invalid artwork data at all.
+  public static func isDecodable(_ data: Data) -> Bool {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+      return false
+    }
+    return CGImageSourceGetCount(source) > 0
+  }
+
+  public static func encodedData(from data: Data) -> Data? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+      return nil
+    }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+      kCGImageSourceShouldCacheImmediately: true,
+    ]
+    guard let image = CGImageSourceCreateThumbnailAtIndex(
+      source,
+      0,
+      options as CFDictionary
+    ) else { return nil }
+    return UIImage(cgImage: image).jpegData(compressionQuality: quality)
+  }
+
+  private static func isJPEG(_ data: Data) -> Bool {
+    data.count >= 3 && data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF
+  }
+}
 
 // MARK: - ArtworkIconSizeType
 
@@ -541,8 +593,9 @@ extension UIImage {
 
     return newImage!
   }
-
 }
+
+// MARK: - PlayerBarIcon
 
 /// Apple Music style player bar icons, fixed 36 x 36 pt images from the fmusicKit catalog.
 @MainActor

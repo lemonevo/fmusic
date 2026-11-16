@@ -58,6 +58,30 @@ class MimeFileConverterTest: XCTestCase {
   }
 }
 
+// MARK: - ArtworkImageEncoderTest
+
+final class ArtworkImageEncoderTest: XCTestCase {
+  func testDownsamplesLargeArtwork() throws {
+    let size = CGSize(width: 2400, height: 2400)
+    let format = UIGraphicsImageRendererFormat()
+    format.scale = 1
+    let image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+      UIColor.systemBlue.setFill()
+      context.fill(CGRect(origin: .zero, size: size))
+    }
+    let pngData = try XCTUnwrap(image.pngData())
+    let compressed = ArtworkImageEncoder.compressedData(from: pngData)
+    XCTAssertLessThan(compressed.count, pngData.count)
+    let result = try XCTUnwrap(UIImage(data: compressed))
+    XCTAssertLessThanOrEqual(max(result.size.width, result.size.height), 1024)
+  }
+
+  func testKeepsSmallJPEGAsIs() {
+    let data = Data([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10])
+    XCTAssertEqual(ArtworkImageEncoder.compressedData(from: data), data)
+  }
+}
+
 // MARK: - WebDAVIndexerTest
 
 @MainActor

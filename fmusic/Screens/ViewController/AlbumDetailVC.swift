@@ -124,7 +124,16 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
 
     optionsButton = UIBarButtonItem.createOptionsBarButton()
     optionsButton.menu = UIMenu.lazyMenu {
-      EntityPreviewActionBuilder(container: self.album, on: self).createMenuActions()
+      var actions = EntityPreviewActionBuilder(container: self.album, on: self).createMenuActions()
+      if self.album.managedObject.name == "Unknown Album" {
+        actions.append(UIAction(
+          title: L10n.tr("Match Album Online"),
+          image: UIImage(systemName: "wand.and.stars")
+        ) { [weak self] _ in
+          self?.matchAlbumOnline()
+        })
+      }
+      return actions
     }
     navigationItem.rightBarButtonItem = optionsButton
 
@@ -272,6 +281,43 @@ class AlbumDetailVC: SingleSnapshotFetchedResultsTableViewController<SongMO> {
       onlyCachedSongs: searchController.searchBar.isCachedScopeSelected
     )
     tableView.reloadData()
+  }
+
+  private func matchAlbumOnline() {
+    guard appDelegate.storage.settings.user.isOnlineMode else {
+      presentAlert(L10n.tr("Online metadata matching is unavailable in offline mode."))
+      return
+    }
+    let progress = UIAlertController(
+      title: L10n.tr("Match Album Online"),
+      message: L10n.tr("Matching album information…"),
+      preferredStyle: .alert
+    )
+    present(progress, animated: true)
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      let result = await MetadataBackfillService.shared.backfill(
+        accountInfo: account.info,
+        album: album,
+        limit: 200
+      )
+      progress.dismiss(animated: true)
+      let message: String
+      if result.isEmpty {
+        message = L10n.tr("No songs needed an album match.")
+      } else if result.matched == 0 {
+        message = L10n.tr("No confident online match was found.")
+      } else {
+        message = L10n.tr("Matched %d of %d songs.", result.matched, result.attempted)
+      }
+      presentAlert(message)
+    }
+  }
+
+  private func presentAlert(_ message: String) {
+    let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+    alert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
+    present(alert, animated: true)
   }
 }
 
