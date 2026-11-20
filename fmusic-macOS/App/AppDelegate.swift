@@ -218,6 +218,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   @objc
+  func toggleDesktopLyrics(_ sender: Any?) {
+    SettingsStore.updateUser { $0.isDesktopLyricsEnabled.toggle() }
+    NotificationCenter.default.post(name: .macPlaybackSettingsChanged, object: nil)
+  }
+
+  @objc
   func toggleSidebar(_ sender: Any?) {
     mainWindowController?.mainViewController?.toggleSidebar()
   }

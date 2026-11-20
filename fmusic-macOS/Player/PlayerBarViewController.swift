@@ -527,8 +527,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     queue.target = self
     menu.addItem(queue)
     let lyrics = NSMenuItem(
-      title: L10n.tr("Show Lyrics"),
-      action: #selector(showLyricsPageFromMenu),
+      title: L10n.tr("Desktop Lyrics"),
+      action: #selector(toggleDesktopLyricsFromMenu),
       keyEquivalent: ""
     )
     lyrics.target = self
@@ -559,8 +559,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   @objc
-  private func showLyricsPageFromMenu() {
-    LyricsPageWindowController.present()
+  private func toggleDesktopLyricsFromMenu() {
+    SettingsStore.updateUser { $0.isDesktopLyricsEnabled.toggle() }
+    NotificationCenter.default.post(name: .macPlaybackSettingsChanged, object: nil)
   }
 
   @objc

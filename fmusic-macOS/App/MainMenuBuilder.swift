@@ -282,12 +282,13 @@ enum MainMenuBuilder {
 
     let lyrics = NSMenuItem(
       title: L10n.tr("Show Lyrics"),
-      action: #selector(AppDelegate.showLyricsPage(_:)),
+      action: #selector(AppDelegate.toggleDesktopLyrics(_:)),
       keyEquivalent: "l"
     )
     lyrics.keyEquivalentModifierMask = [.command, .shift]
     lyrics.target = appDelegate
     menu.addItem(lyrics)
+
 
     let queue = NSMenuItem(
       title: L10n.tr("Queue"),

@@ -556,6 +556,7 @@ public enum L10n {
     "Show Artist": "显示艺人",
     "Show Podcast": "显示播客",
     "Show Lyrics": "显示歌词",
+    "Lyrics Window": "歌词窗口",
     "Hide Lyrics": "隐藏歌词",
     "Show Podcast Description": "显示播客简介",
     "Show Episode Description": "显示单集简介",
