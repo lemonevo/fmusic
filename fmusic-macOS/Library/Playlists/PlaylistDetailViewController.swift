@@ -2,8 +2,8 @@
 //  PlaylistDetailViewController.swift
 //  fmusic-macOS
 //
-//  Playlist detail page: header (back, artwork, name, song count) plus the
-//  playlist's songs. Double-click starts playback of the playlist.
+//  Playlist detail page in the Catalyst fmusic style: large artwork, name,
+//  song count / duration with play & shuffle buttons, then the playlist songs.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -29,13 +29,15 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
   var onBack: (() -> Void)?
 
   private let playlist: Playlist
-  private let backButton = NSButton()
   private let artworkView = NSImageView()
   private let nameLabel = NSTextField(labelWithString: "")
   private let infoLabel = NSTextField(labelWithString: "")
+  private let playButton = NSButton()
+  private let shuffleButton = NSButton()
   private let emptyLabel = NSTextField(wrappingLabelWithString: "")
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
+  private let headerView = NSView()
 
   private var playables: [AbstractPlayable] = []
 
@@ -45,6 +47,7 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     static let artist = NSUserInterfaceItemIdentifier("playlistDetailArtist")
     static let album = NSUserInterfaceItemIdentifier("playlistDetailAlbum")
     static let duration = NSUserInterfaceItemIdentifier("playlistDetailDuration")
+    static let menu = NSUserInterfaceItemIdentifier("playlistDetailMenu")
   }
 
   init(playlist: Playlist) {
@@ -59,36 +62,38 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
   // MARK: - Lifecycle
 
   override func loadView() {
-    let root = NSView()
-    root.wantsLayer = true
-
-    backButton.image = NSImage(
-      systemSymbolName: "chevron.left",
-      accessibilityDescription: L10n.tr("Playlists")
-    )
-    backButton.isBordered = false
-    backButton.bezelStyle = .regularSquare
-    backButton.imagePosition = .imageLeading
-    backButton.title = L10n.tr("Playlists")
-    backButton.font = MacTheme.bodyFont
-    backButton.contentTintColor = MacTheme.accentColor
-    backButton.target = self
-    backButton.action = #selector(goBack)
-    backButton.translatesAutoresizingMaskIntoConstraints = false
+    let root = ThemedBackgroundView()
 
     artworkView.imageScaling = .scaleProportionallyUpOrDown
     artworkView.wantsLayer = true
-    artworkView.layer?.cornerRadius = 8
+    artworkView.layer?.cornerRadius = 12
     artworkView.layer?.masksToBounds = true
     artworkView.translatesAutoresizingMaskIntoConstraints = false
 
-    nameLabel.font = .systemFont(ofSize: 24, weight: .bold)
+    nameLabel.font = .systemFont(ofSize: 26, weight: .bold)
     nameLabel.lineBreakMode = .byTruncatingTail
     nameLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    infoLabel.font = MacTheme.bodyFont
+    infoLabel.font = .systemFont(ofSize: 12.5, weight: .regular)
     infoLabel.textColor = MacTheme.secondaryTextColor
     infoLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    configurePlayButton(
+      playButton,
+      title: L10n.tr("Play"),
+      symbol: "play.fill",
+      filled: true
+    )
+    playButton.target = self
+    playButton.action = #selector(playAll)
+    configurePlayButton(
+      shuffleButton,
+      title: L10n.tr("Shuffle"),
+      symbol: "shuffle",
+      filled: false
+    )
+    shuffleButton.target = self
+    shuffleButton.action = #selector(playShuffled)
 
     emptyLabel.font = .systemFont(ofSize: MacTheme.bodyFontSize)
     emptyLabel.textColor = MacTheme.secondaryTextColor
@@ -98,43 +103,47 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     configureTableView()
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
     scrollView.drawsBackground = false
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-    let header = NSView()
-    header.translatesAutoresizingMaskIntoConstraints = false
+    headerView.translatesAutoresizingMaskIntoConstraints = false
+    headerView.addSubview(artworkView)
+    headerView.addSubview(nameLabel)
+    headerView.addSubview(infoLabel)
+    headerView.addSubview(playButton)
+    headerView.addSubview(shuffleButton)
 
-    root.addSubview(backButton)
-    root.addSubview(header)
-    header.addSubview(artworkView)
-    header.addSubview(nameLabel)
-    header.addSubview(infoLabel)
+    root.addSubview(headerView)
     root.addSubview(scrollView)
     root.addSubview(emptyLabel)
 
     NSLayoutConstraint.activate([
-      backButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
-      backButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+      headerView.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
+      headerView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      headerView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      headerView.heightAnchor.constraint(equalToConstant: 200),
 
-      header.topAnchor.constraint(equalTo: backButton.bottomAnchor, constant: 10),
-      header.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
-      header.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
-      header.heightAnchor.constraint(equalToConstant: 120),
+      artworkView.leadingAnchor.constraint(equalTo: headerView.leadingAnchor, constant: 36),
+      artworkView.topAnchor.constraint(equalTo: headerView.topAnchor),
+      artworkView.widthAnchor.constraint(equalToConstant: 180),
+      artworkView.heightAnchor.constraint(equalToConstant: 180),
 
-      artworkView.leadingAnchor.constraint(equalTo: header.leadingAnchor),
-      artworkView.centerYAnchor.constraint(equalTo: header.centerYAnchor),
-      artworkView.widthAnchor.constraint(equalToConstant: 120),
-      artworkView.heightAnchor.constraint(equalToConstant: 120),
-
-      nameLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 18),
-      nameLabel.trailingAnchor.constraint(equalTo: header.trailingAnchor),
-      nameLabel.bottomAnchor.constraint(equalTo: header.centerYAnchor, constant: -4),
+      nameLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 28),
+      nameLabel.trailingAnchor.constraint(equalTo: headerView.trailingAnchor, constant: -36),
+      nameLabel.bottomAnchor.constraint(equalTo: artworkView.centerYAnchor, constant: -8),
 
       infoLabel.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
       infoLabel.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
       infoLabel.topAnchor.constraint(equalTo: nameLabel.bottomAnchor, constant: 6),
 
-      scrollView.topAnchor.constraint(equalTo: header.bottomAnchor, constant: 8),
+      playButton.leadingAnchor.constraint(equalTo: nameLabel.leadingAnchor),
+      playButton.topAnchor.constraint(equalTo: infoLabel.bottomAnchor, constant: 18),
+
+      shuffleButton.leadingAnchor.constraint(equalTo: playButton.trailingAnchor, constant: 12),
+      shuffleButton.centerYAnchor.constraint(equalTo: playButton.centerYAnchor),
+
+      scrollView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 16),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
@@ -168,6 +177,36 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     NotificationCenter.default.removeObserver(self)
   }
 
+  private func configurePlayButton(
+    _ button: NSButton,
+    title: String,
+    symbol: String,
+    filled: Bool
+  ) {
+    let accent = MacTheme.accentColor
+    button.title = title
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+    button.imagePosition = .imageLeading
+    button.imageHugsTitle = true
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.attributedTitle = NSAttributedString(
+      string: title,
+      attributes: [
+        .foregroundColor: filled ? NSColor.white : accent,
+        .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+      ]
+    )
+    button.contentTintColor = filled ? .white : accent
+    button.wantsLayer = true
+    button.layer?.backgroundColor = (filled ? accent : accent.withAlphaComponent(0.18))
+      .cgColor
+    button.layer?.cornerRadius = 17
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+    button.widthAnchor.constraint(greaterThanOrEqualToConstant: 96).isActive = true
+  }
+
   private func configureTableView() {
     let artworkColumn = NSTableColumn(identifier: Column.artwork)
     artworkColumn.title = ""
@@ -176,14 +215,14 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     artworkColumn.maxWidth = 46
 
     let titleColumn = NSTableColumn(identifier: Column.title)
-    titleColumn.title = L10n.tr("Songs")
+    titleColumn.title = L10n.tr("Title")
     titleColumn.width = 300
-    titleColumn.minWidth = 160
+    titleColumn.minWidth = 140
 
     let artistColumn = NSTableColumn(identifier: Column.artist)
     artistColumn.title = L10n.tr("Artist")
     artistColumn.width = 160
-    artistColumn.minWidth = 120
+    artistColumn.minWidth = 110
 
     let albumColumn = NSTableColumn(identifier: Column.album)
     albumColumn.title = L10n.tr("Album")
@@ -196,11 +235,18 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     durationColumn.minWidth = 56
     durationColumn.maxWidth = 80
 
-    [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn]
+    let menuColumn = NSTableColumn(identifier: Column.menu)
+    menuColumn.title = ""
+    menuColumn.width = 36
+    menuColumn.minWidth = 36
+    menuColumn.maxWidth = 36
+
+    [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn, menuColumn]
       .forEach(tableView.addTableColumn)
 
     tableView.rowHeight = MacTheme.songRowHeight
     tableView.style = .fullWidth
+    tableView.columnAutoresizingStyle = .noColumnAutoresizing
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = false
     tableView.allowsEmptySelection = true
@@ -228,12 +274,31 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     }
 
     nameLabel.stringValue = playlist.name
-    infoLabel.stringValue = "\(playlist.songCount) \(L10n.tr("Songs"))"
+    let totalDuration = playables.reduce(0) { $0 + Int($1.duration) }
+    let durationText = ClockTime(timeInSeconds: totalDuration).asShortString()
+    infoLabel.stringValue = "\(playlist.songCount) \(L10n.tr("Songs")) · \(durationText)"
     artworkView.image = LMLibraryArtwork.image(for: playlist, setting: librarySetting)
 
     tableView.reloadData()
     emptyLabel.stringValue = L10n.tr("No Results")
     emptyLabel.isHidden = !playables.isEmpty
+  }
+
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    let width = scrollView.contentSize.width
+    guard width > 240 else { return }
+    let flexible = max(120, width - (46 + 60 + 36))
+    for (identifier, fraction, minWidth) in [
+      (Column.title, 0.42, 120.0),
+      (Column.artist, 0.24, 80.0),
+      (Column.album, 0.34, 90.0),
+    ] {
+      guard let column = tableView.tableColumns.first(where: { $0.identifier == identifier })
+      else { continue }
+      column.minWidth = minWidth
+      column.width = flexible * fraction
+    }
   }
 
   // MARK: - Actions
@@ -249,6 +314,22 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     play(row: row)
   }
 
+  @objc
+  private func playAll() {
+    guard !playables.isEmpty else { return }
+    FmusicKit.shared.player.play(context: PlayContext(containable: playlist))
+  }
+
+  @objc
+  private func playShuffled() {
+    guard !playables.isEmpty else { return }
+    var shuffled = playables
+    shuffled.shuffle()
+    FmusicKit.shared.player.play(
+      context: PlayContext(containable: playlist, index: 0, playables: shuffled)
+    )
+  }
+
   private func play(row: Int) {
     guard row >= 0, row < playables.count else { return }
     FmusicKit.shared.player.play(context: PlayContext(
@@ -256,6 +337,45 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
       index: row,
       playables: playables
     ))
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    let row = sender.tag
+    guard row >= 0, row < playables.count else { return }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlay(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    let queueItem = NSMenuItem(
+      title: L10n.tr("Add to Queue"),
+      action: #selector(menuQueue(_:)),
+      keyEquivalent: ""
+    )
+    queueItem.target = self
+    queueItem.tag = row
+    menu.addItem(queueItem)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),
+      in: sender
+    )
+  }
+
+  @objc
+  private func menuPlay(_ sender: NSMenuItem) {
+    play(row: sender.tag)
+  }
+
+  @objc
+  private func menuQueue(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playables.count else { return }
+    FmusicKit.shared.player.insertUserQueue(playables: [playables[sender.tag]])
   }
 
   // MARK: - NSTableViewDataSource
@@ -321,9 +441,33 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
         color: MacTheme.secondaryTextColor,
         alignment: .right
       )
+    case Column.menu:
+      return menuButton(row: row)
     default:
       return nil
     }
+  }
+
+  private func menuButton(row: Int) -> NSView {
+    let button = NSButton()
+    button.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.imagePosition = .imageOnly
+    button.contentTintColor = .secondaryLabelColor
+    button.target = self
+    button.action = #selector(rowMenuPressed(_:))
+    button.tag = row
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+    button.heightAnchor.constraint(equalToConstant: 24).isActive = true
+    let wrapper = NSView()
+    wrapper.addSubview(button)
+    NSLayoutConstraint.activate([
+      button.centerXAnchor.constraint(equalTo: wrapper.centerXAnchor),
+      button.centerYAnchor.constraint(equalTo: wrapper.centerYAnchor),
+    ])
+    return wrapper
   }
 
   private func textCell(
@@ -333,11 +477,33 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     color: NSColor,
     alignment: NSTextAlignment
   )
-    -> NSView {
+    -> NSTableCellView {
     let cell = tableView.makeView(withIdentifier: identifier, owner: self) as?
-      LMTextCellView ?? LMTextCellView()
+      NSTableCellView ?? makeTextCell(identifier)
+    if let label = cell.textField {
+      label.stringValue = text
+      label.font = font
+      label.textColor = color
+      label.alignment = alignment
+    }
+    return cell
+  }
+
+  private func makeTextCell(_ identifier: NSUserInterfaceItemIdentifier) -> NSTableCellView {
+    let cell = NSTableCellView()
     cell.identifier = identifier
-    cell.configure(text: text, font: font, color: color, alignment: alignment)
+    let label = NSTextField(labelWithString: "")
+    label.font = MacTheme.bodyFont
+    label.lineBreakMode = .byTruncatingTail
+    label.maximumNumberOfLines = 1
+    label.translatesAutoresizingMaskIntoConstraints = false
+    cell.addSubview(label)
+    cell.textField = label
+    NSLayoutConstraint.activate([
+      label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+      label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -4),
+      label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+    ])
     return cell
   }
 }

@@ -61,10 +61,14 @@ final class PlaylistsViewController: NSViewController {
 
   private func showDetail(_ playlist: Playlist) {
     let detail = PlaylistDetailViewController(playlist: playlist)
-    detail.onBack = { [weak self] in
-      self?.showList()
+    if let main = MainViewController.current {
+      main.push(detail, title: playlist.name)
+    } else {
+      detail.onBack = { [weak self] in
+        self?.showList()
+      }
+      install(detail)
     }
-    install(detail)
   }
 
   private func install(_ controller: NSViewController) {
