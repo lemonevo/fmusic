@@ -67,8 +67,8 @@ final class MainViewController: NSViewController {
     contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
     let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
-    lyricsItem.minimumThickness = 260
-    lyricsItem.maximumThickness = 260
+    lyricsItem.minimumThickness = 210
+    lyricsItem.maximumThickness = 210
     lyricsItem.canCollapse = true
     lyricsItem.isCollapsed = true
     lyricsItem.holdingPriority = NSLayoutConstraint.Priority(270)
@@ -220,7 +220,7 @@ final class MainViewController: NSViewController {
     let splitView = splitViewController.splitView
     splitView.setPosition(210, ofDividerAt: 0)
     if isLyricsPaneVisible, splitView.subviews.count > 2 {
-      splitView.setPosition(splitView.bounds.width - 260, ofDividerAt: 1)
+      splitView.setPosition(splitView.bounds.width - 210, ofDividerAt: 1)
     }
   }
 
@@ -228,7 +228,7 @@ final class MainViewController: NSViewController {
     // The capsule lives inside the content column and scales with it: opening the
     // lyrics pane shrinks the middle column, so the capsule shrinks too.
     let sidebarWidth: CGFloat = (sidebarItem?.isCollapsed ?? false) ? 0 : 210
-    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 260 : 0
+    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 210 : 0
     let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
     let width = min(780, max(300, available - 16))
@@ -381,7 +381,7 @@ final class MainViewController: NSViewController {
     DispatchQueue.main.async { [weak self, weak splitView] in
       guard let self, let splitView, splitView.subviews.count > 2 else { return }
       splitView.setPosition(
-        max(260, splitView.bounds.width - 260),
+        max(210, splitView.bounds.width - 210),
         ofDividerAt: 1
       )
     }
