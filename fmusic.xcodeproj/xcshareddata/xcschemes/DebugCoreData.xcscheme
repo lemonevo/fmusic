@@ -34,20 +34,6 @@
                ReferencedContainer = "container:fmusic.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "NO"
-            buildForProfiling = "NO"
-            buildForArchiving = "NO"
-            buildForAnalyzing = "NO">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "50C9D604284FA847007F18D0"
-               BuildableName = "fmusicKit.framework"
-               BlueprintName = "fmusicKit"
-               ReferencedContainer = "container:fmusic.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
