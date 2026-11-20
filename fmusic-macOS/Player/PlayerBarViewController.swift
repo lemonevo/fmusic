@@ -20,24 +20,41 @@ import AppKit
 import CoreMedia
 import fmusicKit
 
-/// Bottom player bar: artwork, title/artist, transport controls, progress and volume.
+/// Floating capsule player bar (Apple Music style): artwork + title/artist on the left,
+/// transport controls, a wide progress slider and the output/lyrics/queue/volume cluster on
+/// the right. The capsule floats above the window content with rounded ends.
 @MainActor
 final class PlayerBarViewController: NSViewController, MusicPlayable {
+  private let capsule = NSVisualEffectView()
+
   private let artworkView = NSImageView()
   private let titleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
   private let artistLabel = NSTextField(labelWithString: "")
 
+  private let shuffleButton = NSButton()
   private let previousButton = NSButton()
   private let playPauseButton = NSButton()
   private let nextButton = NSButton()
+  private let repeatButton = NSButton()
 
   private let elapsedLabel = NSTextField(labelWithString: "0:00")
   private let remainingLabel = NSTextField(labelWithString: "-0:00")
   private let progressSlider = NSSlider()
+
+  private let lyricsButton = NSButton()
+  private let queueButton = NSButton()
+  private let moreButton = NSButton()
+  private let outputButton = NSButton()
+  private let volumeIcon = NSImageView()
   private let volumeSlider = NSSlider()
 
-  private let shuffleButton = NSButton()
-  private let repeatButton = NSButton()
+  /// Called when the user toggles the lyrics side pane.
+  var onToggleLyricsPane: (() -> Void)?
+
+  /// Whether the lyrics pane is currently visible (drives the toggle highlight).
+  var isLyricsPaneVisible = false {
+    didSet { updateLyricsButton() }
+  }
 
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
@@ -45,94 +62,120 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
+  /// Height of the floating capsule (also used by the window layout).
+  static let capsuleHeight: CGFloat = 56
+
   // MARK: - Lifecycle
 
   override func loadView() {
     let root = NSView()
-    root.wantsLayer = true
     root.translatesAutoresizingMaskIntoConstraints = false
+    root.wantsLayer = true
 
-    let background = NSVisualEffectView()
-    background.material = .headerView
-    background.blendingMode = .withinWindow
-    background.state = .active
-    background.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(background)
-    NSLayoutConstraint.activate([
-      background.topAnchor.constraint(equalTo: root.topAnchor),
-      background.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      background.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      background.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-    ])
+    capsule.material = .hudWindow
+    capsule.blendingMode = .withinWindow
+    capsule.state = .active
+    capsule.wantsLayer = true
+    capsule.layer?.cornerRadius = Self.capsuleHeight / 2
+    capsule.layer?.masksToBounds = true
+    capsule.layer?.borderWidth = 1
+    capsule.layer?.borderColor = NSColor.white.withAlphaComponent(0.08).cgColor
+    capsule.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(capsule)
 
     configureArtwork()
     configureLabels()
     configureTransportButtons()
     configureProgress()
-    configureVolume()
-    configureModeButtons()
+    configureRightCluster()
 
-    let infoStack = NSStackView(views: [titleLabel, artistLabel])
-    infoStack.orientation = .vertical
-    infoStack.alignment = .leading
-    infoStack.spacing = 1
-    infoStack.translatesAutoresizingMaskIntoConstraints = false
+    let leftGroup = NSStackView(views: [artworkView, infoStack()])
+    leftGroup.orientation = .horizontal
+    leftGroup.alignment = .centerY
+    leftGroup.spacing = 10
+    leftGroup.translatesAutoresizingMaskIntoConstraints = false
 
-    let centerStack = NSStackView(views: [
+    let controlsGroup = NSStackView(views: [
+      shuffleButton,
       previousButton,
       playPauseButton,
       nextButton,
-      spacer(width: 12),
-      elapsedLabel,
-      progressSlider,
-      remainingLabel,
-    ])
-    centerStack.orientation = .horizontal
-    centerStack.alignment = .centerY
-    centerStack.spacing = 10
-    centerStack.translatesAutoresizingMaskIntoConstraints = false
-
-    let rightStack = NSStackView(views: [
-      shuffleButton,
       repeatButton,
-      spacer(width: 8),
+    ])
+    controlsGroup.orientation = .horizontal
+    controlsGroup.alignment = .centerY
+    controlsGroup.spacing = 4
+    controlsGroup.translatesAutoresizingMaskIntoConstraints = false
+
+    let progressGroup = NSStackView(views: [elapsedLabel, progressSlider, remainingLabel])
+    progressGroup.orientation = .horizontal
+    progressGroup.alignment = .centerY
+    progressGroup.spacing = 10
+    progressGroup.translatesAutoresizingMaskIntoConstraints = false
+    progressSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    progressSlider.setContentCompressionResistancePriority(
+      .defaultLow,
+      for: .horizontal
+    )
+
+    let rightGroup = NSStackView(views: [
+      moreButton,
+      lyricsButton,
+      queueButton,
+      outputButton,
+      volumeIcon,
       volumeSlider,
     ])
-    rightStack.orientation = .horizontal
-    rightStack.alignment = .centerY
-    rightStack.spacing = 10
-    rightStack.translatesAutoresizingMaskIntoConstraints = false
+    rightGroup.orientation = .horizontal
+    rightGroup.alignment = .centerY
+    rightGroup.spacing = 8
+    rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
-    root.addSubview(artworkView)
-    root.addSubview(infoStack)
-    root.addSubview(centerStack)
-    root.addSubview(rightStack)
+    capsule.addSubview(leftGroup)
+    capsule.addSubview(controlsGroup)
+    capsule.addSubview(progressGroup)
+    capsule.addSubview(rightGroup)
 
     NSLayoutConstraint.activate([
-      artworkView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
-      artworkView.centerYAnchor.constraint(equalTo: root.centerYAnchor),
-      artworkView.widthAnchor.constraint(equalToConstant: 44),
-      artworkView.heightAnchor.constraint(equalToConstant: 44),
+      capsule.topAnchor.constraint(equalTo: root.topAnchor),
+      capsule.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      capsule.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      capsule.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+      capsule.heightAnchor.constraint(equalToConstant: Self.capsuleHeight),
 
-      infoStack.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 12),
-      infoStack.centerYAnchor.constraint(equalTo: root.centerYAnchor),
-      infoStack.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
-      infoStack.widthAnchor.constraint(lessThanOrEqualToConstant: 230),
+      leftGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 14),
+      leftGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      leftGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 230),
 
-      centerStack.centerXAnchor.constraint(equalTo: root.centerXAnchor),
-      centerStack.centerYAnchor.constraint(equalTo: root.centerYAnchor),
-      centerStack.leadingAnchor.constraint(
-        greaterThanOrEqualTo: infoStack.trailingAnchor,
-        constant: 16
+      controlsGroup.leadingAnchor.constraint(
+        greaterThanOrEqualTo: leftGroup.trailingAnchor,
+        constant: 18
       ),
+      controlsGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
 
-      rightStack.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
-      rightStack.centerYAnchor.constraint(equalTo: root.centerYAnchor),
-      rightStack.leadingAnchor.constraint(
-        greaterThanOrEqualTo: centerStack.trailingAnchor,
-        constant: 16
+      progressGroup.leadingAnchor.constraint(
+        greaterThanOrEqualTo: controlsGroup.trailingAnchor,
+        constant: 18
+      ),
+      progressGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      progressGroup.trailingAnchor.constraint(
+        lessThanOrEqualTo: rightGroup.leadingAnchor,
+        constant: -18
+      ),
+      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 260),
+
+      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
+      rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      rightGroup.leadingAnchor.constraint(
+        greaterThanOrEqualTo: progressGroup.trailingAnchor,
+        constant: 4
       ),
     ])
+
+    // Let the progress group grow between the control cluster and the right cluster.
+    let centerX = progressGroup.centerXAnchor.constraint(equalTo: capsule.centerXAnchor)
+    centerX.priority = .defaultLow
+    centerX.isActive = true
 
     self.view = root
   }
@@ -171,16 +214,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     NotificationCenter.default.removeObserver(self)
   }
 
-  @objc
-  private func themeColorChanged() {
-    updateModeButtons()
-  }
-
-  @objc
-  private func playbackSettingsChanged() {
-    volumeSlider.doubleValue = Double(FmusicKit.shared.storage.settings.user.playerVolume)
-  }
-
   // MARK: - Configuration
 
   private func configureArtwork() {
@@ -189,42 +222,57 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     artworkView.layer?.cornerRadius = 6
     artworkView.layer?.masksToBounds = true
     artworkView.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      artworkView.widthAnchor.constraint(equalToConstant: 38),
+      artworkView.heightAnchor.constraint(equalToConstant: 38),
+    ])
   }
 
-  private func configureLabels() {
-    titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+  private func infoStack() -> NSStackView {
+    titleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
     titleLabel.lineBreakMode = .byTruncatingTail
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
-    artistLabel.font = .systemFont(ofSize: 11)
+    artistLabel.font = .systemFont(ofSize: 10)
     artistLabel.textColor = .secondaryLabelColor
     artistLabel.lineBreakMode = .byTruncatingTail
     artistLabel.translatesAutoresizingMaskIntoConstraints = false
+    let stack = NSStackView(views: [titleLabel, artistLabel])
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = 0
+    return stack
+  }
 
-    elapsedLabel.font = MacTheme.tabularBodyFont
+  private func configureLabels() {
+    elapsedLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
     elapsedLabel.textColor = .secondaryLabelColor
     elapsedLabel.alignment = .right
-    remainingLabel.font = MacTheme.tabularBodyFont
+    remainingLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
     remainingLabel.textColor = .secondaryLabelColor
+    remainingLabel.alignment = .left
     elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
     remainingLabel.translatesAutoresizingMaskIntoConstraints = false
-    elapsedLabel.widthAnchor.constraint(equalToConstant: 36).isActive = true
-    remainingLabel.widthAnchor.constraint(equalToConstant: 40).isActive = true
+    elapsedLabel.widthAnchor.constraint(equalToConstant: 34).isActive = true
+    remainingLabel.widthAnchor.constraint(equalToConstant: 38).isActive = true
   }
 
   private func configureTransportButtons() {
-    configure(button: previousButton, symbol: "backward.fill", action: #selector(playPrevious))
+    configure(button: shuffleButton, symbol: "shuffle", size: 12, action: #selector(toggleShuffle))
+    configure(button: previousButton, symbol: "backward.fill", size: 14, action: #selector(playPrevious))
     configure(
       button: playPauseButton,
       symbol: "play.fill",
+      size: 19,
       action: #selector(togglePlayPause)
     )
-    configure(button: nextButton, symbol: "forward.fill", action: #selector(playNext))
-    playPauseButton.image = symbolImage("play.fill", size: 20)
-    previousButton.image = symbolImage("backward.fill", size: 15)
-    nextButton.image = symbolImage("forward.fill", size: 15)
-    playPauseButton.contentTintColor = .labelColor
-    previousButton.contentTintColor = .labelColor
-    nextButton.contentTintColor = .labelColor
+    configure(button: nextButton, symbol: "forward.fill", size: 14, action: #selector(playNext))
+    configure(
+      button: repeatButton,
+      symbol: "repeat",
+      size: 12,
+      action: #selector(cycleRepeatMode)
+    )
+    playPauseButton.widthAnchor.constraint(equalToConstant: 30).isActive = true
   }
 
   private func configureProgress() {
@@ -232,41 +280,42 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     progressSlider.maxValue = 1
     progressSlider.doubleValue = 0
     progressSlider.isContinuous = false
+    progressSlider.translatesAutoresizingMaskIntoConstraints = false
+    progressSlider.controlSize = .small
     progressSlider.target = self
     progressSlider.action = #selector(seek)
-    progressSlider.translatesAutoresizingMaskIntoConstraints = false
-    progressSlider.widthAnchor.constraint(equalToConstant: 240).isActive = true
+    progressSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    progressSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
   }
 
-  private func configureVolume() {
+  private func configureRightCluster() {
+    configure(
+      button: lyricsButton,
+      symbol: "quote.bubble",
+      size: 13,
+      action: #selector(toggleLyricsPane)
+    )
+    configure(button: queueButton, symbol: "list.bullet", size: 13, action: #selector(showQueue))
+    configure(button: moreButton, symbol: "ellipsis.circle", size: 13, action: #selector(showMoreMenu))
+    configure(button: outputButton, symbol: "airplayaudio", size: 13, action: #selector(showOutputMenu))
+
+    volumeIcon.image = symbolImage("speaker.fill", size: 10)
+    volumeIcon.contentTintColor = .secondaryLabelColor
+    volumeIcon.translatesAutoresizingMaskIntoConstraints = false
+
     volumeSlider.minValue = 0
     volumeSlider.maxValue = 1
     volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
     volumeSlider.isContinuous = true
+    volumeSlider.controlSize = .small
     volumeSlider.target = self
     volumeSlider.action = #selector(changeVolume)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-    volumeSlider.widthAnchor.constraint(equalToConstant: 90).isActive = true
+    volumeSlider.widthAnchor.constraint(equalToConstant: 70).isActive = true
   }
 
-  private func configureModeButtons() {
-    configure(button: shuffleButton, symbol: "shuffle", action: #selector(toggleShuffle))
-    configure(button: repeatButton, symbol: "repeat", action: #selector(cycleRepeatMode))
-    shuffleButton.image = symbolImage("shuffle", size: 12)
-    repeatButton.image = symbolImage("repeat", size: 12)
-    shuffleButton.setButtonType(.momentaryChange)
-    repeatButton.setButtonType(.momentaryChange)
-  }
-
-  private func symbolImage(_ name: String, size: CGFloat) -> NSImage? {
-    NSImage(systemSymbolName: name, accessibilityDescription: nil)?
-      .withSymbolConfiguration(
-        NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
-      )
-  }
-
-  private func configure(button: NSButton, symbol: String, action: Selector) {
-    button.image = symbolImage(symbol, size: 14)
+  private func configure(button: NSButton, symbol: String, size: CGFloat, action: Selector) {
+    button.image = symbolImage(symbol, size: size)
     button.isBordered = false
     button.bezelStyle = .regularSquare
     button.imagePosition = .imageOnly
@@ -274,15 +323,15 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 26).isActive = true
-    button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+    button.heightAnchor.constraint(equalToConstant: 24).isActive = true
   }
 
-  private func spacer(width: CGFloat) -> NSView {
-    let view = NSView()
-    view.translatesAutoresizingMaskIntoConstraints = false
-    view.widthAnchor.constraint(equalToConstant: width).isActive = true
-    return view
+  private func symbolImage(_ name: String, size: CGFloat) -> NSImage? {
+    NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+      .withSymbolConfiguration(
+        NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
+      )
   }
 
   // MARK: - Refresh
@@ -293,6 +342,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     refreshPlaybackState()
     updateProgress()
     updateModeButtons()
+    updateLyricsButton()
   }
 
   private func refreshInfo() {
@@ -323,7 +373,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   private func refreshPlaybackState() {
     let symbol = player.isPlaying ? "pause.fill" : "play.fill"
-    playPauseButton.image = symbolImage(symbol, size: 20)
+    playPauseButton.image = symbolImage(symbol, size: 19)
     let duration = player.duration
     progressSlider.isEnabled = duration.isFinite && duration > 0
     if duration.isFinite, duration > 0 {
@@ -346,6 +396,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       repeatButton.image = symbolImage("repeat.1", size: 12)
     }
     volumeSlider.doubleValue = Double(player.volume)
+  }
+
+  private func updateLyricsButton() {
+    lyricsButton.contentTintColor = isLyricsPaneVisible
+      ? MacTheme.accentColor
+      : .secondaryLabelColor
   }
 
   @objc
@@ -372,6 +428,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func timerTick() {
     guard player.isPlaying else { return }
     updateProgress()
+  }
+
+  @objc
+  private func themeColorChanged() {
+    updateModeButtons()
+    updateLyricsButton()
+  }
+
+  @objc
+  private func playbackSettingsChanged() {
+    volumeSlider.doubleValue = Double(FmusicKit.shared.storage.settings.user.playerVolume)
   }
 
   // MARK: - Actions
@@ -412,6 +479,104 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func cycleRepeatMode() {
     player.setRepeatMode(player.repeatMode.nextMode)
     updateModeButtons()
+  }
+
+  @objc
+  private func toggleLyricsPane() {
+    isLyricsPaneVisible.toggle()
+    onToggleLyricsPane?()
+  }
+
+  @objc
+  private func showQueue() {
+    PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  private func showMoreMenu() {
+    let menu = NSMenu()
+    let nowPlaying = NSMenuItem(
+      title: L10n.tr("Now Playing"),
+      action: #selector(showNowPlayingFromMenu),
+      keyEquivalent: ""
+    )
+    nowPlaying.target = self
+    menu.addItem(nowPlaying)
+    let queue = NSMenuItem(
+      title: L10n.tr("Queue"),
+      action: #selector(showQueueFromMenu),
+      keyEquivalent: ""
+    )
+    queue.target = self
+    menu.addItem(queue)
+    let lyrics = NSMenuItem(
+      title: L10n.tr("Show Lyrics"),
+      action: #selector(showLyricsPageFromMenu),
+      keyEquivalent: ""
+    )
+    lyrics.target = self
+    menu.addItem(lyrics)
+    menu.addItem(.separator())
+    let mini = NSMenuItem(
+      title: L10n.tr("Mini Player"),
+      action: #selector(showMiniPlayerFromMenu),
+      keyEquivalent: ""
+    )
+    mini.target = self
+    menu.addItem(mini)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: moreButton.bounds.midX, y: moreButton.bounds.minY - 6),
+      in: moreButton
+    )
+  }
+
+  @objc
+  private func showNowPlayingFromMenu() {
+    PlayerPageWindowController.presentNowPlaying()
+  }
+
+  @objc
+  private func showQueueFromMenu() {
+    PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  private func showLyricsPageFromMenu() {
+    LyricsPageWindowController.present()
+  }
+
+  @objc
+  private func showMiniPlayerFromMenu() {
+    AppDelegate.sharedAppDelegate?.showMiniPlayer(nil)
+  }
+
+  @objc
+  private func showOutputMenu() {
+    let menu = NSMenu()
+    let title = NSMenuItem(title: L10n.tr("Audio Output"), action: nil, keyEquivalent: "")
+    title.isEnabled = false
+    menu.addItem(title)
+    menu.addItem(.separator())
+    let settings = NSMenuItem(
+      title: L10n.tr("Open System Sound Settings"),
+      action: #selector(openSoundSettings),
+      keyEquivalent: ""
+    )
+    settings.target = self
+    menu.addItem(settings)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: outputButton.bounds.midX, y: outputButton.bounds.minY - 6),
+      in: outputButton
+    )
+  }
+
+  @objc
+  private func openSoundSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+      NSWorkspace.shared.open(url)
+    }
   }
 
   // MARK: - MusicPlayable

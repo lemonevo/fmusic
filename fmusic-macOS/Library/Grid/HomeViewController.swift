@@ -43,8 +43,8 @@ final class HomeViewController: NSViewController {
     static let albumsPerSection = 6
     static let largeTitleTopInset: CGFloat = 20
     static let pageInset: CGFloat = 24
-    static let targetItemWidth: CGFloat = 170
-    static let maxColumns = 6
+    static let targetItemWidth: CGFloat = 100
+    static let maxColumns = 4
   }
 
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Home"))

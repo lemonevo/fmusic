@@ -17,32 +17,34 @@
 //
 
 import AppKit
+import fmusicKit
 
 /// Root content controller of the main window.
 ///
 /// Layout (Apple Music style):
-///   ┌────────────┬────────────────────────────┐
-///   │ sidebar    │ library content            │
-///   │ (210 pt)   │                            │
-///   ├────────────┴────────────────────────────┤
-///   │ player bar (72 pt)                      │
-///   └─────────────────────────────────────────┘
-///
-/// The individual pieces land with the library/player tasks; this scaffold only
-/// establishes the container hierarchy.
+///   ┌────────────┬──────────────────────┬──────────────┐
+///   │ sidebar    │ library content      │ lyrics pane  │
+///   │ (210 pt)   │                      │ (optional)   │
+///   └────────────┴──────────────────────┴──────────────┘
+///        ╭──────────────────────────────────────────╮
+///        │ floating capsule player bar              │
+///        ╰──────────────────────────────────────────╯
 @MainActor
 final class MainViewController: NSViewController {
   private(set) var sidebarViewController = SidebarViewController()
   private(set) var contentContainerViewController = NSViewController()
   private(set) var playerBarViewController = PlayerBarViewController()
+  private(set) lazy var lyricsPaneViewController = LyricsPageViewController()
 
   private let splitViewController = NSSplitViewController()
+  private var lyricsPaneItem: NSSplitViewItem?
+  private(set) var isLyricsPaneVisible = false
 
   override func loadView() {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
     root.wantsLayer = true
 
-    // Sidebar + content.
+    // Sidebar | content | optional lyrics pane.
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
     sidebarItem.minimumThickness = 180
     sidebarItem.maximumThickness = 320
@@ -50,15 +52,22 @@ final class MainViewController: NSViewController {
     sidebarItem.holdingPriority = NSLayoutConstraint.Priority(260)
 
     let contentItem = NSSplitViewItem(viewController: contentContainerViewController)
-    contentItem.minimumThickness = 480
+    contentItem.minimumThickness = 420
+
+    let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
+    lyricsItem.minimumThickness = 300
+    lyricsItem.maximumThickness = 560
+    lyricsItem.canCollapse = true
+    lyricsItem.isCollapsed = true
+    lyricsItem.holdingPriority = NSLayoutConstraint.Priority(250)
+    lyricsPaneItem = lyricsItem
 
     splitViewController.addSplitViewItem(sidebarItem)
     splitViewController.addSplitViewItem(contentItem)
+    splitViewController.addSplitViewItem(lyricsItem)
     splitViewController.splitView.dividerStyle = .thin
 
-    // Player bar.
     addChild(playerBarViewController)
-
     for child in [splitViewController, playerBarViewController] as [NSViewController] {
       child.view.translatesAutoresizingMaskIntoConstraints = false
       root.addSubview(child.view)
@@ -69,12 +78,24 @@ final class MainViewController: NSViewController {
       splitViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
       splitViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       splitViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      splitViewController.view.bottomAnchor.constraint(equalTo: playerBarViewController.view.topAnchor),
+      splitViewController.view.bottomAnchor.constraint(
+        equalTo: playerBarViewController.view.topAnchor,
+        constant: -6
+      ),
 
-      playerBarViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      playerBarViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      playerBarViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-      playerBarViewController.view.heightAnchor.constraint(equalToConstant: 76),
+      // Floating capsule: full window width with small margins.
+      playerBarViewController.view.leadingAnchor.constraint(
+        equalTo: root.leadingAnchor,
+        constant: 10
+      ),
+      playerBarViewController.view.trailingAnchor.constraint(
+        equalTo: root.trailingAnchor,
+        constant: -10
+      ),
+      playerBarViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -8),
+      playerBarViewController.view.heightAnchor.constraint(
+        equalToConstant: PlayerBarViewController.capsuleHeight
+      ),
     ])
 
     self.view = root
@@ -85,6 +106,10 @@ final class MainViewController: NSViewController {
     sidebarViewController.onSelectionChanged = { [weak self] item in
       self?.show(item: item)
     }
+    playerBarViewController.onToggleLyricsPane = { [weak self] in
+      self?.toggleLyricsPane()
+    }
+
     // Dev hooks: `--songs` or `--page <sidebar-item-raw-value>` open a page directly.
     let arguments = ProcessInfo.processInfo.arguments
     var initialItem: SidebarItem = .home
@@ -97,6 +122,25 @@ final class MainViewController: NSViewController {
     }
     sidebarViewController.select(item: initialItem)
     show(item: initialItem)
+
+    // Restore the lyrics side pane from the shared setting.
+    setLyricsPaneVisible(
+      FmusicKit.shared.storage.settings.user.isPlayerLyricsDisplayed,
+      persist: false
+    )
+  }
+
+  private var didApplyInitialSplitPositions = false
+
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    guard !didApplyInitialSplitPositions else { return }
+    didApplyInitialSplitPositions = true
+    let splitView = splitViewController.splitView
+    splitView.setPosition(210, ofDividerAt: 0)
+    if isLyricsPaneVisible, splitView.subviews.count > 2 {
+      splitView.setPosition(splitView.bounds.width - 310, ofDividerAt: 1)
+    }
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
@@ -104,6 +148,23 @@ final class MainViewController: NSViewController {
     sidebarViewController.select(item: item)
     show(item: item)
   }
+
+  // MARK: - Lyrics pane
+
+  func toggleLyricsPane() {
+    setLyricsPaneVisible(!isLyricsPaneVisible, persist: true)
+  }
+
+  private func setLyricsPaneVisible(_ visible: Bool, persist: Bool) {
+    isLyricsPaneVisible = visible
+    lyricsPaneItem?.isCollapsed = !visible
+    playerBarViewController.isLyricsPaneVisible = visible
+    if persist {
+      SettingsStore.updateUser { $0.isPlayerLyricsDisplayed = visible }
+    }
+  }
+
+  // MARK: - Content
 
   private func show(item: SidebarItem) {
     let controller: NSViewController

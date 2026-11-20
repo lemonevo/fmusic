@@ -27,7 +27,7 @@ enum GridMetrics {
   static let lineSpacing: CGFloat = 22
   /// Height reserved under a square artwork tile for title + artist labels.
   static let labelHeight: CGFloat = 44
-  static let artworkCornerRadius: CGFloat = 6
+  static let artworkCornerRadius: CGFloat = 10
   static let sectionHeaderHeight: CGFloat = 38
   static let sectionTitleFontSize: CGFloat = 17
   static let artistRowHeight: CGFloat = 56
