@@ -586,6 +586,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
   private static let activeDimColor = NSColor.white.withAlphaComponent(0.55)
   private static let activeBrightColor = NSColor.white
   private static let inactiveColor = NSColor.white.withAlphaComponent(0.60)
+  private static let blurContext = CIContext(options: nil)
 
   private let glyphView = LyricsGlyphView()
   private let translationLabel = NSTextField(wrappingLabelWithString: "")
@@ -688,12 +689,16 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let scale = window?.backingScaleFactor ?? 2
     let size = CGSize(width: width, height: imageHeight)
 
-    let dimImage = LyricsRasterizer.image(
+    let sharpDimImage = LyricsRasterizer.image(
       layout: layout,
       size: size,
       scale: scale,
       foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
     )
+    // Catalyst blurs the inactive lines (Apple Music style); the active line stays sharp.
+    let dimImage = isActive
+      ? sharpDimImage
+      : sharpDimImage.flatMap { Self.blurred($0, radius: 2.2 * scale) }
     if isActive {
       let brightImage = LyricsRasterizer.image(
         layout: layout,
@@ -764,6 +769,15 @@ private final class LyricsSidebarCellView: NSTableCellView {
   func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
     guard isActiveLine else { return }
     glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+  }
+
+  private static func blurred(_ image: CGImage, radius: CGFloat) -> CGImage? {
+    let input = CIImage(cgImage: image)
+    let output = input
+      .clampedToExtent()
+      .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: radius])
+      .cropped(to: input.extent)
+    return blurContext.createCGImage(output, from: input.extent)
   }
 
   private static func maskRects(
