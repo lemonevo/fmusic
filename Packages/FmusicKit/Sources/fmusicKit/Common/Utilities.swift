@@ -22,7 +22,12 @@
 import CoreData
 import Foundation
 import os.log
+
+#if canImport(UIKit)
 import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
 
 public typealias VoidFunctionCallback = () -> ()
 
@@ -231,7 +236,7 @@ extension Array {
   }
 }
 
-extension UIColor {
+extension PlatformColor {
   public convenience init(hue: CGFloat, saturation: CGFloat, lightness: CGFloat, alpha: CGFloat) {
     precondition(
       0 ... 1 ~= hue &&
@@ -279,43 +284,56 @@ extension UIColor {
 
   // 007AFF
   // r:0 g:122 b:255
-  public static var defaultBlue: UIColor {
-    UIColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
+  public static var defaultBlue: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
+    #else
+    return NSColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
+    #endif
   }
 
-  public static var gold: UIColor {
-    UIColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
+  public static var gold: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
+    #else
+    return NSColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
+    #endif
   }
 
-  public static var labelColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.label
-    } else {
-      return UIColor.black
-    }
+  public static var labelColor: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor.label
+    #else
+    return NSColor.labelColor
+    #endif
   }
 
-  public static var redHeart: UIColor {
-    .red.withAlphaComponent(0.8)
+  public static var redHeart: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor.red.withAlphaComponent(0.8)
+    #else
+    return NSColor.systemRed.withAlphaComponent(0.8)
+    #endif
   }
 
-  public static var fillColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.systemFill
-    } else {
-      return UIColor(displayP3Red: 217 / 255, green: 214 / 255, blue: 209 / 255, alpha: 1.0)
-    }
+  public static var fillColor: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor.systemFill
+    #else
+    return NSColor.quaternaryLabelColor
+    #endif
   }
 
-  public static var secondaryLabelColor: UIColor {
-    if #available(iOS 13.0, *) {
-      return UIColor.secondaryLabel
-    } else {
-      return UIColor.systemGray
-    }
+  public static var secondaryLabelColor: PlatformColor {
+    #if canImport(UIKit)
+    return UIColor.secondaryLabel
+    #else
+    return NSColor.secondaryLabelColor
+    #endif
   }
 }
 
+#if canImport(UIKit)
 extension UIActivityIndicatorView {
   public static var defaultStyle: Style {
     if #available(iOS 13.0, *) {
@@ -325,6 +343,7 @@ extension UIActivityIndicatorView {
     }
   }
 }
+#endif
 
 extension NSObject {
   public class var typeName: String {
@@ -394,62 +413,3 @@ extension Array where Element == String {
   }
 }
 
-extension UIView {
-  public var screenshot: UIImage? {
-    UIGraphicsBeginImageContextWithOptions(layer.frame.size, false, 0)
-    defer {
-      UIGraphicsEndImageContext()
-    }
-    guard let context = UIGraphicsGetCurrentContext() else { return nil }
-    layer.render(in: context)
-    return UIGraphicsGetImageFromCurrentImageContext()
-  }
-}
-
-extension UIAlertAction {
-  public convenience init(
-    title: String?,
-    image: UIImage,
-    style: Style,
-    handler: ((UIAlertAction) -> ())? = nil
-  ) {
-    self.init(title: title, style: style, handler: handler)
-    self.image = image
-  }
-
-  public var image: UIImage {
-    get { value(forKey: "image") as? UIImage ?? UIImage() }
-    set(image) { setValue(image, forKey: "image") }
-  }
-}
-
-extension UIImage {
-  public func invertedImage() -> UIImage {
-    guard let cgImage = cgImage else { return UIImage() }
-    let ciImage = CoreImage.CIImage(cgImage: cgImage)
-    guard let filter = CIFilter(name: "CIColorInvert") else { return UIImage() }
-    filter.setDefaults()
-    filter.setValue(ciImage, forKey: kCIInputImageKey)
-    let context = CIContext(options: nil)
-    guard let outputImage = filter.outputImage else { return UIImage() }
-    guard let outputImageCopy = context.createCGImage(outputImage, from: outputImage.extent)
-    else { return UIImage() }
-    return UIImage(cgImage: outputImageCopy, scale: scale, orientation: .up)
-  }
-}
-
-extension UIDevice {
-  public var totalDiskCapacityInByte: Int64? {
-    let fileURL = URL(fileURLWithPath: "/")
-    guard let values = try? fileURL.resourceValues(forKeys: [.volumeTotalCapacityKey]),
-          let capacity = values.volumeTotalCapacity else { return nil }
-    return Int64(capacity)
-  }
-
-  public var availableDiskCapacityInByte: Int64? {
-    let fileURL = URL(fileURLWithPath: "/")
-    guard let values = try? fileURL.resourceValues(forKeys: [.volumeAvailableCapacityKey]),
-          let capacity = values.volumeAvailableCapacity else { return nil }
-    return Int64(capacity)
-  }
-}

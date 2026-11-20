@@ -21,7 +21,6 @@
 
 import CoreData
 import Foundation
-import UIKit
 
 // MARK: - UserActionUsed
 
@@ -101,7 +100,7 @@ public class UserStatistics {
     library.saveContext()
   }
 
-  public func backgroundFetchPerformed(result: UIBackgroundFetchResult) {
+  public func backgroundFetchPerformed(result: BackgroundFetchResult) {
     switch result {
     case .newData:
       managedObject.backgroundFetchNewDataCount += 1
@@ -109,8 +108,6 @@ public class UserStatistics {
       managedObject.backgroundFetchNoDataCount += 1
     case .failed:
       managedObject.backgroundFetchFailedCount += 1
-    @unknown default:
-      break
     }
     library.saveContext()
   }

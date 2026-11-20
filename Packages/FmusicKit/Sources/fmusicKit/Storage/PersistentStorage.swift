@@ -21,7 +21,6 @@
 
 import CoreData
 import Foundation
-import UIKit
 
 // MARK: - CoreDataCompanion
 
@@ -191,7 +190,7 @@ protocol CoreDataManagable {
 
 public class CoreDataPersistentManager: CoreDataManagable {
   nonisolated(unsafe) public static let managedObjectModel: NSManagedObjectModel =
-    .mergedModel(from: [Bundle.main])!
+    .mergedModel(from: [FmusicKitResources.bundle])!
 
   lazy var persistentContainer: NSPersistentContainer = {
     /*

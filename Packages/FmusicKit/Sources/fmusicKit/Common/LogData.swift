@@ -20,7 +20,6 @@
 //
 
 import Foundation
-import UIKit
 
 // MARK: - LogData
 
@@ -46,11 +45,11 @@ public struct LogData: Encodable {
     logData.basicInfo = basicInfo
 
     var deviceInfo = DeviceInfo()
-    let currentDevice = UIDevice.current
+    let currentDevice = PlatformDeviceInfo.current
     deviceInfo.device = currentDevice.model
     deviceInfo.iOSVersion = currentDevice.systemVersion
-    deviceInfo.totalDiskCapacity = currentDevice.totalDiskCapacityInByte?.asByteString
-    deviceInfo.availableDiskCapacity = currentDevice.availableDiskCapacityInByte?.asByteString
+    deviceInfo.totalDiskCapacity = PlatformDiskCapacity.totalInBytes?.asByteString
+    deviceInfo.availableDiskCapacity = PlatformDiskCapacity.availableInBytes?.asByteString
     logData.deviceInfo = deviceInfo
 
     logData.libraryInfo = LibraryInfo()

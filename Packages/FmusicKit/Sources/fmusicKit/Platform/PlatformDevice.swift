@@ -18,6 +18,12 @@
 
 import Foundation
 
+#if canImport(UIKit)
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
+
 // MARK: - PlatformIdiom
 
 /// Platform-independent replacement for `UIDevice.current.userInterfaceIdiom`.
