@@ -507,6 +507,7 @@
 		AA11B00000000000000002B2 /* AudioSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000002A2 /* AudioSettingsView.swift */; };
 		AA11B00000000000000003B3 /* StorageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000003A3 /* StorageSettingsView.swift */; };
 		AA11B00000000000000004B4 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000004A4 /* AdvancedSettingsView.swift */; };
+		AA3336977C479CCE132970DD /* ArtistDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65F6957ECE3F4887E42EA32A /* ArtistDetailViewController.swift */; };
 		AA8D9DA4FE2B84D64977DAF9 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22B6BB75EB7E5CD34A89E7DB /* MainViewController.swift */; };
 		AAEE39940603DCE28D6EA36A /* ArtworkDisplaySettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78F8E1DFF45D1D03D15A9EAE /* ArtworkDisplaySettings.swift */; };
 		AB084358E322999A9C44A84E /* fmusicMusicRed.icon in Resources */ = {isa = PBXBuildFile; fileRef = C964558A33581724047BB880 /* fmusicMusicRed.icon */; };
@@ -1013,6 +1014,7 @@
 		63DCDB792C674B5D00522F68 /* SettingsSceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSceneDelegate.swift; sourceTree = "<group>"; };
 		641708582C13BF5100BA2619 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		65A85287595B4000C1F947CA /* OnlineOfflineModeAppEnum.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = OnlineOfflineModeAppEnum.swift; path = fmusic/Intents/AppEnums/OnlineOfflineModeAppEnum.swift; sourceTree = "<group>"; };
+		65F6957ECE3F4887E42EA32A /* ArtistDetailViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ArtistDetailViewController.swift; sourceTree = "<group>"; };
 		66A96A8BFB76AE7CBD360EB5 /* UserQueueSectionHeader.xib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.xib; name = UserQueueSectionHeader.xib; path = fmusic/Screens/Player/SectionHeader/UserQueueSectionHeader.xib; sourceTree = "<group>"; };
 		67CDF976B676BAA60BE05A33 /* SetShuffleIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SetShuffleIntent.swift; path = fmusic/Intents/AppIntents/SetShuffleIntent.swift; sourceTree = "<group>"; };
 		67E040252F850504EFEA4FF6 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -2413,6 +2415,7 @@
 			isa = PBXGroup;
 			children = (
 				60125DF788D4F42CAF6C9444 /* ArtistsViewController.swift */,
+				65F6957ECE3F4887E42EA32A /* ArtistDetailViewController.swift */,
 			);
 			name = Artists;
 			path = Artists;
@@ -3308,6 +3311,7 @@
 				9A06D0615D9A755278B25E80 /* AlbumDetailViewController.swift in Sources */,
 				36F40AD83E23172314E33EBE /* ContentToolbarView.swift in Sources */,
 				9C61211091E84D50D82A9E66 /* LyricsSidebarViewController.swift in Sources */,
+				AA3336977C479CCE132970DD /* ArtistDetailViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

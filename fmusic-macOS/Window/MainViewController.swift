@@ -161,6 +161,22 @@ final class MainViewController: NSViewController {
       }
     }
 
+    // Dev hook: `--artist <name>` pushes an artist detail page directly.
+    if let index = arguments.firstIndex(of: "--artist"), index + 1 < arguments.count {
+      let name = arguments[index + 1]
+      DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        guard let self,
+              let accountInfo = FmusicKit.shared.storage.settings.accounts.active
+        else { return }
+        let library = FmusicKit.shared.storage.main.library
+        let account = library.getAccount(info: accountInfo)
+        if let artist = library.getArtists(for: account)
+          .first(where: { $0.name.contains(name) }) {
+          self.openArtist(artist)
+        }
+      }
+    }
+
     if ProcessInfo.processInfo.arguments.contains("--toggle-lyrics-demo") {
       DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
         self?.toggleLyricsPane()
@@ -261,6 +277,10 @@ final class MainViewController: NSViewController {
 
   func openAlbum(_ album: Album) {
     push(AlbumDetailViewController(album: album), title: album.name)
+  }
+
+  func openArtist(_ artist: Artist) {
+    push(ArtistDetailViewController(artist: artist), title: artist.name)
   }
 
   private func attach(_ controller: NSViewController) {

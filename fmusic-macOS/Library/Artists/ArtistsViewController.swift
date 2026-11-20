@@ -220,6 +220,13 @@ final class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTa
 
   // MARK: - NSTableViewDelegate
 
+  func tableViewSelectionDidChange(_ notification: Notification) {
+    let row = tableView.selectedRow
+    guard row >= 0, row < artists.count else { return }
+    MainViewController.current?.openArtist(artists[row])
+    tableView.deselectAll(nil)
+  }
+
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
     let rowView = ThemedRowView()
     rowView.cornerRadius = 6
