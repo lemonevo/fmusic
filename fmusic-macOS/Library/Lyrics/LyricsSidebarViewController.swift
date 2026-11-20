@@ -654,7 +654,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = 6
     paragraph.lineBreakMode = .byWordWrapping
-    paragraph.alignment = .left
+    paragraph.alignment = .center
 
     let text = line.value.isEmpty ? " " : line.value
     func attributed(_ color: NSColor) -> NSAttributedString {
@@ -714,7 +714,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       let translationParagraph = NSMutableParagraphStyle()
       translationParagraph.lineSpacing = 3
       translationParagraph.lineBreakMode = .byWordWrapping
-      translationParagraph.alignment = .left
+      translationParagraph.alignment = .center
       translationLabel.attributedStringValue = NSAttributedString(
         string: translationText,
         attributes: [
