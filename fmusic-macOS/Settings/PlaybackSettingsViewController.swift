@@ -65,6 +65,39 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
     }
     addSection(rows: [crossfadeRow])
 
+    // MARK: Lyrics offset
+
+    let lyricsOffsetRow = makeSliderRow(
+      title: L10n.tr("Lyrics Offset"),
+      value: Double(user.lyricsOffsetMs),
+      range: -500 ... 500,
+      step: 50,
+      sliderWidth: 200,
+      valueWidth: 120,
+      valueFormatter: { value in
+        Self.lyricsOffsetDescription(Int(value.rounded()))
+      }
+    ) { value in
+      let offset = min(500, max(-500, Int(value.rounded())))
+      guard offset != SettingsStore.user.lyricsOffsetMs else { return }
+      // Copy-mutate-assign like every other settings control so the packaged settings
+      // observer encodes the new value exactly once.
+      SettingsStore.updateUser { $0.lyricsOffsetMs = offset }
+      // Lyrics pages, the sidebar lyrics pane and the desktop lyrics overlay cache the
+      // offset and re-read it when this core notification arrives.
+      FmusicKit.shared.notificationHandler.post(
+        name: .lyricsOffsetChanged,
+        object: nil,
+        userInfo: nil
+      )
+    }
+    addSection(
+      footer: L10n.tr(
+        "Positive values show the lyrics earlier, negative values later. 0 ms keeps the lyrics in sync."
+      ),
+      rows: [lyricsOffsetRow]
+    )
+
     // MARK: ReplayGain
 
     let replayGainRow = makeSwitchRow(
@@ -119,5 +152,15 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
       ),
       rows: [autoplayRow]
     )
+  }
+
+  /// Mirrors the wording used by the lyrics page and the desktop lyrics offset controls.
+  private static func lyricsOffsetDescription(_ milliseconds: Int) -> String {
+    guard milliseconds != 0 else { return L10n.tr("Synced") }
+    let seconds = String(format: "%.1fs", abs(Double(milliseconds)) / 1_000)
+    let direction = milliseconds > 0
+      ? L10n.tr("Lyrics ahead by")
+      : L10n.tr("Lyrics behind by")
+    return "\(direction) \(seconds)"
   }
 }

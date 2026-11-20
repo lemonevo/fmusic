@@ -65,6 +65,13 @@ final class DisplaySettingsViewController: SettingsPageViewController {
 
     addSection(rows: [themeRow, artworkRow])
 
+    // MARK: App icon (Dock icon, pure AppKit best effort)
+
+    let appIconPicker = AppIconPickerView(selectedID: AppIconManager.selectedIconID) { iconID in
+      AppIconManager.apply(iconID: iconID)
+    }
+    addSection(header: L10n.tr("App Icon"), rows: [appIconPicker])
+
     // MARK: Lyrics
 
     let smoothScrollingRow = makeSwitchRow(

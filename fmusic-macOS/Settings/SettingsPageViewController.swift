@@ -302,6 +302,7 @@ class SettingsPageViewController: NSViewController {
     range: ClosedRange<Double>,
     step: Double = 0,
     sliderWidth: CGFloat = 200,
+    valueWidth: CGFloat = 60,
     valueFormatter: @escaping (Double) -> String,
     handler: @escaping (Double) -> Void
   )
@@ -311,6 +312,7 @@ class SettingsPageViewController: NSViewController {
       range: range,
       step: step,
       sliderWidth: sliderWidth,
+      valueWidth: valueWidth,
       valueFormatter: valueFormatter,
       handler: handler
     )

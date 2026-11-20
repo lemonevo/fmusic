@@ -196,6 +196,8 @@ public enum L10n {
     "Lyrics ahead by": "提前",
     "Lyrics behind by": "延后",
     "Synced": "已同步",
+    "Positive values show the lyrics earlier, negative values later. 0 ms keeps the lyrics in sync.":
+      "正值会让歌词提前显示，负值会让歌词延后显示；0 毫秒表示与音乐保持同步。",
     "Search Online Lyrics": "在线匹配歌词",
     "Searching online lyrics…": "正在在线匹配歌词…",
     "No matching lyrics found online.": "没有找到匹配的在线歌词。",
