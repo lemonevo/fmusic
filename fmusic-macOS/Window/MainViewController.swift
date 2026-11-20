@@ -191,16 +191,16 @@ final class MainViewController: NSViewController {
   }
 
   private func layoutPlayerCapsule() {
-    let bounds = view.bounds
-    let sidebarWidth = sidebarViewController.view.frame.width > 0
-      ? sidebarViewController.view.frame.width
-      : 210
-    let available = bounds.width - sidebarWidth - 24
+    // The capsule lives inside the content column and scales with it: opening the
+    // lyrics pane shrinks the middle column, so the capsule shrinks too.
+    let sidebarWidth: CGFloat = 210
+    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 260 : 0
+    let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
-    let width = min(780, max(300, available))
+    let width = min(780, max(300, available - 16))
     let height = PlayerBarViewController.capsuleHeight
     playerBarViewController.view.frame = NSRect(
-      x: sidebarWidth + 12,
+      x: sidebarWidth + (available - width) / 2,
       y: 12,
       width: width,
       height: height

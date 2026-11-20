@@ -103,7 +103,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     controlsGroup.orientation = .horizontal
     controlsGroup.alignment = .centerY
-    controlsGroup.spacing = 10
+    controlsGroup.spacing = 8
     controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let infoGroup = NSStackView(views: [artworkView, infoStack()])
@@ -123,7 +123,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
-    rightGroup.spacing = 12
+    rightGroup.spacing = 10
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsule.addSubview(controlsGroup)
@@ -137,17 +137,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       capsule.bottomAnchor.constraint(equalTo: root.bottomAnchor),
       capsule.heightAnchor.constraint(equalToConstant: Self.capsuleHeight),
 
-      controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 22),
+      controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
       controlsGroup.centerYAnchor.constraint(
         equalTo: capsule.centerYAnchor,
         constant: -2
       ),
 
-      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 20),
+      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 16),
       infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
-      infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 220),
+      infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 200),
 
-      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -22),
+      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
       rightGroup.leadingAnchor.constraint(
         greaterThanOrEqualTo: infoGroup.trailingAnchor,
@@ -243,7 +243,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       size: 12,
       action: #selector(cycleRepeatMode)
     )
-    playPauseButton.widthAnchor.constraint(equalToConstant: 30).isActive = true
+    playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
   }
 
   private func configureRightCluster() {
@@ -279,7 +279,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeSlider.target = self
     volumeSlider.action = #selector(changeVolume)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-    volumeSlider.widthAnchor.constraint(equalToConstant: 72).isActive = true
+    volumeSlider.widthAnchor.constraint(equalToConstant: 56).isActive = true
   }
 
   private func configureProgressLine() {
@@ -300,8 +300,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
-      progressTrack.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 22),
-      progressTrack.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -22),
+      progressTrack.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
+      progressTrack.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -5),
       progressTrack.heightAnchor.constraint(equalToConstant: 2),
 
@@ -323,7 +323,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+    button.widthAnchor.constraint(equalToConstant: 22).isActive = true
     button.heightAnchor.constraint(equalToConstant: 26).isActive = true
   }
 
@@ -337,11 +337,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   override func viewDidLayout() {
     super.viewDidLayout()
     let width = view.bounds.width
-    let shouldCompact = width < 520
+    let shouldCompact = width < 480
     infoGroup?.isHidden = shouldCompact
-    volumeSlider.isHidden = width < 400
-    volumeIcon.isHidden = width < 400
-    outputButton.isHidden = width < 460
+    volumeSlider.isHidden = width < 380
+    volumeIcon.isHidden = width < 380
+    outputButton.isHidden = width < 430
     updateProgressFill()
     compactMode = shouldCompact
   }
