@@ -426,7 +426,9 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
   override func viewWillDisappear(_ animated: Bool) {
     super.viewWillDisappear(animated)
     resignFirstResponder()
-    AudioOutputPicker.dismiss()
+    #if targetEnvironment(macCatalyst)
+      AudioOutputPicker.dismiss()
+    #endif
     #if targetEnvironment(macCatalyst)
       isPlayerVisible = false
       windowVolumeControl?.detach()

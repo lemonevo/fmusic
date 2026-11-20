@@ -183,7 +183,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     guard let scene = UIApplication.shared.connectedScenes
       .first(where: { $0.delegate is SceneDelegate }) as? UIWindowScene
     else { return nil }
-    return scene.effectiveGeometry.systemFrame
+    #if targetEnvironment(macCatalyst)
+      return scene.effectiveGeometry.systemFrame
+    #else
+      return scene.coordinateSpace.bounds
+    #endif
   }
 
   func stopForInit() {
