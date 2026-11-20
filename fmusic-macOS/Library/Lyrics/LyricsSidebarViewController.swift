@@ -698,7 +698,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     // Catalyst blurs the inactive lines (Apple Music style); the active line stays sharp.
     let dimImage = isActive
       ? sharpDimImage
-      : sharpDimImage.flatMap { Self.blurred($0, radius: 2.2 * scale) }
+      : sharpDimImage.flatMap { Self.blurred($0, radius: 0.8 * scale) }
     if isActive {
       let brightImage = LyricsRasterizer.image(
         layout: layout,
