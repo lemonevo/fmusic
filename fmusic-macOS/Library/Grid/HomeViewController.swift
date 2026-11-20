@@ -374,6 +374,19 @@ extension HomeViewController: NSCollectionViewDataSource {
 // MARK: - HomeViewController + NSCollectionViewDelegateFlowLayout
 
 extension HomeViewController: NSCollectionViewDelegateFlowLayout {
+
+  func collectionView(
+    _ collectionView: NSCollectionView,
+    didSelectItemsAt indexPaths: Set<IndexPath>
+  ) {
+    guard let indexPath = indexPaths.first,
+          indexPath.section >= 0,
+          indexPath.section < sections.count else { return }
+    let albums = sections[indexPath.section].albums
+    guard indexPath.item >= 0, indexPath.item < albums.count else { return }
+    MainViewController.current?.openAlbum(albums[indexPath.item])
+    collectionView.deselectItems(at: indexPaths)
+  }
   func collectionView(
     _ collectionView: NSCollectionView,
     layout collectionViewLayout: NSCollectionViewLayout,

@@ -32,10 +32,15 @@ final class LyricsPageViewController: NSViewController, MusicPlayable, NSTableVi
   NSTableViewDelegate {
   // MARK: - Layout constants
 
-  fileprivate static let lineFont = NSFont.systemFont(ofSize: 21, weight: .regular)
-  fileprivate static let currentLineFont = NSFont.systemFont(ofSize: 21, weight: .semibold)
-  fileprivate static let translationFont = NSFont.systemFont(ofSize: 13, weight: .regular)
-  fileprivate static let lineHorizontalInset: CGFloat = 56
+  fileprivate static var lineFont = NSFont.systemFont(ofSize: 21, weight: .regular)
+  fileprivate static var currentLineFont = NSFont.systemFont(ofSize: 21, weight: .semibold)
+  fileprivate static var translationFont = NSFont.systemFont(ofSize: 13, weight: .regular)
+  fileprivate static var lineHorizontalInset: CGFloat = 56
+  fileprivate static var appliedFontSize: CGFloat = 21
+
+  /// The page is embedded in the 260 pt wide side pane: no header/offset bar, tighter
+  /// column and an inset so the floating capsule does not cover the text.
+  var compactPaneMode = false
   private static let offsetStepMs = 100
 
   // MARK: - Views
@@ -172,6 +177,31 @@ final class LyricsPageViewController: NSViewController, MusicPlayable, NSTableVi
   override func viewDidLayout() {
     super.viewDidLayout()
     offsetCaptionLabel.isHidden = view.bounds.width < 400
+    if compactPaneMode {
+      songTitleLabel.isHidden = true
+      artistLabel.isHidden = true
+      offsetStack.isHidden = true
+      if let column = tableView.tableColumns.first {
+        column.minWidth = 60
+        column.width = max(60, scrollView.contentView.bounds.width)
+      }
+      var insets = scrollView.contentInsets
+      insets.bottom = max(insets.bottom, PlayerBarViewController.capsuleHeight + 24)
+      scrollView.contentInsets = insets
+
+    }
+    // The side pane is much narrower than the full lyrics page: use a smaller,
+    // tighter typography so the lines stay centered and readable.
+    let compact = view.bounds.width < 340
+    let fontSize: CGFloat = compact ? 13 : 21
+    if fontSize != Self.appliedFontSize {
+      Self.appliedFontSize = fontSize
+      Self.lineFont = .systemFont(ofSize: fontSize, weight: .regular)
+      Self.currentLineFont = .systemFont(ofSize: fontSize, weight: .semibold)
+      Self.translationFont = .systemFont(ofSize: compact ? 10 : 13, weight: .regular)
+      Self.lineHorizontalInset = compact ? 12 : 56
+      tableView.reloadData()
+    }
     let width = tableView.bounds.width
     guard abs(width - lastLayoutWidth) > 0.5 else { return }
     lastLayoutWidth = width

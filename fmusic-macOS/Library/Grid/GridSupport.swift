@@ -497,6 +497,17 @@ extension AlbumGridPageViewController: NSCollectionViewDataSource {
 // MARK: - AlbumGridPageViewController + NSCollectionViewDelegateFlowLayout
 
 extension AlbumGridPageViewController: NSCollectionViewDelegateFlowLayout {
+
+  func collectionView(
+    _ collectionView: NSCollectionView,
+    didSelectItemsAt indexPaths: Set<IndexPath>
+  ) {
+    guard let indexPath = indexPaths.first,
+          indexPath.item >= 0,
+          indexPath.item < albums.count else { return }
+    MainViewController.current?.openAlbum(albums[indexPath.item])
+    collectionView.deselectItems(at: indexPaths)
+  }
   func collectionView(
     _ collectionView: NSCollectionView,
     layout collectionViewLayout: NSCollectionViewLayout,

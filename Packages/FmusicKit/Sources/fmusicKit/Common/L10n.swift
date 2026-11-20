@@ -180,6 +180,7 @@ public enum L10n {
     // MARK: Player & queue
 
     "Queue": "播放队列",
+    "Add to Queue": "添加到队列",
     "Previous": "之前",
     "Next from Queue": "队列中的下一首",
     "Lyrics": "歌词",

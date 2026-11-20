@@ -21,24 +21,33 @@ import fmusicKit
 
 /// Root content controller of the main window.
 ///
-/// Layout (Apple Music style):
+/// Layout (Catalyst fmusic style):
 ///   ┌────────────┬──────────────────────┬──────────────┐
-///   │ sidebar    │ library content      │ lyrics pane  │
-///   │ (210 pt)   │                      │ (optional)   │
+///   │ sidebar    │ content toolbar      │ lyrics pane  │
+///   │ (210 pt)   ├──────────────────────┤ (optional)   │
+///   │            │ page content         │              │
 ///   └────────────┴──────────────────────┴──────────────┘
 ///        ╭──────────────────────────────────────────╮
 ///        │ floating capsule player bar              │
 ///        ╰──────────────────────────────────────────╯
 @MainActor
 final class MainViewController: NSViewController {
+  static weak var current: MainViewController?
+
   private(set) var sidebarViewController = SidebarViewController()
   private(set) var contentContainerViewController = NSViewController()
   private(set) var playerBarViewController = PlayerBarViewController()
-  private(set) lazy var lyricsPaneViewController = LyricsPageViewController()
+  private(set) lazy var lyricsPaneViewController = LyricsSidebarViewController()
 
   private let splitViewController = NSSplitViewController()
+  private let toolbar = ContentToolbarView()
+  private let pageContainer = NSViewController()
+  private var pageStack: [NSViewController] = []
+  private var pageTitles: [String] = []
   private var lyricsPaneItem: NSSplitViewItem?
   private(set) var isLyricsPaneVisible = false
+
+  private var didApplyInitialSplitPositions = false
 
   override func loadView() {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
@@ -53,7 +62,6 @@ final class MainViewController: NSViewController {
 
     let contentItem = NSSplitViewItem(viewController: contentContainerViewController)
     contentItem.minimumThickness = 380
-    // The content column absorbs the space freed when the lyrics pane collapses.
     contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
     let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
@@ -73,33 +81,55 @@ final class MainViewController: NSViewController {
     splitViewController.view.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(splitViewController.view)
 
-    // The player capsule floats over the library content column (Apple Music style):
-    // the content scrolls underneath it, the sidebar and lyrics pane stay full height.
+    // Content column: toolbar on top, pushed pages below, floating capsule on top.
+    addChild(pageContainer)
     contentContainerViewController.view.wantsLayer = true
+    toolbar.translatesAutoresizingMaskIntoConstraints = false
+    pageContainer.view.translatesAutoresizingMaskIntoConstraints = false
+    contentContainerViewController.view.addSubview(toolbar)
+    contentContainerViewController.view.addSubview(pageContainer.view)
+
     addChild(playerBarViewController)
     let capsuleView = playerBarViewController.view
     // Manual frame layout: the floating capsule must never contribute to the content
     // column's minimum size (otherwise opening the lyrics pane grows the window).
     capsuleView.translatesAutoresizingMaskIntoConstraints = true
-    contentContainerViewController.view.addSubview(capsuleView)
+    root.addSubview(capsuleView)
 
     NSLayoutConstraint.activate([
       splitViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
       splitViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       splitViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       splitViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+
+      toolbar.topAnchor.constraint(equalTo: contentContainerViewController.view.topAnchor),
+      toolbar.leadingAnchor.constraint(equalTo: contentContainerViewController.view.leadingAnchor),
+      toolbar.trailingAnchor.constraint(equalTo: contentContainerViewController.view.trailingAnchor),
+      toolbar.heightAnchor.constraint(equalToConstant: ContentToolbarView.height),
+
+      pageContainer.view.topAnchor.constraint(equalTo: toolbar.bottomAnchor),
+      pageContainer.view.leadingAnchor.constraint(equalTo: contentContainerViewController.view.leadingAnchor),
+      pageContainer.view.trailingAnchor.constraint(equalTo: contentContainerViewController.view.trailingAnchor),
+      pageContainer.view.bottomAnchor.constraint(equalTo: contentContainerViewController.view.bottomAnchor),
     ])
 
     self.view = root
+    Self.current = self
   }
 
   override func viewDidLoad() {
     super.viewDidLoad()
     sidebarViewController.onSelectionChanged = { [weak self] item in
-      self?.show(item: item)
+      self?.showRoot(item: item)
     }
     playerBarViewController.onToggleLyricsPane = { [weak self] in
       self?.toggleLyricsPane()
+    }
+    toolbar.onBack = { [weak self] in
+      self?.pop()
+    }
+    toolbar.onSearchChange = { [weak self] text in
+      self?.currentPageDidChangeSearch(text: text)
     }
 
     // Dev hooks: `--songs` or `--page <sidebar-item-raw-value>` open a page directly.
@@ -113,17 +143,27 @@ final class MainViewController: NSViewController {
       initialItem = .songs
     }
     sidebarViewController.select(item: initialItem)
-    show(item: initialItem)
+    showRoot(item: initialItem)
+
+    // Dev hook: `--album <name>` pushes an album detail page directly.
+    if let index = arguments.firstIndex(of: "--album"), index + 1 < arguments.count {
+      let name = arguments[index + 1]
+      DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        guard let self,
+              let accountInfo = FmusicKit.shared.storage.settings.accounts.active
+        else { return }
+        let library = FmusicKit.shared.storage.main.library
+        let account = library.getAccount(info: accountInfo)
+        if let album = library.getAlbums(for: account)
+          .first(where: { $0.name.contains(name) }) {
+          self.openAlbum(album)
+        }
+      }
+    }
 
     if ProcessInfo.processInfo.arguments.contains("--toggle-lyrics-demo") {
       DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
-        guard let self else { return }
-        let before = self.view.window?.frame ?? .zero
-        self.toggleLyricsPane()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-          let after = self.view.window?.frame ?? .zero
-          print("[fmusic] window before=\(before) after=\(after)")
-        }
+        self?.toggleLyricsPane()
       }
     }
 
@@ -134,25 +174,9 @@ final class MainViewController: NSViewController {
     )
   }
 
-  private var didApplyInitialSplitPositions = false
-
   override func viewDidLayout() {
     super.viewDidLayout()
     layoutPlayerCapsule()
-  }
-
-  private func layoutPlayerCapsule() {
-    let bounds = contentContainerViewController.view.bounds
-    guard bounds.width > 0 else { return }
-    let width = min(720, max(300, bounds.width - 40))
-    let height = PlayerBarViewController.capsuleHeight
-    let frame = NSRect(
-      x: bounds.midX - width / 2,
-      y: 12,
-      width: width,
-      height: height
-    )
-    playerBarViewController.view.frame = frame
   }
 
   override func viewDidAppear() {
@@ -162,14 +186,113 @@ final class MainViewController: NSViewController {
     let splitView = splitViewController.splitView
     splitView.setPosition(210, ofDividerAt: 0)
     if isLyricsPaneVisible, splitView.subviews.count > 2 {
-      splitView.setPosition(splitView.bounds.width - 310, ofDividerAt: 1)
+      splitView.setPosition(splitView.bounds.width - 260, ofDividerAt: 1)
     }
+  }
+
+  private func layoutPlayerCapsule() {
+    let bounds = view.bounds
+    let sidebarWidth = sidebarViewController.view.frame.width > 0
+      ? sidebarViewController.view.frame.width
+      : 210
+    let available = bounds.width - sidebarWidth - 24
+    guard available > 0 else { return }
+    let width = min(780, max(300, available))
+    let height = PlayerBarViewController.capsuleHeight
+    playerBarViewController.view.frame = NSRect(
+      x: sidebarWidth + 12,
+      y: 12,
+      width: width,
+      height: height
+    )
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
   func select(item: SidebarItem) {
     sidebarViewController.select(item: item)
-    show(item: item)
+    showRoot(item: item)
+  }
+
+  // MARK: - Navigation
+
+  private func showRoot(item: SidebarItem) {
+    let controller: NSViewController
+    switch item {
+    case .home: controller = HomeViewController()
+    case .songs: controller = SongsViewController()
+    case .artists: controller = ArtistsViewController()
+    case .albums: controller = AlbumsViewController()
+    case .newestAlbums: controller = NewestAlbumsViewController()
+    case .recentlyPlayed: controller = RecentlyPlayedViewController()
+    case .search: controller = SearchViewController()
+    case .favoriteSongs: controller = FavoriteSongsViewController()
+    case .playlists: controller = PlaylistsViewController()
+    case .podcasts: controller = PodcastsViewController()
+    case .directories: controller = DirectoriesViewController()
+    case .radios: controller = RadiosViewController()
+    case .downloads: controller = DownloadsViewController()
+    case .lyricsSearch: controller = LyricsSearchViewController()
+    }
+    pageStack.forEach(removePage)
+    pageStack = [controller]
+    pageTitles = [item.title]
+    attach(controller)
+    updateToolbar(title: item.title, showsBack: false)
+  }
+
+  /// Pushes a detail page over the current one (back button appears in the toolbar).
+  func push(_ controller: NSViewController, title: String) {
+    pageStack.append(controller)
+    pageTitles.append(title)
+    attach(controller)
+    updateToolbar(title: title, showsBack: true)
+  }
+
+  func pop() {
+    guard pageStack.count > 1 else { return }
+    let controller = pageStack.removeLast()
+    pageTitles.removeLast()
+    removePage(controller)
+    updateToolbar(
+      title: pageTitles.last ?? "",
+      showsBack: pageStack.count > 1
+    )
+  }
+
+  func openAlbum(_ album: Album) {
+    push(AlbumDetailViewController(album: album), title: album.name)
+  }
+
+  private func attach(_ controller: NSViewController) {
+    controller.view.translatesAutoresizingMaskIntoConstraints = false
+    pageContainer.view.addSubview(controller.view)
+    NSLayoutConstraint.activate([
+      controller.view.topAnchor.constraint(equalTo: pageContainer.view.topAnchor),
+      controller.view.leadingAnchor.constraint(equalTo: pageContainer.view.leadingAnchor),
+      controller.view.trailingAnchor.constraint(equalTo: pageContainer.view.trailingAnchor),
+      controller.view.bottomAnchor.constraint(equalTo: pageContainer.view.bottomAnchor),
+    ])
+    pageContainer.addChild(controller)
+    applyCapsuleContentInset(to: controller.view)
+    view.addSubview(playerBarViewController.view, positioned: .above, relativeTo: nil)
+  }
+
+  private func removePage(_ controller: NSViewController) {
+    controller.view.removeFromSuperview()
+    controller.removeFromParent()
+  }
+
+  private func updateToolbar(title: String, showsBack: Bool) {
+    let searchable = pageStack.last as? ContentSearchable
+    toolbar.configure(
+      title: title,
+      showsBack: showsBack,
+      searchPlaceholder: searchable?.contentSearchPlaceholder
+    )
+  }
+
+  private func currentPageDidChangeSearch(text: String) {
+    (pageStack.last as? ContentSearchable)?.contentSearchDidChange(text: text)
   }
 
   // MARK: - Lyrics pane
@@ -208,51 +331,10 @@ final class MainViewController: NSViewController {
     DispatchQueue.main.async { [weak self, weak splitView] in
       guard let self, let splitView, splitView.subviews.count > 2 else { return }
       splitView.setPosition(
-        max(self.sidebarViewController.view.frame.width, splitView.bounds.width - 340),
+        max(280, splitView.bounds.width - 260),
         ofDividerAt: 1
       )
     }
-  }
-
-  // MARK: - Content
-
-  private func show(item: SidebarItem) {
-    let controller: NSViewController
-    switch item {
-    case .home: controller = HomeViewController()
-    case .songs: controller = SongsViewController()
-    case .artists: controller = ArtistsViewController()
-    case .albums: controller = AlbumsViewController()
-    case .newestAlbums: controller = NewestAlbumsViewController()
-    case .recentlyPlayed: controller = RecentlyPlayedViewController()
-    case .search: controller = SearchViewController()
-    case .favoriteSongs: controller = FavoriteSongsViewController()
-    case .playlists: controller = PlaylistsViewController()
-    case .podcasts: controller = PodcastsViewController()
-    case .directories: controller = DirectoriesViewController()
-    case .radios: controller = RadiosViewController()
-    case .downloads: controller = DownloadsViewController()
-    case .lyricsSearch: controller = LyricsSearchViewController()
-    }
-    for child in contentContainerViewController.children {
-      child.view.removeFromSuperview()
-      child.removeFromParent()
-    }
-    controller.view.translatesAutoresizingMaskIntoConstraints = false
-    contentContainerViewController.view.addSubview(controller.view)
-    NSLayoutConstraint.activate([
-      controller.view.topAnchor.constraint(equalTo: contentContainerViewController.view.topAnchor),
-      controller.view.leadingAnchor.constraint(equalTo: contentContainerViewController.view.leadingAnchor),
-      controller.view.trailingAnchor.constraint(equalTo: contentContainerViewController.view.trailingAnchor),
-      controller.view.bottomAnchor.constraint(equalTo: contentContainerViewController.view.bottomAnchor),
-    ])
-    contentContainerViewController.addChild(controller)
-    applyCapsuleContentInset(to: controller.view)
-    contentContainerViewController.view.addSubview(
-      playerBarViewController.view,
-      positioned: .above,
-      relativeTo: nil
-    )
   }
 
   /// Reserves space under the floating capsule so the last rows can scroll above it.
