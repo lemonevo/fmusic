@@ -29,6 +29,7 @@ public class AudioSessionHandler {
   var eventLogger: EventLogger?
 
   func configureObserverForAudioSessionInterruption() {
+    #if canImport(UIKit)
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(handleAudioSessionInterruption),
@@ -41,8 +42,10 @@ public class AudioSessionHandler {
       name: AVAudioSession.routeChangeNotification,
       object: nil
     )
+    #endif
   }
 
+  #if canImport(UIKit)
   @objc
   private func handleAudioSessionInterruption(notification: NSNotification) {
     guard let interruptionTypeRaw: NSNumber = notification
@@ -115,13 +118,16 @@ public class AudioSessionHandler {
     default: break
     }
   }
+  #endif
 
   func configureBackgroundPlayback() {
+    #if canImport(UIKit)
     do {
       try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
       try AVAudioSession.sharedInstance().setActive(true)
     } catch {
       eventLogger?.report(topic: "Audio Session", error: error)
     }
+    #endif
   }
 }

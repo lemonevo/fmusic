@@ -17,6 +17,7 @@
 //
 
 import CoreGraphics
+import CoreImage
 import Foundation
 
 #if canImport(UIKit)
@@ -173,6 +174,32 @@ public extension PlatformImage {
     }
     return tinted
     #endif
+  }
+
+  /// A copy of the image with all colors inverted (the playback "inverted" artwork).
+  func invertedImage() -> PlatformImage {
+    #if canImport(UIKit)
+    guard let cgImage = cgImage else { return PlatformImage() }
+    guard let inverted = Self.invertedCGImage(from: cgImage) else { return PlatformImage() }
+    return PlatformImage(cgImage: inverted, scale: scale, orientation: .up)
+    #else
+    guard let cgImage = platformCGImage else { return PlatformImage(size: .zero) }
+    guard let inverted = Self.invertedCGImage(from: cgImage) else {
+      return PlatformImage(size: .zero)
+    }
+    return PlatformImage(cgImage: inverted, size: size)
+    #endif
+  }
+
+  /// CoreImage based color inversion shared by both platform implementations.
+  private static func invertedCGImage(from cgImage: CGImage) -> CGImage? {
+    let ciImage = CoreImage.CIImage(cgImage: cgImage)
+    guard let filter = CIFilter(name: "CIColorInvert") else { return nil }
+    filter.setDefaults()
+    filter.setValue(ciImage, forKey: kCIInputImageKey)
+    let context = CIContext(options: nil)
+    guard let outputImage = filter.outputImage else { return nil }
+    return context.createCGImage(outputImage, from: outputImage.extent)
   }
 }
 
