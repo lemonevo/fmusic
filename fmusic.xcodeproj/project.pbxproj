@@ -370,6 +370,7 @@
 		667E46747C2733B04061ED98 /* SongsVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49CA60E4BEBCDFC8AA81E84D /* SongsVC.swift */; };
 		67187B50C12804CBD8682F0E /* LargeCurrentlyPlayingPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EDAE4CB9966619A9403C2FD /* LargeCurrentlyPlayingPlayerView.swift */; };
 		679173BAACF2BB3108078D25 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = E2B296E02AD3B7E311555CA0 /* Main.storyboard */; };
+		67FF2DF3BBAEA0590D3CED88 /* XCallbackManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D64AE0D5F0EAB69509210FE9 /* XCallbackManager.swift */; };
 		6841A52FBED63836F1369C66 /* NSUserActivity+IntentData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31F903610917B4C4FBEFB0B1 /* NSUserActivity+IntentData.swift */; };
 		688AF77E906D0D6B3616627A /* PlaybackSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57CE018F976D862AACA73D04 /* PlaybackSettingsViewController.swift */; };
 		68EAD7BE9CFD4DC67CA5875B /* AlbumsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B9802A375D607C6B910BB93 /* AlbumsViewController.swift */; };
@@ -516,6 +517,7 @@
 		B433E2F64953E8296169830D /* GenericTableCell.xib in Resources */ = {isa = PBXBuildFile; fileRef = 51A3908CB4CB399060181542 /* GenericTableCell.xib */; };
 		B53EBC375819958036DDAB30 /* EquilizerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2285E54B85FA7AC1FF709F03 /* EquilizerView.swift */; };
 		B5A5CE010000000000000001 /* ShareSongActionTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A5CE010000000000000002 /* ShareSongActionTest.swift */; };
+		B662A9112DA28C5D9C909632 /* CallbackURLKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3DAA02DC57D7310A77AF3F4F /* CallbackURLKit */; };
 		B71FAA0E06065D623394E1E0 /* LyricTableCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CEE882F1533EFD777CBAB26 /* LyricTableCell.swift */; };
 		B7FAAF6EF477C714F44A0C31 /* SettingsList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3003F5BB9EC0BCC6AA6B3091 /* SettingsList.swift */; };
 		B8CD20F9E38AB759E8D79BB8 /* RecentlyPlayedViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A32E8E5E4EF977150BB83423 /* RecentlyPlayedViewController.swift */; };
@@ -1171,6 +1173,7 @@
 		D5358F70B7444CB358A988AB /* SupportSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupportSettingsViewController.swift; sourceTree = "<group>"; };
 		D5C4E69D5E021E0EAEEA0685 /* BasicCollectionCell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BasicCollectionCell.swift; path = fmusic/Screens/Basics/BasicCollectionCell.swift; sourceTree = "<group>"; };
 		D5DA9125EA47D910E83CD209 /* Constants.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = "fmusic/SwiftUI/Settings/Player/iOS-SpotifyEquilizerView/Constants.swift"; sourceTree = "<group>"; };
+		D64AE0D5F0EAB69509210FE9 /* XCallbackManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = XCallbackManager.swift; sourceTree = "<group>"; };
 		D6FFEA9AEEBCE796237491A2 /* DisplaySettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DisplaySettingsViewController.swift; sourceTree = "<group>"; };
 		D702A475A236206CC736E968 /* NextPreviousTrackIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NextPreviousTrackIntent.swift; path = fmusic/Intents/AppIntents/NextPreviousTrackIntent.swift; sourceTree = "<group>"; };
 		D801093F9AEC6BF295446C21 /* AppDelegateMainMenuExtension.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppDelegateMainMenuExtension.swift; path = fmusic/AppDelegateMainMenuExtension.swift; sourceTree = "<group>"; };
@@ -1259,6 +1262,7 @@
 			files = (
 				6D423228814E2E04F8592022 /* Cocoa.framework in Frameworks */,
 				E60F68ED6107F8EFC21C16E3 /* fmusicKit in Frameworks */,
+				B662A9112DA28C5D9C909632 /* CallbackURLKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2235,6 +2239,15 @@
 			path = Playlists;
 			sourceTree = "<group>";
 		};
+		A71D73C8D9CD25FEFA24AF64 /* XCallback */ = {
+			isa = PBXGroup;
+			children = (
+				D64AE0D5F0EAB69509210FE9 /* XCallbackManager.swift */,
+			);
+			name = XCallback;
+			path = XCallback;
+			sourceTree = "<group>";
+		};
 		A78C222FC0A6E98B20B3380B /* Grid */ = {
 			isa = PBXGroup;
 			children = (
@@ -2391,6 +2404,7 @@
 				7BAD05D2FB0403EFF1424FE3 /* Lyrics */,
 				17E7EC848453DD5810C0CBAF /* Login */,
 				0E4EBEF74D2DDBE00545F276 /* MiniPlayer */,
+				A71D73C8D9CD25FEFA24AF64 /* XCallback */,
 			);
 			name = "fmusic-macOS";
 			path = "fmusic-macOS";
@@ -2500,6 +2514,7 @@
 			name = "fmusic-macOS";
 			packageProductDependencies = (
 				94BD5A14C30EA788C8140396 /* fmusicKit */,
+				3DAA02DC57D7310A77AF3F4F /* CallbackURLKit */,
 			);
 			productName = "fmusic-macOS";
 			productReference = E521799FB6FD736F73B0CBF1 /* fmusic-macOS.app */;
@@ -3233,6 +3248,7 @@
 				145DAAD28ECF0860D76EFEEC /* LyricsPageWindowController.swift in Sources */,
 				D29E34F2ADC1140697F486DE /* LyricsSearchPreviewPane.swift in Sources */,
 				0C9EC2E104C7CB14C482B519 /* LyricsSearchViewController.swift in Sources */,
+				67FF2DF3BBAEA0590D3CED88 /* XCallbackManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3826,6 +3842,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 509D55F6281274F500E0E0B5 /* XCRemoteSwiftPackageReference "VYPlayIndicator" */;
 			productName = VYPlayIndicator;
+		};
+		3DAA02DC57D7310A77AF3F4F /* CallbackURLKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 50BE5DA3285713B100156FC6 /* XCRemoteSwiftPackageReference "CallbackURLKit" */;
+			productName = CallbackURLKit;
 		};
 		4BC17F1A62236EBA5DF327DE /* NotificationBannerSwift */ = {
 			isa = XCSwiftPackageProductDependency;
