@@ -273,6 +273,7 @@
 		8D6B98EA8B8C7B77A81EE746 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B40903DBDE58BD9CA1B545E /* AppDelegate.swift */; };
 		8F06179DE74B91BBA4B300A7 /* DesktopLyricsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7110380270E479872E045E /* DesktopLyricsWindow.swift */; };
 		907A960F28CAA324B82D4903 /* SongsFetchedResultsControllerTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45B693103EB659F5851BB3CF /* SongsFetchedResultsControllerTest.swift */; };
+		929659C2E2FCB753F1AE30C8 /* LibraryResyncProgressViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3312C6F4FBE8277BB782F02 /* LibraryResyncProgressViewController.swift */; };
 		936EEB7C39AC268E59B5D1D7 /* SettingsComponents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA35B5977AE2E443A7D0D1F6 /* SettingsComponents.swift */; };
 		A1B2C3D40000000000000031 /* TestAccountInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000032 /* TestAccountInfo.swift */; };
 		A1B2C3D40000000000000052 /* LyricsLineLayers.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000000000051 /* LyricsLineLayers.swift */; };
@@ -660,6 +661,7 @@
 		C6A1E0012F0A000100ABCDEF /* ReorderableListEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderableListEditor.swift; sourceTree = "<group>"; };
 		CC0000000000000000000005 /* EntityImageView.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = EntityImageView.xib; sourceTree = "<group>"; };
 		CF7B012A8CC2C4B0D7F234C7 /* QueueViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = QueueViewController.swift; sourceTree = "<group>"; };
+		D3312C6F4FBE8277BB782F02 /* LibraryResyncProgressViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryResyncProgressViewController.swift; sourceTree = "<group>"; };
 		D6FFEA9AEEBCE796237491A2 /* DisplaySettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DisplaySettingsViewController.swift; sourceTree = "<group>"; };
 		E521799FB6FD736F73B0CBF1 /* fmusic-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "fmusic-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E8411715940B82BA22CE311C /* SettingsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
@@ -739,6 +741,7 @@
 				325FB3EB834623C4F9503962 /* SettingsSidebarViewController.swift */,
 				E8411715940B82BA22CE311C /* SettingsStore.swift */,
 				2557C962C61AD6C941CD75DD /* SettingsViewController.swift */,
+				D3312C6F4FBE8277BB782F02 /* LibraryResyncProgressViewController.swift */,
 			);
 			name = Settings;
 			path = Settings;
@@ -2007,6 +2010,7 @@
 				84CDF57E7F9F7F6DCF12AC9E /* FavoriteSongsViewController.swift in Sources */,
 				BF2BF67DC29283EC0755D3F7 /* LibraryTableCells.swift in Sources */,
 				141DA9A9A661ADAB2497817B /* SearchViewController.swift in Sources */,
+				929659C2E2FCB753F1AE30C8 /* LibraryResyncProgressViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
