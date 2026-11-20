@@ -46,20 +46,22 @@ final class MainViewController: NSViewController {
 
     // Sidebar | content | optional lyrics pane.
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
-    sidebarItem.minimumThickness = 180
-    sidebarItem.maximumThickness = 320
+    sidebarItem.minimumThickness = 190
+    sidebarItem.maximumThickness = 240
     sidebarItem.canCollapse = false
-    sidebarItem.holdingPriority = NSLayoutConstraint.Priority(260)
+    sidebarItem.holdingPriority = NSLayoutConstraint.Priority(280)
 
     let contentItem = NSSplitViewItem(viewController: contentContainerViewController)
-    contentItem.minimumThickness = 420
+    contentItem.minimumThickness = 380
+    // The content column absorbs the space freed when the lyrics pane collapses.
+    contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
     let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
-    lyricsItem.minimumThickness = 300
-    lyricsItem.maximumThickness = 560
+    lyricsItem.minimumThickness = 280
+    lyricsItem.maximumThickness = 340
     lyricsItem.canCollapse = true
     lyricsItem.isCollapsed = true
-    lyricsItem.holdingPriority = NSLayoutConstraint.Priority(250)
+    lyricsItem.holdingPriority = NSLayoutConstraint.Priority(270)
     lyricsPaneItem = lyricsItem
 
     splitViewController.addSplitViewItem(sidebarItem)
@@ -100,7 +102,7 @@ final class MainViewController: NSViewController {
       capsuleView.heightAnchor.constraint(
         equalToConstant: PlayerBarViewController.capsuleHeight
       ),
-      capsuleView.widthAnchor.constraint(lessThanOrEqualToConstant: 680),
+      capsuleView.widthAnchor.constraint(lessThanOrEqualToConstant: 720),
       capsuleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 300),
     ])
 
@@ -167,6 +169,15 @@ final class MainViewController: NSViewController {
     playerBarViewController.isLyricsPaneVisible = visible
     if persist {
       SettingsStore.updateUser { $0.isPlayerLyricsDisplayed = visible }
+    }
+    guard visible else { return }
+    let splitView = splitViewController.splitView
+    DispatchQueue.main.async { [weak self, weak splitView] in
+      guard let self, let splitView, splitView.subviews.count > 2 else { return }
+      splitView.setPosition(
+        max(self.sidebarViewController.view.frame.width, splitView.bounds.width - 340),
+        ofDividerAt: 1
+      )
     }
   }
 

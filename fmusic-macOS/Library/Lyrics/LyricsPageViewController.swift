@@ -171,6 +171,7 @@ final class LyricsPageViewController: NSViewController, MusicPlayable, NSTableVi
 
   override func viewDidLayout() {
     super.viewDidLayout()
+    offsetCaptionLabel.isHidden = view.bounds.width < 400
     let width = tableView.bounds.width
     guard abs(width - lastLayoutWidth) > 0.5 else { return }
     lastLayoutWidth = width
@@ -280,11 +281,11 @@ final class LyricsPageViewController: NSViewController, MusicPlayable, NSTableVi
     offsetValueLabel.font = MacTheme.tabularBodyFont
     offsetValueLabel.alignment = .center
     offsetValueLabel.translatesAutoresizingMaskIntoConstraints = false
-    offsetValueLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 110).isActive = true
+    offsetValueLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 84).isActive = true
 
     offsetStack.orientation = .horizontal
     offsetStack.alignment = .centerY
-    offsetStack.spacing = 8
+    offsetStack.spacing = 6
     offsetStack.translatesAutoresizingMaskIntoConstraints = false
     offsetStack.addArrangedSubview(offsetCaptionLabel)
     offsetStack.addArrangedSubview(offsetMinusButton)

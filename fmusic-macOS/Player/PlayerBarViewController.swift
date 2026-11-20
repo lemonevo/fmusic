@@ -151,7 +151,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
       leftGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 14),
       leftGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
-      leftGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 150),
+      leftGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 130),
 
       controlsGroup.leadingAnchor.constraint(
         greaterThanOrEqualTo: leftGroup.trailingAnchor,
@@ -168,7 +168,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         lessThanOrEqualTo: rightGroup.leadingAnchor,
         constant: -18
       ),
-      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 80),
+      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 140),
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
@@ -229,16 +229,16 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     artworkView.layer?.masksToBounds = true
     artworkView.translatesAutoresizingMaskIntoConstraints = false
     NSLayoutConstraint.activate([
-      artworkView.widthAnchor.constraint(equalToConstant: 38),
-      artworkView.heightAnchor.constraint(equalToConstant: 38),
+      artworkView.widthAnchor.constraint(equalToConstant: 34),
+      artworkView.heightAnchor.constraint(equalToConstant: 34),
     ])
   }
 
   private func infoStack() -> NSStackView {
-    titleLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+    titleLabel.font = .systemFont(ofSize: 11, weight: .semibold)
     titleLabel.lineBreakMode = .byTruncatingTail
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
-    artistLabel.font = .systemFont(ofSize: 10)
+    artistLabel.font = .systemFont(ofSize: 9)
     artistLabel.textColor = .secondaryLabelColor
     artistLabel.lineBreakMode = .byTruncatingTail
     artistLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -258,8 +258,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     remainingLabel.alignment = .left
     elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
     remainingLabel.translatesAutoresizingMaskIntoConstraints = false
-    elapsedLabel.widthAnchor.constraint(equalToConstant: 34).isActive = true
-    remainingLabel.widthAnchor.constraint(equalToConstant: 38).isActive = true
+    elapsedLabel.widthAnchor.constraint(equalToConstant: 32).isActive = true
+    remainingLabel.widthAnchor.constraint(equalToConstant: 36).isActive = true
   }
 
   private func configureTransportButtons() {
@@ -278,7 +278,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       size: 12,
       action: #selector(cycleRepeatMode)
     )
-    playPauseButton.widthAnchor.constraint(equalToConstant: 30).isActive = true
+    playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
   }
 
   private func configureProgress() {
@@ -288,6 +288,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     progressSlider.isContinuous = false
     progressSlider.translatesAutoresizingMaskIntoConstraints = false
     progressSlider.controlSize = .small
+    progressSlider.trackFillColor = .controlAccentColor
     progressSlider.target = self
     progressSlider.action = #selector(seek)
     progressSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -317,7 +318,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeSlider.target = self
     volumeSlider.action = #selector(changeVolume)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-    volumeSlider.widthAnchor.constraint(equalToConstant: 60).isActive = true
+    volumeSlider.widthAnchor.constraint(equalToConstant: 52).isActive = true
   }
 
   private func configure(button: NSButton, symbol: String, size: CGFloat, action: Selector) {
@@ -329,7 +330,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+    button.widthAnchor.constraint(equalToConstant: 22).isActive = true
     button.heightAnchor.constraint(equalToConstant: 24).isActive = true
   }
 
