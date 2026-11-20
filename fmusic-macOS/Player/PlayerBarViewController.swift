@@ -248,46 +248,46 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   private func configureTransportButtons() {
-    configure(button: shuffleButton, symbol: "shuffle", size: 12, action: #selector(toggleShuffle))
-    configure(button: previousButton, symbol: "backward.fill", size: 16, action: #selector(playPrevious))
+    configure(button: shuffleButton, symbol: "shuffle", size: 15, action: #selector(toggleShuffle))
+    configure(button: previousButton, symbol: "backward.fill", size: 20, action: #selector(playPrevious))
     configure(
       button: playPauseButton,
       symbol: "play.fill",
-      size: 21,
+      size: 26,
       action: #selector(togglePlayPause)
     )
-    configure(button: nextButton, symbol: "forward.fill", size: 16, action: #selector(playNext))
+    configure(button: nextButton, symbol: "forward.fill", size: 20, action: #selector(playNext))
     configure(
       button: repeatButton,
       symbol: "repeat",
-      size: 12,
+      size: 15,
       action: #selector(cycleRepeatMode)
     )
-    playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
+    playPauseButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
   }
 
   private func configureRightCluster() {
     configure(
       button: moreButton,
       symbol: "ellipsis.circle",
-      size: 14,
+      size: 18,
       action: #selector(showMoreMenu)
     )
     configure(
       button: lyricsButton,
       symbol: "quote.bubble",
-      size: 14,
+      size: 18,
       action: #selector(toggleLyricsPane)
     )
-    configure(button: queueButton, symbol: "list.bullet", size: 14, action: #selector(showQueue))
+    configure(button: queueButton, symbol: "list.bullet", size: 18, action: #selector(showQueue))
     configure(
       button: outputButton,
       symbol: "airplayaudio",
-      size: 14,
+      size: 18,
       action: #selector(showOutputMenu)
     )
 
-    volumeIcon.image = symbolImage("speaker.fill", size: 11)
+    volumeIcon.image = symbolImage("speaker.wave.2.fill", size: 16)
     volumeIcon.isBordered = false
     volumeIcon.bezelStyle = .regularSquare
     volumeIcon.imagePosition = .imageOnly
@@ -296,8 +296,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeIcon.action = #selector(showVolumePopover)
     volumeIcon.toolTip = L10n.tr("Volume")
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
-    volumeIcon.widthAnchor.constraint(equalToConstant: 22).isActive = true
-    volumeIcon.heightAnchor.constraint(equalToConstant: 22).isActive = true
+    volumeIcon.widthAnchor.constraint(equalToConstant: 26).isActive = true
+    volumeIcon.heightAnchor.constraint(equalToConstant: 26).isActive = true
 
     volumeSlider.minValue = 0
     volumeSlider.maxValue = 1
@@ -349,7 +349,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 22).isActive = true
+    button.widthAnchor.constraint(equalToConstant: 26).isActive = true
     button.heightAnchor.constraint(equalToConstant: 26).isActive = true
   }
 
