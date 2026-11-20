@@ -20,114 +20,52 @@
 //
 
 import Foundation
-import MediaPlayer
-import os.log
 
 @MainActor
 public class AudioSessionHandler {
   var musicPlayer: AudioPlayer?
   var eventLogger: EventLogger?
 
+  private let mediaSession: MediaSessionHandling
+  private var isObserving = false
+
+  init(mediaSession: MediaSessionHandling = PlatformMediaSession.make()) {
+    self.mediaSession = mediaSession
+  }
+
+  /// Routes system audio interruptions (calls, Siri, …) and output-route changes
+  /// (headphone connect/disconnect) to the player.
+  ///
+  /// The actual platform work lives in `MediaSessionHandling`; the shared core never
+  /// imports `AVAudioSession`.
   func configureObserverForAudioSessionInterruption() {
-    #if canImport(UIKit)
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleAudioSessionInterruption),
-      name: AVAudioSession.interruptionNotification,
-      object: nil
-    )
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(handleRouteChange),
-      name: AVAudioSession.routeChangeNotification,
-      object: nil
-    )
-    #endif
-  }
-
-  #if canImport(UIKit)
-  @objc
-  private func handleAudioSessionInterruption(notification: NSNotification) {
-    guard let interruptionTypeRaw: NSNumber = notification
-      .userInfo?[AVAudioSessionInterruptionTypeKey] as? NSNumber,
-      let interruptionType = AVAudioSession
-      .InterruptionType(rawValue: interruptionTypeRaw.uintValue) else {
-      os_log(.error, "Audio Session: Audio interruption type invalid")
-      return
-    }
-
-    switch interruptionType {
-    case AVAudioSession.InterruptionType.began:
-      // Audio has stopped, already inactive
-      // Change state of UI, etc., to reflect non-playing state
-      os_log(.info, "Audio Session: Audio interruption began")
-      musicPlayer?.pause()
-    case AVAudioSession.InterruptionType.ended:
-      // Make session active
-      // Update user interface
-      // AVAudioSessionInterruptionOptionShouldResume option
-      os_log(.info, "Audio Session: Audio interruption ended")
-      if let interruptionOptionRaw: NSNumber = notification
-        .userInfo?[AVAudioSessionInterruptionOptionKey] as? NSNumber {
-        let interruptionOption = AVAudioSession
-          .InterruptionOptions(rawValue: interruptionOptionRaw.uintValue)
-        if interruptionOption == AVAudioSession.InterruptionOptions.shouldResume {
-          // Here you should continue playback
-          os_log(.info, "Audio Session: Audio interruption ended -> Resume playing")
-          musicPlayer?.play()
-        }
-      }
-    default: break
-    }
-  }
-
-  @objc
-  private func handleRouteChange(notification: NSNotification) {
-    os_log(.info, "Audio Session: route changed")
-    guard let userInfo = notification.userInfo,
-          let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
-          let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else {
-      return
-    }
-
-    switch reason {
-    case .newDeviceAvailable:
-      let session = AVAudioSession.sharedInstance()
-      for output in session.currentRoute.outputs where
-        output.portType == AVAudioSession.Port.headphones ||
-        output.portType == AVAudioSession.Port.bluetoothA2DP {
-        os_log(.info, "Audio Session: headphones connected")
-        Task { @MainActor in
-          self.musicPlayer?.play()
-        }
-        break
-      }
-    case .oldDeviceUnavailable:
-      if let previousRoute =
-        userInfo[AVAudioSessionRouteChangePreviousRouteKey] as? AVAudioSessionRouteDescription {
-        for output in previousRoute.outputs where
-          output.portType == AVAudioSession.Port.headphones ||
-          output.portType == AVAudioSession.Port.bluetoothA2DP {
-          os_log(.info, "Audio Session: headphones disconnected")
-          Task { @MainActor in
-            self.musicPlayer?.pause()
+    guard !isObserving else { return }
+    isObserving = true
+    mediaSession.startObserving(
+      onInterruption: { [weak self] interruption in
+        guard let self else { return }
+        switch interruption {
+        case .began:
+          self.musicPlayer?.pause()
+        case .ended(let shouldResume):
+          if shouldResume {
+            self.musicPlayer?.play()
           }
-          break
         }
+      },
+      onHeadphonesConnected: { [weak self] in
+        self?.musicPlayer?.play()
+      },
+      onHeadphonesDisconnected: { [weak self] in
+        self?.musicPlayer?.pause()
       }
-    default: break
-    }
+    )
   }
-  #endif
 
+  /// Prepares the platform audio session so playback continues in the background.
   func configureBackgroundPlayback() {
-    #if canImport(UIKit)
-    do {
-      try AVAudioSession.sharedInstance().setCategory(AVAudioSession.Category.playback)
-      try AVAudioSession.sharedInstance().setActive(true)
-    } catch {
-      eventLogger?.report(topic: "Audio Session", error: error)
+    mediaSession.configureBackgroundPlayback { [weak self] error in
+      self?.eventLogger?.report(topic: "Audio Session", error: error)
     }
-    #endif
   }
 }

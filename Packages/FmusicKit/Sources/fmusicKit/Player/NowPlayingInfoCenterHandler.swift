@@ -29,7 +29,7 @@ public class NowPlayingInfoCenterHandler {
   private let musicPlayer: AudioPlayer
   private let backendAudioPlayer: BackendAudioPlayer
   private let storage: PersistentStorage
-  private var nowPlayingInfoCenter: MPNowPlayingInfoCenter
+  private var nowPlayingCenter: NowPlayingCenter
   private let getArtworkDownloaderCB: GetArtworkDownloadManagerCallback
   private var accountNotificationHandler: AccountNotificationHandler?
   /// Last position pushed to the system; the full metadata/artwork push is expensive.
@@ -38,7 +38,7 @@ public class NowPlayingInfoCenterHandler {
   init(
     musicPlayer: AudioPlayer,
     backendAudioPlayer: BackendAudioPlayer,
-    nowPlayingInfoCenter: MPNowPlayingInfoCenter,
+    nowPlayingCenter: NowPlayingCenter,
     storage: PersistentStorage,
     notificationHandler: EventNotificationHandler,
     getArtworkDownloaderCB: @escaping GetArtworkDownloadManagerCallback,
@@ -46,11 +46,11 @@ public class NowPlayingInfoCenterHandler {
   ) {
     self.musicPlayer = musicPlayer
     self.backendAudioPlayer = backendAudioPlayer
-    self.nowPlayingInfoCenter = nowPlayingInfoCenter
+    self.nowPlayingCenter = nowPlayingCenter
     self.storage = storage
     self.getArtworkDownloaderCB = getArtworkDownloaderCB
 
-    nowPlayingInfoCenter.playbackState = .stopped
+    nowPlayingCenter.playbackState = .stopped
 
     self.accountNotificationHandler = AccountNotificationHandler(
       storage: storage,
@@ -95,7 +95,7 @@ public class NowPlayingInfoCenterHandler {
 
     let concurrentSafeArtworkImage = artworkImage
     let elapsedTime = backendAudioPlayer.elapsedTime
-    nowPlayingInfoCenter.nowPlayingInfo = [
+    nowPlayingCenter.nowPlayingInfo = [
       MPNowPlayingInfoPropertyMediaType: NSNumber(value: MPNowPlayingInfoMediaType.audio.rawValue),
       MPNowPlayingInfoPropertyServiceIdentifier: FmusicKit.name,
 
@@ -162,19 +162,19 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
     if let curPlayable = musicPlayer.currentlyPlaying {
       updateNowPlayingInfo(playable: curPlayable)
     }
-    nowPlayingInfoCenter.playbackState = .playing
+    nowPlayingCenter.playbackState = .playing
   }
 
   public func didPause() {
     if let curPlayable = musicPlayer.currentlyPlaying {
       updateNowPlayingInfo(playable: curPlayable)
     }
-    nowPlayingInfoCenter.playbackState = .paused
+    nowPlayingCenter.playbackState = .paused
   }
 
   public func didStopPlaying() {
-    nowPlayingInfoCenter.nowPlayingInfo = nil
-    nowPlayingInfoCenter.playbackState = .stopped
+    nowPlayingCenter.nowPlayingInfo = nil
+    nowPlayingCenter.playbackState = .stopped
   }
 
   public func didElapsedTimeChange() {
@@ -184,7 +184,7 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
   /// Updates only the position/rate keys; the system interpolates the position itself.
   private func pushElapsedTime(force: Bool) {
     guard let curPlayable = musicPlayer.currentlyPlaying else { return }
-    guard var info = nowPlayingInfoCenter.nowPlayingInfo else {
+    guard var info = nowPlayingCenter.nowPlayingInfo else {
       updateNowPlayingInfo(playable: curPlayable)
       return
     }
@@ -196,7 +196,7 @@ extension NowPlayingInfoCenterHandler: MusicPlayable {
     info[MPNowPlayingInfoPropertyPlaybackRate] = NSNumber(
       value: backendAudioPlayer.playbackRate.asDouble
     )
-    nowPlayingInfoCenter.nowPlayingInfo = info
+    nowPlayingCenter.nowPlayingInfo = info
     lastPushedElapsedTime = elapsed
   }
 

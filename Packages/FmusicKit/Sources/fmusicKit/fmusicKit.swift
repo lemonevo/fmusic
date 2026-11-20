@@ -192,7 +192,7 @@ public class FmusicKit {
     playerNowPlayingInfoCenterHandler = NowPlayingInfoCenterHandler(
       musicPlayer: curPlayer,
       backendAudioPlayer: backendAudioPlayer,
-      nowPlayingInfoCenter: MPNowPlayingInfoCenter.default(),
+      nowPlayingCenter: PlatformNowPlaying.makeCenter(),
       storage: storage, notificationHandler: notificationHandler,
       getArtworkDownloaderCB: { accountInfo in
         self.getMeta(accountInfo).artworkDownloadManager
