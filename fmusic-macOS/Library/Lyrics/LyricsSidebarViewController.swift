@@ -329,6 +329,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       time: playbackLyricsTime(),
       rowSpacing: Self.rowSpacing,
       inset: Self.horizontalInset,
+      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
       animated: animated
     )
   }
@@ -457,7 +458,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       syllables: syllables,
       time: time,
       rowSpacing: Self.rowSpacing,
-      inset: Self.horizontalInset
+      inset: Self.horizontalInset,
+      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2)
     )
     return cell
   }
@@ -511,61 +513,111 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   func didPlaybackRateChange() {}
 }
 
+// MARK: - LyricsGlyphView
+
+/// Two stacked glyph rasters: the dim line plus the bright line clipped by a
+/// `LyricsSyllableMaskLayer`. The playback clock only moves the mask widths, so the
+/// fill sweeps through each character with a soft gradient edge (Catalyst `LyricTableCell`).
+@MainActor
+private final class LyricsGlyphView: NSView {
+  private let dimLayer = CALayer()
+  private let brightLayer = CALayer()
+  let syllableMask = LyricsSyllableMaskLayer()
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.masksToBounds = false
+    dimLayer.contentsGravity = .resize
+    brightLayer.contentsGravity = .resize
+    brightLayer.mask = syllableMask
+    layer?.addSublayer(dimLayer)
+    layer?.addSublayer(brightLayer)
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    dimLayer.frame = bounds
+    brightLayer.frame = bounds
+    syllableMask.setFrameWithoutAnimation(CGRect(origin: .zero, size: bounds.size))
+    let scale = window?.backingScaleFactor ?? 2
+    dimLayer.contentsScale = scale
+    brightLayer.contentsScale = scale
+    CATransaction.commit()
+  }
+
+  func setImages(dim: CGImage?, bright: CGImage?) {
+    dimLayer.contents = dim
+    brightLayer.contents = bright
+    brightLayer.isHidden = bright == nil
+  }
+
+  func updateMask(rects: [[CGRect]]) {
+    syllableMask.update(rects: rects)
+  }
+
+  func apply(progress: [CGFloat]) {
+    syllableMask.apply(progress: progress)
+  }
+}
+
 // MARK: - LyricsSidebarCellView
 
-/// One lyric row: 24 pt semibold passive lines, 29 pt bold active line whose sung
-/// characters fill in progressively, translation underneath (Catalyst `LyricTableCell`).
+/// One lyric row: dim/bright glyph rasters plus a translation label.
 @MainActor
 private final class LyricsSidebarCellView: NSTableCellView {
-  private let lineLabel = NSTextField(wrappingLabelWithString: "")
+  private static let activeFontSize: CGFloat = 29
+  private static let inactiveFontSize: CGFloat = 24
+  private static let activeDimColor = NSColor.white.withAlphaComponent(0.55)
+  private static let activeBrightColor = NSColor.white
+  private static let inactiveColor = NSColor.white.withAlphaComponent(0.60)
+
+  private let glyphView = LyricsGlyphView()
   private let translationLabel = NSTextField(wrappingLabelWithString: "")
-  private var lineTopConstraint: NSLayoutConstraint?
-  private var lineLeadingConstraint: NSLayoutConstraint?
-  private var lineTrailingConstraint: NSLayoutConstraint?
-  private var baseText = " "
-  private var baseFont = NSFont.systemFont(ofSize: 24, weight: .semibold)
-  private var baseParagraph = NSMutableParagraphStyle()
+  private var topConstraint: NSLayoutConstraint?
+  private var leadingConstraint: NSLayoutConstraint?
+  private var trailingConstraint: NSLayoutConstraint?
+  private var heightConstraint: NSLayoutConstraint?
   private var isActiveLine = false
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    lineLabel.isEditable = false
-    lineLabel.isSelectable = false
-    lineLabel.drawsBackground = false
-    lineLabel.maximumNumberOfLines = 0
-    lineLabel.lineBreakMode = .byWordWrapping
-    lineLabel.cell?.wraps = true
-    lineLabel.cell?.isScrollable = false
-    lineLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    lineLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    glyphView.translatesAutoresizingMaskIntoConstraints = false
     translationLabel.isEditable = false
     translationLabel.isSelectable = false
     translationLabel.drawsBackground = false
     translationLabel.maximumNumberOfLines = 0
     translationLabel.lineBreakMode = .byWordWrapping
     translationLabel.cell?.wraps = true
-    translationLabel.cell?.isScrollable = false
-    translationLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     translationLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    addSubview(lineLabel)
+    addSubview(glyphView)
     addSubview(translationLabel)
 
-    let top = lineLabel.topAnchor.constraint(equalTo: topAnchor)
-    let leading = lineLabel.leadingAnchor.constraint(equalTo: leadingAnchor)
-    let trailing = lineLabel.trailingAnchor.constraint(equalTo: trailingAnchor)
-    lineTopConstraint = top
-    lineLeadingConstraint = leading
-    lineTrailingConstraint = trailing
+    let top = glyphView.topAnchor.constraint(equalTo: topAnchor)
+    let leading = glyphView.leadingAnchor.constraint(equalTo: leadingAnchor)
+    let trailing = glyphView.trailingAnchor.constraint(equalTo: trailingAnchor)
+    let height = glyphView.heightAnchor.constraint(equalToConstant: 30)
+    topConstraint = top
+    leadingConstraint = leading
+    trailingConstraint = trailing
+    heightConstraint = height
     NSLayoutConstraint.activate([
       top,
       leading,
       trailing,
-      translationLabel.leadingAnchor.constraint(equalTo: lineLabel.leadingAnchor),
-      translationLabel.trailingAnchor.constraint(equalTo: lineLabel.trailingAnchor),
-      translationLabel.topAnchor.constraint(equalTo: lineLabel.bottomAnchor, constant: 6),
-      translationLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+      height,
+      translationLabel.topAnchor.constraint(equalTo: glyphView.bottomAnchor, constant: 6),
+      translationLabel.leadingAnchor.constraint(equalTo: glyphView.leadingAnchor),
+      translationLabel.trailingAnchor.constraint(equalTo: glyphView.trailingAnchor),
+      translationLabel.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -4),
     ])
   }
 
@@ -575,8 +627,9 @@ private final class LyricsSidebarCellView: NSTableCellView {
 
   override func prepareForReuse() {
     super.prepareForReuse()
-    lineLabel.attributedStringValue = NSAttributedString(string: "")
-    translationLabel.attributedStringValue = NSAttributedString(string: "")
+    glyphView.setImages(dim: nil, bright: nil)
+    translationLabel.stringValue = ""
+    layer?.transform = CATransform3DIdentity
   }
 
   func configure(
@@ -586,61 +639,75 @@ private final class LyricsSidebarCellView: NSTableCellView {
     time: TimeInterval,
     rowSpacing: CGFloat,
     inset: CGFloat,
+    contentWidth: CGFloat,
     animated: Bool = false
   ) {
-    lineTopConstraint?.constant = rowSpacing
-    lineLeadingConstraint?.constant = inset
-    lineTrailingConstraint?.constant = -inset
+    topConstraint?.constant = rowSpacing
+    leadingConstraint?.constant = inset
+    trailingConstraint?.constant = -inset
 
-    let fontSize = isActive ? 29.0 : 24.0
+    let wasActive = isActiveLine
+    isActiveLine = isActive
+    let fontSize = isActive ? Self.activeFontSize : Self.inactiveFontSize
     let weight: NSFont.Weight = isActive ? .bold : .semibold
     let font = NSFont.systemFont(ofSize: fontSize, weight: weight)
-
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = 6
     paragraph.lineBreakMode = .byWordWrapping
     paragraph.alignment = .left
 
     let text = line.value.isEmpty ? " " : line.value
-    baseText = text
-    baseFont = font
-    baseParagraph = paragraph
-    let wasActive = isActiveLine
-    isActiveLine = isActive
-    let attributed = NSMutableAttributedString(
-      string: text,
-      attributes: [
-        .font: font,
-        .foregroundColor: isActive
-          ? NSColor.white.withAlphaComponent(0.55)
-          : NSColor.white.withAlphaComponent(0.60),
-        .paragraphStyle: paragraph,
-      ]
-    )
-
-    if isActive, !syllables.isEmpty {
-      // Fill sung glyph ranges in white; partially sung syllables reveal their
-      // leading characters first, mirroring the Catalyst character fill.
-      for syllable in syllables {
-        let progress = syllable.progress(at: time)
-        guard progress > 0, syllable.range.location + syllable.range.length <= (text as NSString).length
-        else { continue }
-        let length = syllable.range.length
-        let filledCount = progress >= 1
-          ? length
-          : Int((CGFloat(length) * progress).rounded(.down))
-        guard filledCount > 0 else { continue }
-        let fillRange = NSRange(location: syllable.range.location, length: filledCount)
-        attributed.addAttribute(.foregroundColor, value: NSColor.white, range: fillRange)
-      }
+    func attributed(_ color: NSColor) -> NSAttributedString {
+      NSAttributedString(
+        string: text,
+        attributes: [
+          .font: font,
+          .foregroundColor: color,
+          .paragraphStyle: paragraph,
+        ]
+      )
     }
+    let width = max(80, contentWidth)
+    let layout = LyricsTextLayout(
+      text: attributed(.white),
+      width: width,
+      maximumNumberOfLines: 6,
+      lineBreakMode: .byWordWrapping
+    )
+    let imageHeight = max(ceil(layout.height), ceil(fontSize * 1.3))
+    heightConstraint?.constant = imageHeight
+    let scale = window?.backingScaleFactor ?? 2
+    let size = CGSize(width: width, height: imageHeight)
 
-    lineLabel.attributedStringValue = attributed
+    let dimImage = LyricsRasterizer.image(
+      layout: layout,
+      size: size,
+      scale: scale,
+      foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
+    )
+    if isActive {
+      let brightImage = LyricsRasterizer.image(
+        layout: layout,
+        size: size,
+        scale: scale,
+        foregroundColor: Self.activeBrightColor
+      )
+      glyphView.setImages(dim: dimImage, bright: brightImage)
+      glyphView.updateMask(rects: Self.maskRects(
+        layout: layout,
+        syllables: syllables,
+        height: imageHeight
+      ))
+      glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+    } else {
+      glyphView.setImages(dim: dimImage, bright: nil)
+      glyphView.updateMask(rects: [])
+    }
 
     let translationText = line.translation?
       .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     if translationText.isEmpty {
-      translationLabel.attributedStringValue = NSAttributedString(string: "")
+      translationLabel.stringValue = ""
       translationLabel.isHidden = true
     } else {
       translationLabel.isHidden = false
@@ -652,87 +719,59 @@ private final class LyricsSidebarCellView: NSTableCellView {
         string: translationText,
         attributes: [
           .font: NSFont.systemFont(ofSize: 17, weight: .regular),
-          .foregroundColor: NSColor.white.withAlphaComponent(0.72),
+          .foregroundColor: NSColor.white.withAlphaComponent(isActive ? 0.72 : 0.60),
           .paragraphStyle: translationParagraph,
         ]
       )
     }
 
-    if animated, wasActive != isActive {
-      applyLineTransition(isActive: isActive)
-    } else if !animated {
-      let scale: CGFloat = isActive ? 1.0 : 0.97
-      wantsLayer = true
-      layer?.transform = CATransform3DMakeScale(scale, scale, 1)
-    }
-  }
-
-  // MARK: - Frame based fill + transition
-
-  /// Called at display rate: only this label's foreground colours change, the text
-  /// layout is reused (equivalent to the Catalyst syllable-mask update).
-  func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
-    guard isActiveLine else { return }
-    lineLabel.attributedStringValue = makeAttributed(syllables: syllables, time: time)
-  }
-
-  private func makeAttributed(
-    syllables: [LyricsSyllableTiming],
-    time: TimeInterval
-  )
-    -> NSAttributedString {
-    let attributed = NSMutableAttributedString(
-      string: baseText,
-      attributes: [
-        .font: baseFont,
-        .foregroundColor: isActiveLine
-          ? NSColor.white.withAlphaComponent(0.55)
-          : NSColor.white.withAlphaComponent(0.60),
-        .paragraphStyle: baseParagraph,
-      ]
-    )
-    guard isActiveLine, !syllables.isEmpty else { return attributed }
-    let length = (baseText as NSString).length
-    for syllable in syllables {
-      let progress = syllable.progress(at: time)
-      guard progress > 0,
-            syllable.range.location + syllable.range.length <= length
-      else { continue }
-      let filledCount = progress >= 1
-        ? syllable.range.length
-        : Int((CGFloat(syllable.range.length) * progress).rounded(.down))
-      guard filledCount > 0 else { continue }
-      attributed.addAttribute(
-        .foregroundColor,
-        value: NSColor.white,
-        range: NSRange(location: syllable.range.location, length: filledCount)
-      )
-    }
-    return attributed
-  }
-
-  /// Catalyst `LyricTableCell.refresh(animated:)`: the active line springs from 97 %
-  /// to 100 % (damping 0.78 equivalent) and returns on deactivation.
-  private func applyLineTransition(isActive: Bool) {
     wantsLayer = true
     layer?.masksToBounds = false
     let target: CGFloat = isActive ? 1.0 : 0.97
-    let spring = CASpringAnimation(keyPath: "transform.scale")
-    spring.fromValue = isActive ? 0.97 : 1.0
-    spring.toValue = target
-    spring.mass = 1
-    spring.stiffness = 220
-    spring.damping = 20
-    spring.initialVelocity = 0.2
-    spring.duration = spring.settlingDuration
-    layer?.add(spring, forKey: "lineScale")
-    layer?.transform = CATransform3DMakeScale(target, target, 1)
+    if animated, wasActive != isActive {
+      let spring = CASpringAnimation(keyPath: "transform.scale")
+      spring.fromValue = isActive ? 0.97 : 1.0
+      spring.toValue = target
+      spring.mass = 1
+      spring.stiffness = 220
+      spring.damping = 20
+      spring.initialVelocity = 0.2
+      spring.duration = spring.settlingDuration
+      layer?.add(spring, forKey: "lineScale")
+      layer?.transform = CATransform3DMakeScale(target, target, 1)
 
-    let fade = CABasicAnimation(keyPath: "opacity")
-    fade.fromValue = isActive ? 0.55 : 1.0
-    fade.toValue = 1.0
-    fade.duration = 0.18
-    fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
-    layer?.add(fade, forKey: "lineFade")
+      let fade = CABasicAnimation(keyPath: "opacity")
+      fade.fromValue = isActive ? 0.55 : 1.0
+      fade.toValue = 1.0
+      fade.duration = 0.18
+      fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      layer?.add(fade, forKey: "lineFade")
+    } else {
+      layer?.transform = CATransform3DMakeScale(target, target, 1)
+    }
+  }
+
+  /// Called at display rate: only the syllable mask widths change.
+  func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
+    guard isActiveLine else { return }
+    glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+  }
+
+  private static func maskRects(
+    layout: LyricsTextLayout,
+    syllables: [LyricsSyllableTiming],
+    height: CGFloat
+  )
+    -> [[CGRect]] {
+    syllables.map { syllable in
+      layout.rects(for: syllable.range).map { rect in
+        CGRect(
+          x: rect.minX,
+          y: height - rect.maxY,
+          width: max(rect.width, 1),
+          height: max(rect.height, 1)
+        )
+      }
+    }
   }
 }
