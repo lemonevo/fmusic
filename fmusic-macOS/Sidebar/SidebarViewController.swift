@@ -101,6 +101,12 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     updateAccountFooter()
     NotificationCenter.default.addObserver(
       self,
+      selector: #selector(themeColorChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
       selector: #selector(accountChanged),
       name: .accountActiveChanged,
       object: nil
@@ -171,6 +177,12 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   @objc
   private func accountChanged() {
     updateAccountFooter()
+  }
+
+  @objc
+  private func themeColorChanged() {
+    updateAccountFooter()
+    tableView.reloadData()
   }
 
   @objc

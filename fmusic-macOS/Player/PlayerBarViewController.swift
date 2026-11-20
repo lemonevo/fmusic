@@ -141,6 +141,18 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     super.viewDidLoad()
     player.addNotifier(notifier: self)
     refreshAll()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(themeColorChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(playbackSettingsChanged),
+      name: .macPlaybackSettingsChanged,
+      object: nil
+    )
 
     progressTimer = Timer(
       timeInterval: 0.5,
@@ -156,6 +168,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   deinit {
     progressTimer?.invalidate()
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  @objc
+  private func themeColorChanged() {
+    updateModeButtons()
+  }
+
+  @objc
+  private func playbackSettingsChanged() {
+    volumeSlider.doubleValue = Double(FmusicKit.shared.storage.settings.user.playerVolume)
   }
 
   // MARK: - Configuration

@@ -38,6 +38,7 @@ enum SettingsStore {
     var user = storage.settings.user
     update(&user)
     storage.settings.user = user
+    NotificationCenter.default.post(name: .macPlaybackSettingsChanged, object: nil)
   }
 
   // MARK: - Account settings
@@ -53,6 +54,7 @@ enum SettingsStore {
     storage.settings.accounts.updateSetting(accountInfo) { accountSetting in
       update(&accountSetting)
     }
+    NotificationCenter.default.post(name: .macThemeColorChanged, object: nil)
   }
 
   // MARK: - Effects

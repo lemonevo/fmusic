@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.regular)
+    MacTheme.applyAppearanceMode()
     NSApp.mainMenu = MainMenuBuilder.build()
 
     bootstrapCore()

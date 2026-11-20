@@ -81,6 +81,17 @@ enum MacTheme {
   }
 }
 
+// MARK: - Notifications
+
+extension Notification.Name {
+  /// Posted when the account's theme colour changed (settings window).
+  static let macThemeColorChanged = Notification.Name("fmusic.mac.themeColorChanged")
+  /// Posted when playback related user settings (volume, …) changed.
+  static let macPlaybackSettingsChanged = Notification.Name(
+    "fmusic.mac.playbackSettingsChanged"
+  )
+}
+
 // MARK: - ThemedRowView
 
 /// Table row view that paints the selection with the fmusic theme color instead of
