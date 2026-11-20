@@ -42,6 +42,13 @@ public class MetaManager {
 
   public let account: Account
 
+  /// The account's backend type. `AccountInfo.apiType` is intentionally not
+  /// persisted (see `AccountInfo.CodingKeys`), so a decoded account/`AccountInfo`
+  /// reports `.notDetected`; fall back to the persisted login credentials, which
+  /// do carry `backendApi`. Otherwise WebDAV accounts would wrongly use the local
+  /// indexer and fail with "No music folder selected".
+  private var resolvedApiType: BackenApiType
+
   private var settings: fmusicSettings {
     storage.settings
   }
@@ -63,7 +70,7 @@ public class MetaManager {
       settings: storage.settings
     )
     api.initialize()
-    api.selectedApi = account.apiType
+    api.selectedApi = resolvedApiType
     if let credentials = settings.accounts.getSetting(account.info).read.loginCredentials {
       api.provideCredentials(credentials: credentials)
     } else {
@@ -105,8 +112,13 @@ public class MetaManager {
     self.eventLogger = eventLogger
     self.notificationHandler = notificationHandler
 
-    if account.apiType == .local || account.apiType == .notDetected,
-       let credentials = storage.settings.accounts.getSetting(account.info).read.loginCredentials {
+    let credentials = storage.settings.accounts.getSetting(account.info).read.loginCredentials
+    self.resolvedApiType = (account.apiType != .notDetected)
+      ? account.apiType
+      : (credentials?.backendApi ?? .notDetected)
+
+    if resolvedApiType == .local || resolvedApiType == .notDetected,
+       let credentials {
       do {
         _ = try LocalFolderAccess.shared.activate(credentials: credentials)
       } catch {

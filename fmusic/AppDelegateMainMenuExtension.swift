@@ -313,28 +313,30 @@ extension AppDelegate {
     settingsSceneSession != nil
   }
 
-  private var settingsSceneDelegate: SettingsSceneDelegate? {
+  var settingsSceneDelegate: SettingsSceneDelegate? {
     UIApplication.shared.connectedScenes
       .compactMap { $0.delegate as? SettingsSceneDelegate }
       .first
   }
 
+  /// The window of the settings scene, if it is open. Used to present follow-up
+  /// UI (e.g. the sync progress) on top of the settings window rather than the
+  /// main window, which the settings window would cover.
+  var settingsWindow: UIWindow? { settingsSceneDelegate?.window }
+
   @objc
   func showSettings(sender: Any) {
     #if targetEnvironment(macCatalyst)
-      // The settings scene is kept alive (hidden, not destroyed) so re-opening is
-      // instant. Just un-hide its window and bring it forward.
+      // Raise the existing settings window if one is already open; otherwise
+      // create a fresh scene. Closing destroys the scene, so this never leaves
+      // an empty window behind.
       if let existing = settingsSceneSession {
-        if let delegate = settingsSceneDelegate {
-          delegate.bringToFront()
-        } else {
-          UIApplication.shared.requestSceneSessionActivation(
-            existing,
-            userActivity: nil,
-            options: nil,
-            errorHandler: nil
-          )
-        }
+        UIApplication.shared.requestSceneSessionActivation(
+          existing,
+          userActivity: nil,
+          options: nil,
+          errorHandler: nil
+        )
         MacWindowHelper.activateApplication()
         return
       }

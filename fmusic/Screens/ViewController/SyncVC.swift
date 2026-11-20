@@ -104,6 +104,13 @@ class SyncVC: UIViewController {
     guard let mainScene = AppDelegate.mainSceneDelegate else { return }
     mainScene
       .replaceMainRootViewController(vc: AppStoryboard.Main.segueToMainWindow(account: account))
+
+    // When the sync was started from the settings window, this SyncVC is
+    // presented there instead of replacing the main window; dismiss it so the
+    // settings window is usable again.
+    if presentingViewController != nil {
+      dismiss(animated: true)
+    }
   }
 
   private func updateSyncInfo(infoText: String? = nil, percentParsed: Float = 0.0) {

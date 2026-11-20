@@ -72,8 +72,12 @@ struct AccountSettingsView: View {
     appDelegate.player.logout(account: account)
     let syncVC = AppStoryboard.Main.segueToSync(account: account)
     syncVC.modalPresentationStyle = .formSheet
-    AppDelegate.mainSceneDelegate?.window?.rootViewController?.dismiss(animated: false)
-    AppDelegate.mainSceneDelegate?.window?.rootViewController?.present(syncVC, animated: true)
+    // Present on the settings window when settings has its own window, otherwise
+    // on the main window. Presenting on the main window while the (larger)
+    // settings window covers it made "Resync" look like it did nothing.
+    let hostWindow = appDelegate.settingsWindow ?? AppDelegate.mainSceneDelegate?.window
+    hostWindow?.rootViewController?.dismiss(animated: false)
+    hostWindow?.rootViewController?.present(syncVC, animated: true)
   }
 
   private func httpHeaders(accountInfo: AccountInfo) -> [String: String] {

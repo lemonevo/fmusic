@@ -99,26 +99,21 @@ class SettingsSceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
   #endif
 
-  /// Hide the settings window instead of destroying its scene. The (fairly
-  /// expensive) SwiftUI view tree then stays alive, so re-opening is instant
-  /// rather than rebuilding the whole tree from scratch each time.
+  /// Close the settings window by destroying its scene. Hiding it instead does
+  /// not survive on Catalyst (the scene disconnects and leaves an empty window),
+  /// so we tear it down cleanly; re-opening builds a fresh one.
   private func closeSettingsScene() {
-    window?.isHidden = true
-    // Return focus to the main window so the app doesn't stay with a hidden key
-    // window.
     #if targetEnvironment(macCatalyst)
-      if let main = UIApplication.shared.connectedScenes
-        .first(where: { $0.delegate is SceneDelegate }) as? UIWindowScene,
-        let mainWindow = main.windows.first {
-        mainWindow.makeKey()
+      if let scene = window?.windowScene {
+        UIApplication.shared.requestSceneSessionDestruction(
+          scene.session,
+          options: nil,
+          errorHandler: nil
+        )
+        return
       }
     #endif
-  }
-
-  /// Bring the (possibly hidden) settings window back to the front.
-  func bringToFront() {
-    window?.isHidden = false
-    window?.makeKey()
+    window?.isHidden = true
   }
 
   func sceneDidDisconnect(_ scene: UIScene) {
