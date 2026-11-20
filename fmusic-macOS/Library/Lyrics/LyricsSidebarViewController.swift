@@ -39,16 +39,16 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
 
   private var player: PlayerFacade { FmusicKit.shared.player }
 
-  private static let lineFontSize: CGFloat = 13
-  private static let currentFontSize: CGFloat = 14
+  private static let lineFontSize: CGFloat = 18
+  private static let currentFontSize: CGFloat = 20
 
   override func loadView() {
     let root = ThemedBackgroundView()
 
     stackView.orientation = .vertical
     stackView.alignment = .centerX
-    stackView.spacing = 18
-    stackView.edgeInsets = NSEdgeInsets(top: 24, left: 14, bottom: 90, right: 14)
+    stackView.spacing = 24
+    stackView.edgeInsets = NSEdgeInsets(top: 28, left: 22, bottom: 90, right: 22)
     stackView.translatesAutoresizingMaskIntoConstraints = false
 
     scrollView.documentView = stackView
@@ -228,7 +228,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
       stackView.addArrangedSubview(label)
       label.widthAnchor.constraint(
         equalTo: scrollView.contentView.widthAnchor,
-        constant: -28
+        constant: -44
       ).isActive = true
       lineLabels.append(label)
     }
@@ -258,7 +258,9 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
         ofSize: isCurrent ? Self.currentFontSize : Self.lineFontSize,
         weight: isCurrent ? .semibold : .regular
       )
-      label.textColor = isCurrent ? accent : .labelColor
+      label.textColor = isCurrent
+        ? accent
+        : NSColor.labelColor.withAlphaComponent(0.92)
     }
     scrollToCurrentLine(animated: true)
   }

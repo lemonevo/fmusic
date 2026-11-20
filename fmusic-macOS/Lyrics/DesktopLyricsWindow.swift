@@ -182,7 +182,7 @@ enum DesktopLyricsInk {
 
 @MainActor
 enum DesktopLyricsRenderer {
-  static let panelWidth: CGFloat = 620
+  static let panelWidth: CGFloat = 980
   static let horizontalInset: CGFloat = 24
   static let topPadding: CGFloat = 10
   static let bottomPadding: CGFloat = 10
