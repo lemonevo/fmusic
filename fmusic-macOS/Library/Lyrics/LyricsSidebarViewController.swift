@@ -283,11 +283,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     let previous = currentLine
     if index != previous {
       currentLine = index
-      if previous >= 0 {
-        reconfigureRow(previous, animated: true)
-      }
+      refreshVisibleRows(animated: true)
       if index >= 0 {
-        reconfigureRow(index, animated: true)
         scrollTargetY = scrollTarget(for: index)
       }
     } else if index >= 0 {
@@ -313,6 +310,16 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     )
   }
 
+  private func refreshVisibleRows(animated: Bool) {
+    guard let lyrics else { return }
+    let visible = tableView.rows(in: scrollView.contentView.bounds)
+    guard visible.length > 0 else { return }
+    let range = max(0, visible.location) ..< min(lyrics.line.count, visible.location + visible.length)
+    for row in range {
+      reconfigureRow(row, animated: animated)
+    }
+  }
+
   private func reconfigureRow(_ row: Int, animated: Bool = false) {
     guard let lyrics,
           lyrics.line.indices.contains(row),
@@ -330,6 +337,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       rowSpacing: Self.rowSpacing,
       inset: Self.horizontalInset,
       contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
+      distance: row == currentLine ? 0 : abs(row - currentLine),
       animated: animated
     )
   }
@@ -468,7 +476,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       time: time,
       rowSpacing: Self.rowSpacing,
       inset: Self.horizontalInset,
-      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2)
+      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
+      distance: isActive ? 0 : abs(row - currentLine)
     )
     return cell
   }
@@ -650,6 +659,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     rowSpacing: CGFloat,
     inset: CGFloat,
     contentWidth: CGFloat,
+    distance: Int = 0,
     animated: Bool = false
   ) {
     topConstraint?.constant = rowSpacing
@@ -689,16 +699,22 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let scale = window?.backingScaleFactor ?? 2
     let size = CGSize(width: width, height: imageHeight)
 
+    // Inactive lines fade and soften with distance from the current line: the
+    // nearest line stays readable, rows further away get progressively blurrier.
+    let distanceAlpha = max(0.28, 0.60 - CGFloat(max(distance - 1, 0)) * 0.07)
+    let inactiveColor = NSColor.white.withAlphaComponent(distanceAlpha)
     let sharpDimImage = LyricsRasterizer.image(
       layout: layout,
       size: size,
       scale: scale,
-      foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
+      foregroundColor: isActive ? Self.activeDimColor : inactiveColor
     )
-    // Catalyst blurs the inactive lines (Apple Music style); the active line stays sharp.
+    let blurRadius = isActive
+      ? 0
+      : (0.6 + CGFloat(distance) * 0.7) * scale
     let dimImage = isActive
       ? sharpDimImage
-      : sharpDimImage.flatMap { Self.blurred($0, radius: 0.8 * scale) }
+      : sharpDimImage.flatMap { Self.blurred($0, radius: blurRadius) }
     if isActive {
       let brightImage = LyricsRasterizer.image(
         layout: layout,

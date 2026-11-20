@@ -45,13 +45,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let volumeIcon = NSImageView()
   private let volumeSlider = NSSlider()
 
-  private let progressTrack = NSView()
-  private let progressFill = NSView()
-  private var progressFillWidth: NSLayoutConstraint?
-  private var progressFraction: CGFloat = 0
   private var isSeekingProgress = false
 
   private var infoGroup: NSStackView?
+  private let elapsedLabel = NSTextField(labelWithString: "0:00")
+  private let remainingLabel = NSTextField(labelWithString: "-0:00")
+  private let progressSlider = NSSlider()
   private var compactMode: Bool?
 
   /// Called when the user toggles the lyrics side pane.
@@ -92,7 +91,14 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     configureArtwork()
     configureTransportButtons()
     configureRightCluster()
-    configureProgressLine()
+    configureProgressSlider()
+
+    let infoGroup = NSStackView(views: [artworkView, infoStack()])
+    self.infoGroup = infoGroup
+    infoGroup.orientation = .horizontal
+    infoGroup.alignment = .centerY
+    infoGroup.spacing = 9
+    infoGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let controlsGroup = NSStackView(views: [
       shuffleButton,
@@ -103,15 +109,27 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     controlsGroup.orientation = .horizontal
     controlsGroup.alignment = .centerY
-    controlsGroup.spacing = 8
+    controlsGroup.spacing = 6
     controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
-    let infoGroup = NSStackView(views: [artworkView, infoStack()])
-    self.infoGroup = infoGroup
-    infoGroup.orientation = .horizontal
-    infoGroup.alignment = .centerY
-    infoGroup.spacing = 9
-    infoGroup.translatesAutoresizingMaskIntoConstraints = false
+    elapsedLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+    elapsedLabel.textColor = .secondaryLabelColor
+    elapsedLabel.alignment = .right
+    remainingLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+    remainingLabel.textColor = .secondaryLabelColor
+    remainingLabel.alignment = .left
+    elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
+    remainingLabel.translatesAutoresizingMaskIntoConstraints = false
+    elapsedLabel.widthAnchor.constraint(equalToConstant: 32).isActive = true
+    remainingLabel.widthAnchor.constraint(equalToConstant: 36).isActive = true
+
+    let progressGroup = NSStackView(views: [elapsedLabel, progressSlider, remainingLabel])
+    progressGroup.orientation = .horizontal
+    progressGroup.alignment = .centerY
+    progressGroup.spacing = 8
+    progressGroup.translatesAutoresizingMaskIntoConstraints = false
+    progressSlider.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    progressSlider.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
     let rightGroup = NSStackView(views: [
       moreButton,
@@ -123,11 +141,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
-    rightGroup.spacing = 10
+    rightGroup.spacing = 8
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
-    capsule.addSubview(controlsGroup)
     capsule.addSubview(infoGroup)
+    capsule.addSubview(controlsGroup)
+    capsule.addSubview(progressGroup)
     capsule.addSubview(rightGroup)
 
     NSLayoutConstraint.activate([
@@ -137,28 +156,28 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       capsule.bottomAnchor.constraint(equalTo: root.bottomAnchor),
       capsule.heightAnchor.constraint(equalToConstant: Self.capsuleHeight),
 
-      controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
-      controlsGroup.centerYAnchor.constraint(
-        equalTo: capsule.centerYAnchor,
-        constant: -2
-      ),
+      infoGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 14),
+      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 170),
 
-      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 16),
-      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
-      infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 200),
+      controlsGroup.leadingAnchor.constraint(equalTo: infoGroup.trailingAnchor, constant: 10),
+      controlsGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
 
-      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
-      rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
+      progressGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 10),
+      progressGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+
+      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -14),
+      rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
       rightGroup.leadingAnchor.constraint(
-        greaterThanOrEqualTo: infoGroup.trailingAnchor,
-        constant: 16
+        greaterThanOrEqualTo: progressGroup.trailingAnchor,
+        constant: 8
       ),
     ])
 
-    // Keep the transport + info left aligned; the utility cluster sticks to the right.
-    let infoCenter = infoGroup.centerXAnchor.constraint(equalTo: capsule.centerXAnchor)
-    infoCenter.priority = .defaultLow
-    infoCenter.isActive = true
+    let progressMin = progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 90)
+    progressMin.priority = NSLayoutConstraint.Priority(750)
+    progressMin.isActive = true
 
     self.view = root
   }
@@ -215,6 +234,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     titleLabel.font = .systemFont(ofSize: 12.5, weight: .semibold)
     titleLabel.textColor = .labelColor
     titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.setContentCompressionResistancePriority(.defaultHigh, for: .horizontal)
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
     artistLabel.font = .systemFont(ofSize: 10.5)
     artistLabel.textColor = .secondaryLabelColor
@@ -244,6 +264,24 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       action: #selector(cycleRepeatMode)
     )
     playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
+  }
+
+  private func configureProgressSlider() {
+    progressSlider.minValue = 0
+    progressSlider.maxValue = 1
+    progressSlider.doubleValue = 0
+    progressSlider.isContinuous = false
+    progressSlider.controlSize = .small
+    progressSlider.translatesAutoresizingMaskIntoConstraints = false
+    progressSlider.target = self
+    progressSlider.action = #selector(seek)
+  }
+
+  @objc
+  private func seek() {
+    let duration = player.duration
+    guard duration.isFinite, duration > 0 else { return }
+    player.seek(toSecond: progressSlider.doubleValue)
   }
 
   private func configureRightCluster() {
@@ -279,39 +317,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeSlider.target = self
     volumeSlider.action = #selector(changeVolume)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-    volumeSlider.widthAnchor.constraint(equalToConstant: 56).isActive = true
-  }
-
-  private func configureProgressLine() {
-    progressTrack.wantsLayer = true
-    progressTrack.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    progressTrack.layer?.cornerRadius = 1
-    progressTrack.translatesAutoresizingMaskIntoConstraints = false
-    progressTrack.toolTip = L10n.tr("Seek")
-    progressTrack.addGestureRecognizer(
-      NSClickGestureRecognizer(target: self, action: #selector(progressLineClicked(_:)))
-    )
-
-    progressFill.wantsLayer = true
-    progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
-    progressFill.layer?.cornerRadius = 1
-    progressFill.translatesAutoresizingMaskIntoConstraints = false
-    progressTrack.addSubview(progressFill)
-
-    capsule.addSubview(progressTrack)
-    NSLayoutConstraint.activate([
-      progressTrack.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
-      progressTrack.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
-      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -5),
-      progressTrack.heightAnchor.constraint(equalToConstant: 2),
-
-      progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
-      progressFill.centerYAnchor.constraint(equalTo: progressTrack.centerYAnchor),
-      progressFill.heightAnchor.constraint(equalToConstant: 2),
-    ])
-    let width = progressFill.widthAnchor.constraint(equalToConstant: 0)
-    progressFillWidth = width
-    width.isActive = true
+    volumeSlider.widthAnchor.constraint(equalToConstant: 46).isActive = true
   }
 
   private func configure(button: NSButton, symbol: String, size: CGFloat, action: Selector) {
@@ -337,13 +343,14 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   override func viewDidLayout() {
     super.viewDidLayout()
     let width = view.bounds.width
-    let shouldCompact = width < 480
-    infoGroup?.isHidden = shouldCompact
-    volumeSlider.isHidden = width < 380
+    // Progressively drop decoration as the content column narrows.
+    infoGroup?.isHidden = width < 470
+    volumeSlider.isHidden = width < 620
     volumeIcon.isHidden = width < 380
     outputButton.isHidden = width < 430
-    updateProgressFill()
-    compactMode = shouldCompact
+    elapsedLabel.isHidden = width < 560
+    remainingLabel.isHidden = width < 560
+    compactMode = width < 470
   }
 
   // MARK: - Refresh
@@ -418,19 +425,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     let duration = player.duration
     guard duration.isFinite, duration > 0 else {
-      progressFraction = 0
-      updateProgressFill()
+      progressSlider.doubleValue = 0
+      elapsedLabel.stringValue = "0:00"
+      remainingLabel.stringValue = "-0:00"
       return
     }
     let elapsed = min(max(player.elapsedTime, 0), duration)
-    progressFraction = CGFloat(elapsed / duration)
-    updateProgressFill()
-  }
-
-  private func updateProgressFill() {
-    guard let progressFillWidth else { return }
-    let available = max(progressTrack.bounds.width, 0)
-    progressFillWidth.constant = max(0, min(available, available * progressFraction))
+    progressSlider.doubleValue = elapsed
+    progressSlider.maxValue = duration
+    elapsedLabel.stringValue = ClockTime(timeInSeconds: Int(elapsed)).asShortString()
+    remainingLabel.stringValue = "-" +
+      ClockTime(timeInSeconds: Int(duration - elapsed)).asShortString()
   }
 
   @objc
@@ -443,7 +448,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func themeColorChanged() {
     updateModeButtons()
     updateLyricsButton()
-    progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
   }
 
   @objc
@@ -484,18 +488,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func cycleRepeatMode() {
     player.setRepeatMode(player.repeatMode.nextMode)
     updateModeButtons()
-  }
-
-  @objc
-  private func progressLineClicked(_ recognizer: NSClickGestureRecognizer) {
-    let location = recognizer.location(in: progressTrack)
-    guard progressTrack.bounds.width > 0 else { return }
-    let fraction = min(max(location.x / progressTrack.bounds.width, 0), 1)
-    let duration = player.duration
-    guard duration.isFinite, duration > 0 else { return }
-    player.seek(toSecond: Double(fraction) * duration)
-    progressFraction = fraction
-    updateProgressFill()
   }
 
   @objc
