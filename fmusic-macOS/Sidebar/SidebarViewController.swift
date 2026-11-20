@@ -64,7 +64,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   override func loadView() {
     let root = NSView()
     root.wantsLayer = true
-    root.layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    root.layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
 
     let column = NSTableColumn(identifier: columnIdentifier)
     column.resizingMask = .autoresizingMask

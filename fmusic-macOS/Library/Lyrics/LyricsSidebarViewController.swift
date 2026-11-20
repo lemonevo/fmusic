@@ -825,7 +825,7 @@ private final class LyricsPaneBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
   }
 
   required init?(coder: NSCoder) {
@@ -834,6 +834,6 @@ private final class LyricsPaneBackgroundView: NSView {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
   }
 }
