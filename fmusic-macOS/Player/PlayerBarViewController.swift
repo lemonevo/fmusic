@@ -48,6 +48,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let volumeIcon = NSImageView()
   private let volumeSlider = NSSlider()
 
+  private var leftGroup: NSStackView?
+  private var progressGroup: NSStackView?
+  private var compactMode: Bool?
+
   /// Called when the user toggles the lyrics side pane.
   var onToggleLyricsPane: (() -> Void)?
 
@@ -90,6 +94,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     configureRightCluster()
 
     let leftGroup = NSStackView(views: [artworkView, infoStack()])
+    self.leftGroup = leftGroup
     leftGroup.orientation = .horizontal
     leftGroup.alignment = .centerY
     leftGroup.spacing = 10
@@ -104,10 +109,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     controlsGroup.orientation = .horizontal
     controlsGroup.alignment = .centerY
-    controlsGroup.spacing = 4
+    controlsGroup.spacing = 2
     controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let progressGroup = NSStackView(views: [elapsedLabel, progressSlider, remainingLabel])
+    self.progressGroup = progressGroup
     progressGroup.orientation = .horizontal
     progressGroup.alignment = .centerY
     progressGroup.spacing = 10
@@ -128,7 +134,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
-    rightGroup.spacing = 8
+    rightGroup.spacing = 6
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsule.addSubview(leftGroup)
@@ -145,7 +151,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
       leftGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 14),
       leftGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
-      leftGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 230),
+      leftGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 150),
 
       controlsGroup.leadingAnchor.constraint(
         greaterThanOrEqualTo: leftGroup.trailingAnchor,
@@ -162,7 +168,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         lessThanOrEqualTo: rightGroup.leadingAnchor,
         constant: -18
       ),
-      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 260),
+      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 80),
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
@@ -311,7 +317,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeSlider.target = self
     volumeSlider.action = #selector(changeVolume)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-    volumeSlider.widthAnchor.constraint(equalToConstant: 70).isActive = true
+    volumeSlider.widthAnchor.constraint(equalToConstant: 60).isActive = true
   }
 
   private func configure(button: NSButton, symbol: String, size: CGFloat, action: Selector) {
@@ -332,6 +338,21 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       .withSymbolConfiguration(
         NSImage.SymbolConfiguration(pointSize: size, weight: .medium)
       )
+  }
+
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    let width = view.bounds.width
+    let shouldCompact = width < 560
+
+    // Narrow content column: keep the transport, progress and toggles, drop the
+    // decoration (artwork/title, time labels, volume) like Apple Music's compact pill.
+    leftGroup?.isHidden = shouldCompact
+    elapsedLabel.isHidden = shouldCompact
+    remainingLabel.isHidden = shouldCompact
+    volumeIcon.isHidden = shouldCompact
+    volumeSlider.isHidden = shouldCompact
+    outputButton.isHidden = width < 460
   }
 
   // MARK: - Refresh

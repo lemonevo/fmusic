@@ -67,35 +67,41 @@ final class MainViewController: NSViewController {
     splitViewController.addSplitViewItem(lyricsItem)
     splitViewController.splitView.dividerStyle = .thin
 
-    addChild(playerBarViewController)
-    for child in [splitViewController, playerBarViewController] as [NSViewController] {
-      child.view.translatesAutoresizingMaskIntoConstraints = false
-      root.addSubview(child.view)
-    }
     addChild(splitViewController)
+    splitViewController.view.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(splitViewController.view)
+
+    // The player capsule floats over the library content column (Apple Music style):
+    // the content scrolls underneath it, the sidebar and lyrics pane stay full height.
+    contentContainerViewController.view.wantsLayer = true
+    addChild(playerBarViewController)
+    let capsuleView = playerBarViewController.view
+    capsuleView.translatesAutoresizingMaskIntoConstraints = false
+    contentContainerViewController.view.addSubview(capsuleView)
+
+    let capsuleWidth = capsuleView.widthAnchor.constraint(
+      equalTo: contentContainerViewController.view.widthAnchor,
+      constant: -40
+    )
+    capsuleWidth.priority = .defaultHigh
+    capsuleWidth.isActive = true
 
     NSLayoutConstraint.activate([
       splitViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
       splitViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       splitViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      splitViewController.view.bottomAnchor.constraint(
-        equalTo: playerBarViewController.view.topAnchor,
-        constant: -6
-      ),
+      splitViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
-      // Floating capsule: full window width with small margins.
-      playerBarViewController.view.leadingAnchor.constraint(
-        equalTo: root.leadingAnchor,
-        constant: 10
+      capsuleView.centerXAnchor.constraint(equalTo: contentContainerViewController.view.centerXAnchor),
+      capsuleView.bottomAnchor.constraint(
+        equalTo: contentContainerViewController.view.bottomAnchor,
+        constant: -12
       ),
-      playerBarViewController.view.trailingAnchor.constraint(
-        equalTo: root.trailingAnchor,
-        constant: -10
-      ),
-      playerBarViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -8),
-      playerBarViewController.view.heightAnchor.constraint(
+      capsuleView.heightAnchor.constraint(
         equalToConstant: PlayerBarViewController.capsuleHeight
       ),
+      capsuleView.widthAnchor.constraint(lessThanOrEqualToConstant: 680),
+      capsuleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 300),
     ])
 
     self.view = root
@@ -197,5 +203,32 @@ final class MainViewController: NSViewController {
       controller.view.bottomAnchor.constraint(equalTo: contentContainerViewController.view.bottomAnchor),
     ])
     contentContainerViewController.addChild(controller)
+    applyCapsuleContentInset(to: controller.view)
+    contentContainerViewController.view.addSubview(
+      playerBarViewController.view,
+      positioned: .above,
+      relativeTo: nil
+    )
+  }
+
+  /// Reserves space under the floating capsule so the last rows can scroll above it.
+  private func applyCapsuleContentInset(to view: NSView) {
+    let extra = PlayerBarViewController.capsuleHeight + 26
+    for scrollView in allScrollViews(in: view) {
+      var insets = scrollView.contentInsets
+      insets.bottom = max(insets.bottom, extra)
+      scrollView.contentInsets = insets
+    }
+  }
+
+  private func allScrollViews(in view: NSView) -> [NSScrollView] {
+    var result: [NSScrollView] = []
+    if let scrollView = view as? NSScrollView {
+      result.append(scrollView)
+    }
+    for subview in view.subviews {
+      result.append(contentsOf: allScrollViews(in: subview))
+    }
+    return result
   }
 }
