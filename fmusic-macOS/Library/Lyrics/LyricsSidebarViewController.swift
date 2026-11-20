@@ -140,7 +140,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     // The player notifications are not delivered at a fixed rate; the Catalyst lyrics
     // view runs its own clock for the character fill, so mirror that here.
     syncTimer = Timer(
-      timeInterval: 1.0 / 15.0,
+      timeInterval: 1.0 / 60.0,
       target: self,
       selector: #selector(syncTick),
       userInfo: nil,
@@ -258,6 +258,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   @objc
   private func syncTick() {
+    stepScrollSpring()
     updateActiveLine(force: false)
   }
 
@@ -282,36 +283,89 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     let previous = currentLine
     if index != previous {
       currentLine = index
-      let rows = IndexSet(integersIn: 0 ..< lyrics.line.count)
-      tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
+      if previous >= 0 {
+        reconfigureRow(previous)
+      }
       if index >= 0 {
-        scrollToActiveLine(index)
+        reconfigureRow(index)
+        scrollTargetY = scrollTarget(for: index)
       }
     } else if index >= 0 {
-      // Refresh the active row so the sung characters keep filling in.
-      tableView.reloadData(
-        forRowIndexes: IndexSet(integer: index),
-        columnIndexes: IndexSet(integer: 0)
-      )
+      // Only this row's fill changes; never reload the table while the clock runs.
+      reconfigureRow(index)
     }
   }
 
-  private func scrollToActiveLine(_ row: Int) {
+  private func reconfigureRow(_ row: Int) {
+    guard let lyrics,
+          lyrics.line.indices.contains(row),
+          let cell = tableView.view(
+            atColumn: 0,
+            row: row,
+            makeIfNecessary: false
+          ) as? LyricsSidebarCellView
+    else { return }
+    cell.configure(
+      line: lyrics.line[row],
+      isActive: row == currentLine,
+      syllables: syllableCache.indices.contains(row) ? syllableCache[row] : [],
+      time: playbackLyricsTime(),
+      rowSpacing: Self.rowSpacing,
+      inset: Self.horizontalInset
+    )
+  }
+
+  private func playbackLyricsTime() -> TimeInterval {
+    guard let lyrics else { return player.elapsedTime }
+    return player.elapsedTime + (
+      Double(lyrics.offset) + Double(storage.settings.user.lyricsOffsetMs)
+    ) / 1000.0
+  }
+
+  // MARK: - Spring scrolling (same constants as the Catalyst LyricsView)
+
+  private var scrollTargetY: CGFloat?
+  private var scrollVelocity: CGFloat = 0
+  private var lastSpringTimestamp = CACurrentMediaTime()
+
+  private func scrollTarget(for row: Int) -> CGFloat {
     let rowRect = tableView.rect(ofRow: row)
     let visible = scrollView.contentView.bounds.height
-    let target = max(0, rowRect.midY - visible / 2)
     let maxY = max(0, tableView.bounds.height - visible)
-    let point = NSPoint(x: 0, y: min(target, maxY))
-    if storage.settings.user.isLyricsSmoothScrolling {
-      NSAnimationContext.runAnimationGroup { context in
-        context.duration = 0.3
-        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        scrollView.contentView.animator().setBoundsOrigin(point)
-      }
-    } else {
-      scrollView.contentView.scroll(to: point)
-      scrollView.reflectScrolledClipView(scrollView.contentView)
+    return min(max(0, rowRect.midY - visible / 2), maxY)
+  }
+
+  private func stepScrollSpring() {
+    guard let target = scrollTargetY else { return }
+    let now = CACurrentMediaTime()
+    var deltaTime = now - lastSpringTimestamp
+    lastSpringTimestamp = now
+    guard deltaTime > 0, deltaTime <= 0.1 else { return }
+
+    let clip = scrollView.contentView
+    let current = clip.bounds.origin.y
+    if abs(target - current) <= 1.6, abs(scrollVelocity) < 40 {
+      scrollTargetY = nil
+      scrollVelocity = 0
+      clip.scroll(to: NSPoint(x: 0, y: target))
+      scrollView.reflectScrolledClipView(clip)
+      return
     }
+    let stiffness: CGFloat = 190
+    let damping: CGFloat = 1.05 * 2 * sqrt(stiffness)
+    let displacement = current - target
+    scrollVelocity += (-stiffness * displacement - damping * scrollVelocity) *
+      CGFloat(deltaTime)
+    var newY = current + scrollVelocity * CGFloat(deltaTime)
+    let maxY = max(0, tableView.bounds.height - clip.bounds.height)
+    newY = min(max(newY, 0), maxY)
+    if abs(target - newY) < 0.35, abs(scrollVelocity) < 4 {
+      scrollTargetY = nil
+      scrollVelocity = 0
+      newY = target
+    }
+    clip.scroll(to: NSPoint(x: 0, y: newY))
+    scrollView.reflectScrolledClipView(clip)
   }
 
   @objc
