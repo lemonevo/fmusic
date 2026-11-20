@@ -130,9 +130,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     // Apply the stored appearance before the first frame, so forcing Dark (or Light) while the
     // system uses the other one doesn't flash the wrong theme on launch.
     window?.overrideUserInterfaceStyle = appDelegate.storage.settings.user.appearanceMode
+      .uiUserInterfaceStyle
     window?.makeKeyAndVisible()
 
-    appDelegate.setAppAppearanceMode(style: appDelegate.storage.settings.user.appearanceMode)
+    appDelegate.setAppAppearanceMode(
+      style: appDelegate.storage.settings.user.appearanceMode.uiUserInterfaceStyle
+    )
     fmusicAppShortcuts.updateAppShortcutParameters()
     handleURLContexts(connectionOptions.urlContexts)
   }

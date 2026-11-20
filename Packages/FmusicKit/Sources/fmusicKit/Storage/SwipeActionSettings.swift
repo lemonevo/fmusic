@@ -20,7 +20,6 @@
 //
 
 import Foundation
-import UIKit
 
 // MARK: - SwipeActionType
 
@@ -108,32 +107,32 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   }
 
   @MainActor
-  public var image: UIImage {
+  public var image: PlatformImage {
     switch self {
     case .insertUserQueue:
-      return UIImage.userQueueInsert.withTintColor(.white)
+      return PlatformImage.userQueueInsert.platformTinted(with: .white)
     case .appendUserQueue:
-      return UIImage.userQueueAppend.withTintColor(.white)
+      return PlatformImage.userQueueAppend.platformTinted(with: .white)
     case .insertContextQueue:
-      return UIImage.contextQueueInsert.withTintColor(.white)
+      return PlatformImage.contextQueueInsert.platformTinted(with: .white)
     case .appendContextQueue:
-      return UIImage.contextQueueAppend.withTintColor(.white)
+      return PlatformImage.contextQueueAppend.platformTinted(with: .white)
     case .download:
-      return UIImage.download.withTintColor(.white)
+      return PlatformImage.download.platformTinted(with: .white)
     case .removeFromCache:
-      return UIImage.trash.withTintColor(.white)
+      return PlatformImage.trash.platformTinted(with: .white)
     case .addToPlaylist:
-      return UIImage.playlist.withTintColor(.white)
+      return PlatformImage.playlist.platformTinted(with: .white)
     case .play:
-      return UIImage.play.withTintColor(.white)
+      return PlatformImage.play.platformTinted(with: .white)
     case .playShuffled:
-      return UIImage.shuffle.withTintColor(.white)
+      return PlatformImage.shuffle.platformTinted(with: .white)
     case .insertPodcastQueue:
-      return UIImage.podcastQueueInsert.withTintColor(.white)
+      return PlatformImage.podcastQueueInsert.platformTinted(with: .white)
     case .appendPodcastQueue:
-      return UIImage.podcastQueueAppend.withTintColor(.white)
+      return PlatformImage.podcastQueueAppend.platformTinted(with: .white)
     case .favorite:
-      return UIImage.heartFill.withTintColor(.white)
+      return PlatformImage.heartFill.platformTinted(with: .white)
     }
   }
 }

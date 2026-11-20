@@ -21,6 +21,7 @@
 
 import fmusicKit
 import SwiftUI
+import UIKit
 
 final class Settings: ObservableObject {
   @Published
@@ -83,7 +84,7 @@ final class Settings: ObservableObject {
   @Published
   var themePreference: ThemePreference = .defaultValue
   @Published
-  var appearanceMode: UIUserInterfaceStyle = .unspecified
+  var appearanceMode: AppearanceMode = .unspecified
   @Published
   var appLanguage: AppLanguage = .system
   @Published

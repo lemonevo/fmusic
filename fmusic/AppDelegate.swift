@@ -464,7 +464,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
   /// Applies the in-app text size (see `TextScaling`) to the app and all windows
   func applyTextSize() {
+    // The package persists the platform-neutral raw value; the app scales UIKit views.
     let textSize = storage.settings.user.textSize
+      .map { UIContentSizeCategory(rawValue: $0) }
     TextScaling.textSize = textSize
     UIApplication.shared.connectedScenes
       .compactMap { $0 as? UIWindowScene }
