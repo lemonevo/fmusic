@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import fmusicKit
 
 /// The main library window (Apple Music style: 1024×768 default, 980×540 minimum).
 @MainActor
@@ -26,11 +27,14 @@ final class MainWindowController: NSWindowController {
   convenience init() {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
     window.title = "fmusic"
+    window.titlebarAppearsTransparent = true
+    window.titleVisibility = .hidden
+    window.backgroundColor = MacTheme.contentBackgroundColor
     window.minSize = NSSize(width: 980, height: 540)
     window.isReleasedWhenClosed = false
     window.tabbingMode = .disallowed

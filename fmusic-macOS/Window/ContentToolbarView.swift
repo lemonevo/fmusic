@@ -69,8 +69,8 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     searchField.translatesAutoresizingMaskIntoConstraints = false
     searchField.isHidden = true
 
+    separator.isHidden = true
     separator.wantsLayer = true
-    separator.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.4).cgColor
     separator.translatesAutoresizingMaskIntoConstraints = false
 
     addSubview(backButton)

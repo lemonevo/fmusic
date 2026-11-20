@@ -99,7 +99,7 @@ final class MainViewController: NSViewController {
     root.addSubview(capsuleView)
 
     NSLayoutConstraint.activate([
-      splitViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
+      splitViewController.view.topAnchor.constraint(equalTo: root.safeAreaLayoutGuide.topAnchor),
       splitViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       splitViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       splitViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
