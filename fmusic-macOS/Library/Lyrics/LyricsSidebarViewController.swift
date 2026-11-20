@@ -35,6 +35,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
   private var loadedSongID: String?
   private var currentLine = -1
 
+  nonisolated(unsafe) private var syncTimer: Timer?
+
   private var player: PlayerFacade { FmusicKit.shared.player }
 
   private static let lineFontSize: CGFloat = 13
@@ -105,9 +107,27 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
       name: .lyricsOffsetChanged,
       object: nil
     )
+    // The player notifications are not guaranteed at a fixed rate, so a light timer
+    // keeps the highlight glued to the audio position (like the Catalyst overlay).
+    syncTimer = Timer(
+      timeInterval: 0.15,
+      target: self,
+      selector: #selector(syncTick),
+      userInfo: nil,
+      repeats: true
+    )
+    if let syncTimer {
+      RunLoop.main.add(syncTimer, forMode: .common)
+    }
+  }
+
+  @objc
+  private func syncTick() {
+    updateHighlight()
   }
 
   deinit {
+    syncTimer?.invalidate()
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -202,6 +222,9 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
       label.identifier = NSUserInterfaceItemIdentifier("\(index)")
       label.translatesAutoresizingMaskIntoConstraints = false
       label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+      label.addGestureRecognizer(
+        NSClickGestureRecognizer(target: self, action: #selector(lineClicked(_:)))
+      )
       stackView.addArrangedSubview(label)
       label.widthAnchor.constraint(
         equalTo: scrollView.contentView.widthAnchor,
@@ -240,6 +263,20 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     scrollToCurrentLine(animated: true)
   }
 
+  @objc
+  private func lineClicked(_ recognizer: NSClickGestureRecognizer) {
+    guard let label = recognizer.view as? NSTextField,
+          let index = Int(label.identifier?.rawValue ?? ""),
+          let lyrics,
+          lyrics.line.indices.contains(index),
+          let start = lyrics.line[index].start
+    else { return }
+    let seconds = Double(start) / 1000.0
+    player.seek(toSecond: seconds)
+    currentLine = index
+    updateHighlight(force: true)
+  }
+
   private func scrollToCurrentLine(animated: Bool) {
     guard currentLine >= 0, currentLine < lineLabels.count else { return }
     let label = lineLabels[currentLine]
@@ -247,8 +284,15 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     let maxY = max(0, (scrollView.documentView?.frame.height ?? 0) -
       scrollView.contentView.bounds.height)
     let y = min(max(0, targetY), maxY)
-    scrollView.contentView.scroll(to: NSPoint(x: 0, y: y))
-    scrollView.reflectScrolledClipView(scrollView.contentView)
+    if animated {
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = 0.25
+        scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: y))
+      }
+    } else {
+      scrollView.contentView.scroll(to: NSPoint(x: 0, y: y))
+      scrollView.reflectScrolledClipView(scrollView.contentView)
+    }
   }
 
   @objc
