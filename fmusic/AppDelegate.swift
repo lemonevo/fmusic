@@ -310,7 +310,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     updateLyricsOverlays()
   }
 
+  private var currentThemeColor: UIColor = ThemePreference.defaultValue.asColor
+
   func setAppTheme(color: UIColor) {
+    currentThemeColor = color
     UIView.appearance().tintColor = color
   }
 
@@ -320,6 +323,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     let windows = windowScene.flatMap { $0.windows }
 
     for window in windows {
+      // Setting the window tint propagates down the existing view hierarchy
+      // (tintColorDidChange), which UIView.appearance() alone cannot do because
+      // it only affects views created afterwards. Without this the main window
+      // keeps the old accent while the freshly built settings UI changes.
+      window.tintColor = currentThemeColor
       for view in window.subviews {
         view.removeFromSuperview()
         window.addSubview(view)

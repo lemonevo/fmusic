@@ -161,6 +161,11 @@ private enum SettingsSearchCatalog {
       keywords: ["opacity", "transparent", "透明度", "背景"]
     ),
     .init(
+      L10n.tr("Control Bar Icon Color"),
+      .displayAndInteraction,
+      keywords: ["control bar", "icon", "color", "black", "white", "颜色", "控制条", "图标"]
+    ),
+    .init(
       L10n.tr("Show Next Line"),
       .displayAndInteraction,
       keywords: ["next line", "下一句"]
@@ -329,8 +334,8 @@ struct SettingsTabView: View {
       if let onBackToApp {
         Button(action: onBackToApp) {
           HStack(spacing: 7) {
-            Image(systemName: "chevron.left")
-              .font(.system(size: 12, weight: .semibold))
+            Image(systemName: "arrow.left")
+              .font(.system(size: 13, weight: .regular))
               .foregroundStyle(Color.secondary)
               .frame(width: 22, height: 22)
             Text(L10n.tr("Back to App"))

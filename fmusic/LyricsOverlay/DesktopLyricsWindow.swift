@@ -23,6 +23,7 @@
   import NaturalLanguage
   import QuartzCore
   import UIKit
+  import CoreGraphics
 
   // MARK: - DesktopLyricsContent
 
@@ -41,6 +42,8 @@
     var backgroundOpacity: Double
     var alignment: DesktopLyricsAlignment
     var showsNextLine: Bool
+    // Continuous greyscale for the control-strip glyphs (0 = white, 1 = black).
+    var controlIconBrightness: Double = 0.0
   }
 
   /// One snapshot feeds the lyrics-sync panel: a per-song correction on top of
@@ -184,17 +187,30 @@
     static let glassCornerRadius: CGFloat = 32
 
     // Hover control strip (top-right, appears while the pointer is over the panel).
-    // These measurements match OverlayControlLayout in LyricsX Next.
-    static let toolbarHeight: CGFloat = 34
+    // Two rows: transport (open window / previous / play-pause / next) on top,
+    // overlay controls (sync / lock / click-through / close) below.
     static let toolbarButtonSize: CGFloat = 30
     static let toolbarButtonSpacing: CGFloat = 2
     static let toolbarPadding: CGFloat = 4
+    static let toolbarRowSpacing: CGFloat = 2
+    static let toolbarRowCount = 2
+    /// Widest row is the 4-button transport row; the row is centred inside the
+    /// capsule when the lower row has fewer buttons.
+    static let toolbarRowButtonCount = 4
+    static let toolbarRowWidth = CGFloat(toolbarRowButtonCount) * toolbarButtonSize
+      + CGFloat(toolbarRowButtonCount - 1) * toolbarButtonSpacing
+    static let toolbarWidth = toolbarRowWidth + toolbarPadding * 2
+    static let toolbarHeight = CGFloat(toolbarRowCount) * toolbarButtonSize
+      + CGFloat(toolbarRowCount - 1) * toolbarRowSpacing
+      + toolbarPadding * 2
     static let toolbarTopInset: CGFloat = 8
     static let toolbarRightInset: CGFloat = 14
-    static let toolbarButtonCount = 5
-    static let toolbarWidth = CGFloat(toolbarButtonCount) * toolbarButtonSize
-      + CGFloat(toolbarButtonCount - 1) * toolbarButtonSpacing
-      + toolbarPadding * 2
+    /// The control strip is much shorter than the lyric capsule, so a 32pt
+    /// radius there reads as a full pill; ~28% of the height keeps it rounded
+    /// without looking like a stadium.
+    static var toolbarCornerRadius: CGFloat { 20 }
+    /// Minimum panel height so the two-row strip is never clipped at the top edge.
+    static var minPanelHeight: CGFloat { toolbarTopInset + toolbarHeight + 4 }
 
     static func displayText(_ text: String) -> String {
       text.isEmpty ? "♪" : text
@@ -749,6 +765,9 @@
     private var departureToken = 0
 
     private var toolbarContainer: NSObject?
+    /// Transparent host so the capsule background can fade with
+    /// `desktopLyricsBackgroundOpacity` while the buttons stay crisp.
+    private var toolbarHost: NSObject?
     private var toolbarButtons: [NSObject] = []
     private var hoverTimer: Timer?
     private var isToolbarVisible = false
@@ -757,6 +776,7 @@
     private var applyingClickThrough = false
     private var usesGlassMaterial = false
     private var toolbarToken = 0
+    private var isPlaying = false
     private struct ActiveResize {
       let top: CGFloat
       let startHeight: CGFloat
@@ -779,6 +799,9 @@
     var onOpenMainWindow: (() -> ())?
     var onHideDesktopLyrics: (() -> ())?
     var onClickThroughChanged: ((Bool) -> ())?
+    var onPlayPrevious: (() -> ())?
+    var onPlayNext: (() -> ())?
+    var onTogglePlayPause: (() -> ())?
     var offsetSnapshot: (() -> OverlayOffsetSnapshot?)?
     var adjustSongOffset: ((String, Int) -> OverlayOffsetSnapshot?)?
     var resetSongOffset: ((String) -> OverlayOffsetSnapshot?)?
@@ -1262,19 +1285,57 @@
 
     private func installToolbar() {
       guard let container = Self.makeToolbarBackground() else { return }
-      if let layer = container.value(forKey: "layer") as? CALayer {
+      // The capsule is nested in a transparent host so it can fade with the
+      // panel background on its own alpha, leaving the buttons fully opaque.
+      // Visibility (hidden) is driven on the host; the chip always renders.
+      container.setValue(false, forKey: "hidden")
+      let host = Self.makePlainView() ?? container
+      host.setValue(true, forKey: "hidden")
+      if let layer = host.value(forKey: "layer") as? CALayer {
         layer.zPosition = 10
       }
-      container.setValue(true, forKey: "hidden")
-      contentView.perform(NSSelectorFromString("addSubview:"), with: container)
+      if let chipLayer = container.value(forKey: "layer") as? CALayer {
+        chipLayer.zPosition = 0
+      }
+      if host !== container {
+        // Size the host first, then give the chip a fixed frame. (If the chip's
+        // autoresizing mask is set while its parent is still 0×0, the negative
+        // right/bottom margins stretch it to double width once the host sizes.)
+        host.setValue(
+          NSValue(cgRect: CGRect(
+            x: 0,
+            y: 0,
+            width: DesktopLyricsRenderer.toolbarWidth,
+            height: DesktopLyricsRenderer.toolbarHeight
+          )),
+          forKey: "frame"
+        )
+        container.setValue(
+          NSValue(cgRect: CGRect(
+            x: 0,
+            y: 0,
+            width: DesktopLyricsRenderer.toolbarWidth,
+            height: DesktopLyricsRenderer.toolbarHeight
+          )),
+          forKey: "frame"
+        )
+        container.setValue(NSNumber(value: 0), forKey: "autoresizingMask")
+        host.perform(NSSelectorFromString("addSubview:"), with: container)
+      }
+      contentView.perform(NSSelectorFromString("addSubview:"), with: host)
+      toolbarHost = host
       toolbarContainer = container
 
-      // Matches LyricsX Next: sync, open window, lock, click-through, hide.
+      // Row 1 (transport): open window, previous, play/pause, next.
+      // Row 2 (overlay): sync, lock, click-through, hide.
       let specs: [(String, String, Selector)] = [
-        ("timer", "调节歌词同步", #selector(toolbarSyncPressed)),
         ("arrow.up.left.and.arrow.down.right", "打开主窗口", #selector(toolbarOpenPressed)),
+        ("backward.fill", "上一首", #selector(toolbarPreviousPressed)),
+        ("pause.fill", "暂停", #selector(toolbarPlayPausePressed)),
+        ("forward.fill", "下一首", #selector(toolbarNextPressed)),
+        ("timer", "调节歌词同步", #selector(toolbarSyncPressed)),
         ("lock.open", "锁定位置", #selector(toolbarLockPressed)),
-        ("cursorarrow.rays", "开启点击穿透", #selector(toolbarClickThroughPressed)),
+        ("cursorarrow.slash", "开启点击穿透", #selector(toolbarClickThroughPressed)),
         ("xmark", "隐藏悬浮歌词", #selector(toolbarClosePressed)),
       ]
       for (index, spec) in specs.enumerated() {
@@ -1289,56 +1350,22 @@
           NSValue(cgRect: Self.toolbarButtonFrame(at: index)),
           forKey: "frame"
         )
-        container.perform(NSSelectorFromString("addSubview:"), with: button)
+        // Buttons live in the host, above the capsule chip, so the chip can
+        // fade with the panel background without dimming the glyphs.
+        host.perform(NSSelectorFromString("addSubview:"), with: button)
         toolbarButtons.append(button)
       }
     }
 
-    /// A regular-material capsule with a dark ink tint, like the SwiftUI control
-    /// strip in LyricsX Next. A second clear glass would refract the glyphs.
+    /// The control strip has no backing of its own: the buttons float directly
+    /// on the lyric capsule (which already provides the background). A clear
+    /// view keeps the existing host/child structure without drawing anything.
     private static func makeToolbarBackground() -> NSObject? {
-      if let effectClass = NSClassFromString("NSVisualEffectView") as? NSObject.Type,
-         let allocated = effectClass.perform(NSSelectorFromString("alloc"))?
-         .takeUnretainedValue(),
-         let view = initWithFrame(allocated, class: effectClass, frame: .zero) {
-        // HUD material stays dark over light desktops, so white glyphs keep
-        // the contrast LyricsX Next's control strip has.
-        setValueIfSupported(NSNumber(value: 13), forKey: "material", on: view)
-        setValueIfSupported(NSNumber(value: 0), forKey: "blendingMode", on: view)
-        setValueIfSupported(NSNumber(value: 1), forKey: "state", on: view)
-        applyDarkAppearance(to: view)
-        view.setValue(true, forKey: "wantsLayer")
-        if let layer = view.value(forKey: "layer") as? CALayer {
-          layer.cornerRadius = DesktopLyricsRenderer.toolbarHeight / 2
-          layer.cornerCurve = .continuous
-          layer.masksToBounds = true
-          layer.borderWidth = 0.5
-          layer.borderColor = cgColor(white: 1, alpha: 0.16)
-        }
-        if let tint = makePlainView() {
-          tint.setValue(true, forKey: "wantsLayer")
-          if let layer = tint.value(forKey: "layer") as? CALayer {
-            layer.backgroundColor = cgColor(white: 0, alpha: 0.22)
-          }
-          tint.setValue(NSNumber(value: 2 | 16), forKey: "autoresizingMask")
-          tint.setValue(NSValue(cgRect: CGRect(
-            x: 0,
-            y: 0,
-            width: DesktopLyricsRenderer.toolbarWidth,
-            height: DesktopLyricsRenderer.toolbarHeight
-          )), forKey: "frame")
-          view.perform(NSSelectorFromString("addSubview:"), with: tint)
-        }
-        return view
-      }
       guard let container = makePlainView() else { return nil }
       container.setValue(true, forKey: "wantsLayer")
       if let layer = container.value(forKey: "layer") as? CALayer {
-        layer.backgroundColor = UIColor(white: 0.10, alpha: 0.62).cgColor
-        layer.cornerRadius = DesktopLyricsRenderer.toolbarHeight / 2
-        layer.cornerCurve = .continuous
-        layer.borderWidth = 0.5
-        layer.borderColor = UIColor.white.withAlphaComponent(0.16).cgColor
+        layer.backgroundColor = UIColor.clear.cgColor
+        layer.borderWidth = 0
       }
       return container
     }
@@ -1401,7 +1428,7 @@
       return button
     }
 
-    private static func symbolImage(_ name: String, pointSize: CGFloat = 15) -> NSObject? {
+    private static func symbolImage(_ name: String, pointSize: CGFloat = 13) -> NSObject? {
       guard let imageClass = NSClassFromString("NSImage") as? NSObject.Type
       else { return nil }
       let selector = NSSelectorFromString(
@@ -1485,38 +1512,87 @@
       object.setValue(value, forKey: key)
     }
 
+    /// Two centred rows. Row 1 (transport, 4 buttons) is the widest and defines
+    /// the capsule width; row 2 (overlay controls, 4 buttons) sits below it.
     private static func toolbarButtonFrame(at index: Int) -> CGRect {
       let size = DesktopLyricsRenderer.toolbarButtonSize
-      return CGRect(
-        x: DesktopLyricsRenderer.toolbarPadding
-          + CGFloat(index) * (size + DesktopLyricsRenderer.toolbarButtonSpacing),
-        y: (DesktopLyricsRenderer.toolbarHeight - size) / 2,
-        width: size,
-        height: size
-      )
+      let spacing = DesktopLyricsRenderer.toolbarButtonSpacing
+      let row = index / DesktopLyricsRenderer.toolbarRowButtonCount
+      let col = index % DesktopLyricsRenderer.toolbarRowButtonCount
+      let rowWidth = CGFloat(DesktopLyricsRenderer.toolbarRowButtonCount) * size
+        + CGFloat(DesktopLyricsRenderer.toolbarRowButtonCount - 1) * spacing
+      let x = (DesktopLyricsRenderer.toolbarWidth - rowWidth) / 2
+        + CGFloat(col) * (size + spacing)
+      // y is measured from the top edge (the host view is not flipped), so the
+      // first row is the top one.
+      let y = DesktopLyricsRenderer.toolbarHeight
+        - DesktopLyricsRenderer.toolbarPadding
+        - CGFloat(row) * (size + DesktopLyricsRenderer.toolbarRowSpacing)
+        - size
+      return CGRect(x: x, y: y, width: size, height: size)
     }
 
+    private static let syncButtonIndex = 4
+    private static let lockButtonIndex = 5
+    private static let clickThroughButtonIndex = 6
+    private static let playPauseButtonIndex = 2
+
     private func updateToolbarImages() {
-      guard toolbarButtons.count >= 5 else { return }
+      guard toolbarButtons.count >= 8 else { return }
       let locked = positionLocked
-      changeSymbol(of: toolbarButtons[2], to: locked ? "lock.fill" : "lock.open")
-      Self.setActive(locked, on: toolbarButtons[2])
+      changeSymbol(
+        of: toolbarButtons[Self.lockButtonIndex],
+        to: locked ? "lock.fill" : "lock.open"
+      )
+      Self.setActive(locked, on: toolbarButtons[Self.lockButtonIndex])
       Self.setValueIfSupported(
         locked ? "解锁并恢复拖动" : "锁定位置",
         forKey: "toolTip",
-        on: toolbarButtons[2]
+        on: toolbarButtons[Self.lockButtonIndex]
       )
       let through = clickThrough
+      // crossing arrows (rays) = click-through on; slashed arrow = click-through off.
       changeSymbol(
-        of: toolbarButtons[3],
-        to: through ? "cursorarrow.slash" : "cursorarrow.rays"
+        of: toolbarButtons[Self.clickThroughButtonIndex],
+        to: through ? "cursorarrow.rays" : "cursorarrow.slash"
       )
-      Self.setActive(through, on: toolbarButtons[3])
+      Self.setActive(through, on: toolbarButtons[Self.clickThroughButtonIndex])
       Self.setValueIfSupported(
         through ? "关闭点击穿透" : "开启点击穿透",
         forKey: "toolTip",
-        on: toolbarButtons[3]
+        on: toolbarButtons[Self.clickThroughButtonIndex]
       )
+      changeSymbol(
+        of: toolbarButtons[Self.playPauseButtonIndex],
+        to: isPlaying ? "pause.fill" : "play.fill"
+      )
+      Self.setValueIfSupported(
+        isPlaying ? "暂停" : "播放",
+        forKey: "toolTip",
+        on: toolbarButtons[Self.playPauseButtonIndex]
+      )
+    }
+
+    /// Reflects the live player state on the transport row (play icon and, if a
+    /// song is playing, that the overlay should be visible).
+    func setPlaying(_ playing: Bool) {
+      guard playing != isPlaying else { return }
+      isPlaying = playing
+      updateToolbarImages()
+    }
+
+    /// Applies the configured glyph color (SF Symbols tint). "Automatic" samples
+    /// the desktop behind the control strip and picks black or white so the
+    /// icons stay legible over any wallpaper; it falls back to white if the
+    /// sample is unavailable (e.g. missing screen-recording permission).
+    private func applyControlIconColor() {
+      // Continuous value where 0 = white and 100 = black, so the slider reads
+      // as "how dark". alpha kept high so the glyphs stay solid.
+      let white = CGFloat(1 - min(1, max(0, style.controlIconBrightness)))
+      guard let color = Self.nsColor(white: white, alpha: 0.98) else { return }
+      for button in toolbarButtons {
+        Self.setValueIfSupported(color, forKey: "contentTintColor", on: button)
+      }
     }
 
     private static func setActive(_ active: Bool, on button: NSObject) {
@@ -1544,6 +1620,24 @@
     @objc
     private func toolbarOpenPressed() {
       onOpenMainWindow?()
+    }
+
+    @objc
+    private func toolbarPreviousPressed() {
+      onPlayPrevious?()
+    }
+
+    @objc
+    private func toolbarPlayPausePressed() {
+      // Optimistic flip so the icon reacts immediately; the manager refreshes
+      // the real state via setPlaying(_:) on the next playback notification.
+      setPlaying(!isPlaying)
+      onTogglePlayPause?()
+    }
+
+    @objc
+    private func toolbarNextPressed() {
+      onPlayNext?()
     }
 
     @objc
@@ -1606,13 +1700,13 @@
           controlWindow?.setValue(false, forKey: "ignoresMouseEvents")
         }
         positionControlWindow()
-        if let container = toolbarContainer {
-          container.perform(NSSelectorFromString("removeFromSuperview"))
-          container.setValue(
+        if let host = toolbarHost ?? toolbarContainer {
+          host.perform(NSSelectorFromString("removeFromSuperview"))
+          host.setValue(
             NSNumber(value: 2 | 16),
             forKey: "autoresizingMask"
           )
-          container.setValue(
+          host.setValue(
             NSValue(cgRect: CGRect(
               x: 0,
               y: 0,
@@ -1621,15 +1715,15 @@
             )),
             forKey: "frame"
           )
-          controlWindow?.setValue(container, forKey: "contentView")
+          controlWindow?.setValue(host, forKey: "contentView")
         }
       } else {
         controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
         controlWindow?.setValue(nil, forKey: "contentView")
-        if let container = toolbarContainer {
-          container.perform(NSSelectorFromString("removeFromSuperview"))
-          container.setValue(NSNumber(value: 0), forKey: "autoresizingMask")
-          contentView.perform(NSSelectorFromString("addSubview:"), with: container)
+        if let host = toolbarHost ?? toolbarContainer {
+          host.perform(NSSelectorFromString("removeFromSuperview"))
+          host.setValue(NSNumber(value: 0), forKey: "autoresizingMask")
+          contentView.perform(NSSelectorFromString("addSubview:"), with: host)
         }
       }
       setWindowValue(
@@ -1642,7 +1736,7 @@
         onClickThroughChanged?(enabled)
       }
       isToolbarVisible = false
-      toolbarContainer?.setValue(true, forKey: "hidden")
+      (toolbarHost ?? toolbarContainer)?.setValue(true, forKey: "hidden")
       layoutLayers()
       hoverTick()
     }
@@ -1717,14 +1811,20 @@
       toolbarToken += 1
       let token = toolbarToken
       if visible {
-        container.setValue(false, forKey: "hidden")
+        (toolbarHost ?? container).setValue(false, forKey: "hidden")
         if clickThrough {
           positionControlWindow()
           controlWindow?.perform(NSSelectorFromString("orderFrontRegardless"))
         }
+        // Re-sample the wallpaper only when the strip appears, so the automatic
+        // contrast adapts to whatever moved behind it without per-frame cost.
+        applyControlIconColor()
       }
-      guard let layer = container.value(forKey: "layer") as? CALayer else {
-        container.setValue(!visible, forKey: "hidden")
+      // Fade the transparent host, not the capsule chip: the chip's own alpha
+      // is reserved for the panel background-opacity linkage (updateChrome).
+      let fadeTarget = toolbarHost ?? container
+      guard let layer = fadeTarget.value(forKey: "layer") as? CALayer else {
+        fadeTarget.setValue(!visible, forKey: "hidden")
         if !visible, clickThrough {
           controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
         }
@@ -1750,7 +1850,7 @@
         try? await Task.sleep(nanoseconds: 200_000_000)
         guard let self, toolbarToken == token, !self.isToolbarVisible
         else { return }
-        toolbarContainer?.setValue(true, forKey: "hidden")
+        (self.toolbarHost ?? self.toolbarContainer)?.setValue(true, forKey: "hidden")
         if clickThrough {
           controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
         }
@@ -2500,6 +2600,17 @@
       borderLayer.borderColor = UIColor.white.withAlphaComponent(0.16).cgColor
       CATransaction.commit()
 
+      // The capsule backing tracks the panel background so it reads as part of
+      // the same surface; the icons get their own opacity below.
+      if let chip = toolbarContainer,
+         let chipLayer = chip.value(forKey: "layer") as? CALayer {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        chipLayer.opacity = Float(min(1, max(0, opacity)))
+        CATransaction.commit()
+      }
+      applyControlIconColor()
+
       if let backgroundView,
          backgroundView.responds(to: NSSelectorFromString("setHidden:")) {
         backgroundView.setValue(
@@ -2556,7 +2667,7 @@
     /// The top edge stays fixed while the height follows the current and preview
     /// lines, so wrapped lines grow downwards like Apple Music's overlay.
     private func resizePanel() {
-      let height = max(desiredHeight(), 44)
+      let height = max(desiredHeight(), DesktopLyricsRenderer.minPanelHeight)
       let frame = currentFrame
       guard abs(frame.height - height) > 0.5 else { return }
       guard isVisible else {
@@ -2655,18 +2766,24 @@
         backgroundView.setValue(NSValue(cgRect: bounds), forKey: "frame")
       }
 
-      if let toolbarContainer, !clickThrough {
-        toolbarContainer.setValue(
-          NSValue(cgRect: CGRect(
-            x: bounds.width - DesktopLyricsRenderer.toolbarRightInset
-              - DesktopLyricsRenderer.toolbarWidth,
-            y: bounds.height - DesktopLyricsRenderer.toolbarTopInset
-              - DesktopLyricsRenderer.toolbarHeight,
-            width: DesktopLyricsRenderer.toolbarWidth,
-            height: DesktopLyricsRenderer.toolbarHeight
-          )),
-          forKey: "frame"
+      if let toolbarHost, !clickThrough {
+        let toolbarRect = CGRect(
+          x: bounds.width - DesktopLyricsRenderer.toolbarRightInset
+            - DesktopLyricsRenderer.toolbarWidth,
+          y: bounds.height - DesktopLyricsRenderer.toolbarTopInset
+            - DesktopLyricsRenderer.toolbarHeight,
+          width: DesktopLyricsRenderer.toolbarWidth,
+          height: DesktopLyricsRenderer.toolbarHeight
         )
+        toolbarHost.setValue(NSValue(cgRect: toolbarRect), forKey: "frame")
+        // The chip is pinned to the host's origin and never resized by it; its
+        // alpha is driven entirely by the background-opacity linkage.
+        toolbarContainer?.setValue(NSValue(cgRect: CGRect(
+          x: 0,
+          y: 0,
+          width: DesktopLyricsRenderer.toolbarWidth,
+          height: DesktopLyricsRenderer.toolbarHeight
+        )), forKey: "frame")
       }
 
       headerLayer.contentsScale = screenScale

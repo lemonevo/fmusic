@@ -50,6 +50,17 @@ struct DisplaySettingsView: View {
       : "\(settings.desktopLyricsBackgroundOpacity)%"
   }
 
+  private var iconBrightnessBinding: Binding<Double> {
+    Binding(
+      get: { Double(settings.desktopLyricsControlIconBrightness) },
+      set: { settings.desktopLyricsControlIconBrightness = Int($0.rounded()) }
+    )
+  }
+
+  private var iconBrightnessLabel: String {
+    "\(settings.desktopLyricsControlIconBrightness)%"
+  }
+
   var body: some View {
     ZStack {
       SettingsList {
@@ -151,6 +162,17 @@ struct DisplaySettingsView: View {
                       .frame(width: 52, alignment: .trailing)
                   }
                 }
+                SettingsRow(title: L10n.tr("Control Bar Icon Color")) {
+                  HStack(spacing: 10) {
+                    Slider(value: iconBrightnessBinding, in: 0 ... 100, step: 1)
+                      .frame(width: 150)
+                    Text(iconBrightnessLabel)
+                      .font(.system(size: 12))
+                      .foregroundStyle(.secondary)
+                      .monospacedDigit()
+                      .frame(width: 52, alignment: .trailing)
+                  }
+                }
                 SettingsCheckBoxRow(
                   title: L10n.tr("Show Next Line"),
                   isOn: $settings.isDesktopLyricsNextLineShown
@@ -161,7 +183,7 @@ struct DisplaySettingsView: View {
                 )
               },
               footer:
-              L10n.tr("At 0% the background is fully transparent and only the lyrics remain.")
+              L10n.tr("At 0% the background is fully transparent and only the lyrics remain. The hover control bar shares the background and has its own icon opacity.")
             )
 
             SettingsSection(

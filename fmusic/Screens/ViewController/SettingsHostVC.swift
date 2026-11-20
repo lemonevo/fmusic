@@ -198,6 +198,13 @@ class SettingsHostVC: UIViewController {
       \.desktopLyricsBackgroundOpacity
     )
 
+    settings.desktopLyricsControlIconBrightness = appDelegate.storage.settings.user
+      .desktopLyricsControlIconBrightness
+    bindLyricsOverlaySetting(
+      settings.$desktopLyricsControlIconBrightness,
+      \.desktopLyricsControlIconBrightness
+    )
+
     settings.isDesktopLyricsNextLineShown = appDelegate.storage.settings.user
       .isDesktopLyricsNextLineShown
     bindLyricsOverlaySetting(

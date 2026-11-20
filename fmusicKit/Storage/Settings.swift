@@ -138,6 +138,14 @@ public struct UserSettings: Sendable, Codable {
     set { _desktopLyricsBackgroundOpacity = min(100, max(0, newValue)) }
   }
 
+  // Continuous greyscale for the hover control-strip glyphs: 0 = black,
+  // 100 = white. Lets the user dial the icon tone to whatever reads best.
+  private var _desktopLyricsControlIconBrightness: Int = 0
+  public var desktopLyricsControlIconBrightness: Int {
+    get { _desktopLyricsControlIconBrightness }
+    set { _desktopLyricsControlIconBrightness = min(100, max(0, newValue)) }
+  }
+
   private var _isDesktopLyricsNextLineShown: Bool = true
   public var isDesktopLyricsNextLineShown: Bool {
     get { _isDesktopLyricsNextLineShown }

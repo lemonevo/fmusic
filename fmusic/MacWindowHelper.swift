@@ -29,6 +29,63 @@
   private let nsWindowLevelNormal = 0
 
   enum MacWindowHelper {
+    /// Brings the whole application to the front. Requesting a scene activation
+    /// alone only raises the window within fmusic; because the desktop-lyrics
+    /// panel is a nonactivating panel, clicking its controls never activates the
+    /// app, so the main window would appear behind the frontmost app (e.g. a
+    /// browser). Forcing activation makes "open main window" actually come to
+    /// the front.
+    static func activateApplication() {
+      // 1) Preferred: NSRunningApplication.current.activate(.activateIgnoringOtherApps).
+      //    Verified to raise fmusic above a frontmost browser on this machine.
+      if let runningClass = NSClassFromString("NSRunningApplication") as? NSObject.Type,
+         let app = runningClass
+         .perform(NSSelectorFromString("currentApplication"))?
+         .takeUnretainedValue(),
+         app.responds(to: NSSelectorFromString("activateWithOptions:")),
+         let method = class_getInstanceMethod(
+           type(of: app),
+           NSSelectorFromString("activateWithOptions:")
+         ) {
+        // NSApplicationActivationOptions.activateIgnoringOtherApps == 1 << 1.
+        typealias ActivateOptionsFunc = @convention(c) (AnyObject, Selector, UInt) -> Bool
+        let function = unsafeBitCast(
+          method_getImplementation(method),
+          to: ActivateOptionsFunc.self
+        )
+        let selector = NSSelectorFromString("activateWithOptions:")
+        if function(app, selector, 1 << 1) { return }
+      }
+      // 2) Fallback: NSApplication.sharedApplication activateIgnoringOtherApps:.
+      guard let appClass = NSClassFromString("NSApplication") as? NSObject.Type,
+            let app = appClass
+            .perform(NSSelectorFromString("sharedApplication"))?
+            .takeUnretainedValue()
+      else { return }
+      for selectorName in ["activateIgnoringOtherApps:", "activate"] {
+        let selector = NSSelectorFromString(selectorName)
+        guard app.responds(to: selector),
+              let method = class_getInstanceMethod(type(of: app), selector)
+        else { continue }
+        if selectorName.hasSuffix(":") {
+          typealias ForceFunc = @convention(c) (AnyObject, Selector, Bool) -> ()
+          let function = unsafeBitCast(
+            method_getImplementation(method),
+            to: ForceFunc.self
+          )
+          function(app, selector, true)
+        } else {
+          typealias ActivateFunc = @convention(c) (AnyObject, Selector) -> ()
+          let function = unsafeBitCast(
+            method_getImplementation(method),
+            to: ActivateFunc.self
+          )
+          function(app, selector)
+        }
+        return
+      }
+    }
+
     static func setAlwaysOnTop(
       _ alwaysOnTop: Bool,
       sceneTitle: String

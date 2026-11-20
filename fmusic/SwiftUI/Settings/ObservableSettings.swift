@@ -62,6 +62,8 @@ final class Settings: ObservableObject {
   @Published
   var desktopLyricsBackgroundOpacity = 74
   @Published
+  var desktopLyricsControlIconBrightness = 0
+  @Published
   var isDesktopLyricsNextLineShown = true
   @Published
   var desktopLyricsAlignment: DesktopLyricsAlignment = .defaultValue

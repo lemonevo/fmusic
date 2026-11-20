@@ -489,6 +489,26 @@ extension AppDelegate {
   }
 
   func openMainWindow() {
+    // If a main window already exists, bring its existing scene to the front
+    // instead of requesting a brand-new one (passing a nil session to
+    // requestSceneSessionActivation makes Catalyst create a new window every
+    // time). Only create a window when none is open.
+    if isMainWindowOpen,
+       let mainSession = AppDelegate.mainSceneDelegate?.window?.windowScene?.session {
+      #if targetEnvironment(macCatalyst)
+        // The overlay's controls live on a nonactivating panel, so clicking them
+        // never activates fmusic; activate the app explicitly, otherwise the
+        // window only rises within fmusic and stays behind the frontmost app.
+        MacWindowHelper.activateApplication()
+      #endif
+      UIApplication.shared.requestSceneSessionActivation(
+        mainSession,
+        userActivity: nil,
+        options: nil,
+        errorHandler: nil
+      )
+      return
+    }
     let defaultActivity = NSUserActivity(activityType: defaultWindowActivityType)
     UIApplication.shared.requestSceneSessionActivation(
       nil,
@@ -496,6 +516,13 @@ extension AppDelegate {
       options: nil,
       errorHandler: nil
     )
+    #if targetEnvironment(macCatalyst)
+      // A freshly created scene also needs the app brought forward.
+      MacWindowHelper.activateApplication()
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        MacWindowHelper.activateApplication()
+      }
+    #endif
   }
 }
 

@@ -87,7 +87,8 @@
             pointSize: user.desktopLyricsFontSize.pointSize,
             backgroundOpacity: Double(user.desktopLyricsBackgroundOpacity) / 100.0,
             alignment: user.desktopLyricsAlignment,
-            showsNextLine: user.isDesktopLyricsNextLineShown
+            showsNextLine: user.isDesktopLyricsNextLineShown,
+            controlIconBrightness: Double(user.desktopLyricsControlIconBrightness) / 100.0
           ))
           panel.setAlwaysOnTop(user.isDesktopLyricsAlwaysOnTop)
           panel.setLocked(user.isDesktopLyricsLocked)
@@ -118,11 +119,13 @@
     // MARK: MusicPlayable
 
     func didStartPlayingFromBeginning() {
+      desktopPanel?.setPlaying(true)
       loadLyricsIfNeeded()
       render(at: player.elapsedTime)
     }
 
     func didStartPlaying() {
+      desktopPanel?.setPlaying(true)
       guard let songID = player.currentlyPlaying?.id else {
         resetPlaybackState()
         return
@@ -134,10 +137,13 @@
     }
 
     func didStopPlaying() {
+      desktopPanel?.setPlaying(false)
       resetPlaybackState()
     }
 
-    func didPause() {}
+    func didPause() {
+      desktopPanel?.setPlaying(false)
+    }
 
     func didLyricsTimeChange(time: CMTime) {
       guard isFeatureEnabled else { return }
@@ -347,6 +353,16 @@
         storage.settings.user.isDesktopLyricsLocked = enabled
         appDelegate.updateLyricsOverlays()
       }
+      panel.onPlayPrevious = { [weak self] in
+        self?.player.playPrevious()
+      }
+      panel.onPlayNext = { [weak self] in
+        self?.player.playNext()
+      }
+      panel.onTogglePlayPause = { [weak self] in
+        self?.player.togglePlayPause()
+      }
+      panel.setPlaying(player.isPlaying)
       return panel
     }
 
