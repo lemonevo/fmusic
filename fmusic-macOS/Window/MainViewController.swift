@@ -46,8 +46,8 @@ final class MainViewController: NSViewController {
 
     // Sidebar | content | optional lyrics pane.
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
-    sidebarItem.minimumThickness = 190
-    sidebarItem.maximumThickness = 240
+    sidebarItem.minimumThickness = 210
+    sidebarItem.maximumThickness = 210
     sidebarItem.canCollapse = false
     sidebarItem.holdingPriority = NSLayoutConstraint.Priority(280)
 
@@ -57,8 +57,8 @@ final class MainViewController: NSViewController {
     contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
     let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
-    lyricsItem.minimumThickness = 280
-    lyricsItem.maximumThickness = 340
+    lyricsItem.minimumThickness = 260
+    lyricsItem.maximumThickness = 260
     lyricsItem.canCollapse = true
     lyricsItem.isCollapsed = true
     lyricsItem.holdingPriority = NSLayoutConstraint.Priority(270)
@@ -78,32 +78,16 @@ final class MainViewController: NSViewController {
     contentContainerViewController.view.wantsLayer = true
     addChild(playerBarViewController)
     let capsuleView = playerBarViewController.view
-    capsuleView.translatesAutoresizingMaskIntoConstraints = false
+    // Manual frame layout: the floating capsule must never contribute to the content
+    // column's minimum size (otherwise opening the lyrics pane grows the window).
+    capsuleView.translatesAutoresizingMaskIntoConstraints = true
     contentContainerViewController.view.addSubview(capsuleView)
-
-    let capsuleWidth = capsuleView.widthAnchor.constraint(
-      equalTo: contentContainerViewController.view.widthAnchor,
-      constant: -40
-    )
-    capsuleWidth.priority = .defaultHigh
-    capsuleWidth.isActive = true
 
     NSLayoutConstraint.activate([
       splitViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
       splitViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       splitViewController.view.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       splitViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-
-      capsuleView.centerXAnchor.constraint(equalTo: contentContainerViewController.view.centerXAnchor),
-      capsuleView.bottomAnchor.constraint(
-        equalTo: contentContainerViewController.view.bottomAnchor,
-        constant: -12
-      ),
-      capsuleView.heightAnchor.constraint(
-        equalToConstant: PlayerBarViewController.capsuleHeight
-      ),
-      capsuleView.widthAnchor.constraint(lessThanOrEqualToConstant: 720),
-      capsuleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 300),
     ])
 
     self.view = root
@@ -131,6 +115,18 @@ final class MainViewController: NSViewController {
     sidebarViewController.select(item: initialItem)
     show(item: initialItem)
 
+    if ProcessInfo.processInfo.arguments.contains("--toggle-lyrics-demo") {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 4) { [weak self] in
+        guard let self else { return }
+        let before = self.view.window?.frame ?? .zero
+        self.toggleLyricsPane()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+          let after = self.view.window?.frame ?? .zero
+          print("[fmusic] window before=\(before) after=\(after)")
+        }
+      }
+    }
+
     // Restore the lyrics side pane from the shared setting.
     setLyricsPaneVisible(
       FmusicKit.shared.storage.settings.user.isPlayerLyricsDisplayed,
@@ -139,6 +135,25 @@ final class MainViewController: NSViewController {
   }
 
   private var didApplyInitialSplitPositions = false
+
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    layoutPlayerCapsule()
+  }
+
+  private func layoutPlayerCapsule() {
+    let bounds = contentContainerViewController.view.bounds
+    guard bounds.width > 0 else { return }
+    let width = min(720, max(300, bounds.width - 40))
+    let height = PlayerBarViewController.capsuleHeight
+    let frame = NSRect(
+      x: bounds.midX - width / 2,
+      y: 12,
+      width: width,
+      height: height
+    )
+    playerBarViewController.view.frame = frame
+  }
 
   override func viewDidAppear() {
     super.viewDidAppear()
@@ -164,9 +179,27 @@ final class MainViewController: NSViewController {
   }
 
   private func setLyricsPaneVisible(_ visible: Bool, persist: Bool) {
+    let window = view.window
+    let sizeBeforeToggle = window?.contentLayoutRect.size
     isLyricsPaneVisible = visible
     lyricsPaneItem?.isCollapsed = !visible
     playerBarViewController.isLyricsPaneVisible = visible
+
+    // Opening/closing the pane only shrinks/grows the middle column, the window keeps
+    // its size (restore it explicitly in case AppKit grew it to satisfy constraints).
+    if let window, let sizeBeforeToggle {
+      DispatchQueue.main.async {
+        var frame = window.frame
+        let currentContent = window.contentLayoutRect.size
+        let deltaHeight = currentContent.height - sizeBeforeToggle.height
+        let deltaWidth = currentContent.width - sizeBeforeToggle.width
+        if abs(deltaHeight) > 0.5 || abs(deltaWidth) > 0.5 {
+          frame.size.width -= deltaWidth
+          frame.size.height -= deltaHeight
+          window.setFrame(frame, display: true)
+        }
+      }
+    }
     if persist {
       SettingsStore.updateUser { $0.isPlayerLyricsDisplayed = visible }
     }

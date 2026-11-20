@@ -168,7 +168,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         lessThanOrEqualTo: rightGroup.leadingAnchor,
         constant: -18
       ),
-      progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 140),
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
@@ -177,6 +176,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         constant: 4
       ),
     ])
+
+    // The progress group may compress when the content column is narrow.
+    let progressMin = progressGroup.widthAnchor.constraint(greaterThanOrEqualToConstant: 100)
+    progressMin.priority = NSLayoutConstraint.Priority(750)
+    progressMin.isActive = true
 
     // Let the progress group grow between the control cluster and the right cluster.
     let centerX = progressGroup.centerXAnchor.constraint(equalTo: capsule.centerXAnchor)
@@ -351,9 +355,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     leftGroup?.isHidden = shouldCompact
     elapsedLabel.isHidden = shouldCompact
     remainingLabel.isHidden = shouldCompact
-    volumeIcon.isHidden = shouldCompact
-    volumeSlider.isHidden = shouldCompact
-    outputButton.isHidden = width < 460
+    outputButton.isHidden = width < 440
   }
 
   // MARK: - Refresh

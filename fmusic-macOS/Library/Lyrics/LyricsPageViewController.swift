@@ -281,17 +281,23 @@ final class LyricsPageViewController: NSViewController, MusicPlayable, NSTableVi
     offsetValueLabel.font = MacTheme.tabularBodyFont
     offsetValueLabel.alignment = .center
     offsetValueLabel.translatesAutoresizingMaskIntoConstraints = false
-    offsetValueLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 84).isActive = true
+    offsetValueLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 56).isActive = true
 
     offsetStack.orientation = .horizontal
     offsetStack.alignment = .centerY
-    offsetStack.spacing = 6
+    offsetStack.spacing = 4
     offsetStack.translatesAutoresizingMaskIntoConstraints = false
     offsetStack.addArrangedSubview(offsetCaptionLabel)
     offsetStack.addArrangedSubview(offsetMinusButton)
     offsetStack.addArrangedSubview(offsetValueLabel)
     offsetStack.addArrangedSubview(offsetPlusButton)
     offsetStack.addArrangedSubview(offsetResetButton)
+    // The side pane is only 260 pt wide: let the offset controls compress instead of
+    // forcing the window bigger.
+    for view in [offsetMinusButton, offsetPlusButton, offsetResetButton, offsetValueLabel]
+      as [NSView] {
+      view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    }
   }
 
   // MARK: - Observers
