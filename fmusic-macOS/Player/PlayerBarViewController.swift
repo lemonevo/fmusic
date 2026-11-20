@@ -108,6 +108,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     let infoGroup = NSStackView(views: [artworkView, infoStack()])
     self.infoGroup = infoGroup
+    NSLayoutConstraint.activate([
+      progressTrack.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
+      progressTrack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
+    ])
     infoGroup.orientation = .horizontal
     infoGroup.alignment = .centerY
     infoGroup.spacing = 9
@@ -300,10 +304,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
-      progressTrack.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
-      progressTrack.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
-      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -5),
-      progressTrack.heightAnchor.constraint(equalToConstant: 2),
+      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -6),
+      progressTrack.heightAnchor.constraint(equalToConstant: 3),
 
       progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
       progressFill.centerYAnchor.constraint(equalTo: progressTrack.centerYAnchor),
