@@ -2,8 +2,10 @@
 //  LyricsSidebarViewController.swift
 //  fmusic-macOS
 //
-//  Compact lyrics column shown next to the library (Catalyst fmusic style):
-//  centered lines, current line highlighted, auto-scrolls with playback.
+//  The lyrics side pane, ported 1:1 from the Catalyst `LyricsVC` / `LyricTableCell`:
+//  left aligned lines (24 pt semibold, white at 60 %), the active line at 29 pt bold
+//  with the sung characters filling in progressively, translations underneath,
+//  click-to-seek and smooth scrolling that follows playback.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -23,41 +25,72 @@ import AppKit
 import CoreMedia
 import fmusicKit
 
-/// Lyrics side pane: a simple centered list that keeps the current line highlighted.
+/// Lyrics side pane: same typography and word-fill behaviour as the Catalyst lyrics view.
 @MainActor
-final class LyricsSidebarViewController: NSViewController, MusicPlayable {
+final class LyricsSidebarViewController: NSViewController, MusicPlayable,
+  NSTableViewDataSource, NSTableViewDelegate {
+  // Catalyst `LyricsView.lineSpacing` (space above each row) and `LyricTableCell` fonts.
+  private static let rowSpacing: CGFloat = 30
+  private static let horizontalInset: CGFloat = 20
+  private static let activeFontSize: CGFloat = 29
+  private static let inactiveFontSize: CGFloat = 24
+  private static let translationFontSize: CGFloat = 17
+  private static let activeTextColor = NSColor.white
+  private static let activeDimTextColor = NSColor.white.withAlphaComponent(0.55)
+  private static let inactiveTextColor = NSColor.white.withAlphaComponent(0.60)
+  private static let translationTextColor = NSColor.white.withAlphaComponent(0.72)
+
   private let scrollView = NSScrollView()
-  private let stackView = NSStackView()
+  private let tableView = NSTableView()
   private let statusLabel = NSTextField(labelWithString: "")
-  private var lineLabels: [NSTextField] = []
+  private let cellIdentifier = NSUserInterfaceItemIdentifier("lyricsSidebarCell")
+  private let columnIdentifier = NSUserInterfaceItemIdentifier("lyricsSidebarColumn")
 
   private var lyrics: StructuredLyrics?
+  private var tracker = LyricsLineTracker()
   private var loadedSongID: String?
   private var currentLine = -1
+  private var lastActiveTime: TimeInterval = -1
+  private var syllableCache = [[LyricsSyllableTiming]]()
 
   nonisolated(unsafe) private var syncTimer: Timer?
 
   private var player: PlayerFacade { FmusicKit.shared.player }
-
-  private static let lineFontSize: CGFloat = 15
-  private static let currentFontSize: CGFloat = 16
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   override func loadView() {
     let root = ThemedBackgroundView()
 
-    stackView.orientation = .vertical
-    stackView.alignment = .centerX
-    stackView.spacing = 22
-    stackView.edgeInsets = NSEdgeInsets(top: 26, left: 16, bottom: 90, right: 16)
-    stackView.translatesAutoresizingMaskIntoConstraints = false
+    tableView.headerView = nil
+    tableView.backgroundColor = .clear
+    tableView.rowHeight = 44
+    tableView.intercellSpacing = NSSize(width: 0, height: 0)
+    tableView.style = .plain
+    tableView.selectionHighlightStyle = .none
+    tableView.allowsEmptySelection = true
+    tableView.allowsMultipleSelection = false
+    tableView.focusRingType = .none
+    tableView.usesAutomaticRowHeights = true
+    tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+    tableView.dataSource = self
+    tableView.delegate = self
+    tableView.target = self
+    tableView.action = #selector(rowClicked)
+    tableView.translatesAutoresizingMaskIntoConstraints = false
 
-    scrollView.documentView = stackView
+    let column = NSTableColumn(identifier: columnIdentifier)
+    column.title = ""
+    column.minWidth = 100
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+
+    scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
     scrollView.autohidesScrollers = true
     scrollView.drawsBackground = false
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-    statusLabel.font = .systemFont(ofSize: 12)
+    statusLabel.font = .systemFont(ofSize: 15)
     statusLabel.textColor = MacTheme.secondaryTextColor
     statusLabel.alignment = .center
     statusLabel.maximumNumberOfLines = 0
@@ -67,14 +100,10 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     root.addSubview(statusLabel)
 
     NSLayoutConstraint.activate([
-      scrollView.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
+      scrollView.topAnchor.constraint(equalTo: root.topAnchor),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-
-      stackView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
-      stackView.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
-      stackView.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
 
       statusLabel.centerXAnchor.constraint(equalTo: root.centerXAnchor),
       statusLabel.centerYAnchor.constraint(equalTo: root.centerYAnchor),
@@ -107,10 +136,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
       name: .lyricsOffsetChanged,
       object: nil
     )
-    // The player notifications are not guaranteed at a fixed rate, so a light timer
-    // keeps the highlight glued to the audio position (like the Catalyst overlay).
+
+    // The player notifications are not delivered at a fixed rate; the Catalyst lyrics
+    // view runs its own clock for the character fill, so mirror that here.
     syncTimer = Timer(
-      timeInterval: 0.15,
+      timeInterval: 1.0 / 15.0,
       target: self,
       selector: #selector(syncTick),
       userInfo: nil,
@@ -119,11 +149,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     if let syncTimer {
       RunLoop.main.add(syncTimer, forMode: .common)
     }
-  }
-
-  @objc
-  private func syncTick() {
-    updateHighlight()
   }
 
   deinit {
@@ -137,15 +162,19 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     guard let song = player.currentlyPlaying?.asSong else {
       loadedSongID = nil
       lyrics = nil
-      renderPlaceholder(L10n.tr("Play a song to see the lyrics here."))
+      tracker.setLyrics(nil)
+      syllableCache = []
+      renderStatus(L10n.tr("Play a song to see the lyrics here."))
       return
     }
     let songID = song.id
     guard force || loadedSongID != songID else { return }
     loadedSongID = songID
     lyrics = nil
+    tracker.setLyrics(nil)
     currentLine = -1
-    renderPlaceholder("")
+    syllableCache = []
+    renderStatus("")
 
     guard let account = song.account, let lyricsRelFilePath = song.lyricsRelFilePath else {
       requestOnlineLyrics(for: song)
@@ -168,14 +197,14 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
 
   private func requestOnlineLyrics(for song: Song) {
     guard OnlineLyricsService.shared.canMatchLyrics(for: song) else {
-      renderPlaceholder(L10n.tr("No Lyrics"))
+      renderStatus(L10n.tr("No Lyrics"))
       return
     }
     Task { @MainActor [weak self] in
       let found = await OnlineLyricsService.shared.matchLyrics(for: song)
       guard let self, self.loadedSongID == song.id else { return }
       if !found, self.lyrics == nil {
-        self.renderPlaceholder(L10n.tr("No Lyrics"))
+        self.renderStatus(L10n.tr("No Lyrics"))
       }
     }
   }
@@ -188,123 +217,186 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
     loadLyrics(force: true)
   }
 
+  @objc
+  private func lyricsOffsetChanged() {
+    updateActiveLine(force: true)
+  }
+
+  @objc
+  private func themeColorChanged() {
+    tableView.reloadData()
+  }
+
   // MARK: - Rendering
 
   private func apply(lyrics structuredLyrics: StructuredLyrics) {
     lyrics = structuredLyrics
+    tracker.setLyrics(structuredLyrics)
+    // Same syllable tables the Catalyst cell model builds for the character fill.
+    let durations = LyricsTimingMap.estimatedDurations(for: structuredLyrics.line)
+    syllableCache = structuredLyrics.line.indices.map { index in
+      LyricsTimingMap.syllables(
+        for: structuredLyrics.line[index],
+        estimatedDuration: durations.object(at: index) ?? 0
+      )
+    }
     statusLabel.isHidden = true
     currentLine = -1
-    rebuildLines()
-    updateHighlight(force: true)
+    tableView.reloadData()
+    updateActiveLine(force: true)
   }
 
-  private func renderPlaceholder(_ text: String) {
+  private func renderStatus(_ text: String) {
     statusLabel.stringValue = text
     statusLabel.isHidden = text.isEmpty
-    lineLabels.forEach { $0.removeFromSuperview() }
-    lineLabels.removeAll()
+    lyrics = nil
+    tracker.setLyrics(nil)
+    syllableCache = []
+    currentLine = -1
+    tableView.reloadData()
   }
 
-  private func rebuildLines() {
-    lineLabels.forEach { $0.removeFromSuperview() }
-    lineLabels.removeAll()
-    guard let lyrics else { return }
-
-    for (index, line) in lyrics.line.enumerated() {
-      let label = NSTextField(wrappingLabelWithString: line.value.isEmpty ? "♪" : line.value)
-      label.font = .systemFont(ofSize: Self.lineFontSize)
-      label.textColor = .labelColor
-      label.alignment = .center
-      label.maximumNumberOfLines = 0
-      label.cell?.wraps = true
-      label.isEditable = false
-      label.isSelectable = false
-      label.identifier = NSUserInterfaceItemIdentifier("\(index)")
-      label.translatesAutoresizingMaskIntoConstraints = false
-      label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-      label.addGestureRecognizer(
-        NSClickGestureRecognizer(target: self, action: #selector(lineClicked(_:)))
-      )
-      stackView.addArrangedSubview(label)
-      label.widthAnchor.constraint(
-        equalTo: scrollView.contentView.widthAnchor,
-                constant: -32
-      ).isActive = true
-      lineLabels.append(label)
-    }
-    stackView.layoutSubtreeIfNeeded()
+  @objc
+  private func syncTick() {
+    updateActiveLine(force: false)
   }
 
-  private func updateHighlight(force: Bool = false) {
-    guard let lyrics else { return }
+  private func updateActiveLine(force: Bool) {
+    guard let lyrics, !lyrics.line.isEmpty else { return }
+    let time = player.elapsedTime
+    guard force || abs(time - lastActiveTime) > 0.02 else { return }
+    lastActiveTime = time
+
     let offsetSeconds = (Double(lyrics.offset) +
-      Double(FmusicKit.shared.storage.settings.user.lyricsOffsetMs)) / 1000.0
-    let position = player.elapsedTime + offsetSeconds
+      Double(storage.settings.user.lyricsOffsetMs)) / 1000.0
+    let position = max(0, time + offsetSeconds)
     var index = -1
     for (lineIndex, line) in lyrics.line.enumerated() {
-      guard line.start != nil else { continue }
-      if CMTimeGetSeconds(line.startTime) <= position {
+      guard let start = line.start else { continue }
+      if Double(start) / 1000.0 <= position {
         index = lineIndex
       } else {
         break
       }
     }
-    guard index != currentLine || force else { return }
-    currentLine = index
-    let accent = MacTheme.accentColor
-    for (lineIndex, label) in lineLabels.enumerated() {
-      let isCurrent = lineIndex == index
-      label.font = .systemFont(
-        ofSize: isCurrent ? Self.currentFontSize : Self.lineFontSize,
-        weight: isCurrent ? .semibold : .regular
+    let previous = currentLine
+    if index != previous {
+      currentLine = index
+      let rows = IndexSet(integersIn: 0 ..< lyrics.line.count)
+      tableView.reloadData(forRowIndexes: rows, columnIndexes: IndexSet(integer: 0))
+      if index >= 0 {
+        scrollToActiveLine(index)
+      }
+    } else if index >= 0 {
+      // Refresh the active row so the sung characters keep filling in.
+      tableView.reloadData(
+        forRowIndexes: IndexSet(integer: index),
+        columnIndexes: IndexSet(integer: 0)
       )
-      label.textColor = isCurrent
-        ? accent
-        : NSColor.labelColor.withAlphaComponent(0.92)
     }
-    scrollToCurrentLine(animated: true)
   }
 
-  @objc
-  private func lineClicked(_ recognizer: NSClickGestureRecognizer) {
-    guard let label = recognizer.view as? NSTextField,
-          let index = Int(label.identifier?.rawValue ?? ""),
-          let lyrics,
-          lyrics.line.indices.contains(index),
-          let start = lyrics.line[index].start
-    else { return }
-    let seconds = Double(start) / 1000.0
-    player.seek(toSecond: seconds)
-    currentLine = index
-    updateHighlight(force: true)
-  }
-
-  private func scrollToCurrentLine(animated: Bool) {
-    guard currentLine >= 0, currentLine < lineLabels.count else { return }
-    let label = lineLabels[currentLine]
-    let targetY = label.frame.midY - scrollView.contentView.bounds.height / 2
-    let maxY = max(0, (scrollView.documentView?.frame.height ?? 0) -
-      scrollView.contentView.bounds.height)
-    let y = min(max(0, targetY), maxY)
-    if animated {
+  private func scrollToActiveLine(_ row: Int) {
+    let rowRect = tableView.rect(ofRow: row)
+    let visible = scrollView.contentView.bounds.height
+    let target = max(0, rowRect.midY - visible / 2)
+    let maxY = max(0, tableView.bounds.height - visible)
+    let point = NSPoint(x: 0, y: min(target, maxY))
+    if storage.settings.user.isLyricsSmoothScrolling {
       NSAnimationContext.runAnimationGroup { context in
-        context.duration = 0.25
-        scrollView.contentView.animator().setBoundsOrigin(NSPoint(x: 0, y: y))
+        context.duration = 0.3
+        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        scrollView.contentView.animator().setBoundsOrigin(point)
       }
     } else {
-      scrollView.contentView.scroll(to: NSPoint(x: 0, y: y))
+      scrollView.contentView.scroll(to: point)
       scrollView.reflectScrolledClipView(scrollView.contentView)
     }
   }
 
   @objc
-  private func themeColorChanged() {
-    updateHighlight(force: true)
+  private func rowClicked() {
+    let row = tableView.clickedRow
+    guard row >= 0,
+          let lyrics,
+          lyrics.line.indices.contains(row),
+          let start = lyrics.line[row].start
+    else { return }
+    player.seek(toSecond: Double(start) / 1000.0)
+    currentLine = row
+    updateActiveLine(force: true)
   }
 
-  @objc
-  private func lyricsOffsetChanged() {
-    updateHighlight(force: true)
+  // MARK: - NSTableViewDataSource
+
+  func numberOfRows(in tableView: NSTableView) -> Int {
+    lyrics?.line.count ?? 0
+  }
+
+  // MARK: - NSTableViewDelegate
+
+  func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    guard let lyrics, lyrics.line.indices.contains(row) else { return 0 }
+    let line = lyrics.line[row]
+    let isActive = row == currentLine
+    let availableWidth = max(
+      80,
+      tableView.bounds.width - Self.horizontalInset * 2
+    )
+    let font = NSFont.systemFont(
+      ofSize: isActive ? Self.activeFontSize : Self.inactiveFontSize,
+      weight: isActive ? .bold : .semibold
+    )
+    var height = Self.rowSpacing + Self.textHeight(
+      line.value.isEmpty ? " " : line.value,
+      font: font,
+      width: availableWidth
+    )
+    let translation = line.translation?.trimmingCharacters(in: .whitespacesAndNewlines)
+    if let translation, !translation.isEmpty {
+      height += Self.textHeight(
+        translation,
+        font: .systemFont(ofSize: Self.translationFontSize),
+        width: availableWidth
+      ) + 6
+    }
+    return max(44, ceil(height))
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    viewFor tableColumn: NSTableColumn?,
+    row: Int
+  )
+    -> NSView? {
+    guard let lyrics, lyrics.line.indices.contains(row) else { return nil }
+    let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as?
+      LyricsSidebarCellView ?? LyricsSidebarCellView()
+    cell.identifier = cellIdentifier
+
+    let isActive = row == currentLine
+    let syllables = syllableCache.indices.contains(row) ? syllableCache[row] : []
+    let time = player.elapsedTime + (
+      Double(lyrics.offset) + Double(storage.settings.user.lyricsOffsetMs)
+    ) / 1000.0
+    cell.configure(
+      line: lyrics.line[row],
+      isActive: isActive,
+      syllables: syllables,
+      time: time,
+      rowSpacing: Self.rowSpacing,
+      inset: Self.horizontalInset
+    )
+    return cell
+  }
+
+  private static func textHeight(_ text: String, font: NSFont, width: CGFloat) -> CGFloat {
+    let bounds = (text as NSString).boundingRect(
+      with: NSSize(width: width, height: CGFloat.greatestFiniteMagnitude),
+      options: [.usesLineFragmentOrigin, .usesFontLeading],
+      attributes: [.font: font]
+    )
+    return ceil(bounds.height)
   }
 
   // MARK: - MusicPlayable
@@ -315,7 +407,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
 
   func didStartPlaying() {
     loadLyrics()
-    updateHighlight(force: true)
+    updateActiveLine(force: true)
   }
 
   func didPause() {}
@@ -325,12 +417,10 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
   }
 
   func didElapsedTimeChange() {
-    updateHighlight()
+    // The pane has its own clock; nothing to do here.
   }
 
-  func didLyricsTimeChange(time: CMTime) {
-    updateHighlight()
-  }
+  func didLyricsTimeChange(time: CMTime) {}
 
   func didPlaylistChange() {
     loadLyrics(force: true)
@@ -347,4 +437,143 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable {
   func didRepeatChange() {}
 
   func didPlaybackRateChange() {}
+}
+
+// MARK: - LyricsSidebarCellView
+
+/// One lyric row: 24 pt semibold passive lines, 29 pt bold active line whose sung
+/// characters fill in progressively, translation underneath (Catalyst `LyricTableCell`).
+@MainActor
+private final class LyricsSidebarCellView: NSTableCellView {
+  private let lineLabel = NSTextField(wrappingLabelWithString: "")
+  private let translationLabel = NSTextField(wrappingLabelWithString: "")
+  private var lineTopConstraint: NSLayoutConstraint?
+  private var lineLeadingConstraint: NSLayoutConstraint?
+  private var lineTrailingConstraint: NSLayoutConstraint?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    lineLabel.isEditable = false
+    lineLabel.isSelectable = false
+    lineLabel.drawsBackground = false
+    lineLabel.maximumNumberOfLines = 0
+    lineLabel.lineBreakMode = .byWordWrapping
+    lineLabel.cell?.wraps = true
+    lineLabel.cell?.isScrollable = false
+    lineLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    lineLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    translationLabel.isEditable = false
+    translationLabel.isSelectable = false
+    translationLabel.drawsBackground = false
+    translationLabel.maximumNumberOfLines = 0
+    translationLabel.lineBreakMode = .byWordWrapping
+    translationLabel.cell?.wraps = true
+    translationLabel.cell?.isScrollable = false
+    translationLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    translationLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    addSubview(lineLabel)
+    addSubview(translationLabel)
+
+    let top = lineLabel.topAnchor.constraint(equalTo: topAnchor)
+    let leading = lineLabel.leadingAnchor.constraint(equalTo: leadingAnchor)
+    let trailing = lineLabel.trailingAnchor.constraint(equalTo: trailingAnchor)
+    lineTopConstraint = top
+    lineLeadingConstraint = leading
+    lineTrailingConstraint = trailing
+    NSLayoutConstraint.activate([
+      top,
+      leading,
+      trailing,
+      translationLabel.leadingAnchor.constraint(equalTo: lineLabel.leadingAnchor),
+      translationLabel.trailingAnchor.constraint(equalTo: lineLabel.trailingAnchor),
+      translationLabel.topAnchor.constraint(equalTo: lineLabel.bottomAnchor, constant: 6),
+      translationLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    lineLabel.attributedStringValue = NSAttributedString(string: "")
+    translationLabel.attributedStringValue = NSAttributedString(string: "")
+  }
+
+  func configure(
+    line: LyricsLine,
+    isActive: Bool,
+    syllables: [LyricsSyllableTiming],
+    time: TimeInterval,
+    rowSpacing: CGFloat,
+    inset: CGFloat
+  ) {
+    lineTopConstraint?.constant = rowSpacing
+    lineLeadingConstraint?.constant = inset
+    lineTrailingConstraint?.constant = -inset
+
+    let fontSize = isActive ? 29.0 : 24.0
+    let weight: NSFont.Weight = isActive ? .bold : .semibold
+    let font = NSFont.systemFont(ofSize: fontSize, weight: weight)
+
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.lineSpacing = 6
+    paragraph.lineBreakMode = .byWordWrapping
+    paragraph.alignment = .left
+
+    let text = line.value.isEmpty ? " " : line.value
+    let attributed = NSMutableAttributedString(
+      string: text,
+      attributes: [
+        .font: font,
+        .foregroundColor: isActive
+          ? NSColor.white.withAlphaComponent(0.55)
+          : NSColor.white.withAlphaComponent(0.60),
+        .paragraphStyle: paragraph,
+      ]
+    )
+
+    if isActive, !syllables.isEmpty {
+      // Fill sung glyph ranges in white; partially sung syllables reveal their
+      // leading characters first, mirroring the Catalyst character fill.
+      for syllable in syllables {
+        let progress = syllable.progress(at: time)
+        guard progress > 0, syllable.range.location + syllable.range.length <= (text as NSString).length
+        else { continue }
+        let length = syllable.range.length
+        let filledCount = progress >= 1
+          ? length
+          : Int((CGFloat(length) * progress).rounded(.down))
+        guard filledCount > 0 else { continue }
+        let fillRange = NSRange(location: syllable.range.location, length: filledCount)
+        attributed.addAttribute(.foregroundColor, value: NSColor.white, range: fillRange)
+      }
+    }
+
+    lineLabel.attributedStringValue = attributed
+
+    let translationText = line.translation?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    if translationText.isEmpty {
+      translationLabel.attributedStringValue = NSAttributedString(string: "")
+      translationLabel.isHidden = true
+    } else {
+      translationLabel.isHidden = false
+      let translationParagraph = NSMutableParagraphStyle()
+      translationParagraph.lineSpacing = 3
+      translationParagraph.lineBreakMode = .byWordWrapping
+      translationParagraph.alignment = .left
+      translationLabel.attributedStringValue = NSAttributedString(
+        string: translationText,
+        attributes: [
+          .font: NSFont.systemFont(ofSize: 17, weight: .regular),
+          .foregroundColor: NSColor.white.withAlphaComponent(0.72),
+          .paragraphStyle: translationParagraph,
+        ]
+      )
+    }
+  }
 }
