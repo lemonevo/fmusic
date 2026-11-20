@@ -59,7 +59,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   override func loadView() {
-    let root = ThemedBackgroundView()
+    let root = LyricsPaneBackgroundView()
 
     tableView.headerView = nil
     tableView.backgroundColor = .clear
@@ -350,8 +350,13 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private func scrollTarget(for row: Int) -> CGFloat {
     let rowRect = tableView.rect(ofRow: row)
     let visible = scrollView.contentView.bounds.height
-    let maxY = max(0, tableView.bounds.height - visible)
-    return min(max(0, rowRect.midY - visible / 2), maxY)
+    let lower = -scrollView.contentInsets.top
+    let upper = max(
+      lower,
+      tableView.bounds.height - visible + scrollView.contentInsets.bottom
+    )
+    let target = rowRect.midY - visible / 2
+    return min(max(target, lower), upper)
   }
 
   private func stepScrollSpring() {
@@ -376,8 +381,12 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     scrollVelocity += (-stiffness * displacement - damping * scrollVelocity) *
       CGFloat(deltaTime)
     var newY = current + scrollVelocity * CGFloat(deltaTime)
-    let maxY = max(0, tableView.bounds.height - clip.bounds.height)
-    newY = min(max(newY, 0), maxY)
+    let lower = -scrollView.contentInsets.top
+    let upper = max(
+      lower,
+      tableView.bounds.height - clip.bounds.height + scrollView.contentInsets.bottom
+    )
+    newY = min(max(newY, lower), upper)
     if abs(target - newY) < 0.35, abs(scrollVelocity) < 4 {
       scrollTargetY = nil
       scrollVelocity = 0
@@ -773,5 +782,28 @@ private final class LyricsSidebarCellView: NSTableCellView {
         )
       }
     }
+  }
+}
+
+
+// MARK: - LyricsPaneBackgroundView
+
+/// The lyrics inspector shares the library sidebar surface (Catalyst draws the
+/// sidebar background behind the inspector column).
+@MainActor
+private final class LyricsPaneBackgroundView: NSView {
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
   }
 }
