@@ -28,6 +28,7 @@ enum SettingsPage: Int, CaseIterable, Sendable {
   case equalizer
   case account
   case support
+  case developer
   case about
 
   var title: String {
@@ -38,6 +39,7 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .equalizer: return L10n.tr("Equalizer")
     case .account: return L10n.tr("Account")
     case .support: return L10n.tr("Support")
+    case .developer: return L10n.tr("Developer")
     case .about: return L10n.tr("About")
     }
   }
@@ -50,6 +52,7 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .equalizer: return "chart.bar"
     case .account: return "person.crop.circle"
     case .support: return "lifepreserver"
+    case .developer: return "hammer"
     case .about: return "info.circle"
     }
   }
@@ -63,6 +66,7 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .equalizer: return EqualizerSettingsViewController()
     case .account: return AccountSettingsViewController()
     case .support: return SupportSettingsViewController()
+    case .developer: return DeveloperSettingsViewController()
     case .about: return AboutSettingsViewController()
     }
   }
