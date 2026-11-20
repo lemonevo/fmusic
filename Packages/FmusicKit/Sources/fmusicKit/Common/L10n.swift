@@ -402,6 +402,7 @@ public enum L10n {
     "App Icon": "应用图标",
     "Haptic Feedback": "触感反馈",
     "Certain interactions provide haptic feedback. Long pressing to display the details menu will always trigger haptic feedback.": "部分交互会提供触感反馈。长按显示详细信息菜单时始终会触发触感反馈。",
+    "Mini Player": "迷你播放器",
     "Mini Player Always on Top": "迷你播放器始终置顶",
     "Keep the mini player window floating above all other windows.": "让迷你播放器窗口始终浮在其他窗口上方。",
     "Desktop Lyrics": "桌面歌词",

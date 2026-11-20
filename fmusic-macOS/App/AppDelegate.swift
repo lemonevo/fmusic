@@ -29,6 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private(set) var mainWindowController: MainWindowController?
   private var settingsWindowController: SettingsWindowController?
   private(set) var lyricsOverlay: LyricsOverlayController?
+  private(set) var miniPlayerWindowController: MiniPlayerWindowController?
+
+  /// One-shot timer behind Playback ▸ Sleep Timer. Kept on the delegate so it keeps
+  /// running while the library window is closed and the app stays in the background.
+  private var sleepTimer: Timer?
+  private(set) var sleepTimerMinutes: Int?
 
   var fmusic: FmusicKit { FmusicKit.shared }
   var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -87,6 +93,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillTerminate(_ notification: Notification) {
+    sleepTimer?.invalidate()
+    sleepTimer = nil
     lyricsOverlay?.stop()
     lyricsOverlay = nil
   }
@@ -157,6 +165,45 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   @objc
   func closeMainWindow(_ sender: Any?) {
     mainWindowController?.close()
+  }
+
+  // MARK: - Mini player
+
+  /// The mini player window is open (visible) — used for the Window menu check mark.
+  var isMiniPlayerVisible: Bool {
+    miniPlayerWindowController?.window?.isVisible ?? false
+  }
+
+  /// Opens (or brings to the front) the small floating player window without closing
+  /// or replacing the library window. Playback keeps running if the library window is
+  /// closed afterwards, because the app does not terminate after the last window.
+  @objc
+  func showMiniPlayer(_ sender: Any?) {
+    let controller: MiniPlayerWindowController
+    if let existing = miniPlayerWindowController {
+      controller = existing
+    } else {
+      controller = MiniPlayerWindowController()
+      controller.onExpand = { [weak self] in self?.expandMiniPlayerToMainWindow() }
+      miniPlayerWindowController = controller
+    }
+    controller.applyAlwaysOnTopSetting()
+    controller.showWindow(sender)
+    NSApp.activate(ignoringOtherApps: true)
+    controller.window?.makeKeyAndOrderFront(sender)
+  }
+
+  /// Closes the mini player (the app keeps running, like closing the library window).
+  @objc
+  func closeMiniPlayer(_ sender: Any?) {
+    miniPlayerWindowController?.close()
+  }
+
+  /// "Expand" inside the mini player: bring the library window back and close the
+  /// compact window (Apple Music's switch between library and mini player).
+  func expandMiniPlayerToMainWindow() {
+    showMainWindow(nil)
+    miniPlayerWindowController?.close()
   }
 
   // MARK: - Files
@@ -245,6 +292,71 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let player = FmusicKit.shared.player
     player.volume = min(max(player.volume + delta, 0), 1)
   }
+
+  // MARK: - Sleep timer
+
+  /// Fire date of the running sleep timer, or nil when no minute-based timer is armed.
+  var sleepTimerFireDate: Date? { sleepTimer?.fireDate }
+
+  /// Arms the countdown sleep timer. The timer lives on the app delegate, so it also
+  /// fires when the library window is closed; the next callback pauses playback.
+  func startSleepTimer(minutes: Int) {
+    guard minutes > 0 else { return }
+    stopSleepTimer()
+    // Radio semantics: a countdown replaces "end of song" and vice versa.
+    player.isShouldPauseAfterFinishedPlaying = false
+    let timer = Timer(
+      timeInterval: TimeInterval(minutes * 60),
+      target: self,
+      selector: #selector(sleepTimerDidFire(_:)),
+      userInfo: nil,
+      repeats: false
+    )
+    RunLoop.main.add(timer, forMode: .common)
+    sleepTimer = timer
+    sleepTimerMinutes = minutes
+    MainMenuBuilder.refreshSleepTimerMenu()
+  }
+
+  /// Playback menu action: `sender.tag` is the number of minutes.
+  @objc
+  func activateSleepTimer(_ sender: NSMenuItem) {
+    startSleepTimer(minutes: sender.tag)
+  }
+
+  /// Pause when the current song ends (`player.isShouldPauseAfterFinishedPlaying`).
+  @objc
+  func setSleepTimerToEndOfSong(_ sender: Any?) {
+    stopSleepTimer()
+    player.isShouldPauseAfterFinishedPlaying = true
+    MainMenuBuilder.refreshSleepTimerMenu()
+  }
+
+  /// "Off" in the sleep timer menu: drops both the countdown and end-of-song pause.
+  @objc
+  func turnOffSleepTimer(_ sender: Any?) {
+    stopSleepTimer()
+    player.isShouldPauseAfterFinishedPlaying = false
+    MainMenuBuilder.refreshSleepTimerMenu()
+  }
+
+  private func stopSleepTimer() {
+    sleepTimer?.invalidate()
+    sleepTimer = nil
+    sleepTimerMinutes = nil
+  }
+
+  @objc
+  private func sleepTimerDidFire(_ timer: Timer) {
+    stopSleepTimer()
+    player.pause()
+    fmusic.eventLogger.info(
+      topic: "Sleep Timer",
+      message: L10n.tr("Sleep Timer paused playback."),
+      displayPopup: false
+    )
+    MainMenuBuilder.refreshSleepTimerMenu()
+  }
 }
 
 // MARK: - MenuValidation
@@ -264,6 +376,9 @@ extension AppDelegate: NSMenuItemValidation {
       case .all: menuItem.state = .on
       case .single: menuItem.state = .mixed
       }
+      return true
+    case #selector(showMiniPlayer(_:)):
+      menuItem.state = isMiniPlayerVisible ? .on : .off
       return true
     default:
       return true
