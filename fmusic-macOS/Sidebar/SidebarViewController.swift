@@ -119,13 +119,13 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     root.addSubview(scrollView)
     root.addSubview(footer)
     NSLayoutConstraint.activate([
-      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 84),
+      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 96),
       editButton.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 26),
       editButton.heightAnchor.constraint(equalToConstant: 30),
-      editButton.widthAnchor.constraint(equalToConstant: 74),
+      editButton.widthAnchor.constraint(equalToConstant: 58),
       sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 8),
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
-      sidebarButton.widthAnchor.constraint(equalToConstant: 40),
+      sidebarButton.widthAnchor.constraint(equalToConstant: 36),
       sidebarButton.heightAnchor.constraint(equalToConstant: 30),
     ])
 

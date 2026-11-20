@@ -25,7 +25,7 @@ final class MainWindowController: NSWindowController {
   static let autosaveName = "fmusic.macOS.mainWindow"
 
   convenience init() {
-    let window = NSWindow(
+    let window = FmusicMainWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
@@ -47,33 +47,37 @@ final class MainWindowController: NSWindowController {
     }
 
     window.contentViewController = MainViewController()
-
-    DispatchQueue.main.async { [weak self] in
-      self?.nudgeTrafficLights()
-    }
-    NotificationCenter.default.addObserver(
-      forName: NSWindow.didResizeNotification,
-      object: window,
-      queue: .main
-    ) { [weak self] _ in
-      self?.nudgeTrafficLights()
-    }
-  }
-
-  /// Catalyst leaves a little more breathing room around the window buttons.
-  private func nudgeTrafficLights() {
-    guard let window else { return }
-    let buttons: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
-    for type in buttons {
-      guard let button = window.standardWindowButton(type) else { continue }
-      var frame = button.frame
-      frame.origin.x += 14
-      frame.origin.y -= 1
-      button.frame = frame
-    }
   }
 
   var mainViewController: MainViewController? {
     contentViewController as? MainViewController
+  }
+}
+
+
+// MARK: - FmusicMainWindow
+
+/// The Catalyst window keeps the traffic lights further from the corner than a
+/// standard AppKit window. AppKit re-lays them out on every titlebar layout, so
+/// the positions are re-applied here after the superclass layout pass.
+final class FmusicMainWindow: NSWindow {
+  private var didPositionWindowButtons = false
+
+  override func layoutIfNeeded() {
+    super.layoutIfNeeded()
+    positionWindowButtonsIfNeeded()
+  }
+
+  private func positionWindowButtonsIfNeeded() {
+    guard !didPositionWindowButtons,
+          let close = standardWindowButton(.closeButton),
+          let mini = standardWindowButton(.miniaturizeButton),
+          let zoom = standardWindowButton(.zoomButton)
+    else { return }
+    didPositionWindowButtons = true
+    let y = close.frame.origin.y
+    close.frame.origin = NSPoint(x: 20, y: y)
+    mini.frame.origin = NSPoint(x: 40, y: y)
+    zoom.frame.origin = NSPoint(x: 60, y: y)
   }
 }
