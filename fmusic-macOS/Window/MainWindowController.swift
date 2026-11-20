@@ -61,23 +61,26 @@ final class MainWindowController: NSWindowController {
 /// standard AppKit window. AppKit re-lays them out on every titlebar layout, so
 /// the positions are re-applied here after the superclass layout pass.
 final class FmusicMainWindow: NSWindow {
-  private var didPositionWindowButtons = false
-
   override func layoutIfNeeded() {
     super.layoutIfNeeded()
     positionWindowButtonsIfNeeded()
   }
 
   private func positionWindowButtonsIfNeeded() {
-    guard !didPositionWindowButtons,
-          let close = standardWindowButton(.closeButton),
+    guard let close = standardWindowButton(.closeButton),
           let mini = standardWindowButton(.miniaturizeButton),
           let zoom = standardWindowButton(.zoomButton)
     else { return }
-    didPositionWindowButtons = true
-    let y = close.frame.origin.y
-    close.frame.origin = NSPoint(x: 20, y: y)
-    mini.frame.origin = NSPoint(x: 40, y: y)
-    zoom.frame.origin = NSPoint(x: 60, y: y)
+    // The sidebar button row is centred at 26 pt from the window top; align the
+    // traffic lights with it and give them a little breathing room from the corner.
+    let flipped = close.superview?.isFlipped ?? false
+    let targetCenter: CGFloat = 26
+    let h = close.frame.height
+    let y = flipped
+      ? targetCenter - h / 2
+      : (close.superview?.bounds.height ?? h) - targetCenter - h / 2
+    close.frame.origin = NSPoint(x: 24, y: y)
+    mini.frame.origin = NSPoint(x: 48, y: y)
+    zoom.frame.origin = NSPoint(x: 72, y: y)
   }
 }
