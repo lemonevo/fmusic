@@ -182,7 +182,7 @@ enum DesktopLyricsInk {
 
 @MainActor
 enum DesktopLyricsRenderer {
-  static let panelWidth: CGFloat = 980
+  static let panelWidth: CGFloat = 620
   static let horizontalInset: CGFloat = 24
   static let topPadding: CGFloat = 10
   static let bottomPadding: CGFloat = 10
@@ -201,8 +201,10 @@ enum DesktopLyricsRenderer {
   static let toolbarButtonSpacing: CGFloat = 2
   static let toolbarPadding: CGFloat = 4
   static let toolbarRowSpacing: CGFloat = 2
-  static let toolbarRowCount = 1
-  static let toolbarRowButtonCount = 8
+  static let toolbarRowCount = 2
+  /// Widest row is the 4-button transport row; the row is centred inside the
+  /// capsule when the lower row has fewer buttons.
+  static let toolbarRowButtonCount = 4
   static let toolbarRowWidth = CGFloat(toolbarRowButtonCount) * toolbarButtonSize
     + CGFloat(toolbarRowButtonCount - 1) * toolbarButtonSpacing
   static let toolbarWidth = toolbarRowWidth + toolbarPadding * 2
@@ -214,8 +216,9 @@ enum DesktopLyricsRenderer {
   /// The control strip is much shorter than the lyric capsule, so a 32pt
   /// radius there reads as a full pill; ~28% of the height keeps it rounded
   /// without looking like a stadium.
-  static var toolbarCornerRadius: CGFloat { 19 }
-  static var minPanelHeight: CGFloat { toolbarHeight + 16 }
+  static var toolbarCornerRadius: CGFloat { 20 }
+  /// Minimum panel height so the two-row strip is never clipped at the top edge.
+  static var minPanelHeight: CGFloat { toolbarTopInset + toolbarHeight + 4 }
 
   static func displayText(_ text: String) -> String {
     text.isEmpty ? "♪" : text
@@ -1419,14 +1422,23 @@ final class DesktopLyricsWindowController: NSObject {
 
   /// Two centred rows. Row 1 (transport, 4 buttons) is the widest and defines
   /// the capsule width; row 2 (overlay controls, 4 buttons) sits below it.
+  /// Two centred rows. Row 1 (transport, 4 buttons) is the widest and defines
+  /// the capsule width; row 2 (overlay controls, 4 buttons) sits below it.
   private static func toolbarButtonFrame(at index: Int) -> CGRect {
     let size = DesktopLyricsRenderer.toolbarButtonSize
     let spacing = DesktopLyricsRenderer.toolbarButtonSpacing
+    let row = index / DesktopLyricsRenderer.toolbarRowButtonCount
+    let col = index % DesktopLyricsRenderer.toolbarRowButtonCount
     let rowWidth = CGFloat(DesktopLyricsRenderer.toolbarRowButtonCount) * size
       + CGFloat(DesktopLyricsRenderer.toolbarRowButtonCount - 1) * spacing
     let x = (DesktopLyricsRenderer.toolbarWidth - rowWidth) / 2
-      + CGFloat(index) * (size + spacing)
-    let y = (DesktopLyricsRenderer.toolbarHeight - size) / 2
+      + CGFloat(col) * (size + spacing)
+    // y is measured from the top edge (the host view is not flipped), so the
+    // first row is the top one.
+    let y = DesktopLyricsRenderer.toolbarHeight
+      - DesktopLyricsRenderer.toolbarPadding
+      - CGFloat(row) * (size + DesktopLyricsRenderer.toolbarRowSpacing)
+      - size
     return CGRect(x: x, y: y, width: size, height: size)
   }
 
@@ -1601,7 +1613,8 @@ final class DesktopLyricsWindowController: NSObject {
     let origin = CGPoint(
       x: frame.maxX - DesktopLyricsRenderer.toolbarWidth
         - DesktopLyricsRenderer.toolbarRightInset,
-      y: frame.midY - DesktopLyricsRenderer.toolbarHeight / 2
+      y: frame.maxY - DesktopLyricsRenderer.toolbarHeight
+        - DesktopLyricsRenderer.toolbarTopInset
     )
     controlWindow.setFrameOrigin(origin)
   }
@@ -2423,7 +2436,8 @@ final class DesktopLyricsWindowController: NSObject {
       let toolbarRect = CGRect(
         x: bounds.width - DesktopLyricsRenderer.toolbarRightInset
           - DesktopLyricsRenderer.toolbarWidth,
-        y: (bounds.height - DesktopLyricsRenderer.toolbarHeight) / 2,
+        y: bounds.height - DesktopLyricsRenderer.toolbarTopInset
+          - DesktopLyricsRenderer.toolbarHeight,
         width: DesktopLyricsRenderer.toolbarWidth,
         height: DesktopLyricsRenderer.toolbarHeight
       )

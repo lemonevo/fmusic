@@ -297,31 +297,11 @@ final class LyricsOverlayController: NSObject, MusicPlayable {
         self.loadedSongID == songID
       else { return }
       self.resolvedSongID = songID
-      guard var structuredLyrics = lyricsList.getFirstSyncedLyricsOrUnsyncedAsDefault()
+      guard let structuredLyrics = lyricsList.getFirstSyncedLyricsOrUnsyncedAsDefault()
       else { return }
-      Self.synthesizeTimingsIfNeeded(
-        lyrics: &structuredLyrics,
-        duration: self.player.duration
-      )
       self.tracker.setLyrics(structuredLyrics)
       guard self.player.currentlyPlaying?.id == songID else { return }
       self.render(at: self.player.elapsedTime)
-    }
-  }
-
-  /// Unsynced lyrics carry no line timestamps; spread them evenly over the track so
-  /// the desktop overlay still follows playback instead of standing still.
-  private static func synthesizeTimingsIfNeeded(
-    lyrics: inout StructuredLyrics,
-    duration: TimeInterval
-  ) {
-    guard !lyrics.line.isEmpty,
-          lyrics.line.allSatisfy({ $0.start == nil })
-    else { return }
-    let total = duration.isFinite && duration > 5 ? duration : 240
-    let step = total / Double(lyrics.line.count)
-    for index in lyrics.line.indices {
-      lyrics.line[index].start = Int(Double(index) * step * 1000)
     }
   }
 

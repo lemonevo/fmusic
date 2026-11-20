@@ -327,9 +327,11 @@ public enum DesktopLyricsFontSize: Int, CaseIterable, Sendable, Codable {
 
   public var pointSize: CGFloat {
     switch self {
-    case .small: return 32
-    case .medium: return 42
-    case .large: return 54
+    case .small: return 24
+    // LyricsX Next's desktop overlay ships at 26 pt; keep the medium option
+    // on that exact size so the two overlays can be compared one-to-one.
+    case .medium: return 26
+    case .large: return 30
     }
   }
 }
