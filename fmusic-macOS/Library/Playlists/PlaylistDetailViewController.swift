@@ -207,52 +207,24 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     button.widthAnchor.constraint(greaterThanOrEqualToConstant: 96).isActive = true
   }
 
+  private let cellIdentifier = NSUserInterfaceItemIdentifier("playlistSongCell")
+  private let columnIdentifier = NSUserInterfaceItemIdentifier("playlistSongColumn")
+
   private func configureTableView() {
-    let artworkColumn = NSTableColumn(identifier: Column.artwork)
-    artworkColumn.title = ""
-    artworkColumn.width = 46
-    artworkColumn.minWidth = 46
-    artworkColumn.maxWidth = 46
-
-    let titleColumn = NSTableColumn(identifier: Column.title)
-    titleColumn.title = L10n.tr("Title")
-    titleColumn.width = 300
-    titleColumn.minWidth = 140
-
-    let artistColumn = NSTableColumn(identifier: Column.artist)
-    artistColumn.title = L10n.tr("Artist")
-    artistColumn.width = 160
-    artistColumn.minWidth = 110
-
-    let albumColumn = NSTableColumn(identifier: Column.album)
-    albumColumn.title = L10n.tr("Album")
-    albumColumn.width = 200
-    albumColumn.minWidth = 120
-
-    let durationColumn = NSTableColumn(identifier: Column.duration)
-    durationColumn.title = L10n.tr("Duration")
-    durationColumn.width = 60
-    durationColumn.minWidth = 56
-    durationColumn.maxWidth = 80
-
-    let menuColumn = NSTableColumn(identifier: Column.menu)
-    menuColumn.title = ""
-    menuColumn.width = 36
-    menuColumn.minWidth = 36
-    menuColumn.maxWidth = 36
-
-    [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn, menuColumn]
-      .forEach(tableView.addTableColumn)
-
-    tableView.rowHeight = MacTheme.songRowHeight
-    tableView.style = .fullWidth
-    tableView.columnAutoresizingStyle = .noColumnAutoresizing
+    let column = NSTableColumn(identifier: columnIdentifier)
+    column.title = ""
+    column.minWidth = 200
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+    tableView.headerView = nil
+    tableView.rowHeight = 44
+    tableView.intercellSpacing = NSSize(width: 0, height: 0)
+    tableView.style = .plain
+    tableView.backgroundColor = .clear
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = false
     tableView.allowsEmptySelection = true
-    tableView.usesAlternatingRowBackgroundColors = false
-    tableView.backgroundColor = .clear
-    tableView.gridStyleMask = []
+    tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
     tableView.dataSource = self
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
@@ -399,53 +371,18 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     row: Int
   )
     -> NSView? {
-    guard row < playables.count, let tableColumn else { return nil }
-    let playable = playables[row]
-
-    switch tableColumn.identifier {
-    case Column.artwork:
-      let cell = tableView.makeView(withIdentifier: Column.artwork, owner: self) as?
-        LMArtworkCellView ?? LMArtworkCellView()
-      cell.identifier = Column.artwork
-      cell.display(image: LMLibraryArtwork.image(for: playable, setting: librarySetting))
-      return cell
-    case Column.title:
-      return textCell(
-        Column.title,
-        text: playable.title,
-        font: MacTheme.titleFont,
-        color: .labelColor,
-        alignment: .left
-      )
-    case Column.artist:
-      return textCell(
-        Column.artist,
-        text: playable.creatorName,
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .left
-      )
-    case Column.album:
-      return textCell(
-        Column.album,
-        text: playable.asSong?.album?.name ?? "",
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .left
-      )
-    case Column.duration:
-      return textCell(
-        Column.duration,
-        text: ClockTime(timeInSeconds: playable.duration).asShortString(),
-        font: MacTheme.tabularBodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .right
-      )
-    case Column.menu:
-      return menuButton(row: row)
-    default:
-      return nil
-    }
+    guard row >= 0, row < playables.count else { return nil }
+    let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as?
+      SongListCellView ?? SongListCellView()
+    cell.identifier = cellIdentifier
+    cell.configure(
+      playable: playables[row],
+      setting: librarySetting,
+      row: row,
+      target: self,
+      menuAction: #selector(rowMenuPressed(_:))
+    )
+    return cell
   }
 
   private func menuButton(row: Int) -> NSView {

@@ -45,6 +45,7 @@ final class MainViewController: NSViewController {
   private var pageStack: [NSViewController] = []
   private var pageTitles: [String] = []
   private var lyricsPaneItem: NSSplitViewItem?
+  private var sidebarItem: NSSplitViewItem?
   private(set) var isLyricsPaneVisible = false
 
   private var didApplyInitialSplitPositions = false
@@ -57,8 +58,9 @@ final class MainViewController: NSViewController {
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
     sidebarItem.minimumThickness = 210
     sidebarItem.maximumThickness = 210
-    sidebarItem.canCollapse = false
+    sidebarItem.canCollapse = true
     sidebarItem.holdingPriority = NSLayoutConstraint.Priority(280)
+    self.sidebarItem = sidebarItem
 
     let contentItem = NSSplitViewItem(viewController: contentContainerViewController)
     contentItem.minimumThickness = 380
@@ -225,7 +227,7 @@ final class MainViewController: NSViewController {
   private func layoutPlayerCapsule() {
     // The capsule lives inside the content column and scales with it: opening the
     // lyrics pane shrinks the middle column, so the capsule shrinks too.
-    let sidebarWidth: CGFloat = 210
+    let sidebarWidth: CGFloat = (sidebarItem?.isCollapsed ?? false) ? 0 : 210
     let lyricsWidth: CGFloat = isLyricsPaneVisible ? 260 : 0
     let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
@@ -293,6 +295,18 @@ final class MainViewController: NSViewController {
 
   func openAlbum(_ album: Album) {
     push(AlbumDetailViewController(album: album), title: album.name)
+  }
+
+  /// Collapses/expands the library sidebar (View > Show Sidebar).
+  func toggleSidebar() {
+    guard let sidebarItem else { return }
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.2
+      sidebarItem.animator().isCollapsed.toggle()
+    }
+    DispatchQueue.main.async { [weak self] in
+      self?.layoutPlayerCapsule()
+    }
   }
 
   func openArtist(_ artist: Artist) {

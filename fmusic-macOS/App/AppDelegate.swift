@@ -217,6 +217,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
   }
 
+  @objc
+  func toggleSidebar(_ sender: Any?) {
+    mainWindowController?.mainViewController?.toggleSidebar()
+  }
+
   // MARK: - Windows
 
   @objc

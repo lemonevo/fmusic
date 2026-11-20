@@ -659,6 +659,7 @@ public enum L10n {
 
     "File": "文件",
     "View": "显示",
+    "Show Sidebar": "显示侧边栏",
     "Window": "窗口",
     "Help": "帮助",
     "Services": "服务",

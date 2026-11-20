@@ -44,4 +44,8 @@ final class MainWindowController: NSWindowController {
 
     window.contentViewController = MainViewController()
   }
+
+  var mainViewController: MainViewController? {
+    contentViewController as? MainViewController
+  }
 }

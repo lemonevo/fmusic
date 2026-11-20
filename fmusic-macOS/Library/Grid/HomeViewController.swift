@@ -39,6 +39,65 @@ final class HomeViewController: NSViewController {
     var albums: [Album]
   }
 
+  private enum SectionVisibility {
+    static func key(for kind: Section.Kind) -> String {
+      switch kind {
+      case .random: return "fmusic.home.random"
+      case .recent: return "fmusic.home.recent"
+      case .newest: return "fmusic.home.newest"
+      }
+    }
+
+    static func isEnabled(_ kind: Section.Kind) -> Bool {
+      let key = key(for: kind)
+      if UserDefaults.standard.object(forKey: key) == nil { return true }
+      return UserDefaults.standard.bool(forKey: key)
+    }
+
+    static func set(_ kind: Section.Kind, enabled: Bool) {
+      UserDefaults.standard.set(enabled, forKey: key(for: kind))
+    }
+  }
+
+  @objc
+  private func showEditMenu() {
+    let menu = NSMenu()
+    let header = NSMenuItem(title: L10n.tr("Edit"), action: nil, keyEquivalent: "")
+    header.isEnabled = false
+    menu.addItem(header)
+    menu.addItem(.separator())
+    let entries: [(Section.Kind, String)] = [
+      (.random, L10n.tr("Random Albums")),
+      (.recent, L10n.tr("Recently Played Albums")),
+      (.newest, L10n.tr("Newest Albums")),
+    ]
+    for (kind, title) in entries {
+      let item = NSMenuItem(
+        title: title,
+        action: #selector(toggleSection(_:)),
+        keyEquivalent: ""
+      )
+      item.target = self
+      item.representedObject = title
+      item.state = SectionVisibility.isEnabled(kind) ? .on : .off
+      item.identifier = NSUserInterfaceItemIdentifier(SectionVisibility.key(for: kind))
+      menu.addItem(item)
+    }
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: editButton.bounds.midX, y: editButton.bounds.minY - 4),
+      in: editButton
+    )
+  }
+
+  @objc
+  private func toggleSection(_ sender: NSMenuItem) {
+    guard let identifier = sender.identifier?.rawValue else { return }
+    let enabled = sender.state == .off
+    UserDefaults.standard.set(enabled, forKey: identifier)
+    reloadHome()
+  }
+
   private enum Metrics {
     static let albumsPerSection = 6
     static let largeTitleTopInset: CGFloat = 20
@@ -49,6 +108,7 @@ final class HomeViewController: NSViewController {
 
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Home"))
   private let subtitleLabel = NSTextField(labelWithString: "")
+  private let editButton = NSButton()
   private let scrollView = NSScrollView()
   private let collectionView = DoubleClickCollectionView()
   private let emptyLabel = NSTextField(labelWithString: "")
@@ -83,6 +143,16 @@ final class HomeViewController: NSViewController {
     emptyLabel.translatesAutoresizingMaskIntoConstraints = false
 
     root.addSubview(titleLabel)
+    editButton.title = L10n.tr("Edit")
+    editButton.font = .systemFont(ofSize: 12, weight: .medium)
+    editButton.isBordered = false
+    editButton.bezelStyle = .regularSquare
+    editButton.contentTintColor = MacTheme.accentColor
+    editButton.target = self
+    editButton.action = #selector(showEditMenu)
+    editButton.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(editButton)
+
     root.addSubview(subtitleLabel)
     root.addSubview(scrollView)
     root.addSubview(emptyLabel)
@@ -100,7 +170,10 @@ final class HomeViewController: NSViewController {
 
       subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
       subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-      subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -24),
+      subtitleLabel.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -110),
+
+      editButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+      editButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
 
       scrollView.topAnchor.constraint(equalTo: subtitleLabel.bottomAnchor, constant: 8),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -220,7 +293,7 @@ final class HomeViewController: NSViewController {
     let fallbackRandom = random.isEmpty
       ? Array(library.getAlbums(for: account).prefix(Metrics.albumsPerSection))
       : random
-    if !fallbackRandom.isEmpty {
+    if !fallbackRandom.isEmpty, SectionVisibility.isEnabled(.random) {
       newSections.append(Section(
         kind: .random,
         title: L10n.tr("Random Albums"),
@@ -233,7 +306,7 @@ final class HomeViewController: NSViewController {
       offset: 0,
       count: Metrics.albumsPerSection
     )
-    if !recent.isEmpty {
+    if !recent.isEmpty, SectionVisibility.isEnabled(.recent) {
       newSections.append(Section(
         kind: .recent,
         title: L10n.tr("Recently Played Albums"),
@@ -246,7 +319,7 @@ final class HomeViewController: NSViewController {
       offset: 0,
       count: Metrics.albumsPerSection
     )
-    if !newest.isEmpty {
+    if !newest.isEmpty, SectionVisibility.isEnabled(.newest) {
       newSections.append(Section(
         kind: .newest,
         title: L10n.tr("Newest Albums"),

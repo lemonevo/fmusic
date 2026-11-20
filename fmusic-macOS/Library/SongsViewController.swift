@@ -2,6 +2,9 @@
 //  SongsViewController.swift
 //  fmusic-macOS
 //
+//  Flat song list, single custom row cell (Catalyst `PlayableTableCell` style):
+//  artwork, title, artist · album, duration and a per-row ··· menu.
+//
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
 //  the Free Software Foundation, either version 3 of the License, or
@@ -19,7 +22,7 @@
 import AppKit
 import fmusicKit
 
-/// Flat song list backed by `NSTableView` (Apple Music style rows with artwork).
+/// Flat song list backed by `NSTableView` with one flexible custom row cell.
 @MainActor
 final class SongsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
   private let tableView = NSTableView()
@@ -28,18 +31,11 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
   private let countLabel = NSTextField(labelWithString: "")
 
   private var songs: [Song] = []
-
-  private enum Column {
-    static let artwork = NSUserInterfaceItemIdentifier("artwork")
-    static let title = NSUserInterfaceItemIdentifier("title")
-    static let artist = NSUserInterfaceItemIdentifier("artist")
-    static let album = NSUserInterfaceItemIdentifier("album")
-    static let duration = NSUserInterfaceItemIdentifier("duration")
-  }
+  private let cellIdentifier = NSUserInterfaceItemIdentifier("songListCell")
+  private let columnIdentifier = NSUserInterfaceItemIdentifier("songListColumn")
 
   override func loadView() {
-    let root = NSView()
-    root.wantsLayer = true
+    let root = ThemedBackgroundView()
 
     titleLabel.font = MacTheme.largeTitleFont
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -51,6 +47,7 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     configureTableView()
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
     scrollView.drawsBackground = false
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -59,16 +56,14 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     root.addSubview(scrollView)
 
     NSLayoutConstraint.activate([
-      titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
-      titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
-
+      titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 32),
+      titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 24),
       countLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-      countLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
-
+      countLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
       scrollView.topAnchor.constraint(equalTo: countLabel.bottomAnchor, constant: 12),
-      scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+      scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
+      scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
+      scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -8),
     ])
 
     self.view = root
@@ -95,64 +90,25 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     NotificationCenter.default.removeObserver(self)
   }
 
-  // MARK: - Table view
-
   private func configureTableView() {
-    let artworkColumn = NSTableColumn(identifier: Column.artwork)
-    artworkColumn.title = ""
-    artworkColumn.width = 46
-    artworkColumn.minWidth = 46
-    artworkColumn.maxWidth = 46
-
-    let titleColumn = NSTableColumn(identifier: Column.title)
-    titleColumn.title = L10n.tr("Songs")
-    titleColumn.width = 300
-    titleColumn.minWidth = 160
-
-    let artistColumn = NSTableColumn(identifier: Column.artist)
-    artistColumn.title = L10n.tr("Artist")
-    artistColumn.width = 160
-    artistColumn.minWidth = 120
-
-    let albumColumn = NSTableColumn(identifier: Column.album)
-    albumColumn.title = L10n.tr("Album")
-    albumColumn.width = 200
-    albumColumn.minWidth = 120
-
-    let durationColumn = NSTableColumn(identifier: Column.duration)
-    durationColumn.title = L10n.tr("Duration")
-    durationColumn.width = 60
-    durationColumn.minWidth = 56
-    durationColumn.maxWidth = 80
-
-    [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn]
-      .forEach(tableView.addTableColumn)
-
-    tableView.rowHeight = MacTheme.songRowHeight
-    tableView.style = .fullWidth
+    let column = NSTableColumn(identifier: columnIdentifier)
+    column.title = ""
+    column.minWidth = 200
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+    tableView.headerView = nil
+    tableView.rowHeight = 44
+    tableView.intercellSpacing = NSSize(width: 0, height: 0)
+    tableView.style = .plain
+    tableView.backgroundColor = .clear
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = false
     tableView.allowsEmptySelection = true
-    tableView.usesAlternatingRowBackgroundColors = false
-    tableView.backgroundColor = .clear
-    tableView.gridStyleMask = []
+    tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
     tableView.dataSource = self
     tableView.delegate = self
-    tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
-    tableView.menu = makeContextMenu()
-  }
-
-  private func makeContextMenu() -> NSMenu {
-    let menu = NSMenu()
-    let play = NSMenuItem(
-      title: L10n.tr("Play"),
-      action: #selector(playSelectedRow),
-      keyEquivalent: ""
-    )
-    play.target = self
-    menu.addItem(play)
-    return menu
+    tableView.doubleAction = #selector(handleDoubleClick)
   }
 
   // MARK: - Data
@@ -172,12 +128,8 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     countLabel.stringValue = songs.isEmpty ? "" : String(format: "%d", songs.count)
   }
 
-  private var themePreference: ThemePreference {
-    FmusicKit.shared.storage.settings.accounts.activeSetting.read.themePreference
-  }
-
-  private var artworkDisplayPreference: ArtworkDisplayPreference {
-    FmusicKit.shared.storage.settings.accounts.activeSetting.read.artworkDisplayPreference
+  private var librarySetting: AccountSetting {
+    FmusicKit.shared.storage.settings.accounts.activeSetting.read
   }
 
   // MARK: - Actions
@@ -188,15 +140,49 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     play(row: row)
   }
 
-  @objc
-  private func playSelectedRow() {
-    play(row: tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow)
-  }
-
   private func play(row: Int) {
     guard row >= 0, row < songs.count else { return }
     let context = PlayContext(name: L10n.tr("Songs"), index: row, playables: songs)
     FmusicKit.shared.player.play(context: context)
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    let row = sender.tag
+    guard row >= 0, row < songs.count else { return }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlaySong(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    let queueItem = NSMenuItem(
+      title: L10n.tr("Add to Queue"),
+      action: #selector(menuQueueSong(_:)),
+      keyEquivalent: ""
+    )
+    queueItem.target = self
+    queueItem.tag = row
+    menu.addItem(queueItem)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),
+      in: sender
+    )
+  }
+
+  @objc
+  private func menuPlaySong(_ sender: NSMenuItem) {
+    play(row: sender.tag)
+  }
+
+  @objc
+  private func menuQueueSong(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < songs.count else { return }
+    FmusicKit.shared.player.insertUserQueue(playables: [songs[sender.tag]])
   }
 
   // MARK: - NSTableViewDataSource
@@ -220,90 +206,97 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     row: Int
   )
     -> NSView? {
-    guard row < songs.count, let tableColumn else { return nil }
-    let song = songs[row]
-
-    switch tableColumn.identifier {
-    case Column.artwork:
-      let cell = tableView.makeView(withIdentifier: Column.artwork, owner: self) as?
-        SongArtworkCellView ?? SongArtworkCellView()
-      cell.identifier = Column.artwork
-      cell.display(
-        song: song,
-        themePreference: themePreference,
-        artworkDisplayPreference: artworkDisplayPreference
-      )
-      return cell
-    case Column.title:
-      return textCell(
-        identifier: Column.title,
-        text: song.title,
-        font: MacTheme.titleFont,
-        color: .labelColor,
-        alignment: .left
-      )
-    case Column.artist:
-      return textCell(
-        identifier: Column.artist,
-        text: song.creatorName,
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .left
-      )
-    case Column.album:
-      return textCell(
-        identifier: Column.album,
-        text: song.asSong?.album?.name ?? "",
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .left
-      )
-    case Column.duration:
-      return textCell(
-        identifier: Column.duration,
-        text: ClockTime(timeInSeconds: song.duration).asShortString(),
-        font: MacTheme.tabularBodyFont,
-        color: MacTheme.secondaryTextColor,
-        alignment: .right
-      )
-    default:
-      return nil
-    }
-  }
-
-  private func textCell(
-    identifier: NSUserInterfaceItemIdentifier,
-    text: String,
-    font: NSFont,
-    color: NSColor,
-    alignment: NSTextAlignment
-  )
-    -> NSView {
-    let cell = tableView.makeView(withIdentifier: identifier, owner: self) as?
-      SongTextCellView ?? SongTextCellView()
-    cell.identifier = identifier
-    cell.configure(text: text, font: font, color: color, alignment: alignment)
+    guard row >= 0, row < songs.count else { return nil }
+    let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as?
+      SongListCellView ?? SongListCellView()
+    cell.identifier = cellIdentifier
+    cell.configure(
+      playable: songs[row],
+      setting: librarySetting,
+      row: row,
+      target: self,
+      menuAction: #selector(rowMenuPressed(_:))
+    )
     return cell
   }
 }
 
-// MARK: - SongTextCellView
+// MARK: - SongListCellView
 
+/// One song row: artwork, title, artist · album, duration and the ··· menu.
 @MainActor
-private final class SongTextCellView: NSTableCellView {
-  private let label = NSTextField(labelWithString: "")
+final class SongListCellView: NSTableCellView {
+  private let artworkView = NSImageView()
+  private let titleLabel = NSTextField(labelWithString: "")
+  private let detailLabel = NSTextField(labelWithString: "")
+  private let durationLabel = NSTextField(labelWithString: "")
+  private let menuButton = NSButton()
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    label.translatesAutoresizingMaskIntoConstraints = false
-    label.lineBreakMode = .byTruncatingTail
-    addSubview(label)
+
+    artworkView.imageScaling = .scaleProportionallyUpOrDown
+    artworkView.wantsLayer = true
+    artworkView.layer?.cornerRadius = 5
+    artworkView.layer?.masksToBounds = true
+    artworkView.translatesAutoresizingMaskIntoConstraints = false
+
+    titleLabel.font = .systemFont(ofSize: 13.5)
+    titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.maximumNumberOfLines = 1
+    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    detailLabel.font = .systemFont(ofSize: 11)
+    detailLabel.textColor = MacTheme.secondaryTextColor
+    detailLabel.lineBreakMode = .byTruncatingTail
+    detailLabel.maximumNumberOfLines = 1
+    detailLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    durationLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+    durationLabel.textColor = MacTheme.secondaryTextColor
+    durationLabel.alignment = .right
+    durationLabel.translatesAutoresizingMaskIntoConstraints = false
+    durationLabel.setContentHuggingPriority(.required, for: .horizontal)
+    durationLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+    menuButton.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)
+    menuButton.isBordered = false
+    menuButton.bezelStyle = .regularSquare
+    menuButton.imagePosition = .imageOnly
+    menuButton.contentTintColor = .secondaryLabelColor
+    menuButton.translatesAutoresizingMaskIntoConstraints = false
+
+    addSubview(artworkView)
+    addSubview(titleLabel)
+    addSubview(detailLabel)
+    addSubview(durationLabel)
+    addSubview(menuButton)
+
     NSLayoutConstraint.activate([
-      label.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 2),
-      label.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -2),
-      label.centerYAnchor.constraint(equalTo: centerYAnchor),
+      artworkView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
+      artworkView.centerYAnchor.constraint(equalTo: centerYAnchor),
+      artworkView.widthAnchor.constraint(equalToConstant: 36),
+      artworkView.heightAnchor.constraint(equalToConstant: 36),
+
+      menuButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+      menuButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      menuButton.widthAnchor.constraint(equalToConstant: 24),
+      menuButton.heightAnchor.constraint(equalToConstant: 24),
+
+      durationLabel.trailingAnchor.constraint(equalTo: menuButton.leadingAnchor, constant: -8),
+      durationLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+
+      titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 10),
+      titleLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: durationLabel.leadingAnchor,
+        constant: -12
+      ),
+      titleLabel.bottomAnchor.constraint(equalTo: centerYAnchor, constant: -1),
+
+      detailLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      detailLabel.trailingAnchor.constraint(equalTo: durationLabel.leadingAnchor, constant: -12),
+      detailLabel.topAnchor.constraint(equalTo: centerYAnchor, constant: 1),
     ])
-    self.textField = label
   }
 
   required init?(coder: NSCoder) {
@@ -311,54 +304,20 @@ private final class SongTextCellView: NSTableCellView {
   }
 
   func configure(
-    text: String,
-    font: NSFont,
-    color: NSColor,
-    alignment: NSTextAlignment
+    playable: AbstractPlayable,
+    setting: AccountSetting,
+    row: Int,
+    target: AnyObject,
+    menuAction: Selector
   ) {
-    label.stringValue = text
-    label.font = font
-    label.textColor = color
-    label.alignment = alignment
-  }
-}
-
-// MARK: - SongArtworkCellView
-
-@MainActor
-private final class SongArtworkCellView: NSTableCellView {
-  private let artworkView = NSImageView()
-
-  override init(frame frameRect: NSRect) {
-    super.init(frame: frameRect)
-    artworkView.translatesAutoresizingMaskIntoConstraints = false
-    artworkView.imageScaling = .scaleProportionallyUpOrDown
-    artworkView.wantsLayer = true
-    artworkView.layer?.cornerRadius = 4
-    artworkView.layer?.masksToBounds = true
-    addSubview(artworkView)
-    NSLayoutConstraint.activate([
-      artworkView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 6),
-      artworkView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      artworkView.widthAnchor.constraint(equalToConstant: 32),
-      artworkView.heightAnchor.constraint(equalToConstant: 32),
-    ])
-    self.imageView = artworkView
-  }
-
-  required init?(coder: NSCoder) {
-    nil
-  }
-
-  func display(
-    song: Song,
-    themePreference: ThemePreference,
-    artworkDisplayPreference: ArtworkDisplayPreference
-  ) {
-    artworkView.image = ArtworkImageLoader.image(
-      for: song,
-      themePreference: themePreference,
-      artworkDisplayPreference: artworkDisplayPreference
-    )
+    titleLabel.stringValue = playable.title
+    let artist = playable.creatorName
+    let album = playable.asSong?.album?.name ?? ""
+    detailLabel.stringValue = album.isEmpty ? artist : "\(artist) · \(album)"
+    durationLabel.stringValue = ClockTime(timeInSeconds: playable.duration).asShortString()
+    artworkView.image = LMLibraryArtwork.image(for: playable, setting: setting)
+    menuButton.target = target
+    menuButton.action = menuAction
+    menuButton.tag = row
   }
 }

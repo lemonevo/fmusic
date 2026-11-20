@@ -305,6 +305,15 @@ enum MainMenuBuilder {
     )
     search.target = appDelegate
     menu.addItem(search)
+
+    let sidebar = NSMenuItem(
+      title: L10n.tr("Show Sidebar"),
+      action: #selector(AppDelegate.toggleSidebar(_:)),
+      keyEquivalent: "s"
+    )
+    sidebar.keyEquivalentModifierMask = [.command, .shift]
+    sidebar.target = appDelegate
+    menu.addItem(sidebar)
     menu.addItem(.separator())
     let fullScreen = NSMenuItem(
       title: L10n.tr("Enter Full Screen"),
