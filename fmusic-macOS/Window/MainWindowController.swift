@@ -21,7 +21,7 @@ import fmusicKit
 
 /// The main library window (Apple Music style: 1024×768 default, 980×540 minimum).
 @MainActor
-final class MainWindowController: NSWindowController {
+final class MainWindowController: NSWindowController, NSToolbarDelegate {
   static let autosaveName = "fmusic.macOS.mainWindow"
 
   convenience init() {
@@ -47,6 +47,60 @@ final class MainWindowController: NSWindowController {
     }
 
     window.contentViewController = MainViewController()
+
+    let toolbar = NSToolbar(identifier: "fmusic.mainToolbar")
+    toolbar.delegate = self
+    toolbar.displayMode = .iconOnly
+    window.toolbar = toolbar
+    window.toolbarStyle = .unified
+  }
+
+  // MARK: - NSToolbarDelegate
+
+  private static let editItemIdentifier = NSToolbarItem.Identifier("fmusic.edit")
+  private static let sidebarItemIdentifier = NSToolbarItem.Identifier("fmusic.sidebar")
+
+  func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    [Self.sidebarItemIdentifier, Self.editItemIdentifier, .flexibleSpace]
+  }
+
+  func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+    toolbarDefaultItemIdentifiers(toolbar)
+  }
+
+  func toolbar(
+    _ toolbar: NSToolbar,
+    itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+    willBeInsertedIntoToolbar flag: Bool
+  )
+    -> NSToolbarItem? {
+    let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+    switch itemIdentifier {
+    case Self.sidebarItemIdentifier:
+      item.label = L10n.tr("Show Sidebar")
+      item.image = NSImage(systemSymbolName: "sidebar.left", accessibilityDescription: nil)
+      item.target = self
+      item.action = #selector(toggleSidebarPressed)
+    case Self.editItemIdentifier:
+      item.label = L10n.tr("Edit")
+      item.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: nil)
+      item.target = self
+      item.action = #selector(editPressed)
+    default:
+      return nil
+    }
+    item.isBordered = true
+    return item
+  }
+
+  @objc
+  private func toggleSidebarPressed() {
+    mainViewController?.toggleSidebar()
+  }
+
+  @objc
+  private func editPressed() {
+    mainViewController?.presentHomeEditor()
   }
 
   var mainViewController: MainViewController? {

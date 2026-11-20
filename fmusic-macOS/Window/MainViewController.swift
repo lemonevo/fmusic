@@ -304,6 +304,12 @@ final class MainViewController: NSViewController {
     )
   }
 
+  /// Opens the home screen and its section editor (toolbar 编辑 button).
+  func presentHomeEditor() {
+    select(item: .home)
+    (pageStack.first as? HomeViewController)?.presentSectionEditor()
+  }
+
   func openAlbum(_ album: Album) {
     push(AlbumDetailViewController(album: album), title: album.name)
   }
