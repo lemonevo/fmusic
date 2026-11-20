@@ -22,7 +22,6 @@
 import CoreData
 import Foundation
 import SwiftUI
-import UIKit
 
 // MARK: - ArtworkDownloadSetting
 
@@ -245,14 +244,14 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     }
   }
 
-  public var asColor: UIColor {
+  public var asColor: PlatformColor {
     switch self {
     case .blue:
       return .systemBlue
     case .green:
       return .systemGreen
     case .red:
-      return UIColor(red: 0.98, green: 0.18, blue: 0.33, alpha: 1.0)
+      return .platform(red: 0.98, green: 0.18, blue: 0.33, alpha: 1.0)
     case .yellow:
       return .systemYellow
     case .orange:
@@ -262,7 +261,7 @@ public enum ThemePreference: Int, CaseIterable, Sendable, Codable {
     }
   }
 
-  public var contrastColor: UIColor {
+  public var contrastColor: PlatformColor {
     switch self {
     case .blue:
       return .white
@@ -352,20 +351,5 @@ public enum DesktopLyricsAlignment: Int, CaseIterable, Sendable, Codable {
     case .center: return L10n.tr("Center")
     case .right: return L10n.tr("Right")
     }
-  }
-}
-
-// MARK: - UIUserInterfaceStyle
-
-extension UIUserInterfaceStyle: @retroactive Encodable, @retroactive Decodable {
-  public init(from decoder: Decoder) throws {
-    let container = try decoder.singleValueContainer()
-    let raw = try container.decode(Int.self)
-    self = UIUserInterfaceStyle(rawValue: raw) ?? .unspecified
-  }
-
-  public func encode(to encoder: Encoder) throws {
-    var container = encoder.singleValueContainer()
-    try container.encode(rawValue)
   }
 }

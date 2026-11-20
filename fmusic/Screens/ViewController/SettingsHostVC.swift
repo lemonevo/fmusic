@@ -354,7 +354,7 @@ class SettingsHostVC: UIViewController {
     changesAgent.append(settings.$appearanceMode.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
       self.appDelegate.storage.settings.user.appearanceMode = newValue
-      self.appDelegate.setAppAppearanceMode(style: newValue)
+      self.appDelegate.setAppAppearanceMode(style: newValue.uiUserInterfaceStyle)
     }))
 
     settings.appLanguage = appDelegate.storage.settings.user.appLanguage
@@ -365,10 +365,14 @@ class SettingsHostVC: UIViewController {
     }))
 
     settings.textSize = appDelegate.storage.settings.user.textSize
+      .map { UIContentSizeCategory(rawValue: $0) }
     changesAgent.append(settings.$textSize.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      guard self.appDelegate.storage.settings.user.textSize != newValue else { return }
-      self.appDelegate.storage.settings.user.textSize = newValue
+      // The package stores the platform-neutral raw value; the settings UI keeps
+      // working with `UIContentSizeCategory` and converts at this boundary.
+      let rawValue = newValue?.rawValue
+      guard self.appDelegate.storage.settings.user.textSize != rawValue else { return }
+      self.appDelegate.storage.settings.user.textSize = rawValue
       self.appDelegate.applyTextSize()
     }))
 

@@ -53,6 +53,7 @@ class SettingsSceneDelegate: UIResponder, UIWindowSceneDelegate {
     appDelegate.applyTextSize()
     // Settings follow the in-app appearance choice, not the system one.
     window?.overrideUserInterfaceStyle = appDelegate.storage.settings.user.appearanceMode
+      .uiUserInterfaceStyle
     window?.backgroundColor = .clear
 
     let settingsVC = SettingsHostVC(showsSidebar: true)

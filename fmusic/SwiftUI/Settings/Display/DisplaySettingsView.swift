@@ -32,9 +32,9 @@ struct DisplaySettingsView: View {
   @EnvironmentObject
   private var settings: Settings
 
-  func setAppearanceMode(style: UIUserInterfaceStyle) {
+  func setAppearanceMode(style: AppearanceMode) {
     settings.appearanceMode = style
-    appDelegate.setAppAppearanceMode(style: style)
+    appDelegate.setAppAppearanceMode(style: style.uiUserInterfaceStyle)
   }
 
   var body: some View {

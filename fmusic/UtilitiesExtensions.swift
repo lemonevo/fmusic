@@ -47,8 +47,11 @@ extension MarqueeLabel {
   }
 }
 
-extension UIColor {
-  static let hardLabelColor = UIColor(named: "hardLabelColor")
+@MainActor
+extension PlatformColor {
+  /// The asset catalog lives in the `fmusicKit` package now, so the color is resolved
+  /// from the package bundle (`PlatformColor.fmusicHardLabelColor`).
+  static var hardLabelColor: PlatformColor { .fmusicHardLabelColor }
 }
 
 extension Color {
