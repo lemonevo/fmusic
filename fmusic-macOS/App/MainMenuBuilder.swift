@@ -157,6 +157,9 @@ enum MainMenuBuilder {
   private static func playbackMenu() -> NSMenuItem {
     let item = NSMenuItem()
     let menu = NSMenu(title: L10n.tr("Playback"))
+    // The delegate updates the sleep timer submenu title (remaining time) right
+    // before the Playback menu is displayed.
+    menu.delegate = sleepTimerMenuController
 
     let playPause = NSMenuItem(
       title: L10n.tr("Play"),
@@ -201,6 +204,9 @@ enum MainMenuBuilder {
     )
     repeatMode.target = appDelegate
     menu.addItem(repeatMode)
+    menu.addItem(.separator())
+
+    menu.addItem(sleepTimerMenuItem())
     menu.addItem(.separator())
 
     let volumeUp = NSMenuItem(
@@ -283,6 +289,17 @@ enum MainMenuBuilder {
     menu.addItem(withTitle: L10n.tr("Minimize"), action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
     menu.addItem(withTitle: L10n.tr("Zoom"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
     menu.addItem(.separator())
+
+    let miniPlayer = NSMenuItem(
+      title: L10n.tr("Mini Player"),
+      action: #selector(AppDelegate.showMiniPlayer(_:)),
+      keyEquivalent: "m"
+    )
+    miniPlayer.keyEquivalentModifierMask = [.command, .shift]
+    miniPlayer.target = appDelegate
+    menu.addItem(miniPlayer)
+    menu.addItem(.separator())
+
     menu.addItem(withTitle: L10n.tr("Bring All to Front"), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
     NSApp.windowsMenu = menu
     item.submenu = menu
@@ -302,5 +319,141 @@ enum MainMenuBuilder {
     NSApp.helpMenu = menu
     item.submenu = menu
     return item
+  }
+
+  // MARK: - Sleep timer
+
+  /// One instance owns the dynamic sleep timer menu (it is the `NSMenuDelegate` of both
+  /// the Playback menu and the sleep timer submenu, and refreshes their titles/check
+  /// marks from `AppDelegate` right before they are displayed).
+  static let sleepTimerMenuController = SleepTimerMenuController()
+
+  /// Refreshes the sleep timer menu title/check marks immediately. Called by
+  /// `AppDelegate` whenever the timer state changes.
+  static func refreshSleepTimerMenu() {
+    sleepTimerMenuController.refresh()
+  }
+
+  private static func sleepTimerMenuItem() -> NSMenuItem {
+    let item = NSMenuItem(title: L10n.tr("Sleep Timer"), action: nil, keyEquivalent: "")
+    let menu = NSMenu(title: L10n.tr("Sleep Timer"))
+    menu.autoenablesItems = false
+
+    let endOfSong = NSMenuItem(
+      title: L10n.tr("End of Song"),
+      action: #selector(AppDelegate.setSleepTimerToEndOfSong(_:)),
+      keyEquivalent: ""
+    )
+    endOfSong.target = appDelegate
+    endOfSong.tag = SleepTimerMenuController.endOfSongTag
+    menu.addItem(endOfSong)
+
+    for minutes in SleepTimerMenuController.minuteOptions {
+      let timerItem = NSMenuItem(
+        title: SleepTimerMenuController.title(forMinutes: minutes),
+        action: #selector(AppDelegate.activateSleepTimer(_:)),
+        keyEquivalent: ""
+      )
+      timerItem.target = appDelegate
+      timerItem.tag = minutes
+      menu.addItem(timerItem)
+    }
+
+    menu.addItem(.separator())
+
+    let off = NSMenuItem(
+      title: L10n.tr("Off"),
+      action: #selector(AppDelegate.turnOffSleepTimer(_:)),
+      keyEquivalent: ""
+    )
+    off.target = appDelegate
+    off.tag = SleepTimerMenuController.offTag
+    menu.addItem(off)
+
+    menu.delegate = sleepTimerMenuController
+    item.submenu = menu
+    sleepTimerMenuController.attach(item: item, menu: menu)
+    // The dynamic title/check marks are filled in by `menuNeedsUpdate` when the menu
+    // opens, i.e. after the app bootstrap created the shared player.
+    return item
+  }
+}
+
+// MARK: - SleepTimerMenuController
+
+/// Keeps the "睡眠定时器" submenu in sync with the shared player state:
+///
+/// * the submenu title shows the time remaining while a countdown runs,
+/// * the items behave like a radio group (End of Song / 5…120 minutes / Off),
+/// * "Off" shows the pause time when a countdown is active, like the Catalyst app.
+@MainActor
+final class SleepTimerMenuController: NSObject, NSMenuDelegate {
+  static let endOfSongTag = -1
+  static let offTag = -2
+  static let minuteOptions = [5, 10, 15, 30, 45, 60, 120]
+
+  private weak var sleepTimerItem: NSMenuItem?
+  private weak var sleepTimerMenu: NSMenu?
+
+  private var appDelegate: AppDelegate? { AppDelegate.sharedAppDelegate }
+  private var player: PlayerFacade { FmusicKit.shared.player }
+
+  func attach(item: NSMenuItem, menu: NSMenu) {
+    sleepTimerItem = item
+    sleepTimerMenu = menu
+  }
+
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    refresh()
+  }
+
+  func refresh() {
+    guard let appDelegate, let sleepTimerMenu, let sleepTimerItem else { return }
+    let fireDate = appDelegate.sleepTimerFireDate
+    let isEndOfSongActive = player.isShouldPauseAfterFinishedPlaying
+
+    if let fireDate {
+      let remainingSeconds = max(0, Int(fireDate.timeIntervalSinceNow.rounded(.up)))
+      sleepTimerItem.title = L10n.tr("Sleep Timer") + " · " + L10n.tr(
+        "Remaining: %@",
+        ClockTime(timeInSeconds: remainingSeconds).asShortString()
+      )
+    } else if isEndOfSongActive {
+      sleepTimerItem.title = L10n.tr("Sleep Timer") + " · " + L10n.tr("End of Song")
+    } else {
+      sleepTimerItem.title = L10n.tr("Sleep Timer")
+    }
+
+    for item in sleepTimerMenu.items {
+      switch item.tag {
+      case Self.endOfSongTag:
+        item.state = isEndOfSongActive ? .on : .off
+      case Self.offTag:
+        if let fireDate {
+          item.title = L10n.tr("Turn Off (Pause at: %@)", fireDate.asShortHrMinString)
+        } else {
+          item.title = L10n.tr("Off")
+        }
+        item.state = (fireDate == nil && !isEndOfSongActive) ? .on : .off
+      default:
+        item.state = (
+          fireDate != nil &&
+            appDelegate.sleepTimerMinutes == item.tag
+        ) ? .on : .off
+      }
+    }
+  }
+
+  static func title(forMinutes minutes: Int) -> String {
+    switch minutes {
+    case 5: return L10n.tr("5 Minutes")
+    case 10: return L10n.tr("10 Minutes")
+    case 15: return L10n.tr("15 Minutes")
+    case 30: return L10n.tr("30 Minutes")
+    case 45: return L10n.tr("45 Minutes")
+    case 60: return L10n.tr("1 Hour")
+    case 120: return L10n.tr("2 Hours")
+    default: return "\(minutes) " + L10n.tr("Minutes")
+    }
   }
 }
