@@ -157,7 +157,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         constant: -2
       ),
 
-      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 16),
+      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
       infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
       infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 200),
 
@@ -174,11 +174,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       progressTrack.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
       progressTrack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
     ])
-
-    // Keep the transport + info left aligned; the utility cluster sticks to the right.
-    let infoCenter = infoGroup.centerXAnchor.constraint(equalTo: capsule.centerXAnchor)
-    infoCenter.priority = .defaultLow
-    infoCenter.isActive = true
 
     self.view = root
   }
