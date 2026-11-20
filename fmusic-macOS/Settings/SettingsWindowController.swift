@@ -19,54 +19,78 @@
 import AppKit
 import fmusicKit
 
-/// Separate settings window (900×620, centered on the main window), mirroring the
-/// Catalyst app behaviour: closing it destroys the window so reopening never shows
-/// an empty shell.
+/// Separate settings window (900×620 content), mirroring the Catalyst app behaviour:
+/// closing it destroys the page hierarchy so a reopen rebuilds from the persisted
+/// settings (and is still instant because the window itself is kept alive).
 @MainActor
 final class SettingsWindowController: NSWindowController {
+  static let autosaveName = "fmusic.macOS.settingsWindow"
+
   convenience init() {
+    let contentSize = SettingsViewController.contentSize
     let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 900, height: 620),
-      styleMask: [.titled, .closable, .miniaturizable],
+      contentRect: NSRect(origin: .zero, size: contentSize),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable],
       backing: .buffered,
       defer: false
     )
     window.title = L10n.tr("Settings")
-    window.minSize = NSSize(width: 900, height: 620)
+    window.contentMinSize = contentSize
+    window.minSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize))
+      .size
     window.isReleasedWhenClosed = false
     window.tabbingMode = .disallowed
-    window.setFrameAutosaveName("fmusic.macOS.settingsWindow")
+    window.contentViewController = SettingsViewController()
 
     self.init(window: window)
 
-    if let mainWindow = AppDelegate.sharedAppDelegate?.mainWindowController?.window {
-      let mainFrame = mainWindow.frame
-      let origin = NSPoint(
-        x: mainFrame.midX - window.frame.width / 2,
-        y: mainFrame.midY - window.frame.height / 2
-      )
-      window.setFrameOrigin(origin)
-    } else if !window.setFrameUsingName("fmusic.macOS.settingsWindow") {
-      window.center()
+    window.setFrameAutosaveName(Self.autosaveName)
+    if !window.setFrameUsingName(Self.autosaveName) {
+      center(window)
+    } else if window.screen == nil {
+      // The saved frame no longer maps to a connected display.
+      center(window)
     }
 
-    window.contentViewController = SettingsViewController()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(windowWillClose(_:)),
+      name: NSWindow.willCloseNotification,
+      object: window
+    )
   }
-}
 
-/// Placeholder content replaced by the AppKit settings pages.
-@MainActor
-final class SettingsViewController: NSViewController {
-  override func loadView() {
-    let view = NSView(frame: NSRect(x: 0, y: 0, width: 900, height: 620))
-    let label = NSTextField(labelWithString: L10n.tr("Settings"))
-    label.font = .systemFont(ofSize: 20, weight: .semibold)
-    label.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(label)
-    NSLayoutConstraint.activate([
-      label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-      label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-    ])
-    self.view = view
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  /// Rebuilds the page hierarchy after the window was closed (the window itself stays
+  /// alive thanks to `isReleasedWhenClosed = false`).
+  override func showWindow(_ sender: Any?) {
+    if window?.contentViewController == nil {
+      window?.contentViewController = SettingsViewController()
+    }
+    super.showWindow(sender)
+  }
+
+  @objc
+  private func windowWillClose(_ notification: Notification) {
+    // Drop the sidebar/pages so the next open reflects settings changed elsewhere.
+    window?.contentViewController = nil
+  }
+
+  // MARK: - Centering
+
+  private func center(_ window: NSWindow) {
+    guard let mainWindow = AppDelegate.sharedAppDelegate?.mainWindowController?.window else {
+      window.center()
+      return
+    }
+    let mainFrame = mainWindow.frame
+    let origin = NSPoint(
+      x: mainFrame.midX - window.frame.width / 2,
+      y: mainFrame.midY - window.frame.height / 2
+    )
+    window.setFrameOrigin(origin)
   }
 }
