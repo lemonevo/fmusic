@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private(set) var mainWindowController: MainWindowController?
   private var settingsWindowController: SettingsWindowController?
+  private(set) var lyricsOverlay: LyricsOverlayController?
 
   var fmusic: FmusicKit { FmusicKit.shared }
   var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -80,6 +81,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   // MARK: - Bootstrap
 
+  @objc
+  private func lyricsSettingsChanged() {
+    lyricsOverlay?.settingsChanged()
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    lyricsOverlay?.stop()
+    lyricsOverlay = nil
+  }
+
   private func bootstrapCore() {
     let storage = fmusic.storage
     storage.applyMultiAccountSettingsUpdateIfNeeded()
@@ -97,6 +108,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       fmusic.getMeta(accountInfo).startManagerForNormalOperation(player: player)
     }
     fmusic.userStatistics.sessionStarted()
+
+    let overlay = LyricsOverlayController()
+    overlay.onOpenMainWindow = { [weak self] in self?.showMainWindow(nil) }
+    overlay.start()
+    lyricsOverlay = overlay
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(lyricsSettingsChanged),
+      name: .macPlaybackSettingsChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(lyricsSettingsChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
   }
 
   // MARK: - Windows

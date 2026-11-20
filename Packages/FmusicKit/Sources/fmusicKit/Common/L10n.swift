@@ -55,8 +55,7 @@ public enum L10n {
     "Remove Account": "移除账户",
     "Remove": "移除",
     "Removing “%@” deletes its login credentials and all downloaded files for this account. Your original music files are not touched.\n\nDo you want to remove this account?": "移除“%@”会删除该账户的登录凭据及其所有已下载文件；原始音乐文件不会被删除。\n\n要移除这个账户吗？",
-    "Settings": "设置",
-    "Search Settings": "搜索设置",
+        "Search Settings": "搜索设置",
     "No Settings Found": "未找到设置",
     "Open File": "打开文件",
     "Opened Files": "打开的文件",
@@ -332,8 +331,7 @@ public enum L10n {
     "X-Callback URL": "X-Callback URL",
     "Developer": "开发者",
     "Developer Tools": "开发者工具",
-    "About": "关于",
-    "Language": "语言",
+        "Language": "语言",
     "Match System": "跟随系统",
     "Simplified Chinese": "简体中文",
     "Language changes take effect after restarting fmusic.": "更改语言后需要重新启动 fmusic 才能生效。",
@@ -622,6 +620,31 @@ public enum L10n {
     // MARK: Developer
 
     "Generate Default Artworks": "生成默认封面",
+
+    // MARK: Menus & windows
+
+    "File": "文件",
+    "View": "显示",
+    "Window": "窗口",
+    "Help": "帮助",
+    "Services": "服务",
+    "Hide": "隐藏",
+    "Hide Others": "隐藏其他",
+    "Show All": "全部显示",
+    "Quit": "退出",
+    "Minimize": "最小化",
+    "Zoom": "缩放",
+    "Bring All to Front": "全部置于顶层",
+    "Undo": "撤销",
+    "Redo": "重做",
+    "Cut": "剪切",
+    "Copy": "拷贝",
+    "Paste": "粘贴",
+    "Select All": "全选",
+        "Enter Full Screen": "进入全屏幕",
+    "Show Main Window": "显示主窗口",
+    "Settings": "设置",
+    "About": "关于",
 
     // MARK: Menus, playlists & empty states
 
