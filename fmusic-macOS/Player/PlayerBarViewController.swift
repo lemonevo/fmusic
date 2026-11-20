@@ -137,6 +137,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
+    rightGroup.distribution = .equalSpacing
     rightGroup.spacing = 10
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
@@ -163,10 +164,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
-      rightGroup.leadingAnchor.constraint(
-        greaterThanOrEqualTo: infoGroup.trailingAnchor,
-        constant: 16
-      ),
+      rightGroup.leadingAnchor.constraint(equalTo: infoGroup.trailingAnchor, constant: 18),
     ])
 
     // The progress line runs directly under the artwork + title block.
