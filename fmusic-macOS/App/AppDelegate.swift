@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private(set) var lyricsOverlay: LyricsOverlayController?
   private(set) var miniPlayerWindowController: MiniPlayerWindowController?
 
+  /// Handles `fmusic://x-callback-url/...` URLs (script / Stream Deck / Shortcuts automation).
+  private(set) lazy var xCallbackManager = XCallbackManager()
+
+  /// URLs that arrived before the X-Callback actions were registered at launch.
+  private var pendingXCallbackURLs = [URL]()
+
   /// One-shot timer behind Playback ▸ Sleep Timer. Kept on the delegate so it keeps
   /// running while the library window is closed and the app stays in the background.
   private var sleepTimer: Timer?
@@ -48,6 +54,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     NSApp.mainMenu = MainMenuBuilder.build()
 
     bootstrapCore()
+
+    // Register `fmusic://x-callback-url/...` actions before the window appears so a URL that
+    // launched the app (or arrives while the app is running) is handled immediately.
+    xCallbackManager.registerXCallbackURLs()
+    flushPendingXCallbackURLs()
 
     let controller = MainWindowController()
     mainWindowController = controller
@@ -92,7 +103,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {
-    openAudioFiles(urls)
+    handleIncomingURLs(urls)
+  }
+
+  // MARK: - X-Callback-URLs
+
+  /// Routes the URLs AppKit hands to the app: audio files are imported into the library,
+  /// `fmusic://x-callback-url/...` URLs are dispatched to the `XCallbackManager`.
+  func handleIncomingURLs(_ urls: [URL]) {
+    var fileURLs = [URL]()
+    var didHandleXCallback = false
+    for url in urls {
+      if url.isFileURL {
+        fileURLs.append(url)
+      } else if handleIncomingXCallbackURL(url) {
+        didHandleXCallback = true
+      }
+    }
+    if didHandleXCallback {
+      // The URL came from an automation client; make sure the user sees the app react.
+      NSApp.activate(ignoringOtherApps: true)
+    }
+    openAudioFiles(fileURLs)
+  }
+
+  /// Handles a single `fmusic://` URL. Exposed for menu items / AppleScript hooks and used by
+  /// `application(_:open:)` for URLs sent by the system.
+  ///
+  /// - Returns: `true` when the URL was a `fmusic://x-callback-url/...` URL handled by the
+  ///   registered actions.
+  @discardableResult
+  func handleIncomingXCallbackURL(_ url: URL) -> Bool {
+    guard !url.isFileURL, url.scheme?.lowercased() == "fmusic" else { return false }
+    guard url.host?.lowercased() == "x-callback-url" else {
+      // Other `fmusic://` URLs are not handled (yet), but they are still ours.
+      return false
+    }
+    guard xCallbackManager.isRegistered else {
+      pendingXCallbackURLs.append(url)
+      return true
+    }
+    return xCallbackManager.handleIncoming(url: url)
+  }
+
+  private func flushPendingXCallbackURLs() {
+    guard !pendingXCallbackURLs.isEmpty else { return }
+    let urls = pendingXCallbackURLs
+    pendingXCallbackURLs.removeAll()
+    for url in urls {
+      _ = xCallbackManager.handleIncoming(url: url)
+    }
+  }
+
+  /// Shows the list of supported X-Callback-URL actions (helper for a future "Help ▸ X-Callback
+  /// URLs" menu item; the actions are documented in the Catalyst settings page).
+  @objc
+  func showXCallbackDocumentation(_ sender: Any?) {
+    let alert = NSAlert()
+    alert.messageText = L10n.tr("X-Callback-URLs")
+    alert.informativeText = xCallbackManager.documentationText
+    alert.addButton(withTitle: L10n.tr("OK"))
+    alert.runModal()
   }
 
   // MARK: - Bootstrap
