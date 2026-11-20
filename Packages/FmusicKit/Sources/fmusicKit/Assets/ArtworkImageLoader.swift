@@ -19,6 +19,9 @@
 import CoreGraphics
 import Foundation
 import ImageIO
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+import AppKit
+#endif
 
 /// Platform-neutral artwork loading shared by the UIKit and AppKit front-ends.
 ///
@@ -42,9 +45,63 @@ public enum ArtworkImageLoader {
     artworkType: ArtworkType
   )
     -> PlatformImage {
-    PlatformImages.asset(named: "\(theme.description)\(artworkType.description)")
-      ?? PlatformImages.empty
+    if let asset = PlatformImages.asset(named: "\(theme.description)\(artworkType.description)") {
+      return asset
+    }
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+      if let rendered = renderedGeneratedImage(theme: theme, artworkType: artworkType) {
+        return rendered
+      }
+    #endif
+    return PlatformImages.empty
   }
+
+  #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    private static var generatedImageCache: [String: PlatformImage] = [:]
+
+    /// Draws the placeholder exactly like the Catalyst `UIImage.generateArtwork` helper:
+    /// grey light/dark background plus the theme tinted artwork type symbol, or the
+    /// inverted colours for playlists. The imagesets in the package catalog only ship
+    /// 3x renditions, which `actool` drops for the macOS SDK, so AppKit renders them.
+    private static func renderedGeneratedImage(
+      theme: ThemePreference,
+      artworkType: ArtworkType
+    )
+      -> PlatformImage? {
+      let appearance = NSApp?.effectiveAppearance ?? NSApplication.shared.effectiveAppearance
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      let key = "\(theme.rawValue)-\(artworkType.description)-\(isDark)"
+      if let cached = generatedImageCache[key] {
+        return cached
+      }
+
+      let side = CGFloat(ArtworkIconSizeType.defaultSize)
+      guard side > 0 else { return nil }
+      let largeIconTypes: [ArtworkType] = [.album, .artist, .folder, .genre, .podcast, .radio]
+      let iconSizeType: ArtworkIconSizeType = largeIconTypes.contains(artworkType) ? .big : .small
+      let switchColors = artworkType == .playlist
+      let grayScale: CGFloat = isDark ? 0.15 : 0.85
+      let grayColor = NSColor(white: grayScale, alpha: 1)
+      let backgroundColor = switchColors ? theme.asColor : grayColor
+      let iconTintColor = switchColors ? grayColor : theme.asColor
+      let iconInset = iconSizeType.rawValue
+      let icon = artworkType.image.asPlatformImage.platformTinted(with: iconTintColor)
+
+      let image = NSImage(size: NSSize(width: side, height: side), flipped: false) { rect in
+        backgroundColor.setFill()
+        rect.fill()
+        icon.draw(
+          in: rect.insetBy(dx: iconInset, dy: iconInset),
+          from: .zero,
+          operation: .sourceOver,
+          fraction: 1
+        )
+        return true
+      }
+      generatedImageCache[key] = image
+      return image
+    }
+  #endif
 
   /// The image to display for a library entity: the cached artwork file when available,
   /// otherwise the generated placeholder for the entity's type.

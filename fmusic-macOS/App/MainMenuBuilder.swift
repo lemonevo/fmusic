@@ -347,6 +347,15 @@ enum MainMenuBuilder {
   private static func helpMenu() -> NSMenuItem {
     let item = NSMenuItem()
     let menu = NSMenu(title: L10n.tr("Help"))
+    let xcallbackDocs = NSMenuItem(
+      title: L10n.tr("X-Callback-URL Documentation"),
+      action: #selector(AppDelegate.showXCallbackDocumentation(_:)),
+      keyEquivalent: ""
+    )
+    xcallbackDocs.target = appDelegate
+    menu.addItem(xcallbackDocs)
+    menu.addItem(.separator())
+
     menu.addItem(
       withTitle: L10n.tr("Report an issue on GitHub"),
       action: #selector(NSWorkspace.open(_:)),
