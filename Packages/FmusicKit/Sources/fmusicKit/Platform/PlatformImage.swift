@@ -203,6 +203,12 @@ public extension PlatformColor {
     #endif
   }
 
+  /// Background color for the overlay drawn on top of artwork (package asset catalog).
+  @MainActor
+  static var fmusicImageOverlayBackground: PlatformColor {
+    fmusicAsset(named: "ImageOverlayBackground") ?? .clear
+  }
+
   /// The label color that keeps enough contrast on both light and dark backgrounds.
   @MainActor
   static var fmusicHardLabelColor: PlatformColor {
