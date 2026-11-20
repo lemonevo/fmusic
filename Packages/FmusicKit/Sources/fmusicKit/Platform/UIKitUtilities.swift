@@ -17,51 +17,51 @@
 //
 
 #if canImport(UIKit)
-import Foundation
-import UIKit
+  import Foundation
+  import UIKit
 
-// MARK: - UIView
+  // MARK: - UIView
 
-extension UIView {
-  public var screenshot: UIImage? {
-    UIGraphicsBeginImageContextWithOptions(layer.frame.size, false, 0)
-    defer {
-      UIGraphicsEndImageContext()
+  extension UIView {
+    public var screenshot: UIImage? {
+      UIGraphicsBeginImageContextWithOptions(layer.frame.size, false, 0)
+      defer {
+        UIGraphicsEndImageContext()
+      }
+      guard let context = UIGraphicsGetCurrentContext() else { return nil }
+      layer.render(in: context)
+      return UIGraphicsGetImageFromCurrentImageContext()
     }
-    guard let context = UIGraphicsGetCurrentContext() else { return nil }
-    layer.render(in: context)
-    return UIGraphicsGetImageFromCurrentImageContext()
-  }
-}
-
-// MARK: - UIAlertAction
-
-extension UIAlertAction {
-  public convenience init(
-    title: String?,
-    image: UIImage,
-    style: Style,
-    handler: ((UIAlertAction) -> ())? = nil
-  ) {
-    self.init(title: title, style: style, handler: handler)
-    self.image = image
   }
 
-  public var image: UIImage {
-    get { value(forKey: "image") as? UIImage ?? UIImage() }
-    set(image) { setValue(image, forKey: "image") }
-  }
-}
+  // MARK: - UIAlertAction
 
-// MARK: - UIDevice
+  extension UIAlertAction {
+    public convenience init(
+      title: String?,
+      image: UIImage,
+      style: Style,
+      handler: ((UIAlertAction) -> ())? = nil
+    ) {
+      self.init(title: title, style: style, handler: handler)
+      self.image = image
+    }
 
-extension UIDevice {
-  public var totalDiskCapacityInByte: Int64? {
-    PlatformDiskCapacity.totalInBytes
+    public var image: UIImage {
+      get { value(forKey: "image") as? UIImage ?? UIImage() }
+      set(image) { setValue(image, forKey: "image") }
+    }
   }
 
-  public var availableDiskCapacityInByte: Int64? {
-    PlatformDiskCapacity.availableInBytes
+  // MARK: - UIDevice
+
+  extension UIDevice {
+    public var totalDiskCapacityInByte: Int64? {
+      PlatformDiskCapacity.totalInBytes
+    }
+
+    public var availableDiskCapacityInByte: Int64? {
+      PlatformDiskCapacity.availableInBytes
+    }
   }
-}
 #endif

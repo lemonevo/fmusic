@@ -27,5 +27,4 @@ class StringHasher {
     let digest = CryptoKit.SHA256.hash(data: dataString.data(using: .utf8) ?? Data())
     return digest.map { String(format: "%02hhx", $0) }.joined()
   }
-
 }

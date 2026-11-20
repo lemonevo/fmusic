@@ -19,15 +19,15 @@
 import Foundation
 
 #if canImport(UIKit)
-import UIKit
-/// The platform view controller type: `UIViewController` on iOS/iPadOS/Mac Catalyst,
-/// `NSViewController` on macOS. Used where the shared core only needs to *hand over*
-/// a view controller to the app (for example the event log popups).
-public typealias PlatformViewController = UIViewController
+  import UIKit
+  /// The platform view controller type: `UIViewController` on iOS/iPadOS/Mac Catalyst,
+  /// `NSViewController` on macOS. Used where the shared core only needs to *hand over*
+  /// a view controller to the app (for example the event log popups).
+  public typealias PlatformViewController = UIViewController
 #elseif canImport(AppKit)
-import AppKit
-/// The platform view controller type: `UIViewController` on iOS/iPadOS/Mac Catalyst,
-/// `NSViewController` on macOS. Used where the shared core only needs to *hand over*
-/// a view controller to the app (for example the event log popups).
-public typealias PlatformViewController = NSViewController
+  import AppKit
+  /// The platform view controller type: `UIViewController` on iOS/iPadOS/Mac Catalyst,
+  /// `NSViewController` on macOS. Used where the shared core only needs to *hand over*
+  /// a view controller to the app (for example the event log popups).
+  public typealias PlatformViewController = NSViewController
 #endif

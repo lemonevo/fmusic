@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CallbackURLKit
+import fmusicKit
 import Foundation
 import Ifrit
 import Intents

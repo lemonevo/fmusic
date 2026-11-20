@@ -33,7 +33,12 @@ struct LicenseSettingsView: View {
   __________________________________
 
   \(L10n.tr("This software contains additional third party software."))
-  \(L10n.tr("All the third party software included or linked is redistributed under the terms and conditions of their original licenses."))
+  \(
+    L10n
+      .tr(
+        "All the third party software included or linked is redistributed under the terms and conditions of their original licenses."
+      )
+  )
 
   __________________________________
 

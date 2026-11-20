@@ -110,7 +110,10 @@ enum AudioOutputRouting {
   }
 
   private static func outputChannelCount(of deviceID: AudioDeviceID) -> Int {
-    var propertyAddress = address(kAudioDevicePropertyStreamConfiguration, scope: kAudioObjectPropertyScopeOutput)
+    var propertyAddress = address(
+      kAudioDevicePropertyStreamConfiguration,
+      scope: kAudioObjectPropertyScopeOutput
+    )
     var size = UInt32(0)
     guard AudioObjectGetPropertyDataSize(deviceID, &propertyAddress, 0, nil, &size) == noErr,
           size > 0
@@ -153,9 +156,9 @@ enum AudioOutputRouting {
     switch transportType {
     case kAudioDeviceTransportTypeBuiltIn: return .builtIn
     case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return .bluetooth
-    case kAudioDeviceTransportTypeUSB, kAudioDeviceTransportTypeThunderbolt: return .usb
-    case kAudioDeviceTransportTypeHDMI, kAudioDeviceTransportTypeDisplayPort: return .display
-    case kAudioDeviceTransportTypeVirtual, kAudioDeviceTransportTypeAggregate: return .virtual
+    case kAudioDeviceTransportTypeThunderbolt, kAudioDeviceTransportTypeUSB: return .usb
+    case kAudioDeviceTransportTypeDisplayPort, kAudioDeviceTransportTypeHDMI: return .display
+    case kAudioDeviceTransportTypeAggregate, kAudioDeviceTransportTypeVirtual: return .virtual
     default: return .other
     }
   }
@@ -427,7 +430,7 @@ private final class AudioOutputDeviceRow: UIControl {
     switch recognizer.state {
     case .began, .changed:
       backgroundColor = UIColor.label.withAlphaComponent(0.06)
-    case .ended, .cancelled:
+    case .cancelled, .ended:
       backgroundColor = isHighlighted ? UIColor.label.withAlphaComponent(0.1) : .clear
     default:
       break

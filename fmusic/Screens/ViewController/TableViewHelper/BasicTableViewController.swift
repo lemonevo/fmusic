@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import Foundation
 import UIKit
 
@@ -417,17 +417,21 @@ class BasicTableViewController: KeyCommandTableViewController {
             ),
             preferredStyle: .alert
           )
-          alert.addAction(UIAlertAction(title: L10n.tr("Delete"), style: .destructive, handler: { _ in
-            if let account = actionContext.containable.account {
-              self.appDelegate.getMeta(account.info).playableDownloadManager
-                .removeFinishedDownload(for: actionContext.playables)
+          alert.addAction(UIAlertAction(
+            title: L10n.tr("Delete"),
+            style: .destructive,
+            handler: { _ in
+              if let account = actionContext.containable.account {
+                self.appDelegate.getMeta(account.info).playableDownloadManager
+                  .removeFinishedDownload(for: actionContext.playables)
+              }
+              self.appDelegate.storage.main.library.deleteCache(of: actionContext.playables)
+              self.appDelegate.storage.main.saveContext()
+              if let cell = self.tableView.cellForRow(at: indexPath) as? PlayableTableCell {
+                cell.refresh()
+              }
             }
-            self.appDelegate.storage.main.library.deleteCache(of: actionContext.playables)
-            self.appDelegate.storage.main.saveContext()
-            if let cell = self.tableView.cellForRow(at: indexPath) as? PlayableTableCell {
-              cell.refresh()
-            }
-          }))
+          ))
           alert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel, handler: { _ in
             // do nothing
           }))

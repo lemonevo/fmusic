@@ -34,7 +34,10 @@ class WelcomePopupPresenter: NSObject {
     let popupVC = AppStoryboard.Main.segueToLibrarySyncPopup()
     popupVC.setContent(
       topic: L10n.tr("Synchronization"),
-      detailMessage: L10n.tr("Your music library is read directly from the selected folder or WebDAV server. Use \"Resync Library\" in the account settings to pick up added or removed files."),
+      detailMessage: L10n
+        .tr(
+          "Your music library is read directly from the selected folder or WebDAV server. Use \"Resync Library\" in the account settings to pick up added or removed files."
+        ),
       customIcon: .refresh,
       customAnimation: .rotate,
       onClosePressed: { _ in

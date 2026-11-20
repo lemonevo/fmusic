@@ -19,9 +19,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CarPlay
 import CoreData
+import fmusicKit
 import Foundation
 
 extension CarPlaySceneDelegate {
@@ -109,7 +109,11 @@ extension CarPlaySceneDelegate {
     for (index, playable) in playables.enumerated() {
       let detailTemplate = createDetailTemplate(
         for: playable,
-        playContext: PlayContext(name: L10n.tr("Favorite Songs"), index: index, playables: playables)
+        playContext: PlayContext(
+          name: L10n.tr("Favorite Songs"),
+          index: index,
+          playables: playables
+        )
       )
       items.append(detailTemplate)
     }

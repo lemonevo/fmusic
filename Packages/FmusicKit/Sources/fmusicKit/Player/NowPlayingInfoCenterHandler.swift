@@ -80,13 +80,13 @@ public class NowPlayingInfoCenterHandler {
     var artworkImage = PlatformImages.empty
     if let accountInfo = playable.account?.info {
       #if canImport(UIKit)
-      artworkImage = LibraryEntityImage.getImageToDisplayImmediately(
-        libraryEntity: playable,
-        themePreference: storage.settings.accounts.getSetting(accountInfo).read.themePreference,
-        artworkDisplayPreference: storage.settings.accounts.getSetting(accountInfo).read
-          .artworkDisplayPreference,
-        useCache: true
-      )
+        artworkImage = LibraryEntityImage.getImageToDisplayImmediately(
+          libraryEntity: playable,
+          themePreference: storage.settings.accounts.getSetting(accountInfo).read.themePreference,
+          artworkDisplayPreference: storage.settings.accounts.getSetting(accountInfo).read
+            .artworkDisplayPreference,
+          useCache: true
+        )
       #endif
       if let artwork = playable.artwork {
         getArtworkDownloaderCB(accountInfo).download(object: artwork)

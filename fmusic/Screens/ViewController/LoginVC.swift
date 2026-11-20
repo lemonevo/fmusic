@@ -462,7 +462,10 @@ class LoginVC: UIViewController {
       return
     }
     guard serverUrl.isHyperTextProtocolProvided else {
-      showErrorMsg(message: L10n.tr("Please provide either 'https://' or 'http://' in your server URL."))
+      showErrorMsg(
+        message: L10n
+          .tr("Please provide either 'https://' or 'http://' in your server URL.")
+      )
       return
     }
     guard let username = usernameTF.text, !username.isEmpty else {

@@ -18,6 +18,8 @@
 
 import Foundation
 
+// MARK: - AppearanceMode
+
 /// Platform-independent replacement for `UIUserInterfaceStyle` in the shared core.
 ///
 /// The raw values match `UIUserInterfaceStyle` on purpose: the value is persisted in
@@ -39,26 +41,26 @@ public enum AppearanceMode: Int, CaseIterable, Sendable, Codable {
 }
 
 #if canImport(UIKit)
-import UIKit
+  import UIKit
 
-extension AppearanceMode {
-  /// Maps the system style to the persisted appearance mode.
-  public init(userInterfaceStyle: UIUserInterfaceStyle) {
-    switch userInterfaceStyle {
-    case .unspecified: self = .unspecified
-    case .light: self = .light
-    case .dark: self = .dark
-    @unknown default: self = .unspecified
+  extension AppearanceMode {
+    /// Maps the system style to the persisted appearance mode.
+    public init(userInterfaceStyle: UIUserInterfaceStyle) {
+      switch userInterfaceStyle {
+      case .unspecified: self = .unspecified
+      case .light: self = .light
+      case .dark: self = .dark
+      @unknown default: self = .unspecified
+      }
+    }
+
+    /// The UIKit style matching this appearance mode.
+    public var uiUserInterfaceStyle: UIUserInterfaceStyle {
+      switch self {
+      case .unspecified: return .unspecified
+      case .light: return .light
+      case .dark: return .dark
+      }
     }
   }
-
-  /// The UIKit style matching this appearance mode.
-  public var uiUserInterfaceStyle: UIUserInterfaceStyle {
-    switch self {
-    case .unspecified: return .unspecified
-    case .light: return .light
-    case .dark: return .dark
-    }
-  }
-}
 #endif

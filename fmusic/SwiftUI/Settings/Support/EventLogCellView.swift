@@ -29,7 +29,8 @@ struct EventLogCellView: View {
   var typeText: String {
     var typeLabelText = "\(entry.type.description)"
     if entry.type == .error, entry.statusCode > 1 {
-      typeLabelText += " \(CommonString.oneMiddleDot) \(L10n.tr("Status code %d", entry.statusCode))"
+      typeLabelText +=
+        " \(CommonString.oneMiddleDot) \(L10n.tr("Status code %d", entry.statusCode))"
     }
     return typeLabelText
   }

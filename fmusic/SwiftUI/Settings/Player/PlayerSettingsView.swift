@@ -69,7 +69,10 @@ struct PlayerSettingsView: View {
               isOn: $settings.isPlayerSongPlaybackResumeEnabled
             )
           },
-          footer: L10n.tr("Keeps track of song progress so playback continues from the previously saved position.")
+          footer: L10n
+            .tr(
+              "Keeps track of song progress so playback continues from the previously saved position."
+            )
         )
 
         SettingsSection(content: {
@@ -86,7 +89,10 @@ struct PlayerSettingsView: View {
               isOn: $settings.isAutoplayEnabled
             )
           },
-          footer: L10n.tr("When the queue ends, automatically continue playback using Instant Mix to find similar songs.")
+          footer: L10n
+            .tr(
+              "When the queue ends, automatically continue playback using Instant Mix to find similar songs."
+            )
         )
 
         SettingsSection(
@@ -131,7 +137,6 @@ struct PlayerSettingsView: View {
             L10n.tr("Collapse the toolbar player into a compact view when scrolling")
           )
         #endif
-
       }
     }
     .navigationTitle(L10n.tr("Playback"))

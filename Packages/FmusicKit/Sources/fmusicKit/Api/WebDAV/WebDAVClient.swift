@@ -54,7 +54,8 @@ enum WebDAVError: LocalizedError, Sendable {
     case .unauthorized:
       return L10n.tr("WebDAV login failed. Please check username and password.")
     case .digestNotSupported:
-      return L10n.tr("This WebDAV server requires Digest authentication, which is not supported yet.")
+      return L10n
+        .tr("This WebDAV server requires Digest authentication, which is not supported yet.")
     case let .requestFailed(statusCode):
       return L10n.tr("WebDAV request failed with status code %d.", statusCode)
     case .invalidResponse:
@@ -213,6 +214,7 @@ private final class WebDAVMultiStatusParser: NSObject, XMLParserDelegate {
     formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
     return formatter
   }()
+
   private var entries = [WebDAVEntry]()
   private var currentHref: String?
   private var currentIsDirectory = false

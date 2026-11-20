@@ -10,9 +10,9 @@
 
 #if targetEnvironment(macCatalyst)
 
+  import fmusicKit
   import ObjectiveC
   import UIKit
-  import fmusicKit
 
   // MARK: - MenuBarLyricsController
 
@@ -25,7 +25,7 @@
     private let statusItem: NSObject
     private var currentText = ""
 
-    var onOpenApp: (() -> Void)?
+    var onOpenApp: (() -> ())?
 
     private init(statusBar: NSObject, statusItem: NSObject) {
       self.statusBar = statusBar
@@ -86,7 +86,7 @@
     private static func setAction(_ action: Selector, on target: NSObject) {
       let selector = NSSelectorFromString("setAction:")
       guard let method = class_getInstanceMethod(type(of: target), selector) else { return }
-      typealias SetActionFunc = @convention(c) (AnyObject, Selector, Selector) -> Void
+      typealias SetActionFunc = @convention(c) (AnyObject, Selector, Selector) -> ()
       let implementation = method_getImplementation(method)
       let function = unsafeBitCast(implementation, to: SetActionFunc.self)
       function(target, selector, action)

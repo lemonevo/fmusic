@@ -19,9 +19,9 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CarPlay
 import CoreData
+import fmusicKit
 import Foundation
 
 extension CarPlaySceneDelegate {

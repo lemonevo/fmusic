@@ -19,11 +19,11 @@
 
 #if targetEnvironment(macCatalyst)
 
+  import CoreGraphics
   import fmusicKit
   import NaturalLanguage
   import QuartzCore
   import UIKit
-  import CoreGraphics
 
   // MARK: - DesktopLyricsContent
 
@@ -1850,7 +1850,7 @@
         try? await Task.sleep(nanoseconds: 200_000_000)
         guard let self, toolbarToken == token, !self.isToolbarVisible
         else { return }
-        (self.toolbarHost ?? self.toolbarContainer)?.setValue(true, forKey: "hidden")
+        (toolbarHost ?? toolbarContainer)?.setValue(true, forKey: "hidden")
         if clickThrough {
           controlWindow?.perform(NSSelectorFromString("orderOut:"), with: nil)
         }

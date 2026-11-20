@@ -73,7 +73,10 @@ struct CustomHTTPHeadersView: View {
   var body: some View {
     SettingsList {
       Section(footer: Text(
-        L10n.tr("Headers are sent with every request to the server, including streaming and downloads. Use this to provide a Cloudflare Access service token (CF-Access-Client-Id / CF-Access-Client-Secret) or any other proxy authentication header.")
+        L10n
+          .tr(
+            "Headers are sent with every request to the server, including streaming and downloads. Use this to provide a Cloudflare Access service token (CF-Access-Client-Id / CF-Access-Client-Secret) or any other proxy authentication header."
+          )
       )) {
         ForEach($entries) { $entry in
           VStack(alignment: .leading, spacing: 4) {

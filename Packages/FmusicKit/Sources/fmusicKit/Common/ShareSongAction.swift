@@ -20,185 +20,185 @@
 //
 
 #if canImport(UIKit)
-import LinkPresentation
-import UIKit
+  import LinkPresentation
+  import UIKit
 
-// MARK: - ShareSongAction
+  // MARK: - ShareSongAction
 
-/// Presents the iOS share sheet for a single song. If the song is not yet
-/// cached locally, triggers a download first and shows a progress alert.
-///
-/// No shared state between functions, one prepares the song, one cleans a URL, one presents the sharing activity VC.
-@MainActor
-public enum ShareSongAction {
-  public static func share(
-    playable: AbstractPlayable,
-    from sourceView: UIView,
-    presenter: UIViewController,
-    downloadManagerProvider: () -> DownloadManageable?
-  ) {
-    // Already cached — present immediately.
-    if let fileURL = cachedFileURL(for: playable) {
-      presentActivityController(
-        for: playable,
-        fileURL: fileURL,
-        sourceView: sourceView,
-        presenter: presenter
+  /// Presents the iOS share sheet for a single song. If the song is not yet
+  /// cached locally, triggers a download first and shows a progress alert.
+  ///
+  /// No shared state between functions, one prepares the song, one cleans a URL, one presents the sharing activity VC.
+  @MainActor
+  public enum ShareSongAction {
+    public static func share(
+      playable: AbstractPlayable,
+      from sourceView: UIView,
+      presenter: UIViewController,
+      downloadManagerProvider: () -> DownloadManageable?
+    ) {
+      // Already cached — present immediately.
+      if let fileURL = cachedFileURL(for: playable) {
+        presentActivityController(
+          for: playable,
+          fileURL: fileURL,
+          sourceView: sourceView,
+          presenter: presenter
+        )
+        return
+      }
+      guard let downloadManager = downloadManagerProvider() else {
+        return
+      }
+
+      let progressAlert = UIAlertController(
+        title: L10n.tr("Downloading…"),
+        message: playable.displayString,
+        preferredStyle: .alert
       )
-      return
-    }
-    guard let downloadManager = downloadManagerProvider() else {
-      return
-    }
+      var cancelled = false
+      progressAlert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel) { _ in
+        cancelled = true
+      })
+      presenter.present(progressAlert, animated: true)
 
-    let progressAlert = UIAlertController(
-      title: L10n.tr("Downloading…"),
-      message: playable.displayString,
-      preferredStyle: .alert
-    )
-    var cancelled = false
-    progressAlert.addAction(UIAlertAction(title: L10n.tr("Cancel"), style: .cancel) { _ in
-      cancelled = true
-    })
-    presenter.present(progressAlert, animated: true)
+      downloadManager.download(object: playable)
 
-    downloadManager.download(object: playable)
-
-    // Poll for the file to appear on disk (download manager is fire-and-forget).
-    Task { @MainActor in
-      for _ in 0 ..< 120 { // up to ~60 seconds at 0.5s intervals
-        try? await Task.sleep(for: .milliseconds(500))
-        if cancelled { return }
-        if let fileURL = cachedFileURL(for: playable) {
-          progressAlert.dismiss(animated: true) {
-            presentActivityController(
-              for: playable,
-              fileURL: fileURL,
-              sourceView: sourceView,
-              presenter: presenter
-            )
+      // Poll for the file to appear on disk (download manager is fire-and-forget).
+      Task { @MainActor in
+        for _ in 0 ..< 120 { // up to ~60 seconds at 0.5s intervals
+          try? await Task.sleep(for: .milliseconds(500))
+          if cancelled { return }
+          if let fileURL = cachedFileURL(for: playable) {
+            progressAlert.dismiss(animated: true) {
+              presentActivityController(
+                for: playable,
+                fileURL: fileURL,
+                sourceView: sourceView,
+                presenter: presenter
+              )
+            }
+            return
           }
-          return
+        }
+        // Timed out, show error
+        progressAlert.dismiss(animated: true) {
+          let errorAlert = UIAlertController(
+            title: L10n.tr("Download failed"),
+            message: L10n.tr("The download took too long. Please try again."),
+            preferredStyle: .alert
+          )
+          errorAlert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
+          presenter.present(errorAlert, animated: true)
         }
       }
-      // Timed out, show error
-      progressAlert.dismiss(animated: true) {
-        let errorAlert = UIAlertController(
-          title: L10n.tr("Download failed"),
-          message: L10n.tr("The download took too long. Please try again."),
-          preferredStyle: .alert
-        )
-        errorAlert.addAction(UIAlertAction(title: L10n.tr("OK"), style: .default))
-        presenter.present(errorAlert, animated: true)
+    }
+
+    private static func cachedFileURL(for playable: AbstractPlayable) -> URL? {
+      guard let relPath = playable.relFilePath,
+            let absoluteURL = CacheFileManager.shared.getAbsolutefmusicPath(relFilePath: relPath),
+            FileManager.default.fileExists(atPath: absoluteURL.path)
+      else { return nil }
+      return absoluteURL
+    }
+
+    static func sanitizedFileName(playable: AbstractPlayable) -> String {
+      playable.displayString
+        .replacingOccurrences(of: "/", with: "-")
+        .replacingOccurrences(of: ":", with: "-")
+    }
+
+    private static func presentActivityController(
+      for playable: AbstractPlayable,
+      fileURL: URL,
+      sourceView: UIView,
+      presenter: UIViewController
+    ) {
+      let textItem = playable.displayString
+      let safeFileName = sanitizedFileName(playable: playable)
+      let tempURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(safeFileName)
+        .appendingPathExtension(fileURL.pathExtension)
+      try? FileManager.default.removeItem(at: tempURL)
+      try? FileManager.default.copyItem(at: fileURL, to: tempURL)
+      let shareURL = FileManager.default.fileExists(atPath: tempURL.path) ? tempURL : fileURL
+
+      let artwork = artworkImage(for: playable)
+      let fileItemSource = SongShareItemSource(
+        fileURL: shareURL,
+        title: textItem,
+        artwork: artwork
+      )
+      let activityVC = UIActivityViewController(
+        activityItems: [fileItemSource, textItem],
+        applicationActivities: nil
+      )
+      activityVC.popoverPresentationController?.sourceView = sourceView
+      activityVC.popoverPresentationController?.sourceRect = sourceView.bounds
+      if shareURL != fileURL {
+        activityVC.completionWithItemsHandler = { _, _, _, _ in
+          try? FileManager.default.removeItem(at: shareURL)
+        }
       }
+      presenter.present(activityVC, animated: true)
+    }
+
+    static func artworkImage(for playable: AbstractPlayable) -> UIImage {
+      let settings = FmusicKit.shared.storage.settings
+      let accountSettings = playable.account.map { settings.accounts.getSetting($0.info) }
+        ?? settings.accounts.activeSetting
+      return LibraryEntityImage.getImageToDisplayImmediately(
+        libraryEntity: playable,
+        themePreference: accountSettings.read.themePreference,
+        artworkDisplayPreference: accountSettings.read.artworkDisplayPreference,
+        useCache: false
+      )
     }
   }
 
-  private static func cachedFileURL(for playable: AbstractPlayable) -> URL? {
-    guard let relPath = playable.relFilePath,
-          let absoluteURL = CacheFileManager.shared.getAbsolutefmusicPath(relFilePath: relPath),
-          FileManager.default.fileExists(atPath: absoluteURL.path)
-    else { return nil }
-    return absoluteURL
-  }
+  // MARK: - SongShareItemSource
 
-  static func sanitizedFileName(playable: AbstractPlayable) -> String {
-    playable.displayString
-      .replacingOccurrences(of: "/", with: "-")
-      .replacingOccurrences(of: ":", with: "-")
-  }
+  private final class SongShareItemSource: NSObject, UIActivityItemSource {
+    let fileURL: URL
+    let title: String
+    let artwork: UIImage
 
-  private static func presentActivityController(
-    for playable: AbstractPlayable,
-    fileURL: URL,
-    sourceView: UIView,
-    presenter: UIViewController
-  ) {
-    let textItem = playable.displayString
-    let safeFileName = sanitizedFileName(playable: playable)
-    let tempURL = FileManager.default.temporaryDirectory
-      .appendingPathComponent(safeFileName)
-      .appendingPathExtension(fileURL.pathExtension)
-    try? FileManager.default.removeItem(at: tempURL)
-    try? FileManager.default.copyItem(at: fileURL, to: tempURL)
-    let shareURL = FileManager.default.fileExists(atPath: tempURL.path) ? tempURL : fileURL
-
-    let artwork = artworkImage(for: playable)
-    let fileItemSource = SongShareItemSource(
-      fileURL: shareURL,
-      title: textItem,
-      artwork: artwork
-    )
-    let activityVC = UIActivityViewController(
-      activityItems: [fileItemSource, textItem],
-      applicationActivities: nil
-    )
-    activityVC.popoverPresentationController?.sourceView = sourceView
-    activityVC.popoverPresentationController?.sourceRect = sourceView.bounds
-    if shareURL != fileURL {
-      activityVC.completionWithItemsHandler = { _, _, _, _ in
-        try? FileManager.default.removeItem(at: shareURL)
-      }
+    init(fileURL: URL, title: String, artwork: UIImage) {
+      self.fileURL = fileURL
+      self.title = title
+      self.artwork = artwork
     }
-    presenter.present(activityVC, animated: true)
-  }
 
-  static func artworkImage(for playable: AbstractPlayable) -> UIImage {
-    let settings = FmusicKit.shared.storage.settings
-    let accountSettings = playable.account.map { settings.accounts.getSetting($0.info) }
-      ?? settings.accounts.activeSetting
-    return LibraryEntityImage.getImageToDisplayImmediately(
-      libraryEntity: playable,
-      themePreference: accountSettings.read.themePreference,
-      artworkDisplayPreference: accountSettings.read.artworkDisplayPreference,
-      useCache: false
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController)
+      -> Any {
+      fileURL
+    }
+
+    func activityViewController(
+      _ activityViewController: UIActivityViewController,
+      itemForActivityType activityType: UIActivity.ActivityType?
     )
+      -> Any? {
+      fileURL
+    }
+
+    func activityViewController(
+      _ activityViewController: UIActivityViewController,
+      subjectForActivityType activityType: UIActivity.ActivityType?
+    )
+      -> String {
+      title
+    }
+
+    func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController)
+      -> LPLinkMetadata? {
+      let metadata = LPLinkMetadata()
+      metadata.title = title
+      metadata.originalURL = fileURL
+      metadata.iconProvider = NSItemProvider(object: artwork)
+      metadata.imageProvider = NSItemProvider(object: artwork)
+      return metadata
+    }
   }
-}
-
-// MARK: - SongShareItemSource
-
-private final class SongShareItemSource: NSObject, UIActivityItemSource {
-  let fileURL: URL
-  let title: String
-  let artwork: UIImage
-
-  init(fileURL: URL, title: String, artwork: UIImage) {
-    self.fileURL = fileURL
-    self.title = title
-    self.artwork = artwork
-  }
-
-  func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController)
-    -> Any {
-    fileURL
-  }
-
-  func activityViewController(
-    _ activityViewController: UIActivityViewController,
-    itemForActivityType activityType: UIActivity.ActivityType?
-  )
-    -> Any? {
-    fileURL
-  }
-
-  func activityViewController(
-    _ activityViewController: UIActivityViewController,
-    subjectForActivityType activityType: UIActivity.ActivityType?
-  )
-    -> String {
-    title
-  }
-
-  func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController)
-    -> LPLinkMetadata? {
-    let metadata = LPLinkMetadata()
-    metadata.title = title
-    metadata.originalURL = fileURL
-    metadata.iconProvider = NSItemProvider(object: artwork)
-    metadata.imageProvider = NSItemProvider(object: artwork)
-    return metadata
-  }
-}
 
 #endif

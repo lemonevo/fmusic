@@ -38,7 +38,10 @@ struct AudioSettingsView: View {
               )
             )
           },
-          footer: L10n.tr("Automatically normalize track volume based on replay gain information for consistent loudness.")
+          footer: L10n
+            .tr(
+              "Automatically normalize track volume based on replay gain information for consistent loudness."
+            )
         )
 
         SettingsSection {

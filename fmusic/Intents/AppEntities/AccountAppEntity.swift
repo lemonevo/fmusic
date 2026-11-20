@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import AppIntents
+import fmusicKit
 import Foundation
 
 // MARK: - AccountAppEntity

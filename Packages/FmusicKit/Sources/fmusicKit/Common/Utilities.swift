@@ -24,9 +24,9 @@ import Foundation
 import os.log
 
 #if canImport(UIKit)
-import UIKit
+  import UIKit
 #elseif canImport(AppKit)
-import AppKit
+  import AppKit
 #endif
 
 public typealias VoidFunctionCallback = () -> ()
@@ -286,63 +286,63 @@ extension PlatformColor {
   // r:0 g:122 b:255
   public static var defaultBlue: PlatformColor {
     #if canImport(UIKit)
-    return UIColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
+      return UIColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
     #else
-    return NSColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
+      return NSColor(displayP3Red: 0 / 255, green: 122 / 255, blue: 1.0, alpha: 1.0)
     #endif
   }
 
   public static var gold: PlatformColor {
     #if canImport(UIKit)
-    return UIColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
+      return UIColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
     #else
-    return NSColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
+      return NSColor(displayP3Red: 241 / 255, green: 194 / 255, blue: 66 / 255, alpha: 1.0)
     #endif
   }
 
   public static var labelColor: PlatformColor {
     #if canImport(UIKit)
-    return UIColor.label
+      return UIColor.label
     #else
-    return NSColor.labelColor
+      return NSColor.labelColor
     #endif
   }
 
   public static var redHeart: PlatformColor {
     #if canImport(UIKit)
-    return UIColor.red.withAlphaComponent(0.8)
+      return UIColor.red.withAlphaComponent(0.8)
     #else
-    return NSColor.systemRed.withAlphaComponent(0.8)
+      return NSColor.systemRed.withAlphaComponent(0.8)
     #endif
   }
 
   public static var fillColor: PlatformColor {
     #if canImport(UIKit)
-    return UIColor.systemFill
+      return UIColor.systemFill
     #else
-    return NSColor.quaternaryLabelColor
+      return NSColor.quaternaryLabelColor
     #endif
   }
 
   public static var secondaryLabelColor: PlatformColor {
     #if canImport(UIKit)
-    return UIColor.secondaryLabel
+      return UIColor.secondaryLabel
     #else
-    return NSColor.secondaryLabelColor
+      return NSColor.secondaryLabelColor
     #endif
   }
 }
 
 #if canImport(UIKit)
-extension UIActivityIndicatorView {
-  public static var defaultStyle: Style {
-    if #available(iOS 13.0, *) {
-      return .medium
-    } else {
-      return .gray
+  extension UIActivityIndicatorView {
+    public static var defaultStyle: Style {
+      if #available(iOS 13.0, *) {
+        return .medium
+      } else {
+        return .gray
+      }
     }
   }
-}
 #endif
 
 extension NSObject {
@@ -412,4 +412,3 @@ extension Array where Element == String {
     sorted { $0.localizedStandardCompare($1) == ComparisonResult.orderedDescending }
   }
 }
-

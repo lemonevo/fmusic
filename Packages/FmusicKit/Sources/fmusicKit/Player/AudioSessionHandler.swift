@@ -46,10 +46,10 @@ public class AudioSessionHandler {
         guard let self else { return }
         switch interruption {
         case .began:
-          self.musicPlayer?.pause()
-        case .ended(let shouldResume):
+          musicPlayer?.pause()
+        case let .ended(shouldResume):
           if shouldResume {
-            self.musicPlayer?.play()
+            musicPlayer?.play()
           }
         }
       },

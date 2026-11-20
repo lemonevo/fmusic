@@ -41,7 +41,7 @@ public enum SwipeActionType: Int, CaseIterable, Sendable, Codable {
   /// but they are not offered anywhere in this music-only fork.
   public var isSupported: Bool {
     switch self {
-    case .insertPodcastQueue, .appendPodcastQueue:
+    case .appendPodcastQueue, .insertPodcastQueue:
       return false
     default:
       return true

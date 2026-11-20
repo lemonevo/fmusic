@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import Combine
+import fmusicKit
 import Foundation
 import SwiftUI
 import UIKit
@@ -147,70 +147,80 @@ class SettingsHostVC: UIViewController {
     settings.isOfflineMode = appDelegate.storage.settings.user.isOfflineMode
     changesAgent.append(settings.$isOfflineMode.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      let hasValueChanged = self.appDelegate.storage.settings.user.isOfflineMode != newValue
+      let hasValueChanged = appDelegate.storage.settings.user.isOfflineMode != newValue
       guard hasValueChanged else { return }
-      self.appDelegate.switchOnlineOfflineMode(isOfflineMode: newValue)
+      appDelegate.switchOnlineOfflineMode(isOfflineMode: newValue)
     }))
 
     settings.isShowDetailedInfo = appDelegate.storage.settings.user.isShowDetailedInfo
     changesAgent.append(settings.$isShowDetailedInfo.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowDetailedInfo = newValue
+      appDelegate.storage.settings.user.isShowDetailedInfo = newValue
     }))
 
     settings.isShowSongDuration = appDelegate.storage.settings.user.isShowSongDuration
     changesAgent.append(settings.$isShowSongDuration.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowSongDuration = newValue
+      appDelegate.storage.settings.user.isShowSongDuration = newValue
     }))
 
     settings.isShowAlbumDuration = appDelegate.storage.settings.user.isShowAlbumDuration
     changesAgent.append(settings.$isShowAlbumDuration.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowAlbumDuration = newValue
+      appDelegate.storage.settings.user.isShowAlbumDuration = newValue
     }))
 
     settings.isShowArtistDuration = appDelegate.storage.settings.user.isShowArtistDuration
     changesAgent.append(settings.$isShowArtistDuration.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowArtistDuration = newValue
+      appDelegate.storage.settings.user.isShowArtistDuration = newValue
     }))
 
     settings.isShowRating = appDelegate.storage.settings.user.isShowRating
     changesAgent.append(settings.$isShowRating.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowRating = newValue
+      appDelegate.storage.settings.user.isShowRating = newValue
     }))
 
     settings.isPlayerShuffleButtonEnabled = appDelegate.storage.settings.user
       .isPlayerShuffleButtonEnabled
-    changesAgent.append(settings.$isPlayerShuffleButtonEnabled.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled = newValue
-    }))
+    changesAgent
+      .append(
+        settings.$isPlayerShuffleButtonEnabled
+          .sink(receiveValue: { [weak self] newValue in
+            guard let self else { return }
+            appDelegate.storage.settings.user.isPlayerShuffleButtonEnabled = newValue
+          })
+      )
 
     settings.isShowMusicPlayerSkipButtons = appDelegate.storage.settings.user
       .isShowMusicPlayerSkipButtons
-    changesAgent.append(settings.$isShowMusicPlayerSkipButtons.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.isShowMusicPlayerSkipButtons = newValue
-    }))
+    changesAgent
+      .append(
+        settings.$isShowMusicPlayerSkipButtons
+          .sink(receiveValue: { [weak self] newValue in
+            guard let self else { return }
+            appDelegate.storage.settings.user.isShowMusicPlayerSkipButtons = newValue
+          })
+      )
 
     settings.isToolbarPlayerAutoCollapse = appDelegate.storage.settings.user
       .isToolbarPlayerAutoCollapse
-    changesAgent.append(settings.$isToolbarPlayerAutoCollapse.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      let hasValueChanged = self.appDelegate.storage.settings.user
-        .isToolbarPlayerAutoCollapse != newValue
-      guard hasValueChanged else { return }
-      self.appDelegate.switchToolbarCollapseMode(isToolbarPlayerAutoCollapse: newValue)
-    }))
+    changesAgent
+      .append(settings.$isToolbarPlayerAutoCollapse.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        let hasValueChanged = appDelegate.storage.settings.user
+          .isToolbarPlayerAutoCollapse != newValue
+        guard hasValueChanged else { return }
+        appDelegate.switchToolbarCollapseMode(isToolbarPlayerAutoCollapse: newValue)
+      }))
 
     settings.isLyricsSmoothScrolling = appDelegate.storage.settings.user.isLyricsSmoothScrolling
-    changesAgent.append(settings.$isLyricsSmoothScrolling.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.isLyricsSmoothScrolling = newValue
-    }))
+    changesAgent
+      .append(settings.$isLyricsSmoothScrolling.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        appDelegate.storage.settings.user.isLyricsSmoothScrolling = newValue
+      }))
 
     settings.isDesktopLyricsEnabled = appDelegate.storage.settings.user.isDesktopLyricsEnabled
     bindLyricsOverlaySetting(settings.$isDesktopLyricsEnabled, \.isDesktopLyricsEnabled)
@@ -257,33 +267,43 @@ class SettingsHostVC: UIViewController {
 
     settings.screenLockPreventionPreference = appDelegate.storage.settings.user
       .screenLockPreventionPreference
-    changesAgent.append(settings.$screenLockPreventionPreference.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.screenLockPreventionPreference = newValue
-    }))
+    changesAgent
+      .append(
+        settings.$screenLockPreventionPreference
+          .sink(receiveValue: { [weak self] newValue in
+            guard let self else { return }
+            appDelegate.storage.settings.user.screenLockPreventionPreference = newValue
+          })
+      )
 
     settings.isPlayerAutoCachePlayedItems = appDelegate.player.isAutoCachePlayedItems
-    changesAgent.append(settings.$isPlayerAutoCachePlayedItems.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.player.isAutoCachePlayedItems = newValue
-    }))
+    changesAgent
+      .append(settings.$isPlayerAutoCachePlayedItems.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        appDelegate.player.isAutoCachePlayedItems = newValue
+      }))
 
     settings.isPlaybackStartOnlyOnPlay = appDelegate.storage.settings.user.isPlaybackStartOnlyOnPlay
-    changesAgent.append(settings.$isPlaybackStartOnlyOnPlay.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.isPlaybackStartOnlyOnPlay = newValue
-    }))
+    changesAgent
+      .append(settings.$isPlaybackStartOnlyOnPlay.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        appDelegate.storage.settings.user.isPlaybackStartOnlyOnPlay = newValue
+      }))
     settings.isPlayerSongPlaybackResumeEnabled = appDelegate.storage.settings.user
       .isPlayerSongPlaybackResumeEnabled
-    changesAgent.append(settings.$isPlayerSongPlaybackResumeEnabled.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.isPlayerSongPlaybackResumeEnabled = newValue
-    }))
+    changesAgent
+      .append(
+        settings.$isPlayerSongPlaybackResumeEnabled
+          .sink(receiveValue: { [weak self] newValue in
+            guard let self else { return }
+            appDelegate.storage.settings.user.isPlayerSongPlaybackResumeEnabled = newValue
+          })
+      )
 
     settings.isAutoplayEnabled = appDelegate.storage.settings.user.isAutoplayEnabled
     changesAgent.append(settings.$isAutoplayEnabled.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isAutoplayEnabled = newValue
+      appDelegate.storage.settings.user.isAutoplayEnabled = newValue
     }))
 
     settings.swipeActionSettings = appDelegate.storage.settings.user.swipeActionSettings
@@ -291,77 +311,79 @@ class SettingsHostVC: UIViewController {
     settings.isReplayGainEnabled = appDelegate.storage.settings.user.isReplayGainEnabled
     changesAgent.append(settings.$isReplayGainEnabled.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isReplayGainEnabled = newValue
-      self.appDelegate.player.updateReplayGainEnabled(isEnabled: newValue)
+      appDelegate.storage.settings.user.isReplayGainEnabled = newValue
+      appDelegate.player.updateReplayGainEnabled(isEnabled: newValue)
     }))
 
     settings.crossfadeSeconds = appDelegate.storage.settings.user.crossfadeSeconds
     changesAgent.append(settings.$crossfadeSeconds.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.crossfadeSeconds = newValue
-      self.appDelegate.player.updateCrossfadeDuration(seconds: newValue)
+      appDelegate.storage.settings.user.crossfadeSeconds = newValue
+      appDelegate.player.updateCrossfadeDuration(seconds: newValue)
     }))
 
     settings.isEqualizerEnabled = appDelegate.storage.settings.user.isEqualizerEnabled
     changesAgent.append(settings.$isEqualizerEnabled.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isEqualizerEnabled = newValue
-      self.appDelegate.player.updateEqualizerEnabled(isEnabled: newValue)
+      appDelegate.storage.settings.user.isEqualizerEnabled = newValue
+      appDelegate.player.updateEqualizerEnabled(isEnabled: newValue)
     }))
 
     settings.activeEqualizerSetting = appDelegate.storage.settings.user.activeEqualizerSetting
-    changesAgent.append(settings.$activeEqualizerSetting.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      self.appDelegate.storage.settings.user.activeEqualizerSetting = newValue
-      self.appDelegate.player.updateEqualizerSetting(eqSetting: newValue)
-    }))
+    changesAgent
+      .append(settings.$activeEqualizerSetting.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        appDelegate.storage.settings.user.activeEqualizerSetting = newValue
+        appDelegate.player.updateEqualizerSetting(eqSetting: newValue)
+      }))
 
     settings.equalizerSettings = appDelegate.storage.settings.user.equalizerSettings
     changesAgent.append(settings.$equalizerSettings.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.equalizerSettings = newValue
+      appDelegate.storage.settings.user.equalizerSettings = newValue
     }))
 
     changesAgent.append(settings.$swipeActionSettings.sink(receiveValue: { [weak self] newValue in
 
       guard let self else { return }
-      self.appDelegate.storage.settings.user.swipeActionSettings = newValue
+      appDelegate.storage.settings.user.swipeActionSettings = newValue
     }))
 
     settings.cacheSizeLimit = appDelegate.storage.settings.user.cacheLimit
     changesAgent.append(settings.$cacheSizeLimit.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.cacheLimit = newValue
+      appDelegate.storage.settings.user.cacheLimit = newValue
     }))
 
     settings.isHapticsEnabled = appDelegate.storage.settings.user.isHapticsEnabled
     changesAgent.append(settings.$isHapticsEnabled.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.isHapticsEnabled = newValue
+      appDelegate.storage.settings.user.isHapticsEnabled = newValue
     }))
 
     settings.isMiniPlayerAlwaysOnTop = appDelegate.storage.settings.user.isMiniPlayerAlwaysOnTop
-    changesAgent.append(settings.$isMiniPlayerAlwaysOnTop.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      let hasValueChanged = self.appDelegate.storage.settings.user
-        .isMiniPlayerAlwaysOnTop != newValue
-      guard hasValueChanged else { return }
-      self.appDelegate.storage.settings.user.isMiniPlayerAlwaysOnTop = newValue
-      self.appDelegate.updateMiniPlayerAlwaysOnTop()
-    }))
+    changesAgent
+      .append(settings.$isMiniPlayerAlwaysOnTop.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        let hasValueChanged = appDelegate.storage.settings.user
+          .isMiniPlayerAlwaysOnTop != newValue
+        guard hasValueChanged else { return }
+        appDelegate.storage.settings.user.isMiniPlayerAlwaysOnTop = newValue
+        appDelegate.updateMiniPlayerAlwaysOnTop()
+      }))
 
     settings.appearanceMode = appDelegate.storage.settings.user.appearanceMode
     changesAgent.append(settings.$appearanceMode.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.appearanceMode = newValue
-      self.appDelegate.setAppAppearanceMode(style: newValue.uiUserInterfaceStyle)
+      appDelegate.storage.settings.user.appearanceMode = newValue
+      appDelegate.setAppAppearanceMode(style: newValue.uiUserInterfaceStyle)
     }))
 
     settings.appLanguage = appDelegate.storage.settings.user.appLanguage
     changesAgent.append(settings.$appLanguage.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      self.appDelegate.storage.settings.user.appLanguage = newValue
-      self.appDelegate.applyAppLanguage(newValue)
+      appDelegate.storage.settings.user.appLanguage = newValue
+      appDelegate.applyAppLanguage(newValue)
     }))
 
     settings.textSize = appDelegate.storage.settings.user.textSize
@@ -371,9 +393,9 @@ class SettingsHostVC: UIViewController {
       // The package stores the platform-neutral raw value; the settings UI keeps
       // working with `UIContentSizeCategory` and converts at this boundary.
       let rawValue = newValue?.rawValue
-      guard self.appDelegate.storage.settings.user.textSize != rawValue else { return }
-      self.appDelegate.storage.settings.user.textSize = rawValue
-      self.appDelegate.applyTextSize()
+      guard appDelegate.storage.settings.user.textSize != rawValue else { return }
+      appDelegate.storage.settings.user.textSize = rawValue
+      appDelegate.applyTextSize()
     }))
 
     // following account specific setting sinks are assigned.
@@ -382,20 +404,21 @@ class SettingsHostVC: UIViewController {
     changesAgent.append(settings.$themePreference.sink(receiveValue: { [weak self] newValue in
 
       guard let self else { return }
-      guard let activeAccountInfo = self.settings.activeAccountInfo else { return }
-      self.appDelegate.storage.settings.accounts
+      guard let activeAccountInfo = settings.activeAccountInfo else { return }
+      appDelegate.storage.settings.accounts
         .updateSetting(activeAccountInfo) { accountSettings in
           accountSettings.themePreference = newValue
         }
     }))
-    changesAgent.append(settings.$isAutoCacheLatestSongs.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      guard let activeAccountInfo = self.settings.activeAccountInfo else { return }
-      self.appDelegate.storage.settings.accounts
-        .updateSetting(activeAccountInfo) { accountSettings in
-          accountSettings.isAutoDownloadLatestSongsActive = newValue
-        }
-    }))
+    changesAgent
+      .append(settings.$isAutoCacheLatestSongs.sink(receiveValue: { [weak self] newValue in
+        guard let self else { return }
+        guard let activeAccountInfo = settings.activeAccountInfo else { return }
+        appDelegate.storage.settings.accounts
+          .updateSetting(activeAccountInfo) { accountSettings in
+            accountSettings.isAutoDownloadLatestSongsActive = newValue
+          }
+      }))
   }
 
   private func bindLyricsOverlaySetting<T: Equatable>(
@@ -404,11 +427,11 @@ class SettingsHostVC: UIViewController {
   ) {
     changesAgent.append(publisher.sink(receiveValue: { [weak self] newValue in
       guard let self else { return }
-      guard self.appDelegate.storage.settings.user[keyPath: keyPath] != newValue else {
+      guard appDelegate.storage.settings.user[keyPath: keyPath] != newValue else {
         return
       }
-      self.appDelegate.storage.settings.user[keyPath: keyPath] = newValue
-      self.appDelegate.updateLyricsOverlays()
+      appDelegate.storage.settings.user[keyPath: keyPath] = newValue
+      appDelegate.updateLyricsOverlays()
     }))
   }
 

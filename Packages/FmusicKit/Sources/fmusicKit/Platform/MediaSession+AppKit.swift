@@ -17,25 +17,25 @@
 //
 
 #if !canImport(UIKit)
-import Foundation
+  import Foundation
 
-/// macOS implementation of `MediaSessionHandling`.
-///
-/// Native macOS has no `AVAudioSession`; playback does not need a session category to keep
-/// running in the background. The AppKit app wires native device/route handling here when
-/// the pure-AppKit target lands; the shared core only needs the protocol to exist.
-@MainActor
-final class NativeMediaSession: NSObject, MediaSessionHandling {
-  func startObserving(
-    onInterruption: @escaping @MainActor (MediaSessionInterruption) -> Void,
-    onHeadphonesConnected: @escaping @MainActor () -> Void,
-    onHeadphonesDisconnected: @escaping @MainActor () -> Void
-  ) {
-    // Native macOS playback is not interrupted by the system audio session category.
+  /// macOS implementation of `MediaSessionHandling`.
+  ///
+  /// Native macOS has no `AVAudioSession`; playback does not need a session category to keep
+  /// running in the background. The AppKit app wires native device/route handling here when
+  /// the pure-AppKit target lands; the shared core only needs the protocol to exist.
+  @MainActor
+  final class NativeMediaSession: NSObject, MediaSessionHandling {
+    func startObserving(
+      onInterruption: @escaping @MainActor (MediaSessionInterruption) -> (),
+      onHeadphonesConnected: @escaping @MainActor () -> (),
+      onHeadphonesDisconnected: @escaping @MainActor () -> ()
+    ) {
+      // Native macOS playback is not interrupted by the system audio session category.
+    }
+
+    func stopObserving() {}
+
+    func configureBackgroundPlayback(onError: @escaping @MainActor (Error) -> ()) {}
   }
-
-  func stopObserving() {}
-
-  func configureBackgroundPlayback(onError: @escaping @MainActor (Error) -> Void) {}
-}
 #endif

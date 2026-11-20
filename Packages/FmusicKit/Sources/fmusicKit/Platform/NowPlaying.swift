@@ -19,7 +19,7 @@
 import Foundation
 
 #if canImport(MediaPlayer)
-import MediaPlayer
+  import MediaPlayer
 #endif
 
 // MARK: - NowPlayingPlaybackState
@@ -51,46 +51,46 @@ public protocol NowPlayingCenter: AnyObject {
 @MainActor
 public final class MediaPlayerNowPlayingCenter: NowPlayingCenter {
   #if canImport(MediaPlayer)
-  private let center = MPNowPlayingInfoCenter.default()
+    private let center = MPNowPlayingInfoCenter.default()
 
-  public init() {}
+    public init() {}
 
-  public var nowPlayingInfo: [String: Any]? {
-    get { center.nowPlayingInfo }
-    set { center.nowPlayingInfo = newValue }
-  }
+    public var nowPlayingInfo: [String: Any]? {
+      get { center.nowPlayingInfo }
+      set { center.nowPlayingInfo = newValue }
+    }
 
-  public var playbackState: NowPlayingPlaybackState {
-    get {
-      switch center.playbackState {
-      case .playing: return .playing
-      case .paused: return .paused
-      default: return .stopped
+    public var playbackState: NowPlayingPlaybackState {
+      get {
+        switch center.playbackState {
+        case .playing: return .playing
+        case .paused: return .paused
+        default: return .stopped
+        }
+      }
+      set {
+        switch newValue {
+        case .stopped: center.playbackState = .stopped
+        case .playing: center.playbackState = .playing
+        case .paused: center.playbackState = .paused
+        }
       }
     }
-    set {
-      switch newValue {
-      case .stopped: center.playbackState = .stopped
-      case .playing: center.playbackState = .playing
-      case .paused: center.playbackState = .paused
-      }
-    }
-  }
   #else
-  private var storedInfo: [String: Any]?
-  private var storedState: NowPlayingPlaybackState = .stopped
+    private var storedInfo: [String: Any]?
+    private var storedState: NowPlayingPlaybackState = .stopped
 
-  public init() {}
+    public init() {}
 
-  public var nowPlayingInfo: [String: Any]? {
-    get { storedInfo }
-    set { storedInfo = newValue }
-  }
+    public var nowPlayingInfo: [String: Any]? {
+      get { storedInfo }
+      set { storedInfo = newValue }
+    }
 
-  public var playbackState: NowPlayingPlaybackState {
-    get { storedState }
-    set { storedState = newValue }
-  }
+    public var playbackState: NowPlayingPlaybackState {
+      get { storedState }
+      set { storedState = newValue }
+    }
   #endif
 }
 

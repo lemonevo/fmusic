@@ -6,8 +6,8 @@
 //  Copyright © 2024 Maximilian Bauer. All rights reserved.
 //
 
-import fmusicKit
 import AudioToolbox
+import fmusicKit
 import Foundation
 import UIKit
 

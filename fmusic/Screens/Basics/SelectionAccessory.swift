@@ -39,5 +39,4 @@ extension UICellAccessory.CustomViewConfiguration {
       placement: .leading(displayed: .whenEditing)
     )
   }
-
 }

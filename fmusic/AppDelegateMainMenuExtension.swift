@@ -179,13 +179,15 @@ extension AppDelegate {
 
     let section1 = [
       UIKeyCommand(
-        title: isPlaying ? (player.isStopInsteadOfPause ? L10n.tr("Stop") : L10n.tr("Pause")) : L10n.tr("Play"),
+        title: isPlaying ? (player.isStopInsteadOfPause ? L10n.tr("Stop") : L10n.tr("Pause")) : L10n
+          .tr("Play"),
         image: isPlaying ? (player.isStopInsteadOfPause ? .stop : .pause) : .play,
         action: isPlaying ? #selector(keyCommandPause) : #selector(keyCommandPlay),
         input: " "
       ),
       UIKeyCommand(
-        title: (isPlaying && player.isStopInsteadOfPause) ? L10n.tr("Stop Player") : L10n.tr("Stop"),
+        title: (isPlaying && player.isStopInsteadOfPause) ? L10n.tr("Stop Player") : L10n
+          .tr("Stop"),
         image: .stop,
         action: #selector(keyCommandStop),
         input: ".",

@@ -217,8 +217,8 @@ class PlayerControlView: UIView {
     let shuffleTint = player.isShuffle ? accent : Self.iconTintColor
     shuffleButton?.setImage(Self.toggleIcon("shuffle", tint: shuffleTint), for: .normal)
 
-    let repeatSymbolName: String = switch player.repeatMode {
-    case .off, .all: "repeat"
+    let repeatSymbolName = switch player.repeatMode {
+    case .all, .off: "repeat"
     case .single: "repeat.1"
     }
     let repeatTint = player.repeatMode == .off ? Self.iconTintColor : accent

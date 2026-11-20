@@ -21,17 +21,17 @@ import CoreImage
 import Foundation
 
 #if canImport(UIKit)
-import UIKit
-/// The platform bitmap type: `UIImage` on iOS/iPadOS/Mac Catalyst, `NSImage` on macOS.
-public typealias PlatformImage = UIImage
-/// The platform color type: `UIColor` on iOS/iPadOS/Mac Catalyst, `NSColor` on macOS.
-public typealias PlatformColor = UIColor
+  import UIKit
+  /// The platform bitmap type: `UIImage` on iOS/iPadOS/Mac Catalyst, `NSImage` on macOS.
+  public typealias PlatformImage = UIImage
+  /// The platform color type: `UIColor` on iOS/iPadOS/Mac Catalyst, `NSColor` on macOS.
+  public typealias PlatformColor = UIColor
 #elseif canImport(AppKit)
-import AppKit
-/// The platform bitmap type: `UIImage` on iOS/iPadOS/Mac Catalyst, `NSImage` on macOS.
-public typealias PlatformImage = NSImage
-/// The platform color type: `UIColor` on iOS/iPadOS/Mac Catalyst, `NSColor` on macOS.
-public typealias PlatformColor = NSColor
+  import AppKit
+  /// The platform bitmap type: `UIImage` on iOS/iPadOS/Mac Catalyst, `NSImage` on macOS.
+  public typealias PlatformImage = NSImage
+  /// The platform color type: `UIColor` on iOS/iPadOS/Mac Catalyst, `NSColor` on macOS.
+  public typealias PlatformColor = NSColor
 #endif
 
 // MARK: - PlatformImages
@@ -44,9 +44,9 @@ public enum PlatformImages {
   /// An empty image, used as a non-optional fallback where a symbol or asset is missing.
   public static var empty: PlatformImage {
     #if canImport(UIKit)
-    return UIImage()
+      return UIImage()
     #else
-    return NSImage(size: .zero)
+      return NSImage(size: .zero)
     #endif
   }
 
@@ -54,12 +54,12 @@ public enum PlatformImages {
   @MainActor
   public static func symbol(_ systemName: String) -> PlatformImage {
     #if canImport(UIKit)
-    return UIImage(systemName: systemName) ?? empty
+      return UIImage(systemName: systemName) ?? empty
     #else
-    return NSImage(
-      systemSymbolName: systemName,
-      accessibilityDescription: nil
-    ) ?? empty
+      return NSImage(
+        systemSymbolName: systemName,
+        accessibilityDescription: nil
+      ) ?? empty
     #endif
   }
 
@@ -67,13 +67,13 @@ public enum PlatformImages {
   @MainActor
   public static func asset(named name: String) -> PlatformImage? {
     #if canImport(UIKit)
-    return UIImage(
-      named: name,
-      in: FmusicKitResources.bundle,
-      compatibleWith: nil
-    )
+      return UIImage(
+        named: name,
+        in: FmusicKitResources.bundle,
+        compatibleWith: nil
+      )
     #else
-    return FmusicKitResources.bundle.image(forResource: name)
+      return FmusicKitResources.bundle.image(forResource: name)
     #endif
   }
 
@@ -86,74 +86,74 @@ public enum PlatformImages {
   /// Wraps a `CGImage` into the platform bitmap type.
   public static func bitmap(cgImage: CGImage, scale: CGFloat = 1) -> PlatformImage {
     #if canImport(UIKit)
-    return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
+      return UIImage(cgImage: cgImage, scale: scale, orientation: .up)
     #else
-    return NSImage(
-      cgImage: cgImage,
-      size: CGSize(
-        width: CGFloat(cgImage.width) / scale,
-        height: CGFloat(cgImage.height) / scale
+      return NSImage(
+        cgImage: cgImage,
+        size: CGSize(
+          width: CGFloat(cgImage.width) / scale,
+          height: CGFloat(cgImage.height) / scale
+        )
       )
-    )
     #endif
   }
 
   /// Loads an image file from disk (used for the artwork cache).
   public static func file(atPath path: String) -> PlatformImage? {
     #if canImport(UIKit)
-    return UIImage(contentsOfFile: path)
+      return UIImage(contentsOfFile: path)
     #else
-    return NSImage(contentsOfFile: path)
+      return NSImage(contentsOfFile: path)
     #endif
   }
 
   /// Converts a `CGImage` returned by ImageIO into encoded JPEG bytes.
   public static func jpegData(from cgImage: CGImage, quality: CGFloat) -> Data? {
     #if canImport(UIKit)
-    return UIImage(cgImage: cgImage).jpegData(compressionQuality: quality)
+      return UIImage(cgImage: cgImage).jpegData(compressionQuality: quality)
     #else
-    let bitmap = NSBitmapImageRep(cgImage: cgImage)
-    return bitmap.representation(
-      using: .jpeg,
-      properties: [.compressionFactor: quality]
-    )
+      let bitmap = NSBitmapImageRep(cgImage: cgImage)
+      return bitmap.representation(
+        using: .jpeg,
+        properties: [.compressionFactor: quality]
+      )
     #endif
   }
 }
 
 // MARK: - PlatformImage helpers
 
-public extension PlatformImage {
+extension PlatformImage {
   /// The underlying bitmap, regardless of the platform image class.
-  var platformCGImage: CGImage? {
+  public var platformCGImage: CGImage? {
     #if canImport(UIKit)
-    return cgImage
+      return cgImage
     #else
-    var rect = CGRect(origin: .zero, size: size)
-    return cgImage(forProposedRect: &rect, context: nil, hints: nil)
+      var rect = CGRect(origin: .zero, size: size)
+      return cgImage(forProposedRect: &rect, context: nil, hints: nil)
     #endif
   }
 
   /// Logical (point) size of the image.
-  var platformSize: CGSize { size }
+  public var platformSize: CGSize { size }
 
   /// PNG bytes of the image, if it can be encoded.
-  func platformPNGData() -> Data? {
+  public func platformPNGData() -> Data? {
     #if canImport(UIKit)
-    return pngData()
+      return pngData()
     #else
-    guard let cgImage = platformCGImage else { return nil }
-    return NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
+      guard let cgImage = platformCGImage else { return nil }
+      return NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
     #endif
   }
 
   /// JPEG bytes of the image, if it can be encoded.
-  func platformJPEGData(quality: CGFloat) -> Data? {
+  public func platformJPEGData(quality: CGFloat) -> Data? {
     #if canImport(UIKit)
-    return jpegData(compressionQuality: quality)
+      return jpegData(compressionQuality: quality)
     #else
-    guard let cgImage = platformCGImage else { return nil }
-    return PlatformImages.jpegData(from: cgImage, quality: quality)
+      guard let cgImage = platformCGImage else { return nil }
+      return PlatformImages.jpegData(from: cgImage, quality: quality)
     #endif
   }
 
@@ -161,33 +161,33 @@ public extension PlatformImage {
   ///
   /// UIKit's `withTintColor(_:)` and AppKit drawing have different semantics, so the
   /// shared core uses this single entry point instead.
-  func platformTinted(with color: PlatformColor) -> PlatformImage {
+  public func platformTinted(with color: PlatformColor) -> PlatformImage {
     #if canImport(UIKit)
-    return withTintColor(color, renderingMode: .alwaysOriginal)
+      return withTintColor(color, renderingMode: .alwaysOriginal)
     #else
-    let source = self
-    let tinted = NSImage(size: size, flipped: false) { rect in
-      source.draw(in: rect)
-      color.set()
-      rect.fill(using: .sourceAtop)
-      return true
-    }
-    return tinted
+      let source = self
+      let tinted = NSImage(size: size, flipped: false) { rect in
+        source.draw(in: rect)
+        color.set()
+        rect.fill(using: .sourceAtop)
+        return true
+      }
+      return tinted
     #endif
   }
 
   /// A copy of the image with all colors inverted (the playback "inverted" artwork).
-  func invertedImage() -> PlatformImage {
+  public func invertedImage() -> PlatformImage {
     #if canImport(UIKit)
-    guard let cgImage = cgImage else { return PlatformImage() }
-    guard let inverted = Self.invertedCGImage(from: cgImage) else { return PlatformImage() }
-    return PlatformImage(cgImage: inverted, scale: scale, orientation: .up)
+      guard let cgImage = cgImage else { return PlatformImage() }
+      guard let inverted = Self.invertedCGImage(from: cgImage) else { return PlatformImage() }
+      return PlatformImage(cgImage: inverted, scale: scale, orientation: .up)
     #else
-    guard let cgImage = platformCGImage else { return PlatformImage(size: .zero) }
-    guard let inverted = Self.invertedCGImage(from: cgImage) else {
-      return PlatformImage(size: .zero)
-    }
-    return PlatformImage(cgImage: inverted, size: size)
+      guard let cgImage = platformCGImage else { return PlatformImage(size: .zero) }
+      guard let inverted = Self.invertedCGImage(from: cgImage) else {
+        return PlatformImage(size: .zero)
+      }
+      return PlatformImage(cgImage: inverted, size: size)
     #endif
   }
 
@@ -205,44 +205,45 @@ public extension PlatformImage {
 
 // MARK: - PlatformColor helpers
 
-public extension PlatformColor {
+extension PlatformColor {
   /// An sRGB color built from components, independent of the platform color class.
-  static func platform(
+  public static func platform(
     red: CGFloat,
     green: CGFloat,
     blue: CGFloat,
     alpha: CGFloat = 1.0
-  ) -> PlatformColor {
+  )
+    -> PlatformColor {
     #if canImport(UIKit)
-    return UIColor(red: red, green: green, blue: blue, alpha: alpha)
+      return UIColor(red: red, green: green, blue: blue, alpha: alpha)
     #else
-    return NSColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
+      return NSColor(srgbRed: red, green: green, blue: blue, alpha: alpha)
     #endif
   }
 
   /// A color from the package asset catalog.
   @MainActor
-  static func fmusicAsset(named name: String) -> PlatformColor? {
+  public static func fmusicAsset(named name: String) -> PlatformColor? {
     #if canImport(UIKit)
-    return UIColor(named: name, in: FmusicKitResources.bundle, compatibleWith: nil)
+      return UIColor(named: name, in: FmusicKitResources.bundle, compatibleWith: nil)
     #else
-    return NSColor(named: name, bundle: FmusicKitResources.bundle)
+      return NSColor(named: name, bundle: FmusicKitResources.bundle)
     #endif
   }
 
   /// Background color for the overlay drawn on top of artwork (package asset catalog).
   @MainActor
-  static var fmusicImageOverlayBackground: PlatformColor {
+  public static var fmusicImageOverlayBackground: PlatformColor {
     fmusicAsset(named: "ImageOverlayBackground") ?? .clear
   }
 
   /// The label color that keeps enough contrast on both light and dark backgrounds.
   @MainActor
-  static var fmusicHardLabelColor: PlatformColor {
+  public static var fmusicHardLabelColor: PlatformColor {
     #if canImport(UIKit)
-    return fmusicAsset(named: "hardLabelColor") ?? .label
+      return fmusicAsset(named: "hardLabelColor") ?? .label
     #else
-    return fmusicAsset(named: "hardLabelColor") ?? .labelColor
+      return fmusicAsset(named: "hardLabelColor") ?? .labelColor
     #endif
   }
 }

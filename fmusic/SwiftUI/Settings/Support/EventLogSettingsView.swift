@@ -45,9 +45,9 @@ struct EventLogSettingsView: View {
         .font(.system(size: 13))
         .environment(\.defaultMinListRowHeight, 32)
         #if targetEnvironment(macCatalyst) // ok
-        .listStyle(.plain)
+          .listStyle(.plain)
         #else
-        .listStyle(.grouped)
+          .listStyle(.grouped)
         #endif
       }
     }

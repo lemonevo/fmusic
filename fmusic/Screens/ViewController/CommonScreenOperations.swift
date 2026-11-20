@@ -59,7 +59,6 @@ class CommonScreenOperations {
 
 // MARK: - UIViewController
 
-
 // MARK: - Localized empty states
 
 extension UIContentUnavailableConfiguration {

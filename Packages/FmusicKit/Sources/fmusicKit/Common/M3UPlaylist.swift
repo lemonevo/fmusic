@@ -116,7 +116,9 @@ public enum M3UImportMatcher {
       }
 
       let suffixMatches = songPaths
-        .filter { !$0.path.isEmpty && ($0.path.hasSuffix("/\(path)") || path.hasSuffix("/\($0.path)")) }
+        .filter {
+          !$0.path.isEmpty && ($0.path.hasSuffix("/\(path)") || path.hasSuffix("/\($0.path)"))
+        }
         .map(\.song)
       if let song = pick(suffixMatches, duration: entry.duration) {
         matches.append(song)
@@ -129,8 +131,11 @@ public enum M3UImportMatcher {
       }
 
       if let artistTitle = entry.artistTitle {
-        if let song = pick(byArtistTitle[normalizeLabel(artistTitle)] ?? [], duration: entry
-          .duration) {
+        if let song = pick(
+          byArtistTitle[normalizeLabel(artistTitle)] ?? [],
+          duration: entry
+            .duration
+        ) {
           matches.append(song)
           continue
         }
@@ -139,7 +144,10 @@ public enum M3UImportMatcher {
           .dropFirst()
           .joined(separator: " - ")
         let candidateTitle = titlePart.isEmpty ? artistTitle : titlePart
-        if let song = pick(byTitle[normalizeLabel(candidateTitle)] ?? [], duration: entry.duration) {
+        if let song = pick(
+          byTitle[normalizeLabel(candidateTitle)] ?? [],
+          duration: entry.duration
+        ) {
           matches.append(song)
           continue
         }

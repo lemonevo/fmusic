@@ -22,6 +22,8 @@
 import fmusicKit
 import UIKit
 
+// MARK: - SideBarVC
+
 class SideBarVC: KeyCommandCollectionViewController {
   private static let accountFooterHeight: CGFloat = 48
 
@@ -248,7 +250,6 @@ class SideBarVC: KeyCommandCollectionViewController {
   }
 }
 
-
 // MARK: - Account switcher
 
 extension SideBarVC {
@@ -267,11 +268,11 @@ extension SideBarVC {
     let switcher = AccountSwitcherView()
     switcher.onSelectAccount = { [weak self] accountInfo in
       guard let self else { return }
-      guard accountInfo != self.appDelegate.storage.settings.accounts.active else {
-        self.hideAccountSwitcher()
+      guard accountInfo != appDelegate.storage.settings.accounts.active else {
+        hideAccountSwitcher()
         return
       }
-      self.hideAccountSwitcher(animated: false) {
+      hideAccountSwitcher(animated: false) {
         self.appDelegate.switchAccount(accountInfo: accountInfo)
       }
     }
@@ -284,16 +285,16 @@ extension SideBarVC {
     }
     switcher.onAddAccount = { [weak self] in
       guard let self else { return }
-      self.hideAccountSwitcher(animated: false)
+      hideAccountSwitcher(animated: false)
       let loginVC = AppStoryboard.Main.segueToLogin()
       loginVC.modalPresentationStyle = .formSheet
-      self.present(loginVC, animated: true)
+      present(loginVC, animated: true)
     }
     switcher.onOpenSettings = { [weak self] in
       guard let self else { return }
       // Fade the switcher out while the settings window comes up instead of cutting it away.
-      self.hideAccountSwitcher()
-      self.appDelegate.showSettings(sender: "")
+      hideAccountSwitcher()
+      appDelegate.showSettings(sender: "")
     }
 
     let overlay = AccountSwitcherOverlay(frame: window.bounds)
@@ -412,7 +413,6 @@ private final class AccountSwitcherOverlay: UIControl {
   private func handleTap() {
     onDismiss?()
   }
-
 }
 
 // MARK: - AccountSwitcherView

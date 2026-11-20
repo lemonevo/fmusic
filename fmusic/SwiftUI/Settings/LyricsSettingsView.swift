@@ -55,7 +55,10 @@ struct LyricsSettingsView: View {
               )
             },
             footer:
-            L10n.tr("Show the current lyric line in a floating window above all other windows. Drag it to move it.")
+            L10n
+              .tr(
+                "Show the current lyric line in a floating window above all other windows. Drag it to move it."
+              )
           )
 
           if settings.isDesktopLyricsEnabled {
@@ -111,7 +114,10 @@ struct LyricsSettingsView: View {
                 )
               },
               footer:
-              L10n.tr("At 0% the background is fully transparent and only the lyrics remain. The hover control bar shares the background and has its own icon opacity.")
+              L10n
+                .tr(
+                  "At 0% the background is fully transparent and only the lyrics remain. The hover control bar shares the background and has its own icon opacity."
+                )
             )
 
             SettingsSection(
@@ -134,7 +140,10 @@ struct LyricsSettingsView: View {
               )
             },
             footer:
-            L10n.tr("Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area.")
+            L10n
+              .tr(
+                "Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area."
+              )
           )
         #endif
 

@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreMedia
+import fmusicKit
 import UIKit
 
 // MARK: - PopupPlayerVC
@@ -334,7 +334,10 @@ class PopupPlayerVC: UIViewController, UIScrollViewDelegate {
 
       NSLayoutConstraint.activate([
         column.topAnchor.constraint(equalTo: largePlayerPlaceholderView.topAnchor),
-        column.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -20),
+        column.bottomAnchor.constraint(
+          equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+          constant: -20
+        ),
         column.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
         column.widthAnchor.constraint(equalTo: view.widthAnchor, multiplier: 0.44),
         largePlayerPlaceholderView.trailingAnchor.constraint(

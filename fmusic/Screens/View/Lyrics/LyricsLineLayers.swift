@@ -11,7 +11,7 @@
 import fmusicKit
 import UIKit
 
-// MARK: - Timeline -> displayed text
+// MARK: - LyricsSyllableTiming
 
 /// One syllable of a line, already mapped onto the rendered string.
 struct LyricsSyllableTiming: Equatable {
@@ -42,6 +42,8 @@ struct LyricsSyllableTiming: Equatable {
     return CGFloat(min(max((seconds - start) / duration, 0), 1))
   }
 }
+
+// MARK: - LyricsTimingMap
 
 enum LyricsTimingMap {
   /// Estimated time a line stays highlighted. Font metrics are not available here, so the
@@ -150,7 +152,7 @@ enum LyricsTimingMap {
   }
 }
 
-// MARK: - Glyph layout
+// MARK: - LyricsTextLayout
 
 /// TextKit layout shared by drawing and by the syllable mask, so the mask can never
 /// drift away from the glyphs it is supposed to reveal.
@@ -167,9 +169,9 @@ final class LyricsTextLayout {
     maximumNumberOfLines: Int = LyricsTextLayout.maxLines,
     lineBreakMode: NSLineBreakMode = .byWordWrapping
   ) {
-    storage = NSTextStorage(attributedString: text)
-    manager = NSLayoutManager()
-    container = NSTextContainer(
+    self.storage = NSTextStorage(attributedString: text)
+    self.manager = NSLayoutManager()
+    self.container = NSTextContainer(
       size: CGSize(width: max(width, 1), height: .greatestFiniteMagnitude)
     )
     container.lineFragmentPadding = 0
@@ -231,7 +233,7 @@ final class LyricsTextLayout {
   }
 }
 
-// MARK: - Glyph layer
+// MARK: - LyricsGlyphView
 
 /// Draws an attributed string through TextKit. The layout is built once per width and
 /// never rebuilt while the clock advances, so the fill can move at display rate.
@@ -281,7 +283,7 @@ final class LyricsGlyphView: UIView {
   }
 }
 
-// MARK: - Syllable layer
+// MARK: - LyricsSyllableMaskLayer
 
 /// Reveals the sung glyphs. Every syllable owns gradient sublayers; the clock only
 /// changes their widths, never the text layout.
@@ -310,7 +312,7 @@ final class LyricsSyllableMaskLayer: CALayer {
   override init(layer: Any) {
     super.init(layer: layer)
     if let other = layer as? LyricsSyllableMaskLayer {
-      syllableRects = other.syllableRects
+      self.syllableRects = other.syllableRects
     }
   }
 

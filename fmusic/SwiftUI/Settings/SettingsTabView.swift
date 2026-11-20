@@ -253,7 +253,6 @@ private enum SettingsSearchCatalog {
       .storage,
       keywords: ["artwork", "cover", "封面", "缓存"]
     ),
-
   ]
 }
 
@@ -265,6 +264,8 @@ private struct SettingsSearchGroup: Identifiable {
 
   var id: String { page.rawValue }
 }
+
+// MARK: - SettingsTabView
 
 @MainActor
 struct SettingsTabView: View {

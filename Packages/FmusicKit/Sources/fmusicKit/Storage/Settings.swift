@@ -50,13 +50,15 @@ public struct AppSettings: Sendable, Codable {
   }
 }
 
-// MARK: - UserSettings
+// MARK: - AppLanguage
 
 public enum AppLanguage: String, Sendable, Codable, CaseIterable {
   case system
   case english
   case simplifiedChinese
 }
+
+// MARK: - UserSettings
 
 public struct UserSettings: Sendable, Codable {
   private var _isShowDetailedInfo: Bool = false
@@ -437,7 +439,6 @@ public struct AccountSetting: Sendable, Codable {
     set { _initialSyncCompletionStatus = newValue }
   }
 
-
   private var _isAutoDownloadLatestSongsActive: Bool = false
   public var isAutoDownloadLatestSongsActive: Bool {
     get { _isAutoDownloadLatestSongsActive }
@@ -657,6 +658,8 @@ public struct fmusicSettings: Sendable, Codable {
     }
   }
 }
+
+// MARK: - SettingsDecodeCache
 
 private final class SettingsDecodeCache: @unchecked Sendable {
   private let lock = NSLock()

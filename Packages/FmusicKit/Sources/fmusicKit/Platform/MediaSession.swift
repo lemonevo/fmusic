@@ -40,16 +40,16 @@ public enum MediaSessionInterruption: Sendable {
 public protocol MediaSessionHandling: AnyObject {
   /// Starts observing system audio interruptions and output-route changes.
   func startObserving(
-    onInterruption: @escaping @MainActor (MediaSessionInterruption) -> Void,
-    onHeadphonesConnected: @escaping @MainActor () -> Void,
-    onHeadphonesDisconnected: @escaping @MainActor () -> Void
+    onInterruption: @escaping @MainActor (MediaSessionInterruption) -> (),
+    onHeadphonesConnected: @escaping @MainActor () -> (),
+    onHeadphonesDisconnected: @escaping @MainActor () -> ()
   )
 
   /// Stops observing system notifications.
   func stopObserving()
 
   /// Prepares the platform audio session for background music playback.
-  func configureBackgroundPlayback(onError: @escaping @MainActor (Error) -> Void)
+  func configureBackgroundPlayback(onError: @escaping @MainActor (Error) -> ())
 }
 
 // MARK: - PlatformMediaSession
@@ -59,9 +59,9 @@ public enum PlatformMediaSession {
   @MainActor
   public static func make() -> MediaSessionHandling {
     #if canImport(UIKit)
-    return UIKitMediaSession()
+      return UIKitMediaSession()
     #else
-    return NativeMediaSession()
+      return NativeMediaSession()
     #endif
   }
 }

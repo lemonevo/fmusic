@@ -19,9 +19,9 @@
 import Foundation
 
 #if canImport(UIKit)
-import UIKit
+  import UIKit
 #elseif canImport(AppKit)
-import AppKit
+  import AppKit
 #endif
 
 // MARK: - PlatformIdiom
@@ -35,20 +35,20 @@ public enum PlatformIdiom: Sendable {
 
   public static var current: PlatformIdiom {
     #if canImport(UIKit)
-    #if targetEnvironment(macCatalyst)
-    return .mac
-    #else
-    switch UIDevice.current.userInterfaceIdiom {
-    case .pad: return .pad
-    case .phone: return .phone
-    case .mac: return .mac
-    default: return .other
-    }
-    #endif
+      #if targetEnvironment(macCatalyst)
+        return .mac
+      #else
+        switch UIDevice.current.userInterfaceIdiom {
+        case .pad: return .pad
+        case .phone: return .phone
+        case .mac: return .mac
+        default: return .other
+        }
+      #endif
     #elseif canImport(AppKit)
-    return .mac
+      return .mac
     #else
-    return .other
+      return .other
     #endif
   }
 
@@ -72,16 +72,16 @@ public struct PlatformDeviceInfo: Sendable {
 
   public static var current: PlatformDeviceInfo {
     #if canImport(UIKit)
-    let device = UIDevice.current
-    return PlatformDeviceInfo(model: device.model, systemVersion: device.systemVersion)
+      let device = UIDevice.current
+      return PlatformDeviceInfo(model: device.model, systemVersion: device.systemVersion)
     #elseif canImport(AppKit)
-    let version = ProcessInfo.processInfo.operatingSystemVersion
-    return PlatformDeviceInfo(
-      model: "Mac",
-      systemVersion: "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
-    )
+      let version = ProcessInfo.processInfo.operatingSystemVersion
+      return PlatformDeviceInfo(
+        model: "Mac",
+        systemVersion: "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+      )
     #else
-    return PlatformDeviceInfo(model: "Unknown", systemVersion: "Unknown")
+      return PlatformDeviceInfo(model: "Unknown", systemVersion: "Unknown")
     #endif
   }
 }

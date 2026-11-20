@@ -126,6 +126,7 @@ class BackendAudioPlayer: NSObject {
   public var crossfadeDuration: Double = 0 {
     didSet { player?.crossfadeDuration = crossfadeDuration }
   }
+
   public var nextPlayablePreloadCB: NextPlayablePreloadCallback?
   public var triggerReinsertPlayableCB: TriggerReinsertPlayableCallback?
   public private(set) var isPlaying: Bool = false
@@ -320,7 +321,7 @@ class BackendAudioPlayer: NSObject {
   func seek(toSecond: Double) {
     // before the stream has started, the seek is applied in didStartPlaying
     if currentPlayUrl != "",
-              player?.getState() == .playing || player?.getState() == .paused {
+       player?.getState() == .playing || player?.getState() == .paused {
       seekTimeWhenStarted = nil
       player?.seek(to: toSecond)
       // The player reports the requested position as soon as the seek is requested, so the bar

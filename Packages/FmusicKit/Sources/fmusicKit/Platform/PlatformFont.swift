@@ -20,13 +20,13 @@ import CoreGraphics
 import Foundation
 
 #if canImport(UIKit)
-import UIKit
-/// The platform font type: `UIFont` on iOS/iPadOS/Mac Catalyst, `NSFont` on macOS.
-public typealias PlatformFont = UIFont
+  import UIKit
+  /// The platform font type: `UIFont` on iOS/iPadOS/Mac Catalyst, `NSFont` on macOS.
+  public typealias PlatformFont = UIFont
 #elseif canImport(AppKit)
-import AppKit
-/// The platform font type: `UIFont` on iOS/iPadOS/Mac Catalyst, `NSFont` on macOS.
-public typealias PlatformFont = NSFont
+  import AppKit
+  /// The platform font type: `UIFont` on iOS/iPadOS/Mac Catalyst, `NSFont` on macOS.
+  public typealias PlatformFont = NSFont
 #endif
 
 // MARK: - PlatformFontWeight
@@ -52,9 +52,9 @@ public enum PlatformFonts {
   /// The system font at the given point size.
   public static func system(size: CGFloat, weight: PlatformFontWeight = .regular) -> PlatformFont {
     #if canImport(UIKit)
-    return UIFont.systemFont(ofSize: size, weight: weight.uiFontWeight)
+      return UIFont.systemFont(ofSize: size, weight: weight.uiFontWeight)
     #elseif canImport(AppKit)
-    return NSFont.systemFont(ofSize: size, weight: weight.nsFontWeight)
+      return NSFont.systemFont(ofSize: size, weight: weight.nsFontWeight)
     #endif
   }
 
@@ -62,9 +62,9 @@ public enum PlatformFonts {
   public static func tabularDigits(size: CGFloat, weight: PlatformFontWeight = .regular)
     -> PlatformFont {
     #if canImport(UIKit)
-    return .monospacedDigitSystemFont(ofSize: size, weight: weight.uiFontWeight)
+      return .monospacedDigitSystemFont(ofSize: size, weight: weight.uiFontWeight)
     #elseif canImport(AppKit)
-    return .monospacedDigitSystemFont(ofSize: size, weight: weight.nsFontWeight)
+      return .monospacedDigitSystemFont(ofSize: size, weight: weight.nsFontWeight)
     #endif
   }
 
@@ -75,35 +75,36 @@ public enum PlatformFonts {
 }
 
 #if canImport(UIKit)
-extension PlatformFontWeight {
-  var uiFontWeight: UIFont.Weight {
-    switch self {
-    case .ultraLight: return .ultraLight
-    case .thin: return .thin
-    case .light: return .light
-    case .regular: return .regular
-    case .medium: return .medium
-    case .semibold: return .semibold
-    case .bold: return .bold
-    case .heavy: return .heavy
-    case .black: return .black
+  extension PlatformFontWeight {
+    var uiFontWeight: UIFont.Weight {
+      switch self {
+      case .ultraLight: return .ultraLight
+      case .thin: return .thin
+      case .light: return .light
+      case .regular: return .regular
+      case .medium: return .medium
+      case .semibold: return .semibold
+      case .bold: return .bold
+      case .heavy: return .heavy
+      case .black: return .black
+      }
     }
   }
-}
+
 #elseif canImport(AppKit)
-extension PlatformFontWeight {
-  var nsFontWeight: NSFont.Weight {
-    switch self {
-    case .ultraLight: return .ultraLight
-    case .thin: return .thin
-    case .light: return .light
-    case .regular: return .regular
-    case .medium: return .medium
-    case .semibold: return .semibold
-    case .bold: return .bold
-    case .heavy: return .heavy
-    case .black: return .black
+  extension PlatformFontWeight {
+    var nsFontWeight: NSFont.Weight {
+      switch self {
+      case .ultraLight: return .ultraLight
+      case .thin: return .thin
+      case .light: return .light
+      case .regular: return .regular
+      case .medium: return .medium
+      case .semibold: return .semibold
+      case .bold: return .bold
+      case .heavy: return .heavy
+      case .black: return .black
+      }
     }
   }
-}
 #endif

@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
-import fmusicKit
 import CoreData
+import fmusicKit
 import UIKit
 
 // MARK: - PlaylistDetailDiffableDataSource
@@ -277,7 +277,7 @@ class PlaylistDetailVC: SingleSnapshotFetchedResultsTableViewController<Playlist
     present(activityVC, animated: true)
   }
 
-  func refreshBarButtons() {    var edititingBarButton: UIBarButtonItem? = nil
+  func refreshBarButtons() { var edititingBarButton: UIBarButtonItem? = nil
 
     if appDelegate.storage.settings.user.isOnlineMode {
       edititingBarButton = editButton

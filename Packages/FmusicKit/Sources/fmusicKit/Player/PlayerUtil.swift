@@ -23,7 +23,7 @@ import Foundation
 import MediaPlayer
 
 #if canImport(UIKit)
-import Intents
+  import Intents
 #endif
 
 // MARK: - MusicPlayable
@@ -120,20 +120,20 @@ public enum RepeatMode: Int16, CaseIterable {
   }
 
   #if canImport(UIKit)
-  public static func fromINPlaybackRepeatMode(mode: INPlaybackRepeatMode) -> RepeatMode {
-    switch mode {
-    case .unknown:
-      return .off
-    case .none:
-      return .off
-    case .all:
-      return .all
-    case .one:
-      return .single
-    @unknown default:
-      return .off
+    public static func fromINPlaybackRepeatMode(mode: INPlaybackRepeatMode) -> RepeatMode {
+      switch mode {
+      case .unknown:
+        return .off
+      case .none:
+        return .off
+      case .all:
+        return .all
+      case .one:
+        return .single
+      @unknown default:
+        return .off
+      }
     }
-  }
   #endif
 }
 
@@ -227,17 +227,17 @@ public struct PlayerIndex: Equatable {
   public static func create(from indexPath: IndexPath) -> PlayerIndex? {
     guard let queueType = PlayerQueueType(rawValue: indexPath.section) else { return nil }
     #if canImport(UIKit)
-    return PlayerIndex(queueType: queueType, index: indexPath.row)
+      return PlayerIndex(queueType: queueType, index: indexPath.row)
     #else
-    return PlayerIndex(queueType: queueType, index: indexPath.item)
+      return PlayerIndex(queueType: queueType, index: indexPath.item)
     #endif
   }
 
   public var asIndexPath: IndexPath {
     #if canImport(UIKit)
-    return IndexPath(row: index, section: queueType.rawValue)
+      return IndexPath(row: index, section: queueType.rawValue)
     #else
-    return IndexPath(item: index, section: queueType.rawValue)
+      return IndexPath(item: index, section: queueType.rawValue)
     #endif
   }
 }

@@ -192,6 +192,22 @@ public class CoreDataPersistentManager: CoreDataManagable {
   nonisolated(unsafe) public static let managedObjectModel: NSManagedObjectModel =
     .mergedModel(from: [FmusicKitResources.bundle])!
 
+  /// Directory that holds the library database. Kept identical for the iOS/iPad and
+  /// macOS apps so both native front-ends read the same user library.
+  public static var storeDirectoryURL: URL {
+    let fileManager = FileManager.default
+    let baseDirectory = fileManager.urls(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask
+    ).first ?? fileManager.temporaryDirectory
+    return baseDirectory.appendingPathComponent("fmusic", isDirectory: true)
+  }
+
+  /// The SQLite store shared by every fmusic front-end.
+  public static var storeURL: URL {
+    storeDirectoryURL.appendingPathComponent("fmusic.sqlite")
+  }
+
   lazy var persistentContainer: NSPersistentContainer = {
     /*
      The persistent container for the application. This implementation
@@ -207,6 +223,13 @@ public class CoreDataPersistentManager: CoreDataManagable {
     description?.shouldInferMappingModelAutomatically = false
     description?.shouldMigrateStoreAutomatically = false
     description?.type = NSSQLiteStoreType
+    // The default URL depends on the host bundle; pin it so the macOS and iOS apps
+    // always open the same user library.
+    try? FileManager.default.createDirectory(
+      at: Self.storeDirectoryURL,
+      withIntermediateDirectories: true
+    )
+    description?.url = Self.storeURL
 
     guard let storeURL = container.persistentStoreDescriptions.first?.url else {
       fatalError("persistentContainer was not set up properly")
