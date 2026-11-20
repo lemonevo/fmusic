@@ -282,6 +282,7 @@ extension PlatformColor {
     return true
   }
 
+  #if canImport(UIKit)
   // 007AFF
   // r:0 g:122 b:255
   public static var defaultBlue: PlatformColor {
@@ -331,6 +332,7 @@ extension PlatformColor {
       return NSColor.secondaryLabelColor
     #endif
   }
+  #endif
 }
 
 #if canImport(UIKit)
