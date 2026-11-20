@@ -318,6 +318,14 @@ final class SettingsSliderControl: NSView {
     nil
   }
 
+  /// Updates the slider and its value label without triggering the handler (used to reset
+  /// a whole row of controls in one go).
+  func setValue(_ value: Double) {
+    let clamped = min(max(value, slider.minValue), slider.maxValue)
+    slider.doubleValue = clamped
+    valueLabel.stringValue = formatter(clamped)
+  }
+
   @objc
   private func valueChanged() {
     var value = slider.doubleValue
@@ -327,6 +335,46 @@ final class SettingsSliderControl: NSView {
     }
     valueLabel.stringValue = formatter(value)
     handler(value)
+  }
+}
+
+// MARK: - SettingsTextField
+
+/// A single-line `NSTextField` that reports its text through a closure.
+@MainActor
+final class SettingsTextField: NSTextField, NSTextFieldDelegate {
+  private let handler: (String) -> Void
+
+  init(
+    text: String,
+    placeholder: String,
+    width: CGFloat = 200,
+    handler: @escaping (String) -> Void
+  ) {
+    self.handler = handler
+    super.init(frame: .zero)
+    stringValue = text
+    placeholderString = placeholder
+    font = MacTheme.bodyFont
+    lineBreakMode = .byTruncatingTail
+    translatesAutoresizingMaskIntoConstraints = false
+    widthAnchor.constraint(equalToConstant: width).isActive = true
+    delegate = self
+    target = self
+    action = #selector(commit)
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  func controlTextDidChange(_ notification: Notification) {
+    handler(stringValue)
+  }
+
+  @objc
+  private func commit() {
+    handler(stringValue)
   }
 }
 
