@@ -1,0 +1,42 @@
+{
+  "originHash" : "2d2a65c1204048b4875e3dad3612f6f651511a28c05180ffae79b04dc3cf2893",
+  "pins" : [
+    {
+      "identity" : "id3tageditor",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/chicio/ID3TagEditor",
+      "state" : {
+        "revision" : "3ccc31eafae0ded1fea8c9acd5e7ef7dfdbf1e8e",
+        "version" : "4.6.0"
+      }
+    },
+    {
+      "identity" : "ifrit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ukushu/Ifrit",
+      "state" : {
+        "revision" : "e610cdf4eddec1e76a9c7ae5db37738c7f73150b",
+        "version" : "2.0.3"
+      }
+    },
+    {
+      "identity" : "ogg-binary-xcframework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sbooth/ogg-binary-xcframework",
+      "state" : {
+        "revision" : "c0e822e18738ad913864e98d9614927ac1e9337c",
+        "version" : "0.1.2"
+      }
+    },
+    {
+      "identity" : "vorbis-binary-xcframework",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sbooth/vorbis-binary-xcframework",
+      "state" : {
+        "revision" : "842020eabcebe410e698c68545d6597b2d232e51",
+        "version" : "0.1.2"
+      }
+    }
+  ],
+  "version" : 3
+}
