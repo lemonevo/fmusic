@@ -284,19 +284,36 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     if index != previous {
       currentLine = index
       if previous >= 0 {
-        reconfigureRow(previous)
+        reconfigureRow(previous, animated: true)
       }
       if index >= 0 {
-        reconfigureRow(index)
+        reconfigureRow(index, animated: true)
         scrollTargetY = scrollTarget(for: index)
       }
     } else if index >= 0 {
       // Only this row's fill changes; never reload the table while the clock runs.
-      reconfigureRow(index)
+      refreshActiveFill()
     }
   }
 
-  private func reconfigureRow(_ row: Int) {
+  private func refreshActiveFill() {
+    guard let lyrics,
+          lyrics.line.indices.contains(currentLine),
+          let cell = tableView.view(
+            atColumn: 0,
+            row: currentLine,
+            makeIfNecessary: false
+          ) as? LyricsSidebarCellView
+    else { return }
+    cell.updateFill(
+      syllables: syllableCache.indices.contains(currentLine)
+        ? syllableCache[currentLine]
+        : [],
+      time: playbackLyricsTime()
+    )
+  }
+
+  private func reconfigureRow(_ row: Int, animated: Bool = false) {
     guard let lyrics,
           lyrics.line.indices.contains(row),
           let cell = tableView.view(
@@ -311,7 +328,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       syllables: syllableCache.indices.contains(row) ? syllableCache[row] : [],
       time: playbackLyricsTime(),
       rowSpacing: Self.rowSpacing,
-      inset: Self.horizontalInset
+      inset: Self.horizontalInset,
+      animated: animated
     )
   }
 
@@ -504,6 +522,10 @@ private final class LyricsSidebarCellView: NSTableCellView {
   private var lineTopConstraint: NSLayoutConstraint?
   private var lineLeadingConstraint: NSLayoutConstraint?
   private var lineTrailingConstraint: NSLayoutConstraint?
+  private var baseText = " "
+  private var baseFont = NSFont.systemFont(ofSize: 24, weight: .semibold)
+  private var baseParagraph = NSMutableParagraphStyle()
+  private var isActiveLine = false
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
@@ -563,7 +585,8 @@ private final class LyricsSidebarCellView: NSTableCellView {
     syllables: [LyricsSyllableTiming],
     time: TimeInterval,
     rowSpacing: CGFloat,
-    inset: CGFloat
+    inset: CGFloat,
+    animated: Bool = false
   ) {
     lineTopConstraint?.constant = rowSpacing
     lineLeadingConstraint?.constant = inset
@@ -579,6 +602,11 @@ private final class LyricsSidebarCellView: NSTableCellView {
     paragraph.alignment = .left
 
     let text = line.value.isEmpty ? " " : line.value
+    baseText = text
+    baseFont = font
+    baseParagraph = paragraph
+    let wasActive = isActiveLine
+    isActiveLine = isActive
     let attributed = NSMutableAttributedString(
       string: text,
       attributes: [
@@ -629,5 +657,82 @@ private final class LyricsSidebarCellView: NSTableCellView {
         ]
       )
     }
+
+    if animated, wasActive != isActive {
+      applyLineTransition(isActive: isActive)
+    } else if !animated {
+      let scale: CGFloat = isActive ? 1.0 : 0.97
+      wantsLayer = true
+      layer?.transform = CATransform3DMakeScale(scale, scale, 1)
+    }
+  }
+
+  // MARK: - Frame based fill + transition
+
+  /// Called at display rate: only this label's foreground colours change, the text
+  /// layout is reused (equivalent to the Catalyst syllable-mask update).
+  func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
+    guard isActiveLine else { return }
+    lineLabel.attributedStringValue = makeAttributed(syllables: syllables, time: time)
+  }
+
+  private func makeAttributed(
+    syllables: [LyricsSyllableTiming],
+    time: TimeInterval
+  )
+    -> NSAttributedString {
+    let attributed = NSMutableAttributedString(
+      string: baseText,
+      attributes: [
+        .font: baseFont,
+        .foregroundColor: isActiveLine
+          ? NSColor.white.withAlphaComponent(0.55)
+          : NSColor.white.withAlphaComponent(0.60),
+        .paragraphStyle: baseParagraph,
+      ]
+    )
+    guard isActiveLine, !syllables.isEmpty else { return attributed }
+    let length = (baseText as NSString).length
+    for syllable in syllables {
+      let progress = syllable.progress(at: time)
+      guard progress > 0,
+            syllable.range.location + syllable.range.length <= length
+      else { continue }
+      let filledCount = progress >= 1
+        ? syllable.range.length
+        : Int((CGFloat(syllable.range.length) * progress).rounded(.down))
+      guard filledCount > 0 else { continue }
+      attributed.addAttribute(
+        .foregroundColor,
+        value: NSColor.white,
+        range: NSRange(location: syllable.range.location, length: filledCount)
+      )
+    }
+    return attributed
+  }
+
+  /// Catalyst `LyricTableCell.refresh(animated:)`: the active line springs from 97 %
+  /// to 100 % (damping 0.78 equivalent) and returns on deactivation.
+  private func applyLineTransition(isActive: Bool) {
+    wantsLayer = true
+    layer?.masksToBounds = false
+    let target: CGFloat = isActive ? 1.0 : 0.97
+    let spring = CASpringAnimation(keyPath: "transform.scale")
+    spring.fromValue = isActive ? 0.97 : 1.0
+    spring.toValue = target
+    spring.mass = 1
+    spring.stiffness = 220
+    spring.damping = 20
+    spring.initialVelocity = 0.2
+    spring.duration = spring.settlingDuration
+    layer?.add(spring, forKey: "lineScale")
+    layer?.transform = CATransform3DMakeScale(target, target, 1)
+
+    let fade = CABasicAnimation(keyPath: "opacity")
+    fade.fromValue = isActive ? 0.55 : 1.0
+    fade.toValue = 1.0
+    fade.duration = 0.18
+    fade.timingFunction = CAMediaTimingFunction(name: .easeOut)
+    layer?.add(fade, forKey: "lineFade")
   }
 }
