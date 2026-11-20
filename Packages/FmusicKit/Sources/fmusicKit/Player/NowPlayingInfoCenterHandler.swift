@@ -77,8 +77,9 @@ public class NowPlayingInfoCenterHandler {
     let albumTitle = playable.asSong?.album?.name ?? ""
     let nowPlaying = displayNowPlayingInfo(for: playable)
 
-    var artworkImage = UIImage()
+    var artworkImage = PlatformImages.empty
     if let accountInfo = playable.account?.info {
+      #if canImport(UIKit)
       artworkImage = LibraryEntityImage.getImageToDisplayImmediately(
         libraryEntity: playable,
         themePreference: storage.settings.accounts.getSetting(accountInfo).read.themePreference,
@@ -86,6 +87,7 @@ public class NowPlayingInfoCenterHandler {
           .artworkDisplayPreference,
         useCache: true
       )
+      #endif
       if let artwork = playable.artwork {
         getArtworkDownloaderCB(accountInfo).download(object: artwork)
       }
@@ -114,7 +116,7 @@ public class NowPlayingInfoCenterHandler {
 
       MPMediaItemPropertyArtwork: MPMediaItemArtwork(
         boundsSize: concurrentSafeArtworkImage.size,
-        requestHandler: { @Sendable size -> UIImage in
+        requestHandler: { @Sendable size -> PlatformImage in
           // this completion handler is not called in main thread!
           return concurrentSafeArtworkImage
         }

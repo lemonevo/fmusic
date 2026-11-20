@@ -68,7 +68,7 @@ struct CoreDataMigrationStep {
   )
     -> NSMappingModel? {
     NSMappingModel(
-      from: [Bundle.main],
+      from: [FmusicKitResources.bundle],
       forSourceModel: sourceModel,
       destinationModel: destinationModel
     )

@@ -37,7 +37,7 @@ class PlayIndicatorHandler {
   private var imageOverlayDict = [String: OverlayLayer]()
 
   static private var imageOverlayColor: CGColor {
-    UIColor.imageOverlayBackground.cgColor
+    UIColor.fmusicImageOverlayBackground.cgColor
   }
 
   private init() {}

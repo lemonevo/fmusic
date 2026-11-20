@@ -194,6 +194,7 @@ extension PlayerFacade {
     }
   }
 
+  #if canImport(UIKit)
   public var skipForwardIcon: UIImage {
     switch playerMode {
     case .music:
@@ -202,6 +203,7 @@ extension PlayerFacade {
       return .skipForward30
     }
   }
+  #endif
 
   public var skipBackwardInterval: Double {
     switch playerMode {
@@ -212,6 +214,7 @@ extension PlayerFacade {
     }
   }
 
+  #if canImport(UIKit)
   public var skipBackwardIcon: UIImage {
     switch playerMode {
     case .music:
@@ -220,6 +223,7 @@ extension PlayerFacade {
       return .skipBackward15
     }
   }
+  #endif
 
   public var isSkipAvailable: Bool {
     if let currentlyPlaying = currentlyPlaying,

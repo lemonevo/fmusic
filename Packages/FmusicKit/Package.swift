@@ -6,16 +6,9 @@ import PackageDescription
 // the app target so the migration does not change compilation semantics.
 let swift6Settings: [SwiftSetting] = [
   .swiftLanguageMode(.v6),
-  .enableUpcomingFeature("ConciseMagicFile"),
-  .enableUpcomingFeature("DeprecateApplicationMain"),
-  .enableUpcomingFeature("DisableOutwardActorInference"),
-  .enableUpcomingFeature("ForwardTrailingClosures"),
-  .enableUpcomingFeature("GlobalConcurrency"),
-  .enableUpcomingFeature("ImplicitOpenExistentials"),
+  // Already part of the Swift 6 language mode in the app target; kept explicitly
+  // because the package must compile with the same diagnostics as the app.
   .enableUpcomingFeature("ImportObjcForwardDecls"),
-  .enableUpcomingFeature("InferSendableFromCaptures"),
-  .enableUpcomingFeature("IsolatedDefaultValues"),
-  .enableUpcomingFeature("RegionBasedIsolation"),
 ]
 
 // FmusicKit — cross-platform core of fmusic.

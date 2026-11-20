@@ -19,8 +19,8 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+import Foundation
 import os.log
-import UIKit
 
 // MARK: - AppSettings
 
@@ -290,8 +290,10 @@ public struct UserSettings: Sendable, Codable {
     }
   }
 
-  private var _appearanceMode: UIUserInterfaceStyle = .unspecified
-  public var appearanceMode: UIUserInterfaceStyle {
+  /// In-app appearance override. Persisted as the `Int` raw value, which matches
+  /// `UIUserInterfaceStyle`, so existing settings files keep decoding.
+  private var _appearanceMode: AppearanceMode = .unspecified
+  public var appearanceMode: AppearanceMode {
     get { _appearanceMode }
     set { _appearanceMode = newValue }
   }
@@ -302,11 +304,15 @@ public struct UserSettings: Sendable, Codable {
     set { _appLanguage = newValue }
   }
 
-  /// In-app text size, nil: system text size (iOS) / default text size (macOS, no Dynamic Type)
+  /// In-app text size, nil: system text size (iOS) / default text size (macOS, no Dynamic Type).
+  ///
+  /// Persisted as the raw value of the platform content size category
+  /// (e.g. `"UICTContentSizeCategoryL"`), which is exactly what used to be stored, so the
+  /// settings JSON stays compatible. The app target converts it to `UIContentSizeCategory`.
   private var _textSize: String?
-  public var textSize: UIContentSizeCategory? {
-    get { _textSize.map { UIContentSizeCategory(rawValue: $0) } }
-    set { _textSize = newValue?.rawValue }
+  public var textSize: String? {
+    get { _textSize }
+    set { _textSize = newValue }
   }
 
   private var _screenLockPreventionPreference: ScreenLockPreventionPreference = .defaultValue
@@ -385,7 +391,7 @@ public struct UserSettings: Sendable, Codable {
   @MainActor
   public var albumsGridSizeSetting: Int {
     get {
-      _albumsGridSizeSetting ?? ((UIDevice.current.userInterfaceIdiom == .pad) ? 4 : 3)
+      _albumsGridSizeSetting ?? PlatformIdiom.defaultAlbumGridSize
     }
     set { _albumsGridSizeSetting = newValue }
   }

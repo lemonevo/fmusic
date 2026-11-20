@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#if canImport(UIKit)
 import LinkPresentation
 import UIKit
 
@@ -199,3 +200,5 @@ private final class SongShareItemSource: NSObject, UIActivityItemSource {
     return metadata
   }
 }
+
+#endif

@@ -19,6 +19,7 @@
 //  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 //
 
+#if canImport(UIKit)
 import Foundation
 import UIKit
 
@@ -56,8 +57,10 @@ open class EntityImageView: UIView {
   }
 
   public func loadViewFromNib() {
-    let bundle = Bundle(for: type(of: self))
-    let nib = UINib(nibName: String(describing: type(of: self)), bundle: bundle)
+    let nib = UINib(
+      nibName: String(describing: type(of: self)),
+      bundle: FmusicKitResources.nibBundle(named: String(describing: type(of: self)))
+    )
     let view = nib.instantiate(withOwner: self, options: nil).first as! UIView
     view.frame = bounds
     view.autoresizingMask = [
@@ -151,3 +154,5 @@ open class EntityImageView: UIView {
     }
   }
 }
+
+#endif

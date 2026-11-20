@@ -21,7 +21,6 @@
 
 import CoreData
 import Foundation
-import UIKit
 
 // MARK: - PersistentStorage
 
@@ -82,12 +81,12 @@ extension PersistentStorage {
       ) }
     }
 
-    public var appearanceMode: UIUserInterfaceStyle {
+    public var appearanceMode: AppearanceMode {
       get {
         let appearanceModeRaw = UserDefaults.standard
           .object(forKey: UserDefaultsKey.AppearanceMode.rawValue) as? Int ??
-          UIUserInterfaceStyle.unspecified.rawValue
-        return UIUserInterfaceStyle(rawValue: appearanceModeRaw) ?? .unspecified
+          AppearanceMode.unspecified.rawValue
+        return AppearanceMode(rawValue: appearanceModeRaw) ?? .unspecified
       }
       set { UserDefaults.standard.set(
         newValue.rawValue,
@@ -293,7 +292,7 @@ extension PersistentStorage {
       get {
         UserDefaults.standard
           .object(forKey: UserDefaultsKey.AlbumsGridSizeSetting.rawValue) as? Int ??
-          ((UIDevice.current.userInterfaceIdiom == .pad) ? 4 : 3)
+          PlatformIdiom.defaultAlbumGridSize
       }
       set { UserDefaults.standard.set(
         newValue,

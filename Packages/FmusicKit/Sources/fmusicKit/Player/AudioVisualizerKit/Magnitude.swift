@@ -1,3 +1,5 @@
+import Foundation
+
 public struct Magnitude: Sendable, CustomStringConvertible {
   public var hertz: Float
   public var value: Float

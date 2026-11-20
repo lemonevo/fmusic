@@ -21,9 +21,6 @@
 
 import Foundation
 
-import Foundation
-import UIKit
-
 // MARK: - LibraryDisplayType
 
 @MainActor
@@ -85,34 +82,34 @@ public enum LibraryDisplayType: Int, CaseIterable, Sendable {
     }
   }
 
-  public var image: UIImage {
+  public var image: PlatformImage {
     switch self {
     case .artists:
-      return UIImage.artist
+      return PlatformImage.artist
     case .albums:
-      return UIImage.album
+      return PlatformImage.album
     case .songs:
-      return UIImage.musicalNotes
+      return PlatformImage.musicalNotes
     case .genres:
-      return UIImage.genre
+      return PlatformImage.genre
     case .directories:
-      return UIImage.folder
+      return PlatformImage.folder
     case .playlists:
-      return UIImage.playlist
+      return PlatformImage.playlist
     case .downloads:
-      return UIImage.download
+      return PlatformImage.download
     case .favoriteSongs:
-      return UIImage.heartFill
+      return PlatformImage.heartFill
     case .favoriteAlbums:
-      return UIImage.heartFill
+      return PlatformImage.heartFill
     case .favoriteArtists:
-      return UIImage.heartFill
+      return PlatformImage.heartFill
     case .newestAlbums:
-      return UIImage.albumNewest
+      return PlatformImage.albumNewest
     case .recentAlbums:
-      return UIImage.albumRecent
+      return PlatformImage.albumRecent
     case .lyricsSearch:
-      return UIImage(systemName: "text.magnifyingglass") ?? UIImage.search
+      return PlatformImages.symbol("text.magnifyingglass")
     }
   }
 }

@@ -136,7 +136,7 @@ class PlayableTableCell: BasicTableCell {
 
       style = PlayableTableCellStyle.none
       deleteButton.tintColor = .red
-      playOverArtworkButton.layer.backgroundColor = UIColor.imageOverlayBackground.cgColor
+      playOverArtworkButton.layer.backgroundColor = UIColor.fmusicImageOverlayBackground.cgColor
       playOverArtworkButton.layer.cornerRadius = CornerRadius.small.asCGFloat
       selectionStyle = .none
       downloadProgress.isHidden = true
