@@ -82,7 +82,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     scrollView.hasVerticalScroller = false
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
-    scrollView.contentInsets = NSEdgeInsets(top: 78, left: 0, bottom: 4, right: 0)
+    scrollView.contentInsets = NSEdgeInsets(top: 56, left: 0, bottom: 4, right: 0)
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
     // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface.
@@ -119,8 +119,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     root.addSubview(scrollView)
     root.addSubview(footer)
     NSLayoutConstraint.activate([
-      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
-      editButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 32),
+      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 84),
+      editButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 16),
       editButton.heightAnchor.constraint(equalToConstant: 26),
       editButton.widthAnchor.constraint(equalToConstant: 66),
       sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 8),
