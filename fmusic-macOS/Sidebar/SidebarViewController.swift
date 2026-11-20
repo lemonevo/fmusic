@@ -113,12 +113,24 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     sidebarButton.action = #selector(sidebarPressed)
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
 
+    // The top strip shares the content surface so the window header reads as one bar.
+    let topStrip = NSView()
+    topStrip.wantsLayer = true
+    topStrip.layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    topStrip.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(topStrip)
+
     let footer = makeAccountFooter()
     root.addSubview(editButton)
     root.addSubview(sidebarButton)
     root.addSubview(scrollView)
     root.addSubview(footer)
     NSLayoutConstraint.activate([
+      topStrip.topAnchor.constraint(equalTo: root.topAnchor),
+      topStrip.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      topStrip.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      topStrip.heightAnchor.constraint(equalToConstant: 52),
+
       editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
       editButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
       editButton.heightAnchor.constraint(equalToConstant: 26),
