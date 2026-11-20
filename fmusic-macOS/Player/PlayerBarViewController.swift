@@ -108,10 +108,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     let infoGroup = NSStackView(views: [artworkView, infoStack()])
     self.infoGroup = infoGroup
-    NSLayoutConstraint.activate([
-      progressTrack.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
-      progressTrack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
-    ])
+
     infoGroup.orientation = .horizontal
     infoGroup.alignment = .centerY
     infoGroup.spacing = 9
@@ -157,6 +154,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         greaterThanOrEqualTo: infoGroup.trailingAnchor,
         constant: 16
       ),
+    ])
+
+    // The progress line runs directly under the artwork + title block.
+    NSLayoutConstraint.activate([
+      progressTrack.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
+      progressTrack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
     ])
 
     // Keep the transport + info left aligned; the utility cluster sticks to the right.
