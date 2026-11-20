@@ -42,7 +42,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let queueButton = NSButton()
   private let moreButton = NSButton()
   private let outputButton = NSButton()
-  private let volumeIcon = NSImageView()
+  private let volumeIcon = NSButton()
   private let volumeSlider = NSSlider()
 
   private let progressTrack = NSView()
@@ -78,16 +78,29 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     root.translatesAutoresizingMaskIntoConstraints = false
     root.wantsLayer = true
 
-    capsule.material = .hudWindow
+    capsule.material = .popover
     capsule.blendingMode = .withinWindow
     capsule.state = .active
     capsule.wantsLayer = true
     capsule.layer?.cornerRadius = Self.capsuleHeight / 2
     capsule.layer?.masksToBounds = true
     capsule.layer?.borderWidth = 1
-    capsule.layer?.borderColor = NSColor.white.withAlphaComponent(0.07).cgColor
+    capsule.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
     capsule.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(capsule)
+
+    let highlight = NSView()
+    highlight.wantsLayer = true
+    highlight.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
+    highlight.layer?.cornerRadius = Self.capsuleHeight / 2
+    highlight.translatesAutoresizingMaskIntoConstraints = false
+    capsule.addSubview(highlight)
+    NSLayoutConstraint.activate([
+      highlight.topAnchor.constraint(equalTo: capsule.topAnchor),
+      highlight.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
+      highlight.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
+      highlight.heightAnchor.constraint(equalTo: capsule.heightAnchor, multiplier: 0.5),
+    ])
 
     configureArtwork()
     configureTransportButtons()
@@ -274,9 +287,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       action: #selector(showOutputMenu)
     )
 
-    volumeIcon.image = symbolImage("speaker.fill", size: 10)
+    volumeIcon.image = symbolImage("speaker.fill", size: 11)
+    volumeIcon.isBordered = false
+    volumeIcon.bezelStyle = .regularSquare
+    volumeIcon.imagePosition = .imageOnly
     volumeIcon.contentTintColor = .secondaryLabelColor
+    volumeIcon.target = self
+    volumeIcon.action = #selector(showVolumePopover)
+    volumeIcon.toolTip = L10n.tr("Volume")
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
+    volumeIcon.widthAnchor.constraint(equalToConstant: 22).isActive = true
+    volumeIcon.heightAnchor.constraint(equalToConstant: 22).isActive = true
 
     volumeSlider.minValue = 0
     volumeSlider.maxValue = 1
@@ -291,8 +312,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   private func configureProgressLine() {
     progressTrack.wantsLayer = true
-    progressTrack.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    progressTrack.layer?.cornerRadius = 1
+    progressTrack.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.26).cgColor
+    progressTrack.layer?.cornerRadius = 3
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
     progressTrack.addGestureRecognizer(
@@ -301,18 +322,18 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     progressFill.wantsLayer = true
     progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
-    progressFill.layer?.cornerRadius = 1
+    progressFill.layer?.cornerRadius = 3
     progressFill.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.addSubview(progressFill)
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
-      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -6),
-      progressTrack.heightAnchor.constraint(equalToConstant: 3),
+      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -7),
+      progressTrack.heightAnchor.constraint(equalToConstant: 6),
 
       progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
       progressFill.centerYAnchor.constraint(equalTo: progressTrack.centerYAnchor),
-      progressFill.heightAnchor.constraint(equalToConstant: 2),
+      progressFill.heightAnchor.constraint(equalToConstant: 6),
     ])
     let width = progressFill.widthAnchor.constraint(equalToConstant: 0)
     progressFillWidth = width
@@ -572,12 +593,64 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     AppDelegate.sharedAppDelegate?.showMiniPlayer(nil)
   }
 
+  private var volumePopover: NSPopover?
+
+  @objc
+  private func showVolumePopover() {
+    if let popover = volumePopover, popover.isShown {
+      popover.performClose(nil)
+      return
+    }
+    let popover = NSPopover()
+    popover.behavior = .transient
+    let controller = NSViewController()
+    let slider = NSSlider(value: Double(player.volume), minValue: 0, maxValue: 1, target: self, action: #selector(volumePopoverChanged(_:)))
+    slider.controlSize = .small
+    slider.isContinuous = true
+    slider.translatesAutoresizingMaskIntoConstraints = false
+    let container = NSView()
+    container.addSubview(slider)
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: 170),
+      container.heightAnchor.constraint(equalToConstant: 44),
+      slider.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
+      slider.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
+      slider.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+    ])
+    controller.view = container
+    popover.contentViewController = controller
+    popover.show(relativeTo: volumeIcon.bounds, of: volumeIcon, preferredEdge: .maxY)
+    volumePopover = popover
+  }
+
+  @objc
+  private func volumePopoverChanged(_ sender: NSSlider) {
+    FmusicKit.shared.player.volume = Float(sender.doubleValue)
+    volumeSlider.doubleValue = sender.doubleValue
+  }
+
   @objc
   private func showOutputMenu() {
     let menu = NSMenu()
-    let title = NSMenuItem(title: L10n.tr("Audio Output"), action: nil, keyEquivalent: "")
-    title.isEnabled = false
-    menu.addItem(title)
+    let devices = AudioOutputDevices.outputDevices()
+    let current = AudioOutputDevices.defaultOutputDevice()
+    if devices.isEmpty {
+      let empty = NSMenuItem(title: L10n.tr("Audio Output"), action: nil, keyEquivalent: "")
+      empty.isEnabled = false
+      menu.addItem(empty)
+    } else {
+      for device in devices {
+        let item = NSMenuItem(
+          title: device.name,
+          action: #selector(selectOutputDevice(_:)),
+          keyEquivalent: ""
+        )
+        item.target = self
+        item.representedObject = device.id
+        item.state = device.id == current ? .on : .off
+        menu.addItem(item)
+      }
+    }
     menu.addItem(.separator())
     let settings = NSMenuItem(
       title: L10n.tr("Open System Sound Settings"),
@@ -588,9 +661,15 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     menu.addItem(settings)
     menu.popUp(
       positioning: nil,
-      at: NSPoint(x: outputButton.bounds.midX, y: outputButton.bounds.minY - 6),
+      at: NSPoint(x: outputButton.bounds.midX, y: outputButton.bounds.minY - 4),
       in: outputButton
     )
+  }
+
+  @objc
+  private func selectOutputDevice(_ sender: NSMenuItem) {
+    guard let id = sender.representedObject as? AudioDeviceID else { return }
+    AudioOutputDevices.setDefaultOutputDevice(id)
   }
 
   @objc

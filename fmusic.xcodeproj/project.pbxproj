@@ -584,6 +584,7 @@
 		DEFAEF7B50FE26F57F1EA0F3 /* PlaylistDetailVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E42B53A626135AE48AD954 /* PlaylistDetailVC.swift */; };
 		DF1FC1AAA1A3BC6CEED67642 /* CarPlayHomeTabExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59933EEADBD2E1FFD978E76F /* CarPlayHomeTabExtension.swift */; };
 		DF8EA719FA52DB96CD226208 /* EntityPreviewVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3CC96CB36DC58BA370C0E41 /* EntityPreviewVC.swift */; };
+		E0D615589C5D0A676D827B5A /* AudioOutputDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6D9F5E4A63B4C35DBBD64BA /* AudioOutputDevices.swift */; };
 		E0DF1761A9BF30851EB2C397 /* MainMenuBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE4159DD4F90941F7C4A1E17 /* MainMenuBuilder.swift */; };
 		E0EA3D678988791D86BE3168 /* PlaylistSelectorVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93E364D3EA0C04D90F9AADD4 /* PlaylistSelectorVC.swift */; };
 		E1B15686D87ECFBBCC27DD4C /* ArtistDetailVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B83C35481F4A650920A106E /* ArtistDetailVC.swift */; };
@@ -1171,6 +1172,7 @@
 		C3DFE3CD817FCDF549989958 /* PlaylistAddGenreDetailVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlaylistAddGenreDetailVC.swift; path = fmusic/Screens/ViewController/PlaylistAdd/PlaylistAddGenreDetailVC.swift; sourceTree = "<group>"; };
 		C6A1E0012F0A000100ABCDEF /* ReorderableListEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderableListEditor.swift; sourceTree = "<group>"; };
 		C6CF112631C95D93410AEB3D /* NotificationDetailVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NotificationDetailVC.swift; path = fmusic/Screens/ViewController/NotificationDetailVC.swift; sourceTree = "<group>"; };
+		C6D9F5E4A63B4C35DBBD64BA /* AudioOutputDevices.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AudioOutputDevices.swift; sourceTree = "<group>"; };
 		C753A06132215A3AA710F967 /* DirectoryTableCell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = DirectoryTableCell.swift; path = fmusic/Screens/View/DirectoryTableCell.swift; sourceTree = "<group>"; };
 		C8AC4514BF6E6DD6659B7E19 /* FavoriteTypeAppEnum.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FavoriteTypeAppEnum.swift; path = fmusic/Intents/AppEnums/FavoriteTypeAppEnum.swift; sourceTree = "<group>"; };
 		C964558A33581724047BB880 /* fmusicMusicRed.icon */ = {isa = PBXFileReference; includeInIndex = 1; name = fmusicMusicRed.icon; path = fmusic/Assets/fmusicMusicRed.icon; sourceTree = "<group>"; };
@@ -2436,6 +2438,7 @@
 			isa = PBXGroup;
 			children = (
 				0530AA36A29983707A48139D /* PlayerBarViewController.swift */,
+				C6D9F5E4A63B4C35DBBD64BA /* AudioOutputDevices.swift */,
 			);
 			name = Player;
 			path = Player;
@@ -3312,6 +3315,7 @@
 				36F40AD83E23172314E33EBE /* ContentToolbarView.swift in Sources */,
 				9C61211091E84D50D82A9E66 /* LyricsSidebarViewController.swift in Sources */,
 				AA3336977C479CCE132970DD /* ArtistDetailViewController.swift in Sources */,
+				E0D615589C5D0A676D827B5A /* AudioOutputDevices.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
