@@ -46,14 +46,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     controller.showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
 
-    // Dev hook: `open fmusic.app --args --play` resumes playback for smoke tests.
-    if ProcessInfo.processInfo.arguments.contains("--play") {
+    // Dev hooks for smoke tests from the command line.
+    let arguments = ProcessInfo.processInfo.arguments
+    if arguments.contains("--play") {
       player.play()
+    }
+    if arguments.contains("--settings") {
+      showSettings(nil)
     }
   }
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    true
+    // A music player keeps running when its library window is closed (Apple Music behaviour);
+    // playback and the lyrics overlays continue.
+    false
+  }
+
+  func applicationShouldHandleReopen(
+    _ sender: NSApplication,
+    hasVisibleWindows flag: Bool
+  )
+    -> Bool {
+    if !flag {
+      showMainWindow(nil)
+    }
+    return true
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {

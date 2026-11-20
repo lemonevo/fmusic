@@ -95,7 +95,7 @@ public class NowPlayingInfoCenterHandler {
 
     let concurrentSafeArtworkImage = artworkImage
     let elapsedTime = backendAudioPlayer.elapsedTime
-    nowPlayingCenter.nowPlayingInfo = [
+    var nowPlayingInfo: [String: Any] = [
       MPNowPlayingInfoPropertyMediaType: NSNumber(value: MPNowPlayingInfoMediaType.audio.rawValue),
       MPNowPlayingInfoPropertyServiceIdentifier: FmusicKit.name,
 
@@ -122,6 +122,13 @@ public class NowPlayingInfoCenterHandler {
         }
       ),
     ]
+    #if canImport(AppKit)
+    // MediaRemote cannot encode MPMediaItemArtwork; ship the encoded bytes as well.
+    if let artworkData = concurrentSafeArtworkImage.platformPNGData() {
+      nowPlayingInfo[NowPlayingInfoKey.artworkData] = artworkData
+    }
+    #endif
+    nowPlayingCenter.nowPlayingInfo = nowPlayingInfo
     lastPushedElapsedTime = elapsedTime
   }
 

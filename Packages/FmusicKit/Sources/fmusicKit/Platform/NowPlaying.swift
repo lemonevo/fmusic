@@ -44,6 +44,14 @@ public protocol NowPlayingCenter: AnyObject {
   var playbackState: NowPlayingPlaybackState { get set }
 }
 
+// MARK: - NowPlayingInfoKey
+
+/// Extra keys understood by the fmusic platform layer on top of the MediaPlayer keys.
+public enum NowPlayingInfoKey {
+  /// PNG data of the current artwork, used to forward artwork to MediaRemote on macOS.
+  public static let artworkData = "fmusic.nowPlaying.artworkData"
+}
+
 // MARK: - MediaPlayerNowPlayingCenter
 
 /// `MPNowPlayingInfoCenter` backed Now Playing center (iOS/iPadOS/Catalyst and the
@@ -100,6 +108,10 @@ public final class MediaPlayerNowPlayingCenter: NowPlayingCenter {
 public enum PlatformNowPlaying {
   @MainActor
   public static func makeCenter() -> NowPlayingCenter {
-    MediaPlayerNowPlayingCenter()
+    #if canImport(AppKit)
+    return MediaRemoteNowPlayingCenter()
+    #else
+    return MediaPlayerNowPlayingCenter()
+    #endif
   }
 }
