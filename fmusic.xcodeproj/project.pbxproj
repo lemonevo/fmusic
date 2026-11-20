@@ -11,6 +11,7 @@
 		0310E3D18356C5ED94FA8C1F /* MenuBarLyricsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72B99F8399AE0BD0D2CFE1B8 /* MenuBarLyricsController.swift */; };
 		1679739E1EC7857D9BF008CB /* SidebarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 575B76395386F0AAB271432B /* SidebarViewController.swift */; };
 		1BF3B74524C9D15BD8514D67 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8411715940B82BA22CE311C /* SettingsStore.swift */; };
+		26178C88FCCD6BAD587C696E /* LibraryResyncProgressViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DF22E96F3AABEDD56B2AB3B /* LibraryResyncProgressViewController.swift */; };
 		27EB1C38402CA80F8B0B537D /* SearchDebouncer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7049C69DC0AAE33A2158D8F5 /* SearchDebouncer.swift */; };
 		281C5A73F2E9AC07902797C1 /* AboutSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2AE838933607E80D411C578 /* AboutSettingsViewController.swift */; };
 		2F9CB8A832C27AEADC7633D3 /* LyricsOverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB9CCD341CA41D7F4BA3E /* LyricsOverlayController.swift */; };
@@ -327,6 +328,7 @@
 /* Begin PBXFileReference section */
 		0530AA36A29983707A48139D /* PlayerBarViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayerBarViewController.swift; sourceTree = "<group>"; };
 		0738C93B72B4A26E2BD6BFF6 /* GeneralSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewController.swift; sourceTree = "<group>"; };
+		0DF22E96F3AABEDD56B2AB3B /* LibraryResyncProgressViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryResyncProgressViewController.swift; sourceTree = "<group>"; };
 		196A4817DF72435334D67E47 /* SettingsPageViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsPageViewController.swift; sourceTree = "<group>"; };
 		1EC78A9C3B298B58D57C73AA /* main.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		22B6BB75EB7E5CD34A89E7DB /* MainViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
@@ -701,6 +703,7 @@
 				325FB3EB834623C4F9503962 /* SettingsSidebarViewController.swift */,
 				E8411715940B82BA22CE311C /* SettingsStore.swift */,
 				2557C962C61AD6C941CD75DD /* SettingsViewController.swift */,
+				0DF22E96F3AABEDD56B2AB3B /* LibraryResyncProgressViewController.swift */,
 			);
 			name = Settings;
 			path = Settings;
@@ -1877,6 +1880,7 @@
 				2F9CB8A832C27AEADC7633D3 /* LyricsOverlayController.swift in Sources */,
 				5906D38790BC334CDFCBFC79 /* LyricsRenderingSupport.swift in Sources */,
 				0310E3D18356C5ED94FA8C1F /* MenuBarLyricsController.swift in Sources */,
+				26178C88FCCD6BAD587C696E /* LibraryResyncProgressViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

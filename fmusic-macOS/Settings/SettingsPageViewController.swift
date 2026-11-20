@@ -103,6 +103,28 @@ class SettingsPageViewController: NSViewController {
   /// Subclasses build their form sections here.
   func buildForm() {}
 
+  /// Rebuilds the whole page in place.
+  ///
+  /// Used when the data the page shows changed outside of the controls (for example the
+  /// account settings page after logout): the page keeps its scroll position and window,
+  /// only the form content is recreated by calling `buildForm()` again.
+  func reloadForm() {
+    guard isViewLoaded, lastAnchor != nil else { return }
+
+    for subview in documentView.subviews {
+      subview.removeFromSuperview()
+    }
+    wrappingLabels.removeAll()
+    lastAnchor = documentView.topAnchor
+
+    addPageTitle()
+    buildForm()
+    finishForm()
+
+    documentView.needsLayout = true
+    view.needsLayout = true
+  }
+
   // MARK: - Page title
 
   private func addPageTitle() {
