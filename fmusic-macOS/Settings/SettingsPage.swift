@@ -25,7 +25,9 @@ enum SettingsPage: Int, CaseIterable, Sendable {
   case general
   case display
   case playback
+  case equalizer
   case account
+  case support
   case about
 
   var title: String {
@@ -33,7 +35,9 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .general: return L10n.tr("General")
     case .display: return L10n.tr("Display")
     case .playback: return L10n.tr("Playback")
+    case .equalizer: return L10n.tr("Equalizer")
     case .account: return L10n.tr("Account")
+    case .support: return L10n.tr("Support")
     case .about: return L10n.tr("About")
     }
   }
@@ -43,7 +47,9 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .general: return "gearshape"
     case .display: return "display"
     case .playback: return "play.circle"
+    case .equalizer: return "chart.bar"
     case .account: return "person.crop.circle"
+    case .support: return "lifepreserver"
     case .about: return "info.circle"
     }
   }
@@ -54,7 +60,9 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .general: return GeneralSettingsViewController()
     case .display: return DisplaySettingsViewController()
     case .playback: return PlaybackSettingsViewController()
+    case .equalizer: return EqualizerSettingsViewController()
     case .account: return AccountSettingsViewController()
+    case .support: return SupportSettingsViewController()
     case .about: return AboutSettingsViewController()
     }
   }

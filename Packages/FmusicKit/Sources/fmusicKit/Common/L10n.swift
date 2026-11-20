@@ -501,6 +501,8 @@ public enum L10n {
     "Save": "保存",
     "Delete Equalizer": "删除均衡器",
     "Are you sure to delete this equalizer?": "确定要删除这个均衡器吗？",
+    "Reset": "重置",
+    "Changes are applied immediately. Click Save to keep them.": "更改会立即生效，点击“保存”以保留更改。",
 
     // MARK: Swipe
 
@@ -580,6 +582,12 @@ public enum L10n {
     "No Events": "暂无事件",
     "Errors and other events will be listed here.": "错误和其他事件会显示在这里。",
     "Copy to Clipboard": "拷贝到剪贴板",
+    "Copy All": "全部拷贝",
+    "Type": "类型",
+    "Date": "日期",
+    "Message": "消息",
+    "%d Events": "%d 个事件",
+    "The log could not be created.": "无法创建日志。",
 
     // MARK: License
 

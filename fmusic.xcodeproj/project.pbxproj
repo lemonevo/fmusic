@@ -58,6 +58,7 @@
 		2DD535A9ADFA6A6DCEE4B1D8 /* NotificationDetailVC.xib in Resources */ = {isa = PBXBuildFile; fileRef = 97E90B8942D50AAA941E6FB9 /* NotificationDetailVC.xib */; };
 		2EBEA1118998499C5A1C08E0 /* LyricsLineTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = F58D33EC4B72F28AC4102A6F /* LyricsLineTracker.swift */; };
 		2F9CB8A832C27AEADC7633D3 /* LyricsOverlayController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EFFB9CCD341CA41D7F4BA3E /* LyricsOverlayController.swift */; };
+		2FC2E32B23B2EA850068C87F /* EqualizerSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4019EAAE80FEBD4EC6BB77C /* EqualizerSettingsViewController.swift */; };
 		301467A04918DE254D037543 /* ArtistsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60125DF788D4F42CAF6C9444 /* ArtistsViewController.swift */; };
 		31214A5280A0A77DED9AAAB9 /* MultiPickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 536B830586F021A7D02AE249 /* MultiPickerView.swift */; };
 		31C4454A22F24F34EFF85807 /* CommonCollectionSectionHeader.xib in Resources */ = {isa = PBXBuildFile; fileRef = F1BC48D70EDFE55D57A9CE71 /* CommonCollectionSectionHeader.xib */; };
@@ -573,6 +574,7 @@
 		F69A2346CB3775D66B4E2955 /* GenericTableCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00531F86C53072D1719F83E /* GenericTableCell.swift */; };
 		F7EE36B54683BD8165FA3AEC /* PlaylistEditVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9839775166E5D5147CCE3280 /* PlaylistEditVC.swift */; };
 		F9A94F1437AE825A8E847487 /* AppIconSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */; };
+		F9CE12127D20C3572A70E074 /* SupportSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5358F70B7444CB358A988AB /* SupportSettingsViewController.swift */; };
 		FA708868494D1ECF2C16EDBE /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2557C962C61AD6C941CD75DD /* SettingsViewController.swift */; };
 		FB4F4B1F8D2C534E74871636 /* PlaylistAddArtistDetailVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2283016B513750F48D5CD289 /* PlaylistAddArtistDetailVC.swift */; };
 		FBADFAAFA7F5C4508ADAB027 /* PlayPausePlaybackAppEnum.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37F96984F806BF474452B926 /* PlayPausePlaybackAppEnum.swift */; };
@@ -1053,6 +1055,7 @@
 		A1C500000000000000000003 /* zh-Hans */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = "zh-Hans"; path = "zh-Hans.lproj/Localizable.strings"; sourceTree = "<group>"; };
 		A2C47AF88A6E493FFDABF320 /* ContextQueueNextSectionHeader.xib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.xib; name = ContextQueueNextSectionHeader.xib; path = fmusic/Screens/Player/SectionHeader/ContextQueueNextSectionHeader.xib; sourceTree = "<group>"; };
 		A32E8E5E4EF977150BB83423 /* RecentlyPlayedViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecentlyPlayedViewController.swift; sourceTree = "<group>"; };
+		A4019EAAE80FEBD4EC6BB77C /* EqualizerSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EqualizerSettingsViewController.swift; sourceTree = "<group>"; };
 		A46B3F7D0885BDFB94913474 /* AccountSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AccountSettingsViewController.swift; sourceTree = "<group>"; };
 		A525BDC20253299C0B10DA73 /* SettingsRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsRow.swift; path = fmusic/SwiftUI/Basics/SettingsRow.swift; sourceTree = "<group>"; };
 		A6EDDCCC274509A42DC2D76F /* AudioSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AudioSettingsView.swift; path = fmusic/SwiftUI/Settings/AudioSettingsView.swift; sourceTree = "<group>"; };
@@ -1126,6 +1129,7 @@
 		D3312C6F4FBE8277BB782F02 /* LibraryResyncProgressViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryResyncProgressViewController.swift; sourceTree = "<group>"; };
 		D3C302DFF375AAFC33716ACD /* IntentManager.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = IntentManager.swift; path = fmusic/Intents/IntentManager.swift; sourceTree = "<group>"; };
 		D43CB7B0720AD1B115F91191 /* FetchUpdateHandler.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = FetchUpdateHandler.swift; path = fmusic/Screens/ViewController/TableViewHelper/FetchUpdateHandler.swift; sourceTree = "<group>"; };
+		D5358F70B7444CB358A988AB /* SupportSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SupportSettingsViewController.swift; sourceTree = "<group>"; };
 		D5C4E69D5E021E0EAEEA0685 /* BasicCollectionCell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BasicCollectionCell.swift; path = fmusic/Screens/Basics/BasicCollectionCell.swift; sourceTree = "<group>"; };
 		D5DA9125EA47D910E83CD209 /* Constants.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Constants.swift; path = "fmusic/SwiftUI/Settings/Player/iOS-SpotifyEquilizerView/Constants.swift"; sourceTree = "<group>"; };
 		D6FFEA9AEEBCE796237491A2 /* DisplaySettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DisplaySettingsViewController.swift; sourceTree = "<group>"; };
@@ -1283,6 +1287,8 @@
 				E8411715940B82BA22CE311C /* SettingsStore.swift */,
 				2557C962C61AD6C941CD75DD /* SettingsViewController.swift */,
 				D3312C6F4FBE8277BB782F02 /* LibraryResyncProgressViewController.swift */,
+				A4019EAAE80FEBD4EC6BB77C /* EqualizerSettingsViewController.swift */,
+				D5358F70B7444CB358A988AB /* SupportSettingsViewController.swift */,
 			);
 			name = Settings;
 			path = Settings;
@@ -3089,6 +3095,8 @@
 				F5663E44EABBD9141CDE504B /* LoginWindowController.swift in Sources */,
 				019BCC18EB629D5919A9033E /* MiniPlayerViewController.swift in Sources */,
 				9101A91E15F0806F9FB7D747 /* MiniPlayerWindowController.swift in Sources */,
+				2FC2E32B23B2EA850068C87F /* EqualizerSettingsViewController.swift in Sources */,
+				F9CE12127D20C3572A70E074 /* SupportSettingsViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
