@@ -27,7 +27,8 @@ import fmusicKit
 /// The search field lives inside the page (no window toolbar changes), so the Lead
 /// only has to map the sidebar item to `SearchViewController()`.
 @MainActor
-final class SearchViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+final class SearchViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate,
+  NSSearchFieldDelegate {
   private enum Mode: Int {
     case songs = 0
     case albums = 1
@@ -73,6 +74,9 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     searchField.sendsWholeSearchString = false
     searchField.target = self
     searchField.action = #selector(searchChanged)
+    searchField.sendsSearchStringImmediately = true
+    searchField.sendsWholeSearchString = false
+    searchField.delegate = self
     searchField.translatesAutoresizingMaskIntoConstraints = false
 
     modeControl.selectedSegment = Mode.songs.rawValue
@@ -209,6 +213,10 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     case .albums: return albums.count
     case .artists: return artists.count
     }
+  }
+
+  func controlTextDidChange(_ notification: Notification) {
+    searchChanged()
   }
 
   @objc

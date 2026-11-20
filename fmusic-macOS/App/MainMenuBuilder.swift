@@ -237,6 +237,32 @@ enum MainMenuBuilder {
       action: #selector(AppDelegate.showMainWindow(_:)),
       keyEquivalent: "1"
     ).target = appDelegate
+
+    let nowPlaying = NSMenuItem(
+      title: L10n.tr("Now Playing"),
+      action: #selector(AppDelegate.showNowPlaying(_:)),
+      keyEquivalent: "p"
+    )
+    nowPlaying.keyEquivalentModifierMask = [.command, .shift]
+    nowPlaying.target = appDelegate
+    menu.addItem(nowPlaying)
+
+    let queue = NSMenuItem(
+      title: L10n.tr("Queue"),
+      action: #selector(AppDelegate.showQueue(_:)),
+      keyEquivalent: "q"
+    )
+    queue.keyEquivalentModifierMask = [.command, .shift]
+    queue.target = appDelegate
+    menu.addItem(queue)
+
+    let search = NSMenuItem(
+      title: L10n.tr("Search"),
+      action: #selector(AppDelegate.focusSearch(_:)),
+      keyEquivalent: "f"
+    )
+    search.target = appDelegate
+    menu.addItem(search)
     menu.addItem(.separator())
     let fullScreen = NSMenuItem(
       title: L10n.tr("Enter Full Screen"),

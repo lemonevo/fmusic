@@ -199,6 +199,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // MARK: - Playback
 
   @objc
+  func showNowPlaying(_ sender: Any?) {
+    PlayerPageWindowController.presentNowPlaying()
+  }
+
+  @objc
+  func showQueue(_ sender: Any?) {
+    PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  func focusSearch(_ sender: Any?) {
+    showMainWindow(sender)
+    (mainWindowController?.contentViewController as? MainViewController)?.select(item: .search)
+  }
+
+  @objc
   func togglePlayPause(_ sender: Any?) {
     player.togglePlayPause()
   }

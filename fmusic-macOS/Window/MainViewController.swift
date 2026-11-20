@@ -85,20 +85,39 @@ final class MainViewController: NSViewController {
     sidebarViewController.onSelectionChanged = { [weak self] item in
       self?.show(item: item)
     }
-    // Dev hook: `open fmusic.app --args --songs` opens the song list directly.
+    // Dev hooks: `--songs` or `--page <sidebar-item-raw-value>` open a page directly.
     let arguments = ProcessInfo.processInfo.arguments
-    let initialItem: SidebarItem = arguments.contains("--songs") ? .songs : .home
+    var initialItem: SidebarItem = .home
+    if let pageIndex = arguments.firstIndex(of: "--page"),
+       pageIndex + 1 < arguments.count,
+       let item = SidebarItem(rawValue: arguments[pageIndex + 1]) {
+      initialItem = item
+    } else if arguments.contains("--songs") {
+      initialItem = .songs
+    }
     sidebarViewController.select(item: initialItem)
     show(item: initialItem)
+  }
+
+  /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
+  func select(item: SidebarItem) {
+    sidebarViewController.select(item: item)
+    show(item: item)
   }
 
   private func show(item: SidebarItem) {
     let controller: NSViewController
     switch item {
-    case .songs:
-      controller = SongsViewController()
-    default:
-      controller = LibraryPlaceholderViewController(item: item)
+    case .home: controller = HomeViewController()
+    case .songs: controller = SongsViewController()
+    case .artists: controller = ArtistsViewController()
+    case .albums: controller = AlbumsViewController()
+    case .newestAlbums: controller = NewestAlbumsViewController()
+    case .recentlyPlayed: controller = RecentlyPlayedViewController()
+    case .search: controller = SearchViewController()
+    case .favoriteSongs: controller = FavoriteSongsViewController()
+    case .playlists: controller = PlaylistsViewController()
+    case .lyricsSearch: controller = LibraryPlaceholderViewController(item: item)
     }
     for child in contentContainerViewController.children {
       child.view.removeFromSuperview()
