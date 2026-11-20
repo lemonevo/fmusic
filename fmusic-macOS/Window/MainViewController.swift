@@ -121,7 +121,7 @@ final class MainViewController: NSViewController {
     case .directories: controller = DirectoriesViewController()
     case .radios: controller = RadiosViewController()
     case .downloads: controller = DownloadsViewController()
-    case .lyricsSearch: controller = LibraryPlaceholderViewController(item: item)
+    case .lyricsSearch: controller = LyricsSearchViewController()
     }
     for child in contentContainerViewController.children {
       child.view.removeFromSuperview()

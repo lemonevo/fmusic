@@ -54,6 +54,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     controller.showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
 
+    // Fresh install or last account logged out: ask for an account (otherwise the
+    // library window is empty and the macOS app has no other way to sign in).
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(accountActiveChanged),
+      name: .accountActiveChanged,
+      object: nil
+    )
+    LoginWindowController.presentLoginIfNeeded()
+
     // Dev hooks for smoke tests from the command line.
     let arguments = ProcessInfo.processInfo.arguments
     if arguments.contains("--play") {
@@ -244,6 +254,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   // MARK: - Playback
+
+  @objc
+  private func accountActiveChanged() {
+    LoginWindowController.presentLoginIfNeeded()
+  }
+
+  @objc
+  func addAccount(_ sender: Any?) {
+    LoginWindowController.presentLogin()
+  }
+
+  @objc
+  func showLyricsPage(_ sender: Any?) {
+    LyricsPageWindowController.present()
+  }
 
   @objc
   func showNowPlaying(_ sender: Any?) {

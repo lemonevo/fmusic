@@ -57,6 +57,14 @@ enum MainMenuBuilder {
     )
     settings.target = appDelegate
     menu.addItem(settings)
+
+    let addAccount = NSMenuItem(
+      title: L10n.tr("Add Account"),
+      action: #selector(AppDelegate.addAccount(_:)),
+      keyEquivalent: ""
+    )
+    addAccount.target = appDelegate
+    menu.addItem(addAccount)
     menu.addItem(.separator())
 
     let servicesItem = NSMenuItem(title: "Services", action: nil, keyEquivalent: "")
@@ -252,6 +260,15 @@ enum MainMenuBuilder {
     nowPlaying.keyEquivalentModifierMask = [.command, .shift]
     nowPlaying.target = appDelegate
     menu.addItem(nowPlaying)
+
+    let lyrics = NSMenuItem(
+      title: L10n.tr("Show Lyrics"),
+      action: #selector(AppDelegate.showLyricsPage(_:)),
+      keyEquivalent: "l"
+    )
+    lyrics.keyEquivalentModifierMask = [.command, .shift]
+    lyrics.target = appDelegate
+    menu.addItem(lyrics)
 
     let queue = NSMenuItem(
       title: L10n.tr("Queue"),

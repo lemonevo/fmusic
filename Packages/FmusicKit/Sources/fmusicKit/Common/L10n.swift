@@ -71,6 +71,7 @@ public enum L10n {
     "Albums": "专辑",
     "Songs": "歌曲",
     "Title": "标题",
+    "Lyrics Page": "歌词",
     "Genres": "流派",
     "Directories": "文件夹",
     "Playlists": "播放列表",
