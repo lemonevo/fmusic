@@ -127,6 +127,17 @@ final class MainViewController: NSViewController {
     playerBarViewController.onToggleLyricsPane = { [weak self] in
       self?.toggleLyricsPane()
     }
+    sidebarViewController.onToggleSidebar = { [weak self] in
+      self?.toggleSidebar()
+    }
+    sidebarViewController.onEditHome = { [weak self] in
+      guard let self else { return }
+      self.select(item: .home)
+      (self.pageStack.first as? HomeViewController)?.presentSectionEditor()
+    }
+    sidebarViewController.onOpenSettings = {
+      AppDelegate.sharedAppDelegate?.showSettings(nil)
+    }
     toolbar.onBack = { [weak self] in
       self?.pop()
     }

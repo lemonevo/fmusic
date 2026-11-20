@@ -23,6 +23,9 @@ import fmusicKit
 @MainActor
 final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
   var onSelectionChanged: ((SidebarItem) -> Void)?
+  var onToggleSidebar: (() -> Void)?
+  var onEditHome: (() -> Void)?
+  var onOpenSettings: (() -> Void)?
 
   private enum Row {
     case section(String)
@@ -50,6 +53,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
   private let accountLabel = NSTextField(labelWithString: "")
+  private let editButton = NSButton()
+  private let sidebarButton = NSButton()
   private let accountAvatar = AvatarView()
 
   private let cellIdentifier = NSUserInterfaceItemIdentifier("SidebarCell")
@@ -77,12 +82,52 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     scrollView.hasVerticalScroller = false
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
-    scrollView.contentInsets = NSEdgeInsets(top: 8, left: 0, bottom: 4, right: 0)
+    scrollView.contentInsets = NSEdgeInsets(top: 48, left: 0, bottom: 4, right: 0)
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
+    // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface.
+    editButton.title = L10n.tr("Edit")
+    editButton.isBordered = false
+    editButton.bezelStyle = .regularSquare
+    editButton.font = .systemFont(ofSize: 12.5, weight: .medium)
+    editButton.contentTintColor = .labelColor
+    editButton.wantsLayer = true
+    editButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
+    editButton.layer?.cornerRadius = 12
+    editButton.target = self
+    editButton.action = #selector(editPressed)
+    editButton.translatesAutoresizingMaskIntoConstraints = false
+
+    sidebarButton.image = NSImage(
+      systemSymbolName: "sidebar.left",
+      accessibilityDescription: L10n.tr("Show Sidebar")
+    )
+    sidebarButton.isBordered = false
+    sidebarButton.bezelStyle = .regularSquare
+    sidebarButton.imagePosition = .imageOnly
+    sidebarButton.contentTintColor = .labelColor
+    sidebarButton.wantsLayer = true
+    sidebarButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
+    sidebarButton.layer?.cornerRadius = 12
+    sidebarButton.target = self
+    sidebarButton.action = #selector(sidebarPressed)
+    sidebarButton.translatesAutoresizingMaskIntoConstraints = false
+
     let footer = makeAccountFooter()
+    root.addSubview(editButton)
+    root.addSubview(sidebarButton)
     root.addSubview(scrollView)
     root.addSubview(footer)
+    NSLayoutConstraint.activate([
+      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
+      editButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
+      editButton.heightAnchor.constraint(equalToConstant: 26),
+      editButton.widthAnchor.constraint(equalToConstant: 66),
+      sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 8),
+      sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
+      sidebarButton.widthAnchor.constraint(equalToConstant: 34),
+      sidebarButton.heightAnchor.constraint(equalToConstant: 26),
+    ])
 
     NSLayoutConstraint.activate([
       scrollView.topAnchor.constraint(equalTo: root.topAnchor),
@@ -118,6 +163,47 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   }
 
   // MARK: - Footer
+
+  // MARK: - Top bar actions
+
+  @objc
+  private func editPressed() {
+    let menu = NSMenu()
+    let home = NSMenuItem(
+      title: L10n.tr("Edit Home"),
+      action: #selector(editHomePressed),
+      keyEquivalent: ""
+    )
+    home.target = self
+    menu.addItem(home)
+    let settings = NSMenuItem(
+      title: L10n.tr("Settings…"),
+      action: #selector(settingsPressed),
+      keyEquivalent: ""
+    )
+    settings.target = self
+    menu.addItem(settings)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: editButton.bounds.midX, y: editButton.bounds.minY - 4),
+      in: editButton
+    )
+  }
+
+  @objc
+  private func editHomePressed() {
+    onEditHome?()
+  }
+
+  @objc
+  private func settingsPressed() {
+    onOpenSettings?()
+  }
+
+  @objc
+  private func sidebarPressed() {
+    onToggleSidebar?()
+  }
 
   private func makeAccountFooter() -> NSView {
     let footer = NSView()

@@ -59,6 +59,10 @@ final class HomeViewController: NSViewController {
     }
   }
 
+  func presentSectionEditor() {
+    showEditMenu()
+  }
+
   @objc
   private func showEditMenu() {
     let menu = NSMenu()
