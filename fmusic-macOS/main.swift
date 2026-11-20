@@ -19,7 +19,7 @@
 import AppKit
 
 // Pure AppKit entry point: no storyboard, no SwiftUI, no Catalyst.
-let application = NSApplication.shared
+let application = FmusicApplication.shared
 let appDelegate = AppDelegate()
 application.delegate = appDelegate
 application.setActivationPolicy(.regular)

@@ -301,6 +301,7 @@
 		C0A1B0252EEE000000000025 /* MenuBarLyricsController.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0262EEE000000000026 /* MenuBarLyricsController.swift */; };
 		C0A1B0272EEE000000000027 /* LyricsOverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B0282EEE000000000028 /* LyricsOverlayManager.swift */; };
 		C0A1C2000000000000000002 /* AppIconPreviews.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C0A1C1000000000000000001 /* AppIconPreviews.xcassets */; };
+		C59D8722501BB334394B5CDD /* FmusicApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902AECAC9C0FA09E849532AF /* FmusicApplication.swift */; };
 		C6162C153041FE30A4B03B7C /* MainWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 948EA7CB9646E84522D89EC4 /* MainWindowController.swift */; };
 		C6A1E0022F0A000100ABCDEF /* ReorderableListEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A1E0012F0A000100ABCDEF /* ReorderableListEditor.swift */; };
 		CC0000000000000000000003 /* fmusicKit in Frameworks */ = {isa = PBXBuildFile; productRef = CC0000000000000000000002 /* fmusicKit */; };
@@ -576,6 +577,7 @@
 		72B99F8399AE0BD0D2CFE1B8 /* MenuBarLyricsController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MenuBarLyricsController.swift; sourceTree = "<group>"; };
 		768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconSettingsSection.swift; sourceTree = "<group>"; };
 		8D7110380270E479872E045E /* DesktopLyricsWindow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DesktopLyricsWindow.swift; sourceTree = "<group>"; };
+		902AECAC9C0FA09E849532AF /* FmusicApplication.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FmusicApplication.swift; sourceTree = "<group>"; };
 		948EA7CB9646E84522D89EC4 /* MainWindowController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MainWindowController.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000032 /* TestAccountInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestAccountInfo.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000000000051 /* LyricsLineLayers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsLineLayers.swift; sourceTree = "<group>"; };
@@ -1293,6 +1295,7 @@
 			children = (
 				5B40903DBDE58BD9CA1B545E /* AppDelegate.swift */,
 				BE4159DD4F90941F7C4A1E17 /* MainMenuBuilder.swift */,
+				902AECAC9C0FA09E849532AF /* FmusicApplication.swift */,
 			);
 			name = App;
 			path = App;
@@ -1877,6 +1880,7 @@
 				2F9CB8A832C27AEADC7633D3 /* LyricsOverlayController.swift in Sources */,
 				5906D38790BC334CDFCBFC79 /* LyricsRenderingSupport.swift in Sources */,
 				0310E3D18356C5ED94FA8C1F /* MenuBarLyricsController.swift in Sources */,
+				C59D8722501BB334394B5CDD /* FmusicApplication.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
