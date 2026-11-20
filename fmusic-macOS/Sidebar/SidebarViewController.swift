@@ -89,11 +89,11 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     editButton.title = L10n.tr("Edit")
     editButton.isBordered = false
     editButton.bezelStyle = .regularSquare
-    editButton.font = .systemFont(ofSize: 12.5, weight: .medium)
+    editButton.font = .systemFont(ofSize: 13, weight: .medium)
     editButton.contentTintColor = .labelColor
     editButton.wantsLayer = true
     editButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-    editButton.layer?.cornerRadius = 12
+    editButton.layer?.cornerRadius = 15
     editButton.target = self
     editButton.action = #selector(editPressed)
     editButton.translatesAutoresizingMaskIntoConstraints = false
@@ -108,7 +108,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     sidebarButton.contentTintColor = .labelColor
     sidebarButton.wantsLayer = true
     sidebarButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-    sidebarButton.layer?.cornerRadius = 12
+    sidebarButton.layer?.cornerRadius = 15
     sidebarButton.target = self
     sidebarButton.action = #selector(sidebarPressed)
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
@@ -121,12 +121,12 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     NSLayoutConstraint.activate([
       editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 84),
       editButton.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 26),
-      editButton.heightAnchor.constraint(equalToConstant: 26),
-      editButton.widthAnchor.constraint(equalToConstant: 66),
+      editButton.heightAnchor.constraint(equalToConstant: 30),
+      editButton.widthAnchor.constraint(equalToConstant: 74),
       sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 8),
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
-      sidebarButton.widthAnchor.constraint(equalToConstant: 34),
-      sidebarButton.heightAnchor.constraint(equalToConstant: 26),
+      sidebarButton.widthAnchor.constraint(equalToConstant: 40),
+      sidebarButton.heightAnchor.constraint(equalToConstant: 30),
     ])
 
     NSLayoutConstraint.activate([

@@ -47,6 +47,30 @@ final class MainWindowController: NSWindowController {
     }
 
     window.contentViewController = MainViewController()
+
+    DispatchQueue.main.async { [weak self] in
+      self?.nudgeTrafficLights()
+    }
+    NotificationCenter.default.addObserver(
+      forName: NSWindow.didResizeNotification,
+      object: window,
+      queue: .main
+    ) { [weak self] _ in
+      self?.nudgeTrafficLights()
+    }
+  }
+
+  /// Catalyst leaves a little more breathing room around the window buttons.
+  private func nudgeTrafficLights() {
+    guard let window else { return }
+    let buttons: [NSWindow.ButtonType] = [.closeButton, .miniaturizeButton, .zoomButton]
+    for type in buttons {
+      guard let button = window.standardWindowButton(type) else { continue }
+      var frame = button.frame
+      frame.origin.x += 14
+      frame.origin.y -= 1
+      button.frame = frame
+    }
   }
 
   var mainViewController: MainViewController? {
