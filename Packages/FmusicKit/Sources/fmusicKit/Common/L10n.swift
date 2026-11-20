@@ -240,11 +240,17 @@ public enum L10n {
     "Export M3U": "导出 M3U",
     "M3U Import": "M3U 导入",
     "Imported Playlist": "导入的歌单",
+    "Playlist": "歌单",
     "The M3U file could not be read.": "无法读取这个 M3U 文件。",
     "No tracks found in this M3U file.": "这个 M3U 文件里没有曲目。",
     "No matching songs found in the library.": "资料库里没有找到匹配的歌曲。",
     "Imported %d songs. %d entries were skipped.": "已导入 %d 首歌曲，跳过 %d 条。",
     "This playlist has no songs to export.": "这个歌单没有可导出的歌曲。",
+    "Choose what to export:": "选择要导出的内容：",
+    "Current Playlist": "当前歌单",
+    "Current Queue": "当前播放队列",
+    "The current queue has no songs to export.": "当前播放队列没有可导出的歌曲。",
+    "The M3U file was saved to %@.": "M3U 文件已保存到 %@。",
     "Visualizer Style": "可视化样式",
     "Show Audio Visualizer": "显示音频可视化",
     "Hide Audio Visualizer": "隐藏音频可视化",
@@ -633,6 +639,20 @@ public enum L10n {
     // MARK: Developer
 
     "Generate Default Artworks": "生成默认封面",
+    "Default Artworks": "默认封面",
+    "Diagnostics": "诊断",
+    "Copy Diagnostics": "复制诊断信息",
+    "Diagnostic information copied to the clipboard.": "诊断信息已复制到剪贴板。",
+    "Open Data Folder": "打开数据文件夹",
+    "Open Artwork Cache Folder": "打开封面缓存文件夹",
+    "No account is signed in.": "当前没有登录的账号。",
+    "Server": "服务器",
+    "Data Folder": "数据文件夹",
+    "Database Path": "数据库路径",
+    "Artwork Cache": "封面缓存",
+    "Generated %d artworks. %d could not be written.": "已生成 %d 张默认封面，%d 张写入失败。",
+    "The diagnostics contain the account, library counts, player state and the latest events.": "诊断信息包含账号、资料库统计、播放器状态和最近事件。",
+    "Regenerates the placeholder artwork for every theme, artwork type and light/dark mode from the shared core artwork definitions, writes the PNG files to the same cache location and file names the Catalyst app uses, and clears the in-memory artwork cache. The macOS UI resolves its placeholders from the bundled asset catalog, so the regenerated files are mainly a best-effort parity/debugging aid.": "从共享核心的封面定义重新生成所有主题、封面类型和明暗模式的占位封面，按 Catalyst 应用相同的缓存位置和文件名写入 PNG，并清空内存中的封面缓存。macOS 界面使用随包资源目录中的占位封面，因此重新生成的文件主要用于与 Catalyst 对齐和调试。",
 
     // MARK: Menus & windows
 

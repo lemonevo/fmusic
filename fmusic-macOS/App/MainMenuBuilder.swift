@@ -115,6 +115,25 @@ enum MainMenuBuilder {
     )
     open.target = appDelegate
     menu.addItem(open)
+
+    let importM3U = NSMenuItem(
+      title: L10n.tr("Import M3U Playlist"),
+      action: #selector(M3UController.importM3UPlaylist(_:)),
+      keyEquivalent: "i"
+    )
+    importM3U.keyEquivalentModifierMask = [.command, .shift]
+    importM3U.target = M3UController.shared
+    menu.addItem(importM3U)
+
+    let exportM3U = NSMenuItem(
+      title: L10n.tr("Export M3U"),
+      action: #selector(M3UController.exportM3U(_:)),
+      keyEquivalent: "e"
+    )
+    exportM3U.keyEquivalentModifierMask = [.command, .shift]
+    exportM3U.target = M3UController.shared
+    menu.addItem(exportM3U)
+
     menu.addItem(.separator())
     menu.addItem(
       withTitle: L10n.tr("Close"),
