@@ -31,6 +31,10 @@ enum SidebarItem: String, CaseIterable, Sendable {
   case lyricsSearch
   case favoriteSongs
   case playlists
+  case podcasts
+  case directories
+  case radios
+  case downloads
 
   var title: String {
     switch self {
@@ -44,6 +48,10 @@ enum SidebarItem: String, CaseIterable, Sendable {
     case .lyricsSearch: return L10n.tr("Lyrics Search")
     case .favoriteSongs: return L10n.tr("Favorite Songs")
     case .playlists: return L10n.tr("Playlists")
+    case .podcasts: return L10n.tr("Podcasts")
+    case .directories: return L10n.tr("Directories")
+    case .radios: return L10n.tr("Radios")
+    case .downloads: return L10n.tr("Downloads")
     }
   }
 
@@ -59,6 +67,10 @@ enum SidebarItem: String, CaseIterable, Sendable {
     case .lyricsSearch: return "quote.bubble"
     case .favoriteSongs: return "heart"
     case .playlists: return "music.note.list"
+    case .podcasts: return "mic"
+    case .directories: return "folder"
+    case .radios: return "dot.radiowaves.left.and.right"
+    case .downloads: return "arrow.down.circle"
     }
   }
 }

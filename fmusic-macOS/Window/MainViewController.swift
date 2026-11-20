@@ -117,6 +117,10 @@ final class MainViewController: NSViewController {
     case .search: controller = SearchViewController()
     case .favoriteSongs: controller = FavoriteSongsViewController()
     case .playlists: controller = PlaylistsViewController()
+    case .podcasts: controller = PodcastsViewController()
+    case .directories: controller = DirectoriesViewController()
+    case .radios: controller = RadiosViewController()
+    case .downloads: controller = DownloadsViewController()
     case .lyricsSearch: controller = LibraryPlaceholderViewController(item: item)
     }
     for child in contentContainerViewController.children {

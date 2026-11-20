@@ -41,6 +41,10 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     .item(.lyricsSearch),
     .item(.favoriteSongs),
     .item(.playlists),
+    .item(.podcasts),
+    .item(.directories),
+    .item(.radios),
+    .item(.downloads),
   ]
 
   private let tableView = NSTableView()
