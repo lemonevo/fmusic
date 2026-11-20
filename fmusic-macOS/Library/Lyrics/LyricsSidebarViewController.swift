@@ -96,19 +96,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     statusLabel.maximumNumberOfLines = 0
     statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    // Keep the window header row visually continuous across the inspector column.
-    let topStrip = NSView()
-    topStrip.wantsLayer = true
-    topStrip.layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
-    topStrip.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(topStrip)
-    NSLayoutConstraint.activate([
-      topStrip.topAnchor.constraint(equalTo: root.topAnchor),
-      topStrip.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      topStrip.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      topStrip.heightAnchor.constraint(equalToConstant: 52),
-    ])
-
     root.addSubview(scrollView)
     root.addSubview(statusLabel)
 
