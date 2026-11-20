@@ -470,6 +470,7 @@
 		A41BD9ED5BE6340C634ADB36 /* NowPlayingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 070B3AE6E923108FAB7DD8A3 /* NowPlayingViewController.swift */; };
 		A7B90530DF86AF1060FBD3F8 /* SliderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32380155114E4E8C9A1A591E /* SliderView.swift */; };
 		A8E1C0DE5E77100000000002 /* SettingsTest.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8E1C0DE5E77100000000001 /* SettingsTest.swift */; };
+		A93AAA5ED172A3EA19480813 /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C28EA401C699AF9E7FA306B /* LoginViewController.swift */; };
 		AA11B00000000000000001B1 /* LyricsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000001A1 /* LyricsSettingsView.swift */; };
 		AA11B00000000000000002B2 /* AudioSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000002A2 /* AudioSettingsView.swift */; };
 		AA11B00000000000000003B3 /* StorageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000003A3 /* StorageSettingsView.swift */; };
@@ -566,6 +567,7 @@
 		F035D769860484F76633C7A7 /* EQPath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54062612AEFE02620811FC97 /* EQPath.swift */; };
 		F096E355CFE3C69B5CDE5464 /* TextSizeSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 140D9E6CF767213A8801C6BD /* TextSizeSettingsSection.swift */; };
 		F320BBD2A11BBACFD2DF1A07 /* PlayMediaIntentHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83F0A706ECF278072BD39691 /* PlayMediaIntentHandler.swift */; };
+		F5663E44EABBD9141CDE504B /* LoginWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 999B4A74D0DBAF918949D20E /* LoginWindowController.swift */; };
 		F69A2346CB3775D66B4E2955 /* GenericTableCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00531F86C53072D1719F83E /* GenericTableCell.swift */; };
 		F7EE36B54683BD8165FA3AEC /* PlaylistEditVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9839775166E5D5147CCE3280 /* PlaylistEditVC.swift */; };
 		F9A94F1437AE825A8E847487 /* AppIconSettingsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 768083A8CBFABC35772DCAED /* AppIconSettingsSection.swift */; };
@@ -693,6 +695,7 @@
 		4860DA3D15736D22B7CAD9B7 /* CarPlaySceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CarPlaySceneDelegate.swift; path = fmusic/CarPlay/CarPlaySceneDelegate.swift; sourceTree = "<group>"; };
 		486FA277670A0912DF6CA318 /* fmusic-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "fmusic-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		49CA60E4BEBCDFC8AA81E84D /* SongsVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SongsVC.swift; path = fmusic/Screens/ViewController/SongsVC.swift; sourceTree = "<group>"; };
+		4C28EA401C699AF9E7FA306B /* LoginViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		4CF3BBC5A222F2F4BDA28D6B /* PlayerControlView.xib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.xib; name = PlayerControlView.xib; path = fmusic/Screens/Player/PlayerControlView.xib; sourceTree = "<group>"; };
 		4E2C391BD84BE8636D5E8AAC /* HomeEditorVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeEditorVC.swift; path = fmusic/Screens/ViewController/HomeEditorVC.swift; sourceTree = "<group>"; };
 		4EDAE4CB9966619A9403C2FD /* LargeCurrentlyPlayingPlayerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LargeCurrentlyPlayingPlayerView.swift; path = fmusic/Screens/Player/LargeCurrentlyPlayingPlayerView.swift; sourceTree = "<group>"; };
@@ -1013,6 +1016,7 @@
 		9839775166E5D5147CCE3280 /* PlaylistEditVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlaylistEditVC.swift; path = fmusic/Screens/ViewController/PlaylistEditVC.swift; sourceTree = "<group>"; };
 		9846399D438A609C3C56EF14 /* ContextQueuePrevSectionHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ContextQueuePrevSectionHeader.swift; path = fmusic/Screens/Player/SectionHeader/ContextQueuePrevSectionHeader.swift; sourceTree = "<group>"; };
 		990C7C739E0E257421C53F41 /* SelectionAccessory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SelectionAccessory.swift; path = fmusic/Screens/Basics/SelectionAccessory.swift; sourceTree = "<group>"; };
+		999B4A74D0DBAF918949D20E /* LoginWindowController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginWindowController.swift; sourceTree = "<group>"; };
 		9A2EEE15BDB9D87BE2FA2520 /* QueueVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = QueueVC.swift; path = fmusic/Screens/ViewController/QueueVC.swift; sourceTree = "<group>"; };
 		9BF16A84270654D9449D6DC0 /* SetFavoriteForCurrentlyPlayingSongIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SetFavoriteForCurrentlyPlayingSongIntent.swift; path = fmusic/Intents/AppIntents/SetFavoriteForCurrentlyPlayingSongIntent.swift; sourceTree = "<group>"; };
 		9C1B7C20CB4DD3C6DCCD5A71 /* AccountSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AccountSettingsView.swift; path = fmusic/SwiftUI/Settings/Account/AccountSettingsView.swift; sourceTree = "<group>"; };
@@ -1219,6 +1223,16 @@
 			);
 			name = Theme;
 			path = Theme;
+			sourceTree = "<group>";
+		};
+		17E7EC848453DD5810C0CBAF /* Login */ = {
+			isa = PBXGroup;
+			children = (
+				4C28EA401C699AF9E7FA306B /* LoginViewController.swift */,
+				999B4A74D0DBAF918949D20E /* LoginWindowController.swift */,
+			);
+			name = Login;
+			path = Login;
 			sourceTree = "<group>";
 		};
 		378C2256545B2F4F1DDDCD55 /* Display */ = {
@@ -2258,6 +2272,7 @@
 				4F0BADEDF697E4EEE15DF6F3 /* Sidebar */,
 				0DA580ACAA8D26EB19AA3B8F /* Theme */,
 				7BAD05D2FB0403EFF1424FE3 /* Lyrics */,
+				17E7EC848453DD5810C0CBAF /* Login */,
 			);
 			name = "fmusic-macOS";
 			path = "fmusic-macOS";
@@ -3055,6 +3070,8 @@
 				BF2BF67DC29283EC0755D3F7 /* LibraryTableCells.swift in Sources */,
 				141DA9A9A661ADAB2497817B /* SearchViewController.swift in Sources */,
 				929659C2E2FCB753F1AE30C8 /* LibraryResyncProgressViewController.swift in Sources */,
+				A93AAA5ED172A3EA19480813 /* LoginViewController.swift in Sources */,
+				F5663E44EABBD9141CDE504B /* LoginWindowController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
