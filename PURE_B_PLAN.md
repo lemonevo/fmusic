@@ -8,16 +8,28 @@
 
 ## 0. 一句话目标（纯 B = 彻底不要 Catalyst）
 
-把当前「Catalyst 单工程（iPad App 跑在 Mac 上）」重构成 **两套完全原生的 App + 一个跨平台共享核心**：
+把当前「Catalyst 单工程（iPad App 跑在 Mac 上）」重构成 **四个平台各自的原生 App + 一个跨平台共享核心**：
 
 ```
 fmusic.xcworkspace
 ├─ Packages/FmusicKit/      ← 真正的 Swift Package，平台无关的业务核心
-├─ fmusic-iOS/              ← iOS/iPad App（原生 UIKit/SwiftUI）
-└─ fmusic-macOS/            ← macOS App（纯 AppKit 手写界面，不用 SwiftUI）
+├─ Packages/FmusicWatchKit/ ← (阶段 5) watchOS 专用轻量共享：协议/模型/连接消息
+├─ fmusic-iOS/              ← iOS + iPad App（原生 UIKit/SwiftUI，一个 target 覆盖两种尺寸）
+├─ fmusic-macOS/            ← macOS App（纯 AppKit 手写界面，不用 SwiftUI）
+└─ fmusic-watchOS/          ← watchOS App（SwiftUI + WatchConnectivity，遥控器角色）
 ```
 
 **macOS 端 = 纯 AppKit**：主窗口、设置、列表、播放器全部用 `NSWindow/NSViewController/NSView` 手写，**不使用 SwiftUI、不使用 Catalyst**。这是为了最接近 Apple Music 的性能与原生感。
+
+**watchOS 端 = 遥控器，不是独立播放器**：Apple Watch 无法后台播放本地音频文件（`AudioStreaming` 也不支持 watchOS），标准做法是手机在后台放歌、手表通过 WatchConnectivity 控制并显示 Now Playing。界面用 SwiftUI（watchOS 只能如此）。
+
+**四个平台 = 三个完整播放器 + 一个遥控器**：
+| 平台 | 技术栈 | 角色 |
+|---|---|---|
+| macOS | 纯 AppKit | 完整播放器 |
+| iOS | 原生 UIKit/SwiftUI | 完整播放器 |
+| iPad | 与 iOS **同一个 target**（尺寸自适应） | 完整播放器 |
+| watchOS | SwiftUI + WatchConnectivity | 手机音频的遥控器 |
 
 **`main` 分支是稳定可发版版本，禁止在 main 上做重构。** 所有改动只在 `refactor/native-appkit-multiplatform` 分支。
 
@@ -156,14 +168,33 @@ swift build -Xswiftc -target -Xswiftc arm64-apple-macosx14.0   # 明确 macOS �
 
 **验收**：iPhone/iPad 模拟器构建运行，播放+后台+歌词正常。
 
-### 阶段 4 — 收尾与统一
-**目标**：两端共享尽可能多的业务逻辑（已在 FmusicKit），UI 各自原生，删掉旧 Catalyst target。
+### 阶段 4 — watchOS 遥控器 App（纯原生，但角色不同）
+**目标**：`fmusic-watchOS`，SwiftUI + WatchConnectivity，**不是独立播放器**。
+
+**为什么这样设计（平台事实，别试图绕开）**：
+- watchOS **不支持后台播放本地音频文件**；`AudioStreaming` 也不支持 watchOS（platforms 只有 iOS/macOS/tvOS）
+- 正确模型：**iPhone 在后台放歌 → 手表通过 WatchConnectivity 发控制命令 → 手机执行并回传 Now Playing 状态**
+- 手表界面只显示：当前歌曲/歌手/封面、播放/暂停/上一首/下一首、音量；不需要曲库/设置/歌词编辑
 
 **任务**：
-- 确认 main 的所有功能在两端具备（对照 `AI_HANDOFF.md` 功能清单）；
+1. 新建 `fmusic-watchOS` target（`SDKROOT = watchos`，SwiftUI App 生命周期）。
+2. 新建轻量包 `Packages/FmusicWatchKit`（platforms `.watchOS(10)`），只放：消息协议（`Play/Pause/Next/Prev/Volume/NowPlayingInfo`）、小型模型（歌曲标题/艺人/封面 Data），**不依赖 FmusicKit 的音频/数据库/Core Data**。
+3. iOS App 端加 WatchConnectivity 监听（`WCSession.isSupported`），收到命令调用 `player.togglePlayPause()` 等，回传 `MPNowPlayingInfoCenter` 状态。
+4. watch 端 SwiftUI 界面：Now Playing 卡片 + 四个控制按钮 + 封面；用 WatchConnectivity 收发消息。
+
+**验收**：Watch 模拟器/真机（若有）能显示手机当前播放曲目并远程控制播放/暂停/切歌；手机锁屏后仍可控制。
+
+**注意**：watch 端不需要、也不要搬 FmusicKit 全套（音频引擎/Core Data/FileSystem 都用不上）。这是四端里唯一"不能完整复用核心"的一端。
+
+### 阶段 5 — 收尾与统一
+**目标**：四端共享尽可能多的业务逻辑，UI 各自原生，删掉旧 Catalyst target。
+
+**任务**：
+- 确认 main 的所有功能在 macOS/iOS 两端具备（对照 `AI_HANDOFF.md` 功能清单）；
 - 旧 `fmusic` Catalyst target 删除；
-- CI 改为构建两个原生 App；
-- 逐步收敛重复代码（主题 token、格式化器等进 FmusicKit）。
+- CI 改为构建三个原生 App + watch App；
+- 逐步收敛重复代码（主题 token、格式化器等进 FmusicKit）；
+- watch 与手机的 Now Playing 同步做端到端回归。
 
 ---
 
@@ -183,8 +214,10 @@ swift build -Xswiftc -target -Xswiftc arm64-apple-macosx14.0   # 明确 macOS �
    - 验收：cd Packages/FmusicKit && swift build 绿
 4. 阶段 1 绿了才进阶段 2：新建 fmusic-macOS target，纯 AppKit 手写 UI。
    先做「设置窗口 + 播放器最小骨架 + 歌词浮窗」垂直切片。
-5. 每个里程碑本地提交（英文 message），不要 push（除非用户明确要求）。
-6. 每步保证至少一条构建链绿：Package swift build 或 macOS target xcodebuild。
+5. 阶段 3 做 iOS/iPad（同一个 target）；阶段 4 做 watchOS 遥控器 App
+   （SwiftUI + WatchConnectivity，手机放歌手表控制，不搬 FmusicKit 音频/数据库）。
+6. 每个里程碑本地提交（英文 message），不要 push（除非用户明确要求）。
+7. 每步保证至少一条构建链绿：Package swift build 或对应平台 xcodebuild。
    不要留下长期不可编译状态。
 ```
 
