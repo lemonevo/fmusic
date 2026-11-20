@@ -25,15 +25,21 @@ import SwiftUI
 enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
   case general
   case account
-  case displayAndInteraction
-  case library
   case player
+  case audio
+  case lyrics
+  case displayAndInteraction
+  case storage
+  case library
+  case support
+  case advanced
+  // sub-pages (pushed from a parent page, not shown directly in the sidebar)
   case equalizer
   case swipe
   case artwork
-  case support
   case license
   case xcallback
+  case eventLog
   #if DEBUG
     case developer = "developer"
   #endif
@@ -47,25 +53,36 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
       .general,
       .account,
       .player,
+      .audio,
+      .lyrics,
       .displayAndInteraction,
+      .storage,
       .library,
-      .support,
     ]
   }
 
-  func view() -> any View {
+  /// Builds the page as a concrete view instead of `AnyView` so SwiftUI keeps
+  /// the static type and can diff/update it much more cheaply.
+  @MainActor
+  @ViewBuilder
+  func view() -> some View {
     switch self {
     case .general: SettingsView()
     case .displayAndInteraction: DisplaySettingsView()
     case .account: AccountSettingsView()
     case .library: LibrarySettingsView()
     case .player: PlayerSettingsView()
+    case .audio: AudioSettingsView()
+    case .lyrics: LyricsSettingsView()
+    case .storage: StorageSettingsView()
+    case .advanced: AdvancedSettingsView()
     case .equalizer: EqualizerSettingsView()
     case .swipe: SwipeSettingsView()
     case .artwork: ArtworkSettingsView()
     case .support: SupportSettingsView()
     case .license: LicenseSettingsView()
     case .xcallback: XCallbackURLsSetttingsView()
+    case .eventLog: EventLogSettingsView()
     #if DEBUG
       case .developer: DeveloperView()
     #endif
@@ -84,6 +101,11 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     case .license: L10n.tr("Third-Party Licenses")
     case .equalizer: L10n.tr("Equalizer")
     case .player: L10n.tr("Playback")
+    case .audio: L10n.tr("Audio & Effects")
+    case .lyrics: L10n.tr("Lyrics")
+    case .storage: L10n.tr("Storage & Artwork")
+    case .advanced: L10n.tr("Advanced")
+    case .eventLog: L10n.tr("Event Log")
     case .xcallback: L10n.tr("X-Callback URL")
     #if DEBUG
       case .developer: L10n.tr("Developer Tools")
@@ -110,6 +132,11 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     case .account: "person.fill"
     case .library: "music.note.house.fill"
     case .player: "play.circle.fill"
+    case .audio: "waveform"
+    case .lyrics: "quote.bubble.fill"
+    case .storage: "internaldrive.fill"
+    case .advanced: "slider.horizontal.3"
+    case .eventLog: "list.bullet.rectangle"
     case .equalizer: "chart.bar.fill"
     case .swipe: "arrow.right.circle.fill"
     case .artwork: "photo.fill"

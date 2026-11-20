@@ -89,11 +89,6 @@ private enum SettingsSearchCatalog {
     .init(L10n.tr("Logout"), .account, keywords: ["logout", "退出登录"]),
 
     // Playback
-    .init(
-      L10n.tr("Enable ReplayGain"),
-      .player,
-      keywords: ["replaygain", "loudness", "响度"]
-    ),
     .init(L10n.tr("Crossfade"), .player, keywords: ["crossfade", "fade", "淡入淡出"]),
     .init(
       L10n.tr("Auto-cache played tracks and download upcoming ones"),
@@ -117,16 +112,66 @@ private enum SettingsSearchCatalog {
       keywords: ["skip", "快进", "快退"]
     ),
     .init(
-      L10n.tr("Lyrics Smooth Scrolling"),
-      .player,
-      keywords: ["lyrics", "scroll", "歌词", "滚动"]
-    ),
-    .init(
       L10n.tr("Disable Player Shuffle Button"),
       .player,
       keywords: ["shuffle", "random", "随机", "随机播放"]
     ),
-    .init(L10n.tr("Equalizer"), .player, keywords: ["equalizer", "eq", "均衡器"]),
+
+    // Audio & Effects
+    .init(
+      L10n.tr("Enable ReplayGain"),
+      .audio,
+      keywords: ["replaygain", "loudness", "响度"]
+    ),
+    .init(L10n.tr("Equalizer"), .audio, keywords: ["equalizer", "eq", "均衡器"]),
+
+    // Lyrics
+    .init(
+      L10n.tr("Desktop Lyrics"),
+      .lyrics,
+      keywords: ["desktop lyrics", "lyrics", "桌面歌词"]
+    ),
+    .init(
+      L10n.tr("Desktop Lyrics Font Size"),
+      .lyrics,
+      keywords: ["font size", "字号", "字体大小"]
+    ),
+    .init(L10n.tr("Alignment"), .lyrics, keywords: ["align", "对齐"]),
+    .init(
+      L10n.tr("Background Opacity"),
+      .lyrics,
+      keywords: ["opacity", "transparent", "透明度", "背景"]
+    ),
+    .init(
+      L10n.tr("Control Bar Icon Color"),
+      .lyrics,
+      keywords: ["control bar", "icon", "color", "black", "white", "颜色", "控制条", "图标"]
+    ),
+    .init(
+      L10n.tr("Show Next Line"),
+      .lyrics,
+      keywords: ["next line", "下一句"]
+    ),
+    .init(
+      L10n.tr("Always on Top"),
+      .lyrics,
+      keywords: ["always on top", "置顶"]
+    ),
+    .init(
+      L10n.tr("Lock Desktop Lyrics"),
+      .lyrics,
+      keywords: ["lock", "click through", "锁定", "鼠标穿透"]
+    ),
+    .init(
+      L10n.tr("Menu Bar Lyrics"),
+      .lyrics,
+      keywords: ["menu bar", "lyrics", "菜单栏歌词"]
+    ),
+    .init(
+      L10n.tr("Lyrics Smooth Scrolling"),
+      .lyrics,
+      keywords: ["lyrics", "scroll", "歌词", "滚动"]
+    ),
 
     // Display
     .init(
@@ -143,47 +188,6 @@ private enum SettingsSearchCatalog {
       L10n.tr("Mini Player Always on Top"),
       .displayAndInteraction,
       keywords: ["mini player", "top", "迷你播放器", "置顶"]
-    ),
-    .init(
-      L10n.tr("Desktop Lyrics"),
-      .displayAndInteraction,
-      keywords: ["desktop lyrics", "lyrics", "桌面歌词"]
-    ),
-    .init(
-      L10n.tr("Desktop Lyrics Font Size"),
-      .displayAndInteraction,
-      keywords: ["font size", "字号", "字体大小"]
-    ),
-    .init(L10n.tr("Alignment"), .displayAndInteraction, keywords: ["align", "对齐"]),
-    .init(
-      L10n.tr("Background Opacity"),
-      .displayAndInteraction,
-      keywords: ["opacity", "transparent", "透明度", "背景"]
-    ),
-    .init(
-      L10n.tr("Control Bar Icon Color"),
-      .displayAndInteraction,
-      keywords: ["control bar", "icon", "color", "black", "white", "颜色", "控制条", "图标"]
-    ),
-    .init(
-      L10n.tr("Show Next Line"),
-      .displayAndInteraction,
-      keywords: ["next line", "下一句"]
-    ),
-    .init(
-      L10n.tr("Always on Top"),
-      .displayAndInteraction,
-      keywords: ["always on top", "置顶"]
-    ),
-    .init(
-      L10n.tr("Lock Desktop Lyrics"),
-      .displayAndInteraction,
-      keywords: ["lock", "click through", "锁定", "鼠标穿透"]
-    ),
-    .init(
-      L10n.tr("Menu Bar Lyrics"),
-      .displayAndInteraction,
-      keywords: ["menu bar", "lyrics", "菜单栏歌词"]
     ),
     .init(
       L10n.tr("Detailed Information"),
@@ -223,53 +227,33 @@ private enum SettingsSearchCatalog {
     .init(L10n.tr("Songs"), .library, keywords: ["songs", "歌曲"]),
     .init(L10n.tr("Initial Sync"), .library, keywords: ["sync", "同步"]),
     .init(L10n.tr("Progress"), .library, keywords: ["progress", "进度"]),
-    .init(L10n.tr("Cached Songs"), .library, keywords: ["cached", "缓存"]),
+    .init(L10n.tr("Cached Songs"), .storage, keywords: ["cached", "缓存"]),
     .init(
       L10n.tr("Complete Cache Size"),
-      .library,
+      .storage,
       keywords: ["cache size", "缓存大小"]
     ),
     .init(
       L10n.tr("Cache Size Limit"),
-      .library,
+      .storage,
       keywords: ["cache limit", "缓存上限"]
     ),
     .init(
       L10n.tr("Download all songs in library"),
-      .library,
+      .storage,
       keywords: ["download all", "全部下载"]
     ),
     .init(
       L10n.tr("Delete downloaded songs"),
-      .library,
+      .storage,
       keywords: ["delete", "cache", "删除缓存"]
     ),
     .init(
       L10n.tr("Artwork & Cache"),
-      .library,
+      .storage,
       keywords: ["artwork", "cover", "封面", "缓存"]
     ),
 
-    // Support
-    .init(
-      L10n.tr("Report an issue on GitHub"),
-      .support,
-      keywords: ["issue", "github", "反馈", "报告问题"]
-    ),
-    .init(L10n.tr("Export log"), .support, keywords: ["log", "导出日志"]),
-    .init(L10n.tr("Event Log"), .support, keywords: ["event log", "事件日志"]),
-    .init(
-      L10n.tr("Third-Party Licenses"),
-      .support,
-      keywords: ["license", "third party", "第三方许可"]
-    ),
-    .init(
-      L10n.tr("X-Callback URL"),
-      .support,
-      keywords: ["xcallback", "x-callback", "url"]
-    ),
-    .init(L10n.tr("Version"), .support, keywords: ["version", "版本"]),
-    .init(L10n.tr("Build Number"), .support, keywords: ["build", "构建版本"]),
   ]
 }
 
@@ -314,7 +298,7 @@ struct SettingsTabView: View {
       .navigationSplitViewColumnWidth(min: 210, ideal: 210, max: 260)
     } detail: {
       NavigationStack(path: $detailPath) {
-        AnyView(selectedMenu.view())
+        selectedMenu.view()
           .id(selectedMenu)
       }
       // Cross-fade between setting pages instead of swapping the content instantly.
@@ -426,20 +410,30 @@ struct SettingsTabView: View {
     .frame(maxHeight: .infinity)
   }
 
-  @ViewBuilder
-  private var menuRows: some View {
-    sectionHeader(L10n.tr("Settings"))
-    ForEach(appMenuItems, id: \.self) { menuElement in
-      menuRow(menuElement)
-    }
-    sectionHeader(L10n.tr("Support"))
-    if let supportItem = NavigationTarget.sidebarItems.first(where: { $0 == .support }) {
-      menuRow(supportItem)
-    }
+  /// Sidebar grouping: related pages sit under a heading so the list reads as a
+  /// clear outline instead of one flat column.
+  private struct SidebarSection {
+    let title: String
+    let items: [NavigationTarget]
   }
 
-  private var appMenuItems: [NavigationTarget] {
-    NavigationTarget.sidebarItems.filter { $0 != .support }
+  private var sidebarSections: [SidebarSection] {
+    [
+      SidebarSection(title: L10n.tr("Settings"), items: [.general, .account]),
+      SidebarSection(title: L10n.tr("Playback"), items: [.player, .audio]),
+      SidebarSection(title: L10n.tr("Appearance"), items: [.lyrics, .displayAndInteraction]),
+      SidebarSection(title: L10n.tr("Library"), items: [.storage, .library]),
+    ]
+  }
+
+  @ViewBuilder
+  private var menuRows: some View {
+    ForEach(Array(sidebarSections.enumerated()), id: \.offset) { _, section in
+      sectionHeader(section.title)
+      ForEach(section.items, id: \.self) { menuElement in
+        menuRow(menuElement)
+      }
+    }
   }
 
   private func sectionHeader(_ title: String) -> some View {

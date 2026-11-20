@@ -105,6 +105,10 @@
 		50791E7F28D363F0006CE6E5 /* InfoBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E7E28D363F0006CE6E5 /* InfoBannerView.swift */; };
 		50791E8128D365E9006CE6E5 /* UpdatePasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E8028D365E9006CE6E5 /* UpdatePasswordView.swift */; };
 		50791E8528D36F1F006CE6E5 /* LibrarySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E8428D36F1F006CE6E5 /* LibrarySettingsView.swift */; };
+		AA11B00000000000000004B4 /* AdvancedSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000004A4 /* AdvancedSettingsView.swift */; };
+		AA11B00000000000000003B3 /* StorageSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000003A3 /* StorageSettingsView.swift */; };
+		AA11B00000000000000002B2 /* AudioSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000002A2 /* AudioSettingsView.swift */; };
+		AA11B00000000000000001B1 /* LyricsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11B00000000000000001A1 /* LyricsSettingsView.swift */; };
 		50791E8728D3B7BF006CE6E5 /* PlayerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E8628D3B7BF006CE6E5 /* PlayerSettingsView.swift */; };
 		50791E8928D3BC4D006CE6E5 /* SwipeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50791E8828D3BC4D006CE6E5 /* SwipeSettingsView.swift */; };
 		507BA5C32F01B9A400B4EA8B /* SetShuffleIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507BA5C22F01B9A400B4EA8B /* SetShuffleIntent.swift */; };
@@ -637,6 +641,10 @@
 		50791E7E28D363F0006CE6E5 /* InfoBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoBannerView.swift; sourceTree = "<group>"; };
 		50791E8028D365E9006CE6E5 /* UpdatePasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdatePasswordView.swift; sourceTree = "<group>"; };
 		50791E8428D36F1F006CE6E5 /* LibrarySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibrarySettingsView.swift; sourceTree = "<group>"; };
+		AA11B00000000000000004A4 /* AdvancedSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettingsView.swift; sourceTree = "<group>"; };
+		AA11B00000000000000003A3 /* StorageSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageSettingsView.swift; sourceTree = "<group>"; };
+		AA11B00000000000000002A2 /* AudioSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSettingsView.swift; sourceTree = "<group>"; };
+		AA11B00000000000000001A1 /* LyricsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LyricsSettingsView.swift; sourceTree = "<group>"; };
 		50791E8628D3B7BF006CE6E5 /* PlayerSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerSettingsView.swift; sourceTree = "<group>"; };
 		50791E8828D3BC4D006CE6E5 /* SwipeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeSettingsView.swift; sourceTree = "<group>"; };
 		507BA5C22F01B9A400B4EA8B /* SetShuffleIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetShuffleIntent.swift; sourceTree = "<group>"; };
@@ -1183,6 +1191,10 @@
 				631C166C2C6D61110085F62E /* NavigationTarget.swift */,
 				50AE79AB2C1CCBEC0085CBB3 /* DeveloperView.swift */,
 				50791E8428D36F1F006CE6E5 /* LibrarySettingsView.swift */,
+				AA11B00000000000000004A4 /* AdvancedSettingsView.swift */,
+				AA11B00000000000000003A3 /* StorageSettingsView.swift */,
+				AA11B00000000000000002A2 /* AudioSettingsView.swift */,
+				AA11B00000000000000001A1 /* LyricsSettingsView.swift */,
 				504B441828D6F0920033982C /* LicenseSettingsView.swift */,
 				504B441C28D7A6330033982C /* XCallbackURLsSetttingsView.swift */,
 				378C2256545B2F4F1DDDCD55 /* Display */,
@@ -2224,6 +2236,10 @@
 				631C166F2C6D63510085F62E /* SettingsSection.swift in Sources */,
 				50A30E542B7408DB00722894 /* ContextQueueNextSectionHeader.swift in Sources */,
 				50791E8528D36F1F006CE6E5 /* LibrarySettingsView.swift in Sources */,
+				AA11B00000000000000004B4 /* AdvancedSettingsView.swift in Sources */,
+				AA11B00000000000000003B3 /* StorageSettingsView.swift in Sources */,
+				AA11B00000000000000002B2 /* AudioSettingsView.swift in Sources */,
+				AA11B00000000000000001B1 /* LyricsSettingsView.swift in Sources */,
 				50DE29ED2B8FCFC500ABA78E /* LibraryDisplayType+Extension.swift in Sources */,
 				5019441D2B7ACB0800082D2E /* PopupPlayer+Animations.swift in Sources */,
 				A1B2C3D40000000000000054 /* PlayerWindowVolumeControl.swift in Sources */,

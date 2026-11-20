@@ -25,15 +25,6 @@ import SwiftUI
 // MARK: - SupportSettingsView
 
 struct SupportSettingsView: View {
-  enum Destination: Hashable {
-    case eventLog
-    case license
-    case xcallback
-    #if DEBUG
-      case developer
-    #endif
-  }
-
   let splitPercentage = 0.15
 
   var body: some View {
@@ -56,23 +47,6 @@ struct SupportSettingsView: View {
           }
         }
 
-        SettingsSection {
-          NavigationLink(value: Destination.eventLog) {
-            Text(L10n.tr("Event Log"))
-          }
-          NavigationLink(value: Destination.license) {
-            Text(L10n.tr("Third-Party Licenses"))
-          }
-          NavigationLink(value: Destination.xcallback) {
-            Text(L10n.tr("X-Callback URL"))
-          }
-          #if DEBUG
-            NavigationLink(value: Destination.developer) {
-              Text(L10n.tr("Developer Tools"))
-            }
-          #endif
-        }
-
         SettingsSection(
           content: {
             SettingsRow(title: L10n.tr("Version")) {
@@ -88,16 +62,6 @@ struct SupportSettingsView: View {
     }
     .navigationTitle(L10n.tr("Support & About"))
     .navigationBarTitleDisplayMode(.inline)
-    .navigationDestination(for: Destination.self) { destination in
-      switch destination {
-      case .eventLog: EventLogSettingsView()
-      case .license: LicenseSettingsView()
-      case .xcallback: XCallbackURLsSetttingsView()
-      #if DEBUG
-        case .developer: DeveloperView()
-      #endif
-      }
-    }
     .onAppear {
       appDelegate.userStatistics.visited(.settingsSupport)
     }

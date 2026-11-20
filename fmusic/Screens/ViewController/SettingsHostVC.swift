@@ -31,6 +31,9 @@ class SettingsHostVC: UIViewController {
   }()
 
   var changesAgent: [AnyCancellable] = []
+  /// Set when settings live in their own window scene; closing then discards that
+  /// scene instead of dismissing a modal.
+  var onRequestClose: (() -> ())?
   private var showsSidebar = false
   private var accountNotificationHandler: AccountNotificationHandler?
 
@@ -86,28 +89,55 @@ class SettingsHostVC: UIViewController {
   }
 
   private func closeSettings() {
+    if let onRequestClose {
+      onRequestClose()
+      return
+    }
     guard presentingViewController != nil else { return }
     dismiss(animated: true)
   }
 
-  override var keyCommands: [UIKeyCommand]? {
-    guard showsSidebar, presentingViewController != nil else { return super.keyCommands }
-    var commands = super.keyCommands ?? []
-    commands.append(UIKeyCommand(
-      title: L10n.tr("Close"),
-      action: #selector(closeSettingsFromKeyboard),
-      input: UIKeyCommand.inputEscape
-    ))
-    return commands
-  }
+  private var didAddKeyCommand = false
+  private var didBindSettings = false
 
   @objc
   private func closeSettingsFromKeyboard() {
     closeSettings()
   }
 
+  override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+    // Esc closes the settings window when hosted in its own scene.
+    if onRequestClose != nil || presentingViewController != nil {
+      if presses.contains(where: { $0.key?.keyCode == .keyboardEscape }) {
+        closeSettings()
+        return
+      }
+    }
+    super.pressesBegan(presses, with: event)
+  }
+
   override func viewIsAppearing(_ animated: Bool) {
     super.viewIsAppearing(animated)
+    // Register Esc via addKeyCommand so it works whether settings are shown
+    // modally or hosted in their own window scene (the responder-chain
+    // `keyCommands` route is unreliable for a window-scene root view).
+    if !didAddKeyCommand, showsSidebar,
+       presentingViewController != nil || onRequestClose != nil {
+      didAddKeyCommand = true
+      addKeyCommand(UIKeyCommand(
+        title: L10n.tr("Close"),
+        action: #selector(closeSettingsFromKeyboard),
+        input: UIKeyCommand.inputEscape
+      ))
+    }
+    // Bind the settings once. Re-assigning ~50 @Published properties on each
+    // re-appearance would invalidate the whole SwiftUI tree repeatedly.
+    guard !didBindSettings else {
+      refreshAccountSettings(accountInfo: settings.activeAccountInfo)
+      return
+    }
+    didBindSettings = true
+
     changesAgent = [AnyCancellable]()
 
     if !showsSidebar {

@@ -25,32 +25,12 @@ import SwiftUI
 // MARK: - PlayerSettingsView
 
 struct PlayerSettingsView: View {
-  enum Destination: Hashable {
-    case equalizer
-  }
-
   @EnvironmentObject
   private var settings: Settings
 
   var body: some View {
     ZStack {
       SettingsList {
-        // ReplayGain Settings
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
-              title: L10n.tr("Enable ReplayGain"),
-              isOn: Binding(
-                get: { settings.isReplayGainEnabled },
-                set: { isEnabled in
-                  settings.isReplayGainEnabled = isEnabled
-                }
-              )
-            )
-          },
-          footer: L10n.tr("Automatically normalize track volume based on replay gain information for consistent loudness.")
-        )
-
         // Crossfade
         SettingsSection(
           content: {
@@ -122,23 +102,6 @@ struct PlayerSettingsView: View {
           )
         )
 
-        if let activeAccountInfo = settings.activeAccountInfo,
-           appDelegate.storage.settings.accounts.getSetting(activeAccountInfo)
-           .read.loginCredentials != nil {
-          SettingsSection(
-            content: {
-              SettingsCheckBoxRow(
-                title: L10n.tr("Lyrics Smooth Scrolling"),
-                isOn: $settings.isLyricsSmoothScrolling
-              )
-            },
-            footer:
-            L10n.tr(
-              "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
-            )
-          )
-        }
-
         SettingsSection(
           content: {
             SettingsCheckBoxRow(
@@ -169,20 +132,10 @@ struct PlayerSettingsView: View {
           )
         #endif
 
-        SettingsSection {
-          NavigationLink(value: Destination.equalizer) {
-            Text(L10n.tr("Equalizer"))
-          }
-        }
       }
     }
     .navigationTitle(L10n.tr("Playback"))
     .navigationBarTitleDisplayMode(.inline)
-    .navigationDestination(for: Destination.self) { destination in
-      switch destination {
-      case .equalizer: EqualizerSettingsView()
-      }
-    }
     .onAppear {
       appDelegate.userStatistics.visited(.settingsPlayer)
     }

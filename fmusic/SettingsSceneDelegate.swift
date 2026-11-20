@@ -25,24 +25,123 @@ import UIKit
 
 // MARK: - SettingsSceneDelegate
 
-/// Settings is presented inside the main window (`AppDelegate.showSettings`). Scene sessions from
-/// older builds, where settings had its own window, can still be restored on launch - discard them
-/// so no empty settings window appears.
+/// Settings live in their own window scene (like Apple Music's Preferences): a
+/// separate, smaller window that floats above the main window instead of covering
+/// the main window's content. `AppDelegate.showSettings()` opens or raises it.
 class SettingsSceneDelegate: UIResponder, UIWindowSceneDelegate {
   public lazy var log = {
     FmusicKit.shared.log
   }()
+
+  var window: UIWindow?
+  private var settingsVC: SettingsHostVC?
+
+  #if targetEnvironment(macCatalyst)
+    /// A window noticeably smaller than the main window (min 980×540).
+    static let preferredWindowSize = CGSize(width: 900, height: 620)
+  #endif
 
   func scene(
     _ scene: UIScene,
     willConnectTo session: UISceneSession,
     options connectionOptions: UIScene.ConnectionOptions
   ) {
-    os_log("Settings scene discarded", log: self.log, type: .info)
-    UIApplication.shared.requestSceneSessionDestruction(
-      session,
-      options: nil,
-      errorHandler: nil
-    )
+    os_log("Settings scene: willConnectTo", log: self.log, type: .info)
+    guard let windowScene = scene as? UIWindowScene else { return }
+
+    window = UIWindow(windowScene: windowScene)
+    appDelegate.applyTextSize()
+    // Settings follow the in-app appearance choice, not the system one.
+    window?.overrideUserInterfaceStyle = appDelegate.storage.settings.user.appearanceMode
+    window?.backgroundColor = .clear
+
+    let settingsVC = SettingsHostVC(showsSidebar: true)
+    settingsVC.onRequestClose = { [weak self] in self?.closeSettingsScene() }
+    self.settingsVC = settingsVC
+    window?.rootViewController = settingsVC
+
+    #if targetEnvironment(macCatalyst)
+      windowScene.title = windowSettingsTitle
+      Self.applyPreferredSize(to: windowScene)
+    #endif
+
+    window?.makeKeyAndVisible()
   }
+
+  #if targetEnvironment(macCatalyst)
+    private static func applyPreferredSize(to windowScene: UIWindowScene) {
+      windowScene.sizeRestrictions?.minimumSize = CGSize(width: 760, height: 520)
+      windowScene.sizeRestrictions?.maximumSize = CGSize(width: 1200, height: 900)
+      let size = preferredWindowSize
+
+      // Centre the settings window over the main window; fall back to the screen
+      // centre when no main window is open (so it never lands in a corner).
+      let anchor: CGRect
+      if let main = AppDelegate.settingsAnchorFrame {
+        anchor = main
+      } else {
+        let bounds = windowScene.screen.bounds
+        anchor = CGRect(x: bounds.midX, y: bounds.midY, width: 0, height: 0)
+      }
+      let target = CGRect(
+        x: anchor.midX - size.width / 2,
+        y: anchor.midY - size.height / 2,
+        width: size.width,
+        height: size.height
+      )
+      windowScene.requestGeometryUpdate(.Mac(systemFrame: target)) { error in
+        os_log(
+          "Settings window size request failed: %s",
+          type: .info,
+          error.localizedDescription
+        )
+      }
+    }
+  #endif
+
+  /// Hide the settings window instead of destroying its scene. The (fairly
+  /// expensive) SwiftUI view tree then stays alive, so re-opening is instant
+  /// rather than rebuilding the whole tree from scratch each time.
+  private func closeSettingsScene() {
+    window?.isHidden = true
+    // Return focus to the main window so the app doesn't stay with a hidden key
+    // window.
+    #if targetEnvironment(macCatalyst)
+      if let main = UIApplication.shared.connectedScenes
+        .first(where: { $0.delegate is SceneDelegate }) as? UIWindowScene,
+        let mainWindow = main.windows.first {
+        mainWindow.makeKey()
+      }
+    #endif
+  }
+
+  /// Bring the (possibly hidden) settings window back to the front.
+  func bringToFront() {
+    window?.isHidden = false
+    window?.makeKey()
+  }
+
+  func sceneDidDisconnect(_ scene: UIScene) {
+    os_log("Settings scene: didDisconnect", log: self.log, type: .info)
+    appDelegate.rebuildMainMenu()
+  }
+
+  func sceneDidBecomeActive(_ scene: UIScene) {
+    os_log("Settings scene: didBecomeActive", log: self.log, type: .info)
+    // Keep the settings window as the key window so Esc / Cmd+W act on it.
+    window?.makeKeyAndVisible()
+  }
+
+  func sceneWillResignActive(_ scene: UIScene) {}
+  func sceneWillEnterForeground(_ scene: UIScene) {}
+  func sceneDidEnterBackground(_ scene: UIScene) {}
+
+  // MARK: State restoration
+
+  func stateRestorationActivity(for scene: UIScene) -> NSUserActivity? { nil }
+
+  func scene(
+    _ scene: UIScene,
+    restoreInteractionStateWith stateRestorationActivity: NSUserActivity
+  ) {}
 }

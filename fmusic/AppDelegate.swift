@@ -177,6 +177,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     FmusicKit.shared.eventLogger.alertDisplayer = self
   }
 
+  /// Frame of the main window (screen coords) used to centre the settings window
+  /// over it. nil when the main window is not open.
+  static var settingsAnchorFrame: CGRect? {
+    guard let scene = UIApplication.shared.connectedScenes
+      .first(where: { $0.delegate is SceneDelegate }) as? UIWindowScene
+    else { return nil }
+    return scene.effectiveGeometry.systemFrame
+  }
+
   func stopForInit() {
     sleepTimer?.invalidate()
     sleepTimer = nil

@@ -300,17 +300,57 @@ extension AppDelegate {
     rebuildMainMenu()
   }
 
+  /// Settings open in their own window scene (like Apple Music's Preferences):
+  /// a separate window smaller than the main window. Re-open raises the existing
+  /// one instead of stacking duplicates.
+  var settingsSceneSession: UISceneSession? {
+    UIApplication.shared.connectedScenes
+      .first(where: { $0.delegate is SettingsSceneDelegate })?
+      .session
+  }
+
+  var isShowingSettings: Bool {
+    settingsSceneSession != nil
+  }
+
+  private var settingsSceneDelegate: SettingsSceneDelegate? {
+    UIApplication.shared.connectedScenes
+      .compactMap { $0.delegate as? SettingsSceneDelegate }
+      .first
+  }
+
   @objc
   func showSettings(sender: Any) {
-    // Settings covers the main window content instead of opening a separate scene window.
-    guard let topView = AppDelegate.topViewController(),
-          topView.presentedViewController == nil,
-          !(topView is SettingsHostVC)
-    else { return }
-    let settingsVC = SettingsHostVC(showsSidebar: true)
-    settingsVC.modalPresentationStyle = .fullScreen
-    settingsVC.modalTransitionStyle = .crossDissolve
-    topView.present(settingsVC, animated: true)
+    #if targetEnvironment(macCatalyst)
+      // The settings scene is kept alive (hidden, not destroyed) so re-opening is
+      // instant. Just un-hide its window and bring it forward.
+      if let existing = settingsSceneSession {
+        if let delegate = settingsSceneDelegate {
+          delegate.bringToFront()
+        } else {
+          UIApplication.shared.requestSceneSessionActivation(
+            existing,
+            userActivity: nil,
+            options: nil,
+            errorHandler: nil
+          )
+        }
+        MacWindowHelper.activateApplication()
+        return
+      }
+      let settingsActivity = NSUserActivity(activityType: settingsWindowActivityType)
+      UIApplication.shared.requestSceneSessionActivation(
+        nil,
+        userActivity: settingsActivity,
+        options: nil,
+        errorHandler: nil
+      )
+      // A freshly created scene also needs the app brought forward.
+      MacWindowHelper.activateApplication()
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        MacWindowHelper.activateApplication()
+      }
+    #endif
   }
 
   var isShowingMiniPlayer: Bool {
