@@ -245,7 +245,7 @@ final class MainViewController: NSViewController {
     // The capsule lives inside the content column and scales with it: opening the
     // lyrics pane shrinks the middle column, so the capsule shrinks too.
     let sidebarWidth: CGFloat = (sidebarItem?.isCollapsed ?? false) ? 0 : 210
-    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 260 : 0
+    let lyricsWidth: CGFloat = (lyricsPaneItem?.isCollapsed ?? true) ? 0 : 260
     let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
     // The mini player spans the whole content column; only its middle block flexes.
