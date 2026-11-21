@@ -265,7 +265,7 @@ final class MainViewController: NSViewController {
     controller.onClose = { [weak self] in
       self?.dismissNowPlayingOverlay(animated: true)
     }
-    let overlayWindow = NSWindow(contentViewController: controller)
+    let overlayWindow = NowPlayingOverlayWindow(contentViewController: controller)
     overlayWindow.styleMask = [.borderless]
     overlayWindow.isOpaque = false
     overlayWindow.backgroundColor = .clear
@@ -470,5 +470,19 @@ final class MainViewController: NSViewController {
       result.append(contentsOf: allScrollViews(in: subview))
     }
     return result
+  }
+}
+
+// MARK: - NowPlayingOverlayWindow
+
+/// Borderless full-window overlay. Dragging its background (mouse or the system
+/// three-finger drag) moves the main window, so the shortcut keeps working.
+private final class NowPlayingOverlayWindow: NSWindow {
+  override func mouseDown(with event: NSEvent) {
+    if let parent {
+      parent.performDrag(with: event)
+    } else {
+      super.mouseDown(with: event)
+    }
   }
 }
