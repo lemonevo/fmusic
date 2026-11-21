@@ -243,7 +243,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     progressSlider.minValue = 0
     progressSlider.maxValue = 1
     progressSlider.isContinuous = false
-    progressSlider.controlSize = .small
+    progressSlider.controlSize = .large
     progressSlider.target = self
     progressSlider.action = #selector(seek)
     progressSlider.translatesAutoresizingMaskIntoConstraints = false
@@ -283,13 +283,13 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       artistLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
       artistLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 3),
 
-      favoriteButton.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
+      favoriteButton.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 24),
       favoriteButton.topAnchor.constraint(equalTo: songTitleLabel.topAnchor),
       optionsButton.leadingAnchor.constraint(equalTo: favoriteButton.trailingAnchor, constant: 10),
       optionsButton.centerYAnchor.constraint(equalTo: favoriteButton.centerYAnchor),
 
       progressSlider.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
-      progressSlider.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 34),
+      progressSlider.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
       progressSlider.topAnchor.constraint(equalTo: artistLabel.bottomAnchor, constant: 40),
 
       elapsedLabel.leadingAnchor.constraint(equalTo: progressSlider.leadingAnchor),
@@ -473,7 +473,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     progressSlider.doubleValue = elapsed
     elapsedLabel.stringValue = ClockTime(timeInSeconds: Int(elapsed)).asShortString()
     remainingLabel.stringValue = "-" +
-      ClockTime(timeInSeconds: Int(duration - elapsed)).asShortString()
+      ClockTime(timeInSeconds: Int(max(0, duration - elapsed))).asShortString()
   }
 
   @objc
