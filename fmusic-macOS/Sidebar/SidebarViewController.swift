@@ -82,7 +82,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     scrollView.hasVerticalScroller = false
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
-    scrollView.contentInsets = NSEdgeInsets(top: 12, left: 0, bottom: 4, right: 0)
+    scrollView.contentInsets = NSEdgeInsets(top: 38, left: 0, bottom: 4, right: 0)
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
     // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface.

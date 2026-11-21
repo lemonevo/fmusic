@@ -27,14 +27,14 @@ final class MainWindowController: NSWindowController {
   convenience init() {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
       backing: .buffered,
       defer: false
     )
     window.title = "fmusic"
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
-    window.backgroundColor = MacTheme.contentBackgroundColor
+    window.backgroundColor = MacTheme.sidebarBackgroundColor
     window.minSize = NSSize(width: 980, height: 540)
     window.isReleasedWhenClosed = false
     window.tabbingMode = .disallowed
