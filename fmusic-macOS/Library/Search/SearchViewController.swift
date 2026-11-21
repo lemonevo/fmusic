@@ -319,6 +319,9 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
       }
       statusLabel.stringValue = "\(count) \(noun)"
       emptyLabel.isHidden = true
+      emptyDetailLabel.isHidden = true
+      emptyIconView.isHidden = true
+      tableView.headerView?.isHidden = false
     }
   }
 
@@ -327,6 +330,8 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   private func showEmptyState(_ text: String, detail: String? = nil) {
+    // The Catalyst screen hides the row headers while the empty state is shown.
+    tableView.headerView?.isHidden = true
     emptyLabel.stringValue = text
     emptyDetailLabel.stringValue = detail ?? ""
     emptyDetailLabel.isHidden = (detail ?? "").isEmpty
