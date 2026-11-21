@@ -44,7 +44,9 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     action: nil
   )
   private let statusLabel = NSTextField(labelWithString: "")
-  private let emptyLabel = NSTextField(wrappingLabelWithString: "")
+  private let emptyLabel = NSTextField(labelWithString: "")
+  private let emptyDetailLabel = NSTextField(wrappingLabelWithString: "")
+  private let emptyIconView = NSImageView()
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
 
@@ -66,6 +68,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     let root = NSView()
     root.wantsLayer = true
 
+    titleLabel.isHidden = true
     titleLabel.font = MacTheme.largeTitleFont
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
@@ -77,8 +80,10 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     searchField.sendsSearchStringImmediately = true
     searchField.sendsWholeSearchString = false
     searchField.delegate = self
+    searchField.isHidden = true
     searchField.translatesAutoresizingMaskIntoConstraints = false
 
+    modeControl.isHidden = true
     modeControl.selectedSegment = Mode.songs.rawValue
     modeControl.target = self
     modeControl.action = #selector(modeChanged)
@@ -86,12 +91,25 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
 
     statusLabel.font = MacTheme.secondaryFont
     statusLabel.textColor = MacTheme.secondaryTextColor
+    statusLabel.isHidden = true
     statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    emptyLabel.font = .systemFont(ofSize: MacTheme.bodyFontSize)
+    emptyLabel.font = .systemFont(ofSize: 20, weight: .semibold)
     emptyLabel.textColor = MacTheme.secondaryTextColor
     emptyLabel.alignment = .center
     emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    emptyDetailLabel.font = .systemFont(ofSize: 12)
+    emptyDetailLabel.textColor = MacTheme.secondaryTextColor
+    emptyDetailLabel.alignment = .center
+    emptyDetailLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    emptyIconView.image = NSImage(
+      systemSymbolName: "clock",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 34, weight: .regular))
+    emptyIconView.contentTintColor = MacTheme.secondaryTextColor
+    emptyIconView.translatesAutoresizingMaskIntoConstraints = false
 
     configureTableView()
     scrollView.documentView = tableView
@@ -104,31 +122,26 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     root.addSubview(modeControl)
     root.addSubview(statusLabel)
     root.addSubview(scrollView)
+    root.addSubview(emptyIconView)
     root.addSubview(emptyLabel)
+    root.addSubview(emptyDetailLabel)
 
     NSLayoutConstraint.activate([
-      titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
-      titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
-
-      searchField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-      searchField.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 12),
-      searchField.widthAnchor.constraint(equalToConstant: 320),
-
-      modeControl.leadingAnchor.constraint(equalTo: searchField.trailingAnchor, constant: 12),
-      modeControl.centerYAnchor.constraint(equalTo: searchField.centerYAnchor),
-      modeControl.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -24),
-
-      statusLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
-      statusLabel.topAnchor.constraint(equalTo: searchField.bottomAnchor, constant: 8),
-
-      scrollView.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 8),
+      scrollView.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
-      emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
-      emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
-      emptyLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 420),
+      emptyIconView.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+      emptyIconView.bottomAnchor.constraint(equalTo: emptyLabel.topAnchor, constant: -18),
+
+      emptyLabel.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+      emptyLabel.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: -6),
+      emptyLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
+
+      emptyDetailLabel.centerXAnchor.constraint(equalTo: root.centerXAnchor),
+      emptyDetailLabel.topAnchor.constraint(equalTo: emptyLabel.bottomAnchor, constant: 8),
+      emptyDetailLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
     ])
 
     self.view = root
@@ -245,7 +258,10 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
       artists = []
       tableView.reloadData()
       statusLabel.stringValue = ""
-      showEmptyState(query.isEmpty ? hintText : L10n.tr("No Results"))
+      showEmptyState(
+        query.isEmpty ? L10n.tr("No Search History") : L10n.tr("No Results"),
+        detail: query.isEmpty ? L10n.tr("Your search history will appear here.") : nil
+      )
       return
     }
 
@@ -255,7 +271,10 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
       artists = []
       tableView.reloadData()
       statusLabel.stringValue = ""
-      showEmptyState(hintText)
+      showEmptyState(
+        L10n.tr("No Search History"),
+        detail: L10n.tr("Your search history will appear here.")
+      )
       return
     }
 
@@ -307,9 +326,22 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     "\(L10n.tr("Search")): \(L10n.tr("Songs")) · \(L10n.tr("Albums")) · \(L10n.tr("Artists"))"
   }
 
-  private func showEmptyState(_ text: String) {
+  private func showEmptyState(_ text: String, detail: String? = nil) {
     emptyLabel.stringValue = text
+    emptyDetailLabel.stringValue = detail ?? ""
+    emptyDetailLabel.isHidden = (detail ?? "").isEmpty
+    emptyIconView.isHidden = text == L10n.tr("No Results")
+    emptyIconView.image = NSImage(
+      systemSymbolName: text == L10n.tr("No Results") ? "magnifyingglass" : "clock",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 34, weight: .regular))
     emptyLabel.isHidden = false
+  }
+
+  private func hideEmptyState() {
+    emptyIconView.isHidden = true
+    emptyLabel.isHidden = true
+    emptyDetailLabel.isHidden = true
   }
 
   // MARK: - Actions
@@ -465,5 +497,18 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     cell.identifier = identifier
     cell.configure(text: text, font: font, color: color)
     return cell
+  }
+}
+
+// MARK: - ContentSearchable
+
+extension SearchViewController: ContentSearchable {
+  var contentSearchPlaceholder: String? {
+    L10n.tr("Search Library")
+  }
+
+  func contentSearchDidChange(text: String) {
+    searchField.stringValue = text
+    reloadResults()
   }
 }

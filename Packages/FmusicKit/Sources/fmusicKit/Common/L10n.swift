@@ -180,6 +180,7 @@ public enum L10n {
     // MARK: Player & queue
 
     "Queue": "播放队列",
+    "Search Library": "在“资料库”中搜索",
     "Match Online Lyrics": "在线匹配歌词",
     "None": "无",
     "Playback Speed": "播放速度",
