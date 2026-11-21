@@ -97,7 +97,6 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     editButton.target = self
     editButton.action = #selector(editPressed)
     editButton.translatesAutoresizingMaskIntoConstraints = false
-    editButton.isHidden = true
 
     sidebarButton.image = NSImage(
       systemSymbolName: "sidebar.left",
@@ -113,7 +112,6 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     sidebarButton.target = self
     sidebarButton.action = #selector(sidebarPressed)
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
-    sidebarButton.isHidden = true
 
     let footer = makeAccountFooter()
     root.addSubview(editButton)
@@ -121,14 +119,16 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     root.addSubview(scrollView)
     root.addSubview(footer)
     NSLayoutConstraint.activate([
-      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 96),
+      // Matches the Catalyst titlebar: 编辑 52×36 at x≈108, 边栏 44×36 right after it,
+      // both centred on the traffic-light baseline (26 pt from the window top).
+      editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 108),
       editButton.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 26),
-      editButton.heightAnchor.constraint(equalToConstant: 30),
-      editButton.widthAnchor.constraint(equalToConstant: 58),
-      sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 8),
+      editButton.heightAnchor.constraint(equalToConstant: 36),
+      editButton.widthAnchor.constraint(equalToConstant: 52),
+      sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 2),
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
-      sidebarButton.widthAnchor.constraint(equalToConstant: 36),
-      sidebarButton.heightAnchor.constraint(equalToConstant: 30),
+      sidebarButton.widthAnchor.constraint(equalToConstant: 44),
+      sidebarButton.heightAnchor.constraint(equalToConstant: 36),
     ])
 
     NSLayoutConstraint.activate([
@@ -370,11 +370,13 @@ private final class SidebarCellView: NSTableCellView {
     titleField.translatesAutoresizingMaskIntoConstraints = false
     addSubview(iconView)
     addSubview(titleField)
+    // Catalyst indents rows by 8 pt (indentationLevel 1) and reserves a 26 pt icon
+    // slot, so the symbol sits ~16 pt from the sidebar edge like the section header.
     NSLayoutConstraint.activate([
-      iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 12),
+      iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
       iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      iconView.widthAnchor.constraint(equalToConstant: 16),
-      iconView.heightAnchor.constraint(equalToConstant: 16),
+      iconView.widthAnchor.constraint(equalToConstant: 22),
+      iconView.heightAnchor.constraint(equalToConstant: 22),
 
       titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8),
       titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
@@ -392,7 +394,7 @@ private final class SidebarCellView: NSTableCellView {
     iconView.image = NSImage(
       systemSymbolName: item.symbolName,
       accessibilityDescription: nil
-    )
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular))
     titleField.stringValue = item.title
   }
 }
@@ -410,12 +412,13 @@ private final class SidebarGroupCellView: NSTableCellView {
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    titleField.font = .systemFont(ofSize: MacTheme.secondaryFontSize, weight: .semibold)
+    titleField.font = .systemFont(ofSize: 11, weight: .semibold)
     titleField.textColor = .secondaryLabelColor
     titleField.translatesAutoresizingMaskIntoConstraints = false
     addSubview(titleField)
+    // Catalyst gives the section header 20 pt of air above and 2 pt below.
     NSLayoutConstraint.activate([
-      titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+      titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
       titleField.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
     ])
   }

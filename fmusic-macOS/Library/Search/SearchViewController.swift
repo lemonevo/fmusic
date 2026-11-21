@@ -73,12 +73,14 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     scrollView.translatesAutoresizingMaskIntoConstraints = false
     scrollView.isHidden = true
 
-    emptyLabel.font = .systemFont(ofSize: 20, weight: .semibold)
+    // UIContentUnavailableConfiguration.empty() uses title2 (22 pt semibold) for the
+    // text and the body style for the secondary text.
+    emptyLabel.font = .systemFont(ofSize: 22, weight: .semibold)
     emptyLabel.textColor = MacTheme.secondaryTextColor
     emptyLabel.alignment = .center
     emptyLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    emptyDetailLabel.font = .systemFont(ofSize: 12)
+    emptyDetailLabel.font = .systemFont(ofSize: 13)
     emptyDetailLabel.textColor = MacTheme.secondaryTextColor
     emptyDetailLabel.alignment = .center
     emptyDetailLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -86,7 +88,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     emptyIconView.image = NSImage(
       systemSymbolName: "clock",
       accessibilityDescription: nil
-    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 34, weight: .regular))
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 36, weight: .regular))
     emptyIconView.contentTintColor = MacTheme.secondaryTextColor
     emptyIconView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -101,15 +103,18 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
+      // Catalyst centres the whole block (icon + title + detail) slightly above the
+      // content centre: title centre −13.5 pt, icon ink 30 pt above the title and the
+      // detail ink 17.5 pt below it (measured from the original window).
       emptyIconView.centerXAnchor.constraint(equalTo: root.centerXAnchor),
-      emptyIconView.bottomAnchor.constraint(equalTo: emptyLabel.topAnchor, constant: -18),
+      emptyIconView.bottomAnchor.constraint(equalTo: emptyLabel.topAnchor, constant: -28),
 
       emptyLabel.centerXAnchor.constraint(equalTo: root.centerXAnchor),
-      emptyLabel.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: -6),
+      emptyLabel.centerYAnchor.constraint(equalTo: root.centerYAnchor, constant: -14),
       emptyLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
 
       emptyDetailLabel.centerXAnchor.constraint(equalTo: root.centerXAnchor),
-      emptyDetailLabel.topAnchor.constraint(equalTo: emptyLabel.bottomAnchor, constant: 8),
+      emptyDetailLabel.topAnchor.constraint(equalTo: emptyLabel.bottomAnchor, constant: 14),
       emptyDetailLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
     ])
 
@@ -238,7 +243,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     emptyIconView.image = NSImage(
       systemSymbolName: text == L10n.tr("No Results") ? "magnifyingglass" : "clock",
       accessibilityDescription: nil
-    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 34, weight: .regular))
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 36, weight: .regular))
     emptyLabel.stringValue = text
     emptyDetailLabel.stringValue = detail ?? ""
     emptyDetailLabel.isHidden = (detail ?? "").isEmpty
@@ -283,8 +288,11 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-    if case .header = rows[row] { return 30 }
-    return 56
+    if case .header = rows[row] { return 40 }
+    // Catalyst PlayableTableCell/GenericTableCell: 48 pt content + 9 pt top/bottom
+    // margins; PlaylistTableCell is taller (70 pt content) for its two-line layout.
+    if case .playlist = rows[row] { return 88 }
+    return 66
   }
 
   func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
@@ -301,13 +309,13 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     switch rows[row] {
     case let .header(title):
       let label = NSTextField(labelWithString: title)
-      label.font = .systemFont(ofSize: 12, weight: .semibold)
+      label.font = .systemFont(ofSize: 13, weight: .semibold)
       label.textColor = MacTheme.secondaryTextColor
       let container = NSView()
       label.translatesAutoresizingMaskIntoConstraints = false
       container.addSubview(label)
       NSLayoutConstraint.activate([
-        label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+        label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
         label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
       ])
       return container
@@ -408,15 +416,16 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     container.addSubview(subtitleLabel)
 
     NSLayoutConstraint.activate([
-      artworkView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+      // Catalyst cells use a 20 pt horizontal margin (CommonScreenOperations.defaultMarginCellX).
+      artworkView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 20),
       artworkView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-      artworkView.widthAnchor.constraint(equalToConstant: 40),
-      artworkView.heightAnchor.constraint(equalToConstant: 40),
+      artworkView.widthAnchor.constraint(equalToConstant: 48),
+      artworkView.heightAnchor.constraint(equalToConstant: 48),
 
       titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 12),
       titleLabel.trailingAnchor.constraint(
         lessThanOrEqualTo: container.trailingAnchor,
-        constant: -24
+        constant: -20
       ),
       titleLabel.topAnchor.constraint(equalTo: artworkView.topAnchor, constant: 2),
 
@@ -436,7 +445,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
       NSLayoutConstraint.activate([
         durationLabel.trailingAnchor.constraint(
           equalTo: container.trailingAnchor,
-          constant: -24
+          constant: -20
         ),
         durationLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         titleLabel.trailingAnchor.constraint(

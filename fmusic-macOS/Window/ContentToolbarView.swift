@@ -37,6 +37,11 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   private let titleLabel = NSTextField(labelWithString: "")
   private let searchField = NSSearchField()
   private let separator = NSView()
+  /// Title pinned right after the back button (pushed pages).
+  private var titleAfterBack: NSLayoutConstraint?
+  /// Title pinned to the toolbar's leading edge (root pages, where the Catalyst
+  /// app shows the title without reserving space for a hidden back button).
+  private var titleAtLeading: NSLayoutConstraint?
 
   var onBack: (() -> Void)?
   var onSearchChange: ((String) -> Void)?
@@ -58,7 +63,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     backButton.layer?.cornerRadius = 16
     backButton.translatesAutoresizingMaskIntoConstraints = false
 
-    titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
+    // Measured from the original window: the toolbar title renders 28×14 pt of ink,
+    // which is 15 pt regular (17 pt semibold was visibly larger).
+    titleLabel.font = .systemFont(ofSize: 15, weight: .regular)
     titleLabel.lineBreakMode = .byTruncatingTail
     titleLabel.maximumNumberOfLines = 1
     // Long album names must truncate instead of stretching across the toolbar.
@@ -81,13 +88,22 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     addSubview(searchField)
     addSubview(separator)
 
+    let afterBack = titleLabel.leadingAnchor.constraint(
+      equalTo: backButton.trailingAnchor,
+      constant: 12
+    )
+    let atLeading = titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20)
+    titleAfterBack = afterBack
+    titleAtLeading = atLeading
+
     NSLayoutConstraint.activate([
       backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
       backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
       backButton.widthAnchor.constraint(equalToConstant: 32),
       backButton.heightAnchor.constraint(equalToConstant: 32),
 
-      titleLabel.leadingAnchor.constraint(equalTo: backButton.trailingAnchor, constant: 12),
+      // Root pages use the leading pin; pushed pages swap in `afterBack`.
+      atLeading,
       titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
       titleLabel.trailingAnchor.constraint(
         lessThanOrEqualTo: searchField.leadingAnchor,
@@ -97,7 +113,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
 
       searchField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
       searchField.centerYAnchor.constraint(equalTo: centerYAnchor),
-      searchField.widthAnchor.constraint(equalToConstant: 260),
+      // Matches the Catalyst integrated search field width; the height comes from
+      // `controlSize = .large` (a hard height constraint breaks its bezel drawing).
+      searchField.widthAnchor.constraint(equalToConstant: 325),
 
       separator.leadingAnchor.constraint(equalTo: leadingAnchor),
       separator.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -118,9 +136,10 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   func configure(title: String, showsBack: Bool, searchPlaceholder: String?) {
     titleLabel.stringValue = title
     backButton.isHidden = !showsBack
-    // Keep the title aligned with pages that have no back button.
-    backButton.alphaValue = showsBack ? 1 : 0
-    backButton.isEnabled = showsBack
+    // Keep the title aligned with pages that have no back button: root pages pin it to
+    // the leading edge instead of leaving the 32 pt button + 12 pt gap as dead space.
+    titleAfterBack?.isActive = showsBack
+    titleAtLeading?.isActive = !showsBack
     if let searchPlaceholder, !searchPlaceholder.isEmpty {
       searchField.isHidden = false
       searchField.placeholderString = searchPlaceholder

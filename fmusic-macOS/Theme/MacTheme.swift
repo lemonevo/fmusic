@@ -27,8 +27,10 @@ enum MacTheme {
   static let sidebarWidth: CGFloat = 210
   static let playerBarHeight: CGFloat = 76
   static let songRowHeight: CGFloat = 40
-  static let sidebarRowHeight: CGFloat = 30
-  static let sidebarSectionRowHeight: CGFloat = 26
+  /// Matches the Catalyst sidebar list: 13 pt text with 8 pt vertical padding above and
+  /// below, i.e. ~38 pt rows (measured from the original window).
+  static let sidebarRowHeight: CGFloat = 38
+  static let sidebarSectionRowHeight: CGFloat = 34
   static let largeTitleFontSize: CGFloat = 22
   static let titleFontSize: CGFloat = 15
   static let bodyFontSize: CGFloat = 13
@@ -55,7 +57,7 @@ enum MacTheme {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
       return isDark
-        ? NSColor(srgbRed: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255, alpha: 1)
+        ? NSColor(srgbRed: 0x26 / 255, green: 0x25 / 255, blue: 0x24 / 255, alpha: 1)
         : NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
     }
   }
@@ -63,7 +65,7 @@ enum MacTheme {
   static var contentBackgroundColor: NSColor {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      return isDark ? .black : .white
+      return isDark ? NSColor(white: 0.118, alpha: 1) : .white
     }
   }
 
@@ -99,16 +101,22 @@ extension Notification.Name {
 
 // MARK: - ThemedRowView
 
-/// Table row view that paints the selection with the fmusic theme color instead of
-/// the system accent color.
+/// Table row view with a rounded selection plate. The sidebar and library lists in the
+/// Catalyst app select with a neutral grey (measured 66,64,64 in dark mode), not with
+/// the theme accent, so the plate uses a semantic fill instead of `accentColor`.
 final class ThemedRowView: NSTableRowView {
   var cornerRadius: CGFloat = 6
   var horizontalInset: CGFloat = 6
+  /// Whether to tint the plate with the theme accent (used by pages that want it).
+  var usesAccentColor = false
 
   override func drawSelection(in dirtyRect: NSRect) {
     guard selectionHighlightStyle != .none else { return }
     let rect = bounds.insetBy(dx: horizontalInset, dy: 2)
-    MacTheme.accentColor.withAlphaComponent(isEmphasized ? 0.22 : 0.14).setFill()
+    let color = usesAccentColor
+      ? MacTheme.accentColor.withAlphaComponent(isEmphasized ? 0.22 : 0.14)
+      : NSColor.labelColor.withAlphaComponent(isEmphasized ? 0.13 : 0.09)
+    color.setFill()
     NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
   }
 }
