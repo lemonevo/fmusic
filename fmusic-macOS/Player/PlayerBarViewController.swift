@@ -150,13 +150,21 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       titleStack.centerYAnchor.constraint(equalTo: infoGroup.centerYAnchor),
     ])
     // Tapping the cover/title opens the large Now Playing page, like the Catalyst
-    // mini player opening PopupPlayerVC.
-    let openNowPlaying = NSClickGestureRecognizer(
-      target: self,
-      action: #selector(openNowPlayingPage)
-    )
-    infoGroup.addGestureRecognizer(openNowPlaying)
-    infoGroup.toolTip = L10n.tr("Now Playing")
+    // mini player opening PopupPlayerVC. The labels and the image view are NSControls
+    // that swallow the click, so a transparent button covers the whole info block
+    // instead of a gesture recognizer on the container.
+    let openNowPlaying = NSButton(title: "", target: self, action: #selector(openNowPlayingPage))
+    openNowPlaying.isBordered = false
+    openNowPlaying.translatesAutoresizingMaskIntoConstraints = false
+    openNowPlaying.toolTip = L10n.tr("Now Playing")
+    openNowPlaying.setAccessibilityLabel(L10n.tr("Now Playing"))
+    infoGroup.addSubview(openNowPlaying)
+    NSLayoutConstraint.activate([
+      openNowPlaying.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
+      openNowPlaying.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
+      openNowPlaying.topAnchor.constraint(equalTo: infoGroup.topAnchor),
+      openNowPlaying.bottomAnchor.constraint(equalTo: infoGroup.bottomAnchor),
+    ])
 
     let rightGroup = NSStackView(views: [
       moreButton,
@@ -185,6 +193,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
       infoGroup.trailingAnchor.constraint(equalTo: rightGroup.leadingAnchor, constant: -18),
       infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -7),
+      // Give the info block a real hit area: without a height the transparent
+      // "open Now Playing" button collapses to its intrinsic 2 pt.
+      infoGroup.heightAnchor.constraint(equalToConstant: 40),
     ])
 
     NSLayoutConstraint.activate([
@@ -626,7 +637,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func showNowPlayingFromMenu() {
-    PlayerPageWindowController.presentNowPlaying()
+    AppDelegate.sharedAppDelegate?.showNowPlaying(nil)
   }
 
   @objc

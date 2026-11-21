@@ -49,7 +49,6 @@ final class MainViewController: NSViewController {
   private(set) var isLyricsPaneVisible = false
 
   private var didApplyInitialSplitPositions = false
-  private var nowPlayingWindow: NSWindow?
 
   override func loadView() {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
@@ -261,9 +260,12 @@ final class MainViewController: NSViewController {
 
   // MARK: - Now Playing overlay
 
-  /// Full-window Now Playing page, presented over the whole main window like the
-  /// Catalyst `PopupPlayerVC`.
+  /// Full-window Now Playing page, shown as a child view controller covering the
+  /// window content like the Catalyst `PopupPlayerVC` presented full screen.
+  /// Living inside the window (instead of a borderless child window) keeps resize,
+  /// full screen, key-window focus and the traffic lights working.
   private var nowPlayingController: NowPlayingViewController?
+  private var nowPlayingOverlayView: NowPlayingOverlayContainerView?
 
   override func cancelOperation(_ sender: Any?) {
     if nowPlayingController != nil {
@@ -274,67 +276,42 @@ final class MainViewController: NSViewController {
   }
 
   func presentNowPlayingOverlay() {
-    dismissNowPlayingOverlay(animated: false)
-    guard let parent = view.window else { return }
+    guard nowPlayingController == nil else { return }
     let controller = NowPlayingViewController()
     controller.onClose = { [weak self] in
       self?.dismissNowPlayingOverlay(animated: true)
     }
-    nowPlayingController = controller
 
-    // Plain borderless window with a fixed-size container: never use
-    // contentViewController here, AppKit would grow the window to the page's
-    // Auto Layout fitting size (1020x1000 instead of the main window's 1024x768).
-    let container = NSView(frame: NSRect(origin: .zero, size: parent.frame.size))
+    // The overlay and the page are laid out by frame, not Auto Layout: the page's
+    // fitting size is 1000 pt (its Catalyst design size) and AppKit would grow the
+    // main window to it. Frame layout keeps the overlay at the window size, so it
+    // follows resizes and full screen.
+    let container = NowPlayingOverlayContainerView()
     container.wantsLayer = true
     container.layer?.backgroundColor = NSColor.black.cgColor
     container.layer?.cornerRadius = 12
     container.layer?.cornerCurve = .continuous
     container.layer?.masksToBounds = true
-
-    let window = NSWindow(
-      contentRect: parent.frame,
-      styleMask: [.borderless],
-      backing: .buffered,
-      defer: false
-    )
-    window.isOpaque = false
-    window.backgroundColor = .clear
-    window.hasShadow = false
-    window.contentView = container
-    // Explicit size constraints: AppKit derives a window's size from its content
-    // view's Auto Layout fitting size, and the player page's fitting height is
-    // 1000 pt. Pinning the container to the main window rectangle stops that.
-    container.translatesAutoresizingMaskIntoConstraints = false
-    NSLayoutConstraint.activate([
-      container.widthAnchor.constraint(equalToConstant: parent.frame.width),
-      container.heightAnchor.constraint(equalToConstant: parent.frame.height),
-    ])
-    window.setFrame(parent.frame, display: false)
+    container.autoresizingMask = [.width, .height]
+    container.frame = view.bounds
 
     let page = controller.view
-    page.wantsLayer = true
-    page.translatesAutoresizingMaskIntoConstraints = false
+    page.autoresizingMask = [.width, .height]
+    page.frame = container.bounds
     container.addSubview(page)
-    NSLayoutConstraint.activate([
-      page.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-      page.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-      page.topAnchor.constraint(equalTo: container.topAnchor),
-      page.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-    ])
-    // Lock the window to the main window's rectangle; AppKit otherwise resizes it
-    // to the page's Auto Layout fitting size (1020x1000).
-    window.minSize = parent.frame.size
-    window.maxSize = parent.frame.size
-    window.contentMinSize = parent.frame.size
-    window.contentMaxSize = parent.frame.size
+    // Added last so it sits above the split view, pushed pages and the floating
+    // capsule, which are all ordered to the front of `view` elsewhere.
+    view.addSubview(container)
+    addChild(controller)
 
-    parent.addChildWindow(window, ordered: .above)
-    window.orderFront(nil)
-    window.setFrame(parent.frame, display: false)
-    nowPlayingWindow = window
+    nowPlayingController = controller
+    nowPlayingOverlayView = container
 
-    if let layer = page.layer {
+    // Focus the overlay so Escape reaches `cancelOperation` instead of whatever
+    // was focused in the page behind it (e.g. the toolbar search field).
+    view.window?.makeFirstResponder(container)
+
+    if let layer = container.layer {
       let slide = CABasicAnimation(keyPath: "transform.translation.y")
       slide.fromValue = -container.bounds.height
       slide.toValue = 0
@@ -345,39 +322,33 @@ final class MainViewController: NSViewController {
   }
 
   func dismissNowPlayingOverlay(animated: Bool) {
-    guard let window = nowPlayingWindow else { return }
-    nowPlayingWindow = nil
-    guard let container = window.contentView, let page = container.subviews.first else {
-      window.parent?.removeChildWindow(window)
-      window.orderOut(nil)
-      return
+    guard let container = nowPlayingOverlayView,
+          let controller = nowPlayingController
+    else { return }
+    nowPlayingOverlayView = nil
+    nowPlayingController = nil
+    let finish = { [weak self] in
+      container.removeFromSuperview()
+      controller.removeFromParent()
+      self?.view.window?.makeFirstResponder(nil)
     }
-    let finish = {
-      window.parent?.removeChildWindow(window)
-      window.orderOut(nil)
-      self.nowPlayingController = nil
-    }
-    guard animated else {
+    guard animated, let layer = container.layer else {
       finish()
       return
     }
-    if let layer = page.layer {
-      CATransaction.begin()
-      CATransaction.setCompletionBlock { finish() }
-      let slide = CABasicAnimation(keyPath: "transform.translation.y")
-      slide.fromValue = 0
-      slide.toValue = -container.bounds.height
-      slide.duration = 0.26
-      slide.timingFunction = CAMediaTimingFunction(name: .easeIn)
-      slide.fillMode = .forwards
-      slide.isRemovedOnCompletion = false
-      layer.add(slide, forKey: "coverVerticalDismiss")
-      CATransaction.setDisableActions(true)
-      layer.transform = CATransform3DMakeTranslation(0, -container.bounds.height, 0)
-      CATransaction.commit()
-    } else {
-      finish()
-    }
+    CATransaction.begin()
+    CATransaction.setCompletionBlock(finish)
+    let slide = CABasicAnimation(keyPath: "transform.translation.y")
+    slide.fromValue = 0
+    slide.toValue = -container.bounds.height
+    slide.duration = 0.26
+    slide.timingFunction = CAMediaTimingFunction(name: .easeIn)
+    slide.fillMode = .forwards
+    slide.isRemovedOnCompletion = false
+    layer.add(slide, forKey: "coverVerticalDismiss")
+    CATransaction.setDisableActions(true)
+    layer.transform = CATransform3DMakeTranslation(0, -container.bounds.height, 0)
+    CATransaction.commit()
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
@@ -576,23 +547,17 @@ final class MainViewController: NSViewController {
   }
 }
 
-private final class NowPlayingOverlayWindow: NSWindow {
-  /// AppKit grows borderless windows to the content view's fitting size; pin the
-  /// overlay to the parent window rectangle so it covers it exactly.
-  override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-    var rect = frameRect
-    if let parent {
-      rect.size = parent.frame.size
-      rect.origin = parent.frame.origin
-    }
-    super.setFrame(rect, display: flag)
-  }
+/// Hosts the Now Playing page as a window-content overlay. It accepts first
+/// responder so Escape reaches `MainViewController.cancelOperation` even when the
+/// page behind it (toolbar search field, table) was focused before.
+private final class NowPlayingOverlayContainerView: NSView {
+  override var acceptsFirstResponder: Bool { true }
 
-  override func mouseDown(with event: NSEvent) {
-    if let parent {
-      parent.performDrag(with: event)
-    } else {
-      super.mouseDown(with: event)
+  override func keyDown(with event: NSEvent) {
+    if event.keyCode == 53 {
+      nextResponder?.tryToPerform(#selector(NSResponder.cancelOperation(_:)), with: nil)
+      return
     }
+    super.keyDown(with: event)
   }
 }

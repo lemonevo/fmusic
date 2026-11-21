@@ -22,45 +22,20 @@
 import AppKit
 import fmusicKit
 
-/// Pages that live in a standalone player window (not in the sidebar).
-@MainActor
-enum PlayerPage {
-  case nowPlaying
-  case queue
-}
-
-/// Single reusable window hosting the queue or now-playing page.
+/// Single reusable window hosting the queue page.
 ///
-/// Wiring example from a menu action in the Lead's controller:
-///
-/// ```swift
-/// @objc func showNowPlaying(_ sender: Any?) {
-///   PlayerPageWindowController.presentNowPlaying()
-/// }
-///
-/// @objc func showQueue(_ sender: Any?) {
-///   PlayerPageWindowController.presentQueue()
-/// }
-/// ```
+/// The Now Playing page is *not* hosted here: it is a full-window overlay inside the
+/// main window (`MainViewController.presentNowPlayingOverlay`), so resizing, full
+/// screen and key-window focus behave natively.
 @MainActor
 final class PlayerPageWindowController: NSWindowController {
   private static var shared: PlayerPageWindowController?
 
-  /// Shows the now playing page in the player window.
-  static func presentNowPlaying() {
-    present(.nowPlaying)
-  }
-
-  /// Shows the queue page in the player window.
+  /// Shows the queue page in the player window, reusing the window when it is open.
   static func presentQueue() {
-    present(.queue)
-  }
-
-  /// Shows `page`, reusing the existing player window when one is open.
-  static func present(_ page: PlayerPage) {
     let controller = shared ?? PlayerPageWindowController()
     shared = controller
-    controller.show(page)
+    controller.showQueue()
   }
 
   init() {
@@ -80,17 +55,9 @@ final class PlayerPageWindowController: NSWindowController {
     nil
   }
 
-  private func show(_ page: PlayerPage) {
-    let controller: NSViewController
-    switch page {
-    case .nowPlaying:
-      controller = NowPlayingViewController()
-      window?.title = L10n.tr("Now Playing")
-    case .queue:
-      controller = QueueViewController()
-      window?.title = L10n.tr("Queue")
-    }
-    window?.contentViewController = controller
+  private func showQueue() {
+    window?.contentViewController = QueueViewController()
+    window?.title = L10n.tr("Queue")
     showWindow(nil)
     NSApp.activate(ignoringOtherApps: true)
     window?.makeKeyAndOrderFront(nil)

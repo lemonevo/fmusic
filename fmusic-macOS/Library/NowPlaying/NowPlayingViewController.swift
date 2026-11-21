@@ -61,6 +61,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private let lyricsPane = LyricsPaneView()
 
+  private var artworkWidthConstraint: NSLayoutConstraint?
+  private var artworkHeightConstraint: NSLayoutConstraint?
+
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
 
@@ -72,6 +75,11 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let sideMargin: CGFloat = 92
   private let artworkSide: CGFloat = 350
   private let lyricsGap: CGFloat = 170
+  /// Space the artwork column occupies below the cover (metadata, progress, transport)
+  /// plus the bottom utility cluster. The cover is capped by the window height so the
+  /// page fits a resized window instead of overflowing (the design height is 768).
+  private let artworkBottomChrome: CGFloat = 296
+  private let artworkMinimumSide: CGFloat = 110
 
   // MARK: - Lifecycle
 
@@ -133,6 +141,18 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     super.viewDidDisappear()
     progressTimer?.invalidate()
     progressTimer = nil
+  }
+
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    // The page was designed for the fixed 1024×768 overlay; now that it fills the
+    // resizable main window the cover shrinks first so the transport row stays visible.
+    let available = view.bounds.height - 122 - artworkBottomChrome
+    let side = min(artworkSide, max(artworkMinimumSide, available))
+    if artworkWidthConstraint?.constant != side {
+      artworkWidthConstraint?.constant = side
+      artworkHeightConstraint?.constant = side
+    }
   }
 
   deinit {
@@ -270,11 +290,16 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       root.addSubview(item)
     }
 
+    let artworkWidth = artworkView.widthAnchor.constraint(equalToConstant: artworkSide)
+    let artworkHeight = artworkView.heightAnchor.constraint(equalToConstant: artworkSide)
+    artworkWidthConstraint = artworkWidth
+    artworkHeightConstraint = artworkHeight
+
     NSLayoutConstraint.activate([
       artworkView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: sideMargin),
       artworkView.topAnchor.constraint(equalTo: root.topAnchor, constant: 122),
-      artworkView.widthAnchor.constraint(equalToConstant: artworkSide),
-      artworkView.heightAnchor.constraint(equalToConstant: artworkSide),
+      artworkWidth,
+      artworkHeight,
 
       songTitleLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
       songTitleLabel.topAnchor.constraint(equalTo: artworkView.bottomAnchor, constant: 26),
@@ -890,6 +915,13 @@ private final class PlayerBlurredArtworkBackground: NSView {
     imageView.imageScaling = .scaleAxesIndependently
     imageView.wantsLayer = true
     imageView.translatesAutoresizingMaskIntoConstraints = false
+    // The image view's intrinsic size is the artwork's pixel size (1000×1000 for the
+    // generated covers). Pinned to every edge it would make the page's fitting size —
+    // and therefore the main window — 1000 pt. Let the background shrink freely.
+    imageView.setContentCompressionResistancePriority(.init(1), for: .horizontal)
+    imageView.setContentCompressionResistancePriority(.init(1), for: .vertical)
+    imageView.setContentHuggingPriority(.init(1), for: .horizontal)
+    imageView.setContentHuggingPriority(.init(1), for: .vertical)
     addSubview(imageView)
 
     gradientView.wantsLayer = true
