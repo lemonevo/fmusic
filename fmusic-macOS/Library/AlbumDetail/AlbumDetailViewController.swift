@@ -177,27 +177,23 @@ final class AlbumDetailViewController: NSViewController, ContentSearchable,
     button.imagePosition = .imageLeading
     button.imageHugsTitle = true
     button.imageScaling = .scaleProportionallyDown
-    button.isBordered = false
-    button.bezelStyle = .regularSquare
+    // System push button with the accent bezel colour instead of a hand-drawn pill.
+    button.isBordered = true
+    button.bezelStyle = .push
+    button.bezelColor = filled ? accent : accent.withAlphaComponent(0.28)
+    button.contentTintColor = filled ? NSColor.white : accent
     button.font = .systemFont(ofSize: 13, weight: .medium)
-    let foreground = filled ? NSColor.white : accent
     button.attributedTitle = NSAttributedString(
       string: title,
       attributes: [
-        .foregroundColor: foreground,
+        .foregroundColor: filled ? NSColor.white : accent,
         .font: NSFont.systemFont(ofSize: 13, weight: .medium),
       ]
     )
-    button.contentTintColor = foreground
-    button.wantsLayer = true
-    button.layer?.backgroundColor = (filled ? accent : accent.withAlphaComponent(0.18))
-      .cgColor
-    button.layer?.cornerRadius = 17
     button.translatesAutoresizingMaskIntoConstraints = false
     button.heightAnchor.constraint(equalToConstant: 34).isActive = true
     button.widthAnchor.constraint(greaterThanOrEqualToConstant: 96).isActive = true
   }
-
   private func configureTableView() {
     tableView.style = .inset
     tableView.backgroundColor = .clear
