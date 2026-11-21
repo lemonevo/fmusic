@@ -287,7 +287,7 @@ final class LyricsPaneView: NSView {
     let translationFont = NSFont.systemFont(ofSize: 17)
 
     let paragraph = NSMutableParagraphStyle()
-    paragraph.lineSpacing = 8
+    paragraph.lineSpacing = 34
 
     for (index, line) in lyrics.line.enumerated() {
       lineLocations.append(output.length)
@@ -356,7 +356,26 @@ final class LyricsPaneView: NSView {
     guard lineIndex >= 0, lineIndex < lineLocations.count else { return }
     let location = lineLocations[lineIndex]
     guard let string = textView.textStorage?.string, location < string.utf16.count else { return }
-    let range = NSRange(location: location, length: 0)
-    textView.scrollRangeToVisible(range)
+    let range = NSRange(location: location, length: 1)
+    guard let layoutManager = textView.layoutManager,
+          let container = textView.textContainer,
+          let clipView = textView.enclosingScrollView?.contentView
+    else {
+      textView.scrollRangeToVisible(range)
+      return
+    }
+    let glyphRange = layoutManager.glyphRange(forCharacterRange: range, actualCharacterRange: nil)
+    var lineRect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: container)
+    lineRect.origin.x += textView.textContainerInset.width
+    lineRect.origin.y += textView.textContainerInset.height
+    let centerY = lineRect.midY + textView.frame.origin.y
+    let target = max(0, centerY - clipView.bounds.height / 2)
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.38
+      context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      clipView.animator().setBoundsOrigin(NSPoint(x: 0, y: target))
+    } completionHandler: {
+      self.textView.enclosingScrollView?.reflectScrolledClipView(clipView)
+    }
   }
 }
