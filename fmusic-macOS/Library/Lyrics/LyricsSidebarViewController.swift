@@ -739,7 +739,10 @@ private final class LyricsSidebarCellView: NSTableCellView {
       scale: scale,
       foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
     )
-    let blurRadius = isActive ? 0 : 2.2 * scale
+    // The Catalyst snapshot is already at screen scale; 2.2 px there is subtle.
+    // Our rasterizer blurs at pixel resolution with the same factor, which reads
+    // stronger, so use half the radius to match the original look.
+    let blurRadius = isActive ? 0 : 1.1 * scale
     let dimImage = isActive
       ? sharpDimImage
       : sharpDimImage.flatMap { Self.blurred($0, radius: blurRadius) }
