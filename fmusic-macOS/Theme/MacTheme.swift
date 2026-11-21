@@ -48,19 +48,22 @@ enum MacTheme {
     FmusicKit.shared.storage.settings.accounts.activeSetting.read.themePreference.asColor
   }
 
+  /// The Catalyst app uses `UIColor.secondarySystemBackground` for the sidebar
+  /// (SideBarVC) and `UIColor.systemBackground` for the content area. These are
+  /// the exact UIKit values expressed as AppKit dynamic colours.
   static var sidebarBackgroundColor: NSColor {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
       return isDark
-        ? NSColor(white: 0.12, alpha: 1)
-        : NSColor(white: 0.955, alpha: 1)
+        ? NSColor(srgbRed: 0x1C / 255, green: 0x1C / 255, blue: 0x1E / 255, alpha: 1)
+        : NSColor(srgbRed: 0xF2 / 255, green: 0xF2 / 255, blue: 0xF7 / 255, alpha: 1)
     }
   }
 
   static var contentBackgroundColor: NSColor {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      return isDark ? NSColor(white: 0.08, alpha: 1) : .white
+      return isDark ? .black : .white
     }
   }
 

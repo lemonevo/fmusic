@@ -62,8 +62,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let columnIdentifier = NSUserInterfaceItemIdentifier("SidebarColumn")
 
   override func loadView() {
-    // ThemedBackgroundView re-applies its layer colour when light/dark changes.
-    let root = ThemedBackgroundView()
+    let root = SidebarBackgroundView()
     root.wantsLayer = true
     root.layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
 
@@ -465,5 +464,28 @@ final class AvatarView: NSView {
     layer?.backgroundColor = color.cgColor
     let initial = displayName.first.map(String.init) ?? "?"
     label.stringValue = initial.uppercased()
+  }
+}
+
+
+// MARK: - SidebarBackgroundView
+
+/// Uses the Catalyst sidebar surface (`secondarySystemBackground`) and repaints it
+/// when the light/dark appearance changes.
+@MainActor
+private final class SidebarBackgroundView: NSView {
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
   }
 }
