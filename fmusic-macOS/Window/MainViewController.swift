@@ -271,6 +271,13 @@ final class MainViewController: NSViewController {
     overlayWindow.backgroundColor = .clear
     overlayWindow.hasShadow = false
     overlayWindow.setFrame(parent.frame, display: true)
+    // Match the main window's rounded corners instead of a square borderless window.
+    if let content = overlayWindow.contentView {
+      content.wantsLayer = true
+      content.layer?.cornerRadius = 12
+      content.layer?.cornerCurve = .continuous
+      content.layer?.masksToBounds = true
+    }
     parent.addChildWindow(overlayWindow, ordered: .above)
     NSLog("fmusic: overlay added \(overlayWindow.frame)")
     overlayWindow.orderFront(nil)
