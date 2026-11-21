@@ -88,6 +88,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     if #available(macOS 26.0, *) {
       let glass = NSGlassEffectView()
       glass.style = .regular
+      // Slightly more see-through than the stock regular glass.
+      glass.alphaValue = 0.85
       glass.cornerRadius = Self.capsuleHeight / 2
       glassBackdrop = glass
     } else {
