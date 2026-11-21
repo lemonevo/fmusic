@@ -257,38 +257,117 @@ final class MainViewController: NSViewController {
 
   /// Full-window Now Playing page, presented over the whole main window like the
   /// Catalyst `PopupPlayerVC`.
+  private var nowPlayingController: NowPlayingViewController?
+
   func presentNowPlayingOverlay() {
-    NSLog("fmusic: overlay requested")
     dismissNowPlayingOverlay(animated: false)
-    guard let parent = view.window ?? NSApp.windows.first(where: { $0.isVisible }) else { return }
+    guard let parent = view.window else { return }
     let controller = NowPlayingViewController()
     controller.onClose = { [weak self] in
       self?.dismissNowPlayingOverlay(animated: true)
     }
-    let overlayWindow = NowPlayingOverlayWindow(contentViewController: controller)
-    overlayWindow.styleMask = [.borderless]
-    overlayWindow.isOpaque = false
-    overlayWindow.backgroundColor = .clear
-    overlayWindow.hasShadow = false
-    overlayWindow.setFrame(parent.frame, display: true)
-    // Match the main window's rounded corners instead of a square borderless window.
-    if let content = overlayWindow.contentView {
-      content.wantsLayer = true
-      content.layer?.cornerRadius = 12
-      content.layer?.cornerCurve = .continuous
-      content.layer?.masksToBounds = true
+    nowPlayingController = controller
+
+    // Plain borderless window with a fixed-size container: never use
+    // contentViewController here, AppKit would grow the window to the page's
+    // Auto Layout fitting size (1020x1000 instead of the main window's 1024x768).
+    let container = NSView(frame: NSRect(origin: .zero, size: parent.frame.size))
+    container.wantsLayer = true
+    container.layer?.backgroundColor = NSColor.black.cgColor
+    container.layer?.cornerRadius = 12
+    container.layer?.cornerCurve = .continuous
+    container.layer?.masksToBounds = true
+
+    let window = NSWindow(
+      contentRect: parent.frame,
+      styleMask: [.borderless],
+      backing: .buffered,
+      defer: false
+    )
+    window.isOpaque = false
+    window.backgroundColor = .clear
+    window.hasShadow = false
+    window.contentView = container
+    // Explicit size constraints: AppKit derives a window's size from its content
+    // view's Auto Layout fitting size, and the player page's fitting height is
+    // 1000 pt. Pinning the container to the main window rectangle stops that.
+    container.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      container.widthAnchor.constraint(equalToConstant: parent.frame.width),
+      container.heightAnchor.constraint(equalToConstant: parent.frame.height),
+    ])
+    window.setFrame(parent.frame, display: false)
+
+    let page = controller.view
+    page.wantsLayer = true
+    page.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(page)
+    NSLayoutConstraint.activate([
+      page.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+      page.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+      page.topAnchor.constraint(equalTo: container.topAnchor),
+      page.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+    ])
+    // Lock the window to the main window's rectangle; AppKit otherwise resizes it
+    // to the page's Auto Layout fitting size (1020x1000).
+    window.minSize = parent.frame.size
+    window.maxSize = parent.frame.size
+    window.contentMinSize = parent.frame.size
+    window.contentMaxSize = parent.frame.size
+
+    parent.addChildWindow(window, ordered: .above)
+    window.orderFront(nil)
+    window.setFrame(parent.frame, display: false)
+    nowPlayingWindow = window
+
+    NSLog("fmusic: overlay A window=\(window.frame) parent=\(parent.frame) page=\(page.frame) container=\(container.frame)")
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+      NSLog("fmusic: overlay B window=\(window.frame) page=\(page.frame)")
     }
-    parent.addChildWindow(overlayWindow, ordered: .above)
-    NSLog("fmusic: overlay added \(overlayWindow.frame)")
-    overlayWindow.orderFront(nil)
-    nowPlayingWindow = overlayWindow
+    if let layer = page.layer {
+      let slide = CABasicAnimation(keyPath: "transform.translation.y")
+      slide.fromValue = -container.bounds.height
+      slide.toValue = 0
+      slide.duration = 0.32
+      slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      layer.add(slide, forKey: "coverVertical")
+    }
   }
 
   func dismissNowPlayingOverlay(animated: Bool) {
     guard let window = nowPlayingWindow else { return }
     nowPlayingWindow = nil
-    window.parent?.removeChildWindow(window)
-    window.orderOut(nil)
+    guard let container = window.contentView, let page = container.subviews.first else {
+      window.parent?.removeChildWindow(window)
+      window.orderOut(nil)
+      return
+    }
+    let finish = {
+      window.parent?.removeChildWindow(window)
+      window.orderOut(nil)
+      self.nowPlayingController = nil
+    }
+    guard animated else {
+      finish()
+      return
+    }
+    if let layer = page.layer {
+      CATransaction.begin()
+      CATransaction.setCompletionBlock { finish() }
+      let slide = CABasicAnimation(keyPath: "transform.translation.y")
+      slide.fromValue = 0
+      slide.toValue = -container.bounds.height
+      slide.duration = 0.26
+      slide.timingFunction = CAMediaTimingFunction(name: .easeIn)
+      slide.fillMode = .forwards
+      slide.isRemovedOnCompletion = false
+      layer.add(slide, forKey: "coverVerticalDismiss")
+      CATransaction.setDisableActions(true)
+      layer.transform = CATransform3DMakeTranslation(0, -container.bounds.height, 0)
+      CATransaction.commit()
+    } else {
+      finish()
+    }
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
