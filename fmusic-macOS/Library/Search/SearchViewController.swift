@@ -2,8 +2,10 @@
 //  SearchViewController.swift
 //  fmusic-macOS
 //
-//  Self-contained library search page: an in-page NSSearchField with a result list
-//  for songs, albums and artists.
+//  Library search page, modelled on the Catalyst `SearchVC`: the search field lives
+//  in the content toolbar, the body shows search history / a content-unavailable
+//  empty state, and results are grouped into artist / album / song / playlist
+//  sections with artwork rows.
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -22,45 +24,29 @@
 import AppKit
 import fmusicKit
 
-/// Search page for the sidebar's `.search` entry.
-///
-/// The search field lives inside the page (no window toolbar changes), so the Lead
-/// only has to map the sidebar item to `SearchViewController()`.
 @MainActor
-final class SearchViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate,
-  NSSearchFieldDelegate {
-  private enum Mode: Int {
-    case songs = 0
-    case albums = 1
-    case artists = 2
+final class SearchViewController: NSViewController, NSTableViewDataSource,
+  NSTableViewDelegate {
+  private enum Row {
+    case header(String)
+    case history(String)
+    case artist(Artist)
+    case album(Album)
+    case song(Song)
+    case playlist(Playlist)
   }
 
-  private let titleLabel = NSTextField(labelWithString: L10n.tr("Search"))
-  private let searchField = NSSearchField()
-  private let modeControl = NSSegmentedControl(
-    labels: [L10n.tr("Songs"), L10n.tr("Albums"), L10n.tr("Artists")],
-    trackingMode: .selectOne,
-    target: nil,
-    action: nil
-  )
-  private let statusLabel = NSTextField(labelWithString: "")
-  private let emptyLabel = NSTextField(labelWithString: "")
-  private let emptyDetailLabel = NSTextField(wrappingLabelWithString: "")
-  private let emptyIconView = NSImageView()
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
+  private let emptyIconView = NSImageView()
+  private let emptyLabel = NSTextField(labelWithString: "")
+  private let emptyDetailLabel = NSTextField(wrappingLabelWithString: "")
 
-  private var mode: Mode = .songs
-  private var songs: [Song] = []
-  private var albums: [Album] = []
-  private var artists: [Artist] = []
+  private var query = ""
+  private var rows: [Row] = []
 
-  private enum Column {
-    static let artwork = NSUserInterfaceItemIdentifier("searchArtwork")
-    static let title = NSUserInterfaceItemIdentifier("searchTitle")
-    static let subtitle = NSUserInterfaceItemIdentifier("searchSubtitle")
-    static let extra = NSUserInterfaceItemIdentifier("searchExtra")
-  }
+  private var player: PlayerFacade { FmusicKit.shared.player }
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   // MARK: - Lifecycle
 
@@ -68,31 +54,23 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     let root = NSView()
     root.wantsLayer = true
 
-    titleLabel.isHidden = true
-    titleLabel.font = MacTheme.largeTitleFont
-    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+    let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("search"))
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+    tableView.headerView = nil
+    tableView.rowHeight = 56
+    tableView.backgroundColor = .clear
+    tableView.selectionHighlightStyle = .none
+    tableView.dataSource = self
+    tableView.delegate = self
+    tableView.target = self
+    tableView.doubleAction = #selector(rowDoubleClicked)
 
-    searchField.placeholderString = L10n.tr("Search")
-    searchField.sendsSearchStringImmediately = true
-    searchField.sendsWholeSearchString = false
-    searchField.target = self
-    searchField.action = #selector(searchChanged)
-    searchField.sendsSearchStringImmediately = true
-    searchField.sendsWholeSearchString = false
-    searchField.delegate = self
-    searchField.isHidden = true
-    searchField.translatesAutoresizingMaskIntoConstraints = false
-
-    modeControl.isHidden = true
-    modeControl.selectedSegment = Mode.songs.rawValue
-    modeControl.target = self
-    modeControl.action = #selector(modeChanged)
-    modeControl.translatesAutoresizingMaskIntoConstraints = false
-
-    statusLabel.font = MacTheme.secondaryFont
-    statusLabel.textColor = MacTheme.secondaryTextColor
-    statusLabel.isHidden = true
-    statusLabel.translatesAutoresizingMaskIntoConstraints = false
+    scrollView.documentView = tableView
+    scrollView.hasVerticalScroller = true
+    scrollView.drawsBackground = false
+    scrollView.translatesAutoresizingMaskIntoConstraints = false
+    scrollView.isHidden = true
 
     emptyLabel.font = .systemFont(ofSize: 20, weight: .semibold)
     emptyLabel.textColor = MacTheme.secondaryTextColor
@@ -111,23 +89,13 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     emptyIconView.contentTintColor = MacTheme.secondaryTextColor
     emptyIconView.translatesAutoresizingMaskIntoConstraints = false
 
-    configureTableView()
-    scrollView.documentView = tableView
-    scrollView.hasVerticalScroller = true
-    scrollView.drawsBackground = false
-    scrollView.translatesAutoresizingMaskIntoConstraints = false
-
-    root.addSubview(titleLabel)
-    root.addSubview(searchField)
-    root.addSubview(modeControl)
-    root.addSubview(statusLabel)
     root.addSubview(scrollView)
     root.addSubview(emptyIconView)
     root.addSubview(emptyLabel)
     root.addSubview(emptyDetailLabel)
 
     NSLayoutConstraint.activate([
-      scrollView.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+      scrollView.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
@@ -164,84 +132,11 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     reloadResults()
   }
 
-  override func viewDidAppear() {
-    super.viewDidAppear()
-    view.window?.makeFirstResponder(searchField)
-  }
-
   deinit {
     NotificationCenter.default.removeObserver(self)
   }
 
-  // MARK: - Table view
-
-  private func configureTableView() {
-    let artworkColumn = NSTableColumn(identifier: Column.artwork)
-    artworkColumn.title = ""
-    artworkColumn.width = 46
-    artworkColumn.minWidth = 46
-    artworkColumn.maxWidth = 46
-
-    let titleColumn = NSTableColumn(identifier: Column.title)
-    titleColumn.title = L10n.tr("Title")
-    titleColumn.width = 280
-    titleColumn.minWidth = 160
-
-    let subtitleColumn = NSTableColumn(identifier: Column.subtitle)
-    subtitleColumn.title = L10n.tr("Artist")
-    subtitleColumn.width = 200
-    subtitleColumn.minWidth = 120
-
-    let extraColumn = NSTableColumn(identifier: Column.extra)
-    extraColumn.title = L10n.tr("Album")
-    extraColumn.width = 200
-    extraColumn.minWidth = 120
-
-    [artworkColumn, titleColumn, subtitleColumn, extraColumn]
-      .forEach(tableView.addTableColumn)
-
-    tableView.rowHeight = 44
-    tableView.style = .fullWidth
-    tableView.selectionHighlightStyle = .regular
-    tableView.allowsMultipleSelection = false
-    tableView.allowsEmptySelection = true
-    tableView.usesAlternatingRowBackgroundColors = false
-    tableView.backgroundColor = .clear
-    tableView.gridStyleMask = []
-    tableView.dataSource = self
-    tableView.delegate = self
-    tableView.doubleAction = #selector(handleDoubleClick)
-    tableView.target = self
-  }
-
-  // MARK: - Data
-
-  private var librarySetting: AccountSetting {
-    FmusicKit.shared.storage.settings.accounts.activeSetting.read
-  }
-
-  private var currentRowCount: Int {
-    switch mode {
-    case .songs: return songs.count
-    case .albums: return albums.count
-    case .artists: return artists.count
-    }
-  }
-
-  func controlTextDidChange(_ notification: Notification) {
-    searchChanged()
-  }
-
-  @objc
-  private func searchChanged() {
-    reloadResults()
-  }
-
-  @objc
-  private func modeChanged() {
-    mode = Mode(rawValue: modeControl.selectedSegment) ?? .songs
-    reloadResults()
-  }
+  // MARK: - Searching
 
   @objc
   private func libraryChanged() {
@@ -249,98 +144,103 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
   }
 
   private func reloadResults() {
-    let storage = FmusicKit.shared.storage
-    let query = searchField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-
+    let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
     guard let accountInfo = storage.settings.accounts.active else {
-      songs = []
-      albums = []
-      artists = []
-      tableView.reloadData()
-      statusLabel.stringValue = ""
-      showEmptyState(
-        query.isEmpty ? L10n.tr("No Search History") : L10n.tr("No Results"),
-        detail: query.isEmpty ? L10n.tr("Your search history will appear here.") : nil
-      )
-      return
-    }
-
-    guard !query.isEmpty else {
-      songs = []
-      albums = []
-      artists = []
-      tableView.reloadData()
-      statusLabel.stringValue = ""
       showEmptyState(
         L10n.tr("No Search History"),
         detail: L10n.tr("Your search history will appear here.")
       )
       return
     }
-
     let account = storage.main.library.getAccount(info: accountInfo)
     let library = storage.main.library
 
-    switch mode {
-    case .songs:
-      songs = library.searchSongs(
-        for: account,
-        searchText: query,
-        onlyCached: false,
-        displayFilter: .all
-      )
-    case .albums:
-      albums = library.searchAlbums(
-        for: account,
-        searchText: query,
-        onlyCached: false,
-        displayFilter: .all
-      )
-    case .artists:
-      artists = library.searchArtists(
-        for: account,
-        searchText: query,
-        onlyCached: false,
-        displayFilter: .all
-      )
+    guard !trimmed.isEmpty else {
+      let history = library.getSearchHistory(for: account)
+      if history.isEmpty {
+        showEmptyState(
+          L10n.tr("No Search History"),
+          detail: L10n.tr("Your search history will appear here.")
+        )
+      } else {
+        var rows: [Row] = [.header(L10n.tr("Recent Searches"))]
+        rows += history.compactMap { item -> Row? in
+          guard let containable = item.searchedPlayableContainable else { return nil }
+          let text = (containable as? AbstractPlayable)?.title ?? containable.name
+          return text.isEmpty ? nil : .history(text)
+        }
+        show(rows: rows)
+      }
+      return
     }
 
-    tableView.reloadData()
-    let count = currentRowCount
-    if count == 0 {
-      statusLabel.stringValue = ""
+    let artists = library.searchArtists(
+      for: account,
+      searchText: trimmed,
+      onlyCached: false,
+      displayFilter: .all
+    )
+    let albums = library.searchAlbums(
+      for: account,
+      searchText: trimmed,
+      onlyCached: false,
+      displayFilter: .all
+    )
+    let songs = library.searchSongs(
+      for: account,
+      searchText: trimmed,
+      onlyCached: false,
+      displayFilter: .all
+    )
+    let playlists = library.searchPlaylists(
+      for: account,
+      searchText: trimmed,
+      playlistSearchCategory: .all
+    )
+
+    var rows: [Row] = []
+    if !artists.isEmpty {
+      rows.append(.header(L10n.tr("Artists")))
+      rows += artists.map(Row.artist)
+    }
+    if !albums.isEmpty {
+      rows.append(.header(L10n.tr("Albums")))
+      rows += albums.map(Row.album)
+    }
+    if !playlists.isEmpty {
+      rows.append(.header(L10n.tr("Playlists")))
+      rows += playlists.map(Row.playlist)
+    }
+    if !songs.isEmpty {
+      rows.append(.header(L10n.tr("Songs")))
+      rows += songs.map(Row.song)
+    }
+    if rows.isEmpty {
       showEmptyState(L10n.tr("No Results"))
     } else {
-      let noun: String
-      switch mode {
-      case .songs: noun = L10n.tr("Songs")
-      case .albums: noun = L10n.tr("Albums")
-      case .artists: noun = L10n.tr("Artists")
-      }
-      statusLabel.stringValue = "\(count) \(noun)"
-      emptyLabel.isHidden = true
-      emptyDetailLabel.isHidden = true
-      emptyIconView.isHidden = true
-      tableView.headerView?.isHidden = false
+      show(rows: rows)
     }
   }
 
-  private var hintText: String {
-    "\(L10n.tr("Search")): \(L10n.tr("Songs")) · \(L10n.tr("Albums")) · \(L10n.tr("Artists"))"
+  private func show(rows: [Row]) {
+    self.rows = rows
+    scrollView.isHidden = false
+    hideEmptyState()
+    tableView.reloadData()
   }
 
   private func showEmptyState(_ text: String, detail: String? = nil) {
-    // The Catalyst screen hides the row headers while the empty state is shown.
-    tableView.headerView?.isHidden = true
-    emptyLabel.stringValue = text
-    emptyDetailLabel.stringValue = detail ?? ""
-    emptyDetailLabel.isHidden = (detail ?? "").isEmpty
-    emptyIconView.isHidden = text == L10n.tr("No Results")
+    rows = []
+    tableView.reloadData()
+    scrollView.isHidden = true
+    emptyIconView.isHidden = false
     emptyIconView.image = NSImage(
       systemSymbolName: text == L10n.tr("No Results") ? "magnifyingglass" : "clock",
       accessibilityDescription: nil
     )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 34, weight: .regular))
-    emptyLabel.isHidden = false
+    emptyLabel.stringValue = text
+    emptyDetailLabel.stringValue = detail ?? ""
+    emptyDetailLabel.isHidden = (detail ?? "").isEmpty
   }
 
   private func hideEmptyState() {
@@ -352,48 +252,43 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
   // MARK: - Actions
 
   @objc
-  private func handleDoubleClick() {
-    let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
-    play(row: row)
+  private func rowDoubleClicked() {
+    openRow(at: tableView.clickedRow)
   }
 
-  private func play(row: Int) {
-    guard row >= 0 else { return }
-    let player = FmusicKit.shared.player
-    switch mode {
-    case .songs:
-      guard row < songs.count else { return }
-      player.play(context: PlayContext(
-        name: L10n.tr("Search"),
-        index: row,
-        playables: songs
-      ))
-    case .albums:
-      guard row < albums.count else { return }
-      let album = albums[row]
-      guard !album.playables.isEmpty else { return }
-      player.play(context: PlayContext(containable: album))
-    case .artists:
-      guard row < artists.count else { return }
-      let artist = artists[row]
-      guard !artist.playables.isEmpty else { return }
-      player.play(context: PlayContext(containable: artist))
+  private func openRow(at index: Int) {
+    guard rows.indices.contains(index) else { return }
+    switch rows[index] {
+    case .header:
+      return
+    case let .history(text):
+      query = text
+      reloadResults()
+    case let .song(song):
+      player.play(context: PlayContext(name: L10n.tr("Songs"), playables: [song]))
+    case let .album(album):
+      MainViewController.current?.openAlbum(album)
+    case let .artist(artist):
+      MainViewController.current?.openArtist(artist)
+    case .playlist:
+      return
     }
   }
 
-  // MARK: - NSTableViewDataSource
+  // MARK: - Table
 
   func numberOfRows(in tableView: NSTableView) -> Int {
-    currentRowCount
+    rows.count
   }
 
-  // MARK: - NSTableViewDelegate
+  func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    if case .header = rows[row] { return 30 }
+    return 56
+  }
 
-  func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-    let rowView = ThemedRowView()
-    rowView.cornerRadius = 5
-    rowView.horizontalInset = 10
-    return rowView
+  func tableView(_ tableView: NSTableView, isGroupRow row: Int) -> Bool {
+    if case .header = rows[row] { return true }
+    return false
   }
 
   func tableView(
@@ -402,106 +297,155 @@ final class SearchViewController: NSViewController, NSTableViewDataSource, NSTab
     row: Int
   )
     -> NSView? {
-    guard let tableColumn else { return nil }
-
-    switch tableColumn.identifier {
-    case Column.artwork:
-      let cell = tableView.makeView(withIdentifier: Column.artwork, owner: self) as?
-        LMArtworkCellView ?? LMArtworkCellView()
-      cell.identifier = Column.artwork
-      cell.display(image: artworkImage(row: row))
-      return cell
-    case Column.title:
-      return textCell(
-        Column.title,
-        text: titleText(row: row),
-        font: MacTheme.titleFont,
-        color: .labelColor
+    switch rows[row] {
+    case let .header(title):
+      let label = NSTextField(labelWithString: title)
+      label.font = .systemFont(ofSize: 12, weight: .semibold)
+      label.textColor = MacTheme.secondaryTextColor
+      let container = NSView()
+      label.translatesAutoresizingMaskIntoConstraints = false
+      container.addSubview(label)
+      NSLayoutConstraint.activate([
+        label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+        label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -4),
+      ])
+      return container
+    case let .history(text):
+      return makeRowView(
+        artwork: nil,
+        title: text,
+        subtitle: L10n.tr("Search History"),
+        symbol: "clock.arrow.circlepath"
       )
-    case Column.subtitle:
-      return textCell(
-        Column.subtitle,
-        text: subtitleText(row: row),
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor
+    case let .artist(artist):
+      return makeRowView(
+        artwork: artworkImage(for: artist as AbstractLibraryEntity),
+        title: artist.name,
+        subtitle: L10n.tr("Artist")
       )
-    case Column.extra:
-      return textCell(
-        Column.extra,
-        text: extraText(row: row),
-        font: MacTheme.bodyFont,
-        color: MacTheme.secondaryTextColor
+    case let .album(album):
+      return makeRowView(
+        artwork: artworkImage(for: album as AbstractLibraryEntity),
+        title: album.name,
+        subtitle: album.artist?.name ?? L10n.tr("Album")
       )
-    default:
-      return nil
+    case let .playlist(playlist):
+      return makeRowView(
+        artwork: nil,
+        title: playlist.name,
+        subtitle: L10n.tr("Playlist"),
+        symbol: "music.note.list"
+      )
+    case let .song(song):
+      let subtitle = [song.artist?.name, song.album?.name]
+        .compactMap { $0 }
+        .joined(separator: " · ")
+      return makeRowView(
+        artwork: artworkImage(for: song),
+        title: song.title,
+        subtitle: subtitle,
+        duration: song.duration
+      )
     }
   }
 
-  private func artworkImage(row: Int) -> NSImage? {
-    let setting = librarySetting
-    switch mode {
-    case .songs:
-      guard row < songs.count else { return nil }
-      return LMLibraryArtwork.image(for: songs[row], setting: setting)
-    case .albums:
-      guard row < albums.count else { return nil }
-      return LMLibraryArtwork.image(for: albums[row], setting: setting)
-    case .artists:
-      guard row < artists.count else { return nil }
-      return LMLibraryArtwork.image(for: artists[row], setting: setting)
-    }
+  private func artworkImage(for playable: AbstractPlayable) -> NSImage? {
+    let setting = storage.settings.accounts.activeSetting.read
+    return ArtworkImageLoader.image(
+      for: playable,
+      themePreference: setting.themePreference,
+      artworkDisplayPreference: setting.artworkDisplayPreference
+    )
   }
 
-  private func titleText(row: Int) -> String {
-    switch mode {
-    case .songs:
-      return row < songs.count ? songs[row].title : ""
-    case .albums:
-      return row < albums.count ? albums[row].name : ""
-    case .artists:
-      return row < artists.count ? artists[row].name : ""
-    }
+  private func artworkImage(for entity: AbstractLibraryEntity) -> NSImage {
+    LMLibraryArtwork.image(
+      for: entity,
+      setting: storage.settings.accounts.activeSetting.read
+    )
   }
 
-  private func subtitleText(row: Int) -> String {
-    switch mode {
-    case .songs:
-      return row < songs.count ? songs[row].creatorName : ""
-    case .albums:
-      return row < albums.count ? (albums[row].artist?.name ?? "") : ""
-    case .artists:
-      if row < artists.count {
-        return "\(artists[row].songCount) \(L10n.tr("Songs"))"
-      }
-      return ""
-    }
-  }
-
-  private func extraText(row: Int) -> String {
-    switch mode {
-    case .songs:
-      guard row < songs.count else { return "" }
-      return songs[row].album?.name ?? ""
-    case .albums:
-      guard row < albums.count else { return "" }
-      return "\(albums[row].songCount) \(L10n.tr("Songs"))"
-    case .artists:
-      return ""
-    }
-  }
-
-  private func textCell(
-    _ identifier: NSUserInterfaceItemIdentifier,
-    text: String,
-    font: NSFont,
-    color: NSColor
+  private func makeRowView(
+    artwork: NSImage?,
+    title: String,
+    subtitle: String,
+    symbol: String? = nil,
+    duration: Int? = nil
   )
     -> NSView {
-    let cell = tableView.makeView(withIdentifier: identifier, owner: self) as?
-      LMTextCellView ?? LMTextCellView()
-    cell.identifier = identifier
-    cell.configure(text: text, font: font, color: color)
-    return cell
+    let container = NSView()
+
+    let artworkView = NSImageView()
+    artworkView.imageScaling = .scaleProportionallyUpOrDown
+    artworkView.wantsLayer = true
+    artworkView.layer?.cornerRadius = 5
+    artworkView.layer?.masksToBounds = true
+    artworkView.translatesAutoresizingMaskIntoConstraints = false
+    if let artwork {
+      artworkView.image = artwork
+    } else if let symbol {
+      artworkView.image = NSImage(
+        systemSymbolName: symbol,
+        accessibilityDescription: nil
+      )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+      artworkView.contentTintColor = MacTheme.secondaryTextColor
+    }
+
+    let titleLabel = NSTextField(labelWithString: title)
+    titleLabel.font = .systemFont(ofSize: 13, weight: .medium)
+    titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    let subtitleLabel = NSTextField(labelWithString: subtitle)
+    subtitleLabel.font = .systemFont(ofSize: 11)
+    subtitleLabel.textColor = MacTheme.secondaryTextColor
+    subtitleLabel.lineBreakMode = .byTruncatingTail
+    subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    container.addSubview(artworkView)
+    container.addSubview(titleLabel)
+    container.addSubview(subtitleLabel)
+
+    NSLayoutConstraint.activate([
+      artworkView.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 24),
+      artworkView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+      artworkView.widthAnchor.constraint(equalToConstant: 40),
+      artworkView.heightAnchor.constraint(equalToConstant: 40),
+
+      titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 12),
+      titleLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: container.trailingAnchor,
+        constant: -24
+      ),
+      titleLabel.topAnchor.constraint(equalTo: artworkView.topAnchor, constant: 2),
+
+      subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+      subtitleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
+    ])
+
+    if let duration {
+      let durationLabel = NSTextField(
+        labelWithString: ClockTime(timeInSeconds: duration).asShortString()
+      )
+      durationLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+      durationLabel.textColor = MacTheme.secondaryTextColor
+      durationLabel.translatesAutoresizingMaskIntoConstraints = false
+      container.addSubview(durationLabel)
+      NSLayoutConstraint.activate([
+        durationLabel.trailingAnchor.constraint(
+          equalTo: container.trailingAnchor,
+          constant: -24
+        ),
+        durationLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        titleLabel.trailingAnchor.constraint(
+          lessThanOrEqualTo: durationLabel.leadingAnchor,
+          constant: -12
+        ),
+      ])
+    }
+
+    return container
   }
 }
 
@@ -513,7 +457,7 @@ extension SearchViewController: ContentSearchable {
   }
 
   func contentSearchDidChange(text: String) {
-    searchField.stringValue = text
+    query = text
     reloadResults()
   }
 }
