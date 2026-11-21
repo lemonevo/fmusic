@@ -25,7 +25,7 @@ import fmusicKit
 /// Flat song list backed by `NSTableView` with one flexible custom row cell.
 @MainActor
 final class SongsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
-  private let tableView = NSTableView()
+  private let tableView = SongsTableView()
   private let scrollView = NSScrollView()
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Songs"))
   private let countLabel = NSTextField(labelWithString: "")
@@ -109,6 +109,13 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     tableView.delegate = self
     tableView.target = self
     tableView.doubleAction = #selector(handleDoubleClick)
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      self.play(row: self.tableView.selectedRow)
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
   }
 
   // MARK: - Data
@@ -146,10 +153,8 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     FmusicKit.shared.player.play(context: context)
   }
 
-  @objc
-  private func rowMenuPressed(_ sender: NSButton) {
-    let row = sender.tag
-    guard row >= 0, row < songs.count else { return }
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < songs.count else { return nil }
     let menu = NSMenu()
     let playItem = NSMenuItem(
       title: L10n.tr("Play"),
@@ -167,6 +172,12 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    return menu
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    guard let menu = makeMenu(for: sender.tag) else { return }
     menu.popUp(
       positioning: nil,
       at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),
@@ -319,5 +330,29 @@ final class SongListCellView: NSTableCellView {
     menuButton.target = target
     menuButton.action = menuAction
     menuButton.tag = row
+  }
+}
+
+// MARK: - SongsTableView
+
+/// Table view that plays the selection with Return and offers a right-click menu.
+private final class SongsTableView: NSTableView {
+  var onReturn: (() -> Void)?
+  var onContextMenu: ((Int) -> NSMenu?)?
+
+  override func keyDown(with event: NSEvent) {
+    if event.keyCode == 36 || event.keyCode == 76, selectedRow >= 0 {
+      onReturn?()
+      return
+    }
+    super.keyDown(with: event)
+  }
+
+  override func menu(for event: NSEvent) -> NSMenu? {
+    let point = convert(event.locationInWindow, from: nil)
+    let row = self.row(at: point)
+    guard row >= 0 else { return nil }
+    selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
+    return onContextMenu?(row)
   }
 }
