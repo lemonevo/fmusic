@@ -130,6 +130,14 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     let infoGroup = NSStackView(views: [artworkView, infoStack()])
     self.infoGroup = infoGroup
+    // Tapping the cover/title opens the large Now Playing page, like the Catalyst
+    // mini player opening PopupPlayerVC.
+    let openNowPlaying = NSClickGestureRecognizer(
+      target: self,
+      action: #selector(openNowPlayingPage)
+    )
+    infoGroup.addGestureRecognizer(openNowPlaying)
+    infoGroup.toolTip = L10n.tr("Now Playing")
 
     infoGroup.orientation = .horizontal
     infoGroup.alignment = .centerY
@@ -524,6 +532,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     player.seek(toSecond: Double(fraction) * duration)
     progressFraction = fraction
     updateProgressFill()
+  }
+
+  @objc
+  private func openNowPlayingPage() {
+    PlayerPageWindowController.presentNowPlaying()
   }
 
   @objc
