@@ -237,7 +237,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     }
 
     configureGlyphButton(favoriteButton, symbol: "heart", action: #selector(toggleFavorite))
-    configureGlyphButton(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu))
+    configureGlyphButton(optionsButton, symbol: "ellipsis", action: #selector(showEntityMenu))
 
 
     progressSlider.minValue = 0
@@ -335,7 +335,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private func buildBottomCluster(in root: NSView) {
     configureRound(airplayButton, symbol: "airplayaudio", action: #selector(showDeviceMenu), size: 16)
     configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 16)
-    configureRound(moreButton, symbol: "ellipsis.circle", action: #selector(showOptionsMenu), size: 16)
+    configureRound(moreButton, symbol: "ellipsis.circle", action: #selector(showPlayerOptionsMenu), size: 16)
     for button in [airplayButton, queueButton, moreButton] {
       root.addSubview(button)
       button.widthAnchor.constraint(equalToConstant: 26).isActive = true
@@ -546,7 +546,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   @objc
-  private func showOptionsMenu() {
+  private func showPlayerOptionsMenu() {
     let menu = NSMenu()
     menu.addItem(headerItem(L10n.tr("Player Options")))
 
@@ -574,6 +574,96 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       at: NSPoint(x: moreButton.bounds.midX, y: moreButton.bounds.minY - 4),
       in: moreButton
     )
+  }
+
+  @objc
+  private func showEntityMenu() {
+    let menu = NSMenu()
+    guard let song = player.currentlyPlaying?.asSong else { return }
+
+    menu.addItem(actionItem(L10n.tr("Instant Mix"), #selector(instantMix)))
+
+    let albumItem = actionItem(L10n.tr("Show Album"), #selector(showAlbumPage))
+    albumItem.isEnabled = song.album != nil
+    menu.addItem(albumItem)
+    let artistItem = actionItem(L10n.tr("Show Artist"), #selector(showArtistPage))
+    artistItem.isEnabled = song.artist != nil
+    menu.addItem(artistItem)
+
+    menu.addItem(actionItem(L10n.tr("Desktop Lyrics"), #selector(toggleDesktopLyrics)))
+    menu.addItem(actionItem(L10n.tr("Match Online Lyrics"), #selector(matchOnlineLyrics)))
+    menu.addItem(.separator())
+
+    let rating = NSMenuItem(title: L10n.tr("Rating"), action: nil, keyEquivalent: "")
+    let ratingMenu = NSMenu()
+    for stars in 0...5 {
+      let item = NSMenuItem(
+        title: stars == 0 ? L10n.tr("None") : String(repeating: "★", count: stars),
+        action: #selector(setRating(_:)),
+        keyEquivalent: ""
+      )
+      item.target = self
+      item.tag = stars
+      item.state = song.rating == stars ? .on : .off
+      ratingMenu.addItem(item)
+    }
+    rating.submenu = ratingMenu
+    menu.addItem(rating)
+    menu.addItem(.separator())
+
+    menu.addItem(disabledItem(L10n.tr("Add to Playlist")))
+    menu.addItem(disabledItem(L10n.tr("Delete Cache")))
+    menu.addItem(disabledItem(L10n.tr("Share")))
+
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
+      in: optionsButton
+    )
+  }
+
+  @objc
+  private func instantMix() {
+    if let url = URL(string: "fmusic://x-callback-url/playRandomSongs") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
+  @objc
+  private func showAlbumPage() {
+    guard let album = player.currentlyPlaying?.asSong?.album else { return }
+    (NSApp.delegate as? AppDelegate)?
+      .mainWindowController?
+      .mainViewController?
+      .openAlbum(album)
+  }
+
+  @objc
+  private func showArtistPage() {
+    guard let artist = player.currentlyPlaying?.asSong?.artist else { return }
+    (NSApp.delegate as? AppDelegate)?
+      .mainWindowController?
+      .mainViewController?
+      .openArtist(artist)
+  }
+
+  @objc
+  private func toggleDesktopLyrics() {
+    AppDelegate.sharedAppDelegate?.toggleDesktopLyrics(nil)
+  }
+
+  @objc
+  private func matchOnlineLyrics() {
+    guard let song = player.currentlyPlaying?.asSong else { return }
+    Task { @MainActor in
+      _ = await OnlineLyricsService.shared.matchLyrics(for: song)
+    }
+  }
+
+  @objc
+  private func setRating(_ sender: NSMenuItem) {
+    guard let song = player.currentlyPlaying?.asSong else { return }
+    song.rating = sender.tag
   }
 
   private func headerItem(_ title: String) -> NSMenuItem {
