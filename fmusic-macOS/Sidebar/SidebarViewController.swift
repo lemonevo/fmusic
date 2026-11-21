@@ -116,6 +116,13 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
     sidebarButton.isHidden = true
 
+    // 1 px divider between the sidebar and the content column (Apple Music style).
+    let border = NSView()
+    border.wantsLayer = true
+    border.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.55).cgColor
+    border.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(border)
+
     let footer = makeAccountFooter()
     root.addSubview(editButton)
     root.addSubview(sidebarButton)
@@ -130,6 +137,11 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
       sidebarButton.widthAnchor.constraint(equalToConstant: 36),
       sidebarButton.heightAnchor.constraint(equalToConstant: 30),
+
+      border.topAnchor.constraint(equalTo: root.topAnchor),
+      border.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+      border.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      border.widthAnchor.constraint(equalToConstant: 1),
     ])
 
     NSLayoutConstraint.activate([
