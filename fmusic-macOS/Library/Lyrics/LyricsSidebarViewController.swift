@@ -856,15 +856,26 @@ private final class LyricsPaneBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    layer?.backgroundColor = Self.paneColor.cgColor
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
+  /// Matches the Catalyst lyrics panel: the inspector surface in dark mode, the
+  /// measured warm light-grey panel (#EAE9E8) in light mode.
+  static var paneColor: NSColor {
+    NSColor(name: nil) { appearance in
+      if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+        return MacTheme.sidebarBackgroundColor.usingColorSpace(.sRGB) ?? .black
+      }
+      return NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
+    }
+  }
+
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    layer?.backgroundColor = Self.paneColor.cgColor
   }
 }
