@@ -314,7 +314,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func configureProgressLine() {
     progressTrack.wantsLayer = true
     progressTrack.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.26).cgColor
-    progressTrack.layer?.cornerRadius = 3
+    progressTrack.layer?.cornerRadius = 4
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
     progressTrack.addGestureRecognizer(
@@ -323,18 +323,18 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     progressFill.wantsLayer = true
     progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
-    progressFill.layer?.cornerRadius = 3
+    progressFill.layer?.cornerRadius = 4
     progressFill.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.addSubview(progressFill)
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
       progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -7),
-      progressTrack.heightAnchor.constraint(equalToConstant: 6),
+      progressTrack.heightAnchor.constraint(equalToConstant: 8),
 
       progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
       progressFill.centerYAnchor.constraint(equalTo: progressTrack.centerYAnchor),
-      progressFill.heightAnchor.constraint(equalToConstant: 6),
+      progressFill.heightAnchor.constraint(equalToConstant: 8),
     ])
     let width = progressFill.widthAnchor.constraint(equalToConstant: 0)
     progressFillWidth = width
