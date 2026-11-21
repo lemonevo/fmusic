@@ -63,7 +63,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
-  private var sleepTimer: Timer?
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -500,7 +499,11 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func closePressed() {
-    onClose?()
+    if let onClose {
+      onClose()
+    } else {
+      view.window?.performClose(nil)
+    }
   }
 
   @objc
@@ -740,14 +743,10 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func setSleepTimer(_ sender: NSMenuItem) {
-    sleepTimer?.invalidate()
-    sleepTimer = nil
-    guard sender.tag > 0 else { return }
-    sleepTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(sender.tag), repeats: false) { [weak self] _ in
-      Task { @MainActor in
-        FmusicKit.shared.player.pause()
-        _ = self
-      }
+    if sender.tag == 0 {
+      AppDelegate.sharedAppDelegate?.turnOffSleepTimer(nil)
+    } else {
+      AppDelegate.sharedAppDelegate?.startSleepTimer(minutes: sender.tag / 60)
     }
   }
 
@@ -876,7 +875,7 @@ private final class PlayerBlurredArtworkBackground: NSView {
   private let imageView = NSImageView()
   private let gradientView = NSView()
   private let gradientLayer = CAGradientLayer()
-  private let context = CIContext(options: nil)
+  private static let ciContext = CIContext(options: [.cacheIntermediates: false])
   private var currentArtwork: NSImage?
 
   override init(frame frameRect: NSRect) {
@@ -927,7 +926,7 @@ private final class PlayerBlurredArtworkBackground: NSView {
   func apply(artwork: NSImage?, accent: NSColor) {
     guard artwork !== currentArtwork else { return }
     currentArtwork = artwork
-    imageView.image = Self.blurred(artwork, context: context)
+    imageView.image = Self.blurred(artwork, context: Self.ciContext)
     // Catalyst uses the artwork's dominant colours for the gradient; take the
     // average colour and darken it towards the bottom.
     let base = Self.averageColor(of: artwork) ?? accent
@@ -950,7 +949,7 @@ private final class PlayerBlurredArtworkBackground: NSView {
     filter.setValue(input, forKey: kCIInputImageKey)
     filter.setValue(CIVector(cgRect: input.extent), forKey: kCIInputExtentKey)
     guard let output = filter.outputImage else { return nil }
-    let context = CIContext(options: nil)
+    let context = Self.ciContext
     var pixel = [UInt8](repeating: 0, count: 4)
     context.render(
       output,

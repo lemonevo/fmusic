@@ -101,7 +101,6 @@
 		4487A632FFE294D093B29750 /* DownloadsVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9AD6DD65BF7509A4018A2E2 /* DownloadsVC.swift */; };
 		48B68F362BF78B95EB8CAF9E /* AppDelegateMainMenuExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = D801093F9AEC6BF295446C21 /* AppDelegateMainMenuExtension.swift */; };
 		49AFCA8501BF887B03329EC0 /* LoginVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CFFCA59C9397047A3A46DA7 /* LoginVC.swift */; };
-		49ED52184DB9BA13729214DF /* fmusicAppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = C0243ACDD9DFFA6DB8B5AC7A /* fmusicAppIcon.icon */; };
 		4AD1A469725FB751A8D81123 /* SetRepeatIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A28061E7C5E72C54553C68D /* SetRepeatIntent.swift */; };
 		4CCD6A2D51B75625D6BC1268 /* ViewCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEE3E66958E7001AFC6845F /* ViewCreator.swift */; };
 		4D89813BC050931A41252A48 /* PlayerUIHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E3375830C62A288DAF6B67 /* PlayerUIHandler.swift */; };
@@ -2753,7 +2752,6 @@
 				C1E454FBBA615CAD0C936101 /* fmusicTeal.icon in Resources */,
 				972A7D6835E96BA7D75BEAE9 /* fmusicMusicYellow.icon in Resources */,
 				ED706E8EAE9B937B95EB05F4 /* fmusicMusicOrange.icon in Resources */,
-				49ED52184DB9BA13729214DF /* fmusicAppIcon.icon in Resources */,
 				7F852D406162C1391BD6DA84 /* fmusicMusicBlue.icon in Resources */,
 				0E1F0601EFE766F8A258F2BC /* fmusicMusicPurple.icon in Resources */,
 				F4451C9DAD5627C564515959 /* fmusicPurple.icon in Resources */,
