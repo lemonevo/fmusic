@@ -297,7 +297,7 @@ final class LyricsPaneView: NSView {
         .font: isCurrent ? currentFont : normalFont,
         .foregroundColor: isCurrent
           ? NSColor.white
-          : NSColor.white.withAlphaComponent(0.6),
+          : NSColor.white.withAlphaComponent(0.72),
         .paragraphStyle: paragraph,
       ]
       output.append(NSAttributedString(string: text + "\n", attributes: attributes))

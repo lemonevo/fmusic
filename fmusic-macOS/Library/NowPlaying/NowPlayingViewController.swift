@@ -2,8 +2,10 @@
 //  NowPlayingViewController.swift
 //  fmusic-macOS
 //
-//  Large "Now Playing" page: artwork with a theme/artwork colour gradient, song
-//  metadata, transport controls, progress slider and inline lyrics/queue panes.
+//  Full-window Now Playing page, ported from the Catalyst `PopupPlayerVC` /
+//  `LargeCurrentlyPlayingPlayerView` (always dark, artwork coloured gradient,
+//  chevron + volume chrome, artwork/details/progress/transport column, lyrics
+//  column, favourite/options and the bottom-right utility cluster).
 //
 //  This program is free software: you can redistribute it and/or modify
 //  it under the terms of the GNU General Public License as published by
@@ -20,49 +22,44 @@
 //
 
 import AppKit
+import CoreImage
 import CoreMedia
 import fmusicKit
 
-/// Big "正在播放" page. Two toggle buttons show the lyrics pane or the queue inline.
 @MainActor
 final class NowPlayingViewController: NSViewController, MusicPlayable {
   /// Called when the user taps the chevron (full-window overlay mode).
   var onClose: (() -> Void)?
-  private let backgroundView = ArtworkGradientBackgroundView()
-  private let titleLabel = NSTextField(labelWithString: L10n.tr("Now Playing"))
+
+  private let backgroundView = PlayerBlurredArtworkBackground()
+
   private let closeButton = NSButton()
+  private let volumePill = NSView()
+  private let volumeIcon = NSImageView()
   private let volumeSlider = NSSlider()
 
   private let artworkView = NSImageView()
   private let songTitleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
-  private let artistLabel = NSTextField(labelWithString: "")
   private let albumLabel = NSTextField(labelWithString: "")
+  private let artistLabel = NSTextField(labelWithString: "")
+  private let favoriteButton = NSButton()
+  private let optionsButton = NSButton()
 
+  private let progressSlider = NSSlider()
+  private let elapsedLabel = NSTextField(labelWithString: "0:00")
+  private let remainingLabel = NSTextField(labelWithString: "-0:00")
+
+  private let shuffleButton = NSButton()
   private let previousButton = NSButton()
   private let playPauseButton = NSButton()
   private let nextButton = NSButton()
-  private let shuffleButton = NSButton()
   private let repeatButton = NSButton()
-  private let favoriteButton = NSButton()
-  private let optionsButton = NSButton()
-  private weak var leftPanelView: NSView?
+
   private let airplayButton = NSButton()
   private let queueButton = NSButton()
   private let moreButton = NSButton()
 
-  private let elapsedLabel = NSTextField(labelWithString: "0:00")
-  private let remainingLabel = NSTextField(labelWithString: "-0:00")
-  private let progressSlider = NSSlider()
-
-  private let modeControl = NSSegmentedControl(
-    labels: [L10n.tr("Lyrics"), L10n.tr("Queue")],
-    trackingMode: .selectOne,
-    target: nil,
-    action: nil
-  )
-  private let panesContainer = NSView()
-  private let lyricsPane = LyricsPaneView()
-  private let queueSection = QueueSectionView()
+  private let lyricsPane = LyricsSidebarViewController()
 
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
@@ -70,427 +67,35 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
+  // MARK: - Layout constants (scaled from the Catalyst large player)
+
+  private let sideMargin: CGFloat = 92
+  private let artworkSide: CGFloat = 350
+  private let lyricsGap: CGFloat = 120
+
   // MARK: - Lifecycle
 
   override func loadView() {
     let root = NSView()
     root.wantsLayer = true
-    root.layer?.backgroundColor = NSColor.clear.cgColor
-    // The Catalyst player is always dark.
+    root.layer?.backgroundColor = NSColor.black.cgColor
     root.appearance = NSAppearance(named: .darkAqua)
+    self.view = root
 
     backgroundView.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(backgroundView)
 
-    titleLabel.font = MacTheme.largeTitleFont
-    titleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-    configureCloseButton()
-    configureVolumeControl()
-    root.addSubview(closeButton)
-    root.addSubview(volumeSlider)
-    NSLayoutConstraint.activate([
-      closeButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
-      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
-      closeButton.widthAnchor.constraint(equalToConstant: 34),
-      closeButton.heightAnchor.constraint(equalToConstant: 34),
-      volumeSlider.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
-      volumeSlider.topAnchor.constraint(equalTo: root.topAnchor, constant: 26),
-      volumeSlider.widthAnchor.constraint(equalToConstant: 190),
-    ])
-
-    configureArtwork()
-    configureLabels()
-    configureTransport()
-    configureProgress()
-
-    modeControl.isHidden = true
-    queueSection.isHidden = true
-    modeControl.selectedSegment = 0
-    modeControl.target = self
-    modeControl.action = #selector(modeChanged)
-    modeControl.translatesAutoresizingMaskIntoConstraints = false
-
-    panesContainer.translatesAutoresizingMaskIntoConstraints = false
-    lyricsPane.translatesAutoresizingMaskIntoConstraints = false
-    queueSection.translatesAutoresizingMaskIntoConstraints = false
-    queueSection.isHidden = true
-    panesContainer.addSubview(lyricsPane)
-    panesContainer.addSubview(queueSection)
-
-    let leftPanel = NSView()
-    leftPanelView = leftPanel
-    leftPanel.translatesAutoresizingMaskIntoConstraints = false
-    leftPanel.addSubview(artworkView)
-    leftPanel.addSubview(songTitleLabel)
-    leftPanel.addSubview(artistLabel)
-    leftPanel.addSubview(albumLabel)
-    leftPanel.addSubview(previousButton)
-    leftPanel.addSubview(playPauseButton)
-    leftPanel.addSubview(nextButton)
-    leftPanel.addSubview(progressSlider)
-    leftPanel.addSubview(elapsedLabel)
-    leftPanel.addSubview(remainingLabel)
-
-    titleLabel.isHidden = true
-    root.addSubview(titleLabel)
-    root.addSubview(leftPanel)
-    root.addSubview(modeControl)
-    root.addSubview(panesContainer)
+    buildChrome(in: root)
+    buildArtworkColumn(in: root)
+    buildLyricsColumn(in: root)
+    buildBottomCluster(in: root)
 
     NSLayoutConstraint.activate([
       backgroundView.topAnchor.constraint(equalTo: root.topAnchor),
       backgroundView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       backgroundView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       backgroundView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-
-      leftPanel.topAnchor.constraint(equalTo: root.topAnchor, constant: 96),
-      leftPanel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 32),
-      leftPanel.widthAnchor.constraint(equalToConstant: 280),
-      leftPanel.bottomAnchor.constraint(lessThanOrEqualTo: root.bottomAnchor, constant: -24),
-
-      artworkView.topAnchor.constraint(equalTo: leftPanel.topAnchor),
-      artworkView.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      artworkView.widthAnchor.constraint(equalToConstant: 280),
-      artworkView.heightAnchor.constraint(equalToConstant: 280),
-
-      songTitleLabel.topAnchor.constraint(equalTo: artworkView.bottomAnchor, constant: 20),
-      songTitleLabel.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      songTitleLabel.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-
-      artistLabel.topAnchor.constraint(equalTo: songTitleLabel.bottomAnchor, constant: 4),
-      artistLabel.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      artistLabel.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-
-      albumLabel.topAnchor.constraint(equalTo: artistLabel.bottomAnchor, constant: 2),
-      albumLabel.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      albumLabel.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-
-      previousButton.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 22),
-      previousButton.centerXAnchor.constraint(equalTo: leftPanel.centerXAnchor, constant: -56),
-
-      playPauseButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-      playPauseButton.centerXAnchor.constraint(equalTo: leftPanel.centerXAnchor),
-
-      nextButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-      nextButton.centerXAnchor.constraint(equalTo: leftPanel.centerXAnchor, constant: 56),
-
-      progressSlider.topAnchor.constraint(equalTo: playPauseButton.bottomAnchor, constant: 16),
-      progressSlider.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      progressSlider.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-
-      elapsedLabel.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 2),
-      elapsedLabel.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-
-      remainingLabel.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 2),
-      remainingLabel.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-
-      panesContainer.leadingAnchor.constraint(equalTo: leftPanel.trailingAnchor, constant: 40),
-      panesContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -40),
-      panesContainer.topAnchor.constraint(equalTo: root.topAnchor, constant: 96),
-      panesContainer.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -24),
-
-      lyricsPane.topAnchor.constraint(equalTo: panesContainer.topAnchor),
-      lyricsPane.leadingAnchor.constraint(equalTo: panesContainer.leadingAnchor),
-      lyricsPane.trailingAnchor.constraint(equalTo: panesContainer.trailingAnchor),
-      lyricsPane.bottomAnchor.constraint(equalTo: panesContainer.bottomAnchor),
-
-      queueSection.topAnchor.constraint(equalTo: panesContainer.topAnchor),
-      queueSection.leadingAnchor.constraint(equalTo: panesContainer.leadingAnchor),
-      queueSection.trailingAnchor.constraint(equalTo: panesContainer.trailingAnchor),
-      queueSection.bottomAnchor.constraint(equalTo: panesContainer.bottomAnchor),
     ])
-
-    self.view = root
-  }
-
-  private func addExtraControls(leftPanel: NSView) {
-    let extras: [(NSButton, String, Selector, CGFloat)] = [
-      (shuffleButton, "shuffle", #selector(toggleShuffle), 15),
-      (repeatButton, "repeat", #selector(cycleRepeat), 15),
-      (favoriteButton, "heart", #selector(toggleFavorite), 14),
-      (optionsButton, "ellipsis", #selector(showOptionsMenu), 14),
-      (airplayButton, "airplayaudio", #selector(openSoundSettings), 15),
-      (queueButton, "list.bullet", #selector(showQueue), 15),
-      (moreButton, "ellipsis.circle", #selector(showOptionsMenu), 15),
-    ]
-    for (button, symbol, action, size) in extras {
-      button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium))
-      button.isBordered = false
-      button.bezelStyle = .regularSquare
-      button.imagePosition = .imageOnly
-      button.contentTintColor = .white
-      button.target = self
-      button.action = action
-      button.translatesAutoresizingMaskIntoConstraints = false
-    }
-    for button in [shuffleButton, repeatButton, favoriteButton, optionsButton] {
-      leftPanel.addSubview(button)
-      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
-    }
-    for button in [airplayButton, queueButton, moreButton] {
-      view.addSubview(button)
-      button.widthAnchor.constraint(equalToConstant: 24).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 24).isActive = true
-      button.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -22).isActive = true
-    }
-    NSLayoutConstraint.activate([
-      shuffleButton.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      shuffleButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-      repeatButton.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
-      repeatButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-      favoriteButton.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
-      favoriteButton.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 14),
-      optionsButton.leadingAnchor.constraint(equalTo: favoriteButton.trailingAnchor, constant: 10),
-      optionsButton.centerYAnchor.constraint(equalTo: favoriteButton.centerYAnchor),
-      moreButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
-      queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -18),
-      airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -18),
-    ])
-    refreshExtraState()
-  }
-
-  private func configureCloseButton() {
-    closeButton.image = NSImage(
-      systemSymbolName: "chevron.down",
-      accessibilityDescription: L10n.tr("Close")
-    )
-    closeButton.isBordered = false
-    closeButton.bezelStyle = .regularSquare
-    closeButton.imagePosition = .imageOnly
-    closeButton.contentTintColor = .labelColor
-    closeButton.wantsLayer = true
-    closeButton.layer?.cornerRadius = 17
-    closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    closeButton.target = self
-    closeButton.action = #selector(closePressed)
-    closeButton.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  private func configureVolumeControl() {
-    volumeSlider.minValue = 0
-    volumeSlider.maxValue = 1
-    volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
-    volumeSlider.isContinuous = true
-    volumeSlider.controlSize = .small
-    volumeSlider.target = self
-    volumeSlider.action = #selector(volumeChanged)
-    volumeSlider.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  @objc
-  private func closePressed() {
-    onClose?()
-  }
-
-  @objc
-  private func volumeChanged() {
-    FmusicKit.shared.player.volume = Float(volumeSlider.doubleValue)
-  }
-
-  private func configureArtwork() {
-    artworkView.imageScaling = .scaleProportionallyUpOrDown
-    artworkView.wantsLayer = true
-    artworkView.layer?.cornerRadius = 14
-    artworkView.layer?.masksToBounds = true
-    artworkView.layer?.shadowColor = NSColor.black.cgColor
-    artworkView.layer?.shadowOpacity = 0.25
-    artworkView.layer?.shadowRadius = 18
-    artworkView.layer?.shadowOffset = CGSize(width: 0, height: -6)
-    artworkView.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  private func configureLabels() {
-    songTitleLabel.font = .systemFont(ofSize: 26, weight: .bold)
-    songTitleLabel.lineBreakMode = .byTruncatingTail
-    songTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-
-    artistLabel.font = .systemFont(ofSize: 16)
-    artistLabel.textColor = .secondaryLabelColor
-    artistLabel.lineBreakMode = .byTruncatingTail
-    artistLabel.translatesAutoresizingMaskIntoConstraints = false
-
-    albumLabel.font = .systemFont(ofSize: 13)
-    albumLabel.textColor = .tertiaryLabelColor
-    albumLabel.lineBreakMode = .byTruncatingTail
-    albumLabel.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  private func configureExtraControls() {
-    let extras: [(NSButton, String, Selector, Int)] = [
-      (shuffleButton, "shuffle", #selector(toggleShuffle), 15),
-      (repeatButton, "repeat", #selector(cycleRepeat), 15),
-      (favoriteButton, "heart", #selector(toggleFavorite), 14),
-      (optionsButton, "ellipsis", #selector(showOptionsMenu), 14),
-      (airplayButton, "airplayaudio", #selector(openSoundSettings), 15),
-      (queueButton, "list.bullet", #selector(showQueue), 15),
-      (moreButton, "ellipsis.circle", #selector(showOptionsMenu), 15),
-    ]
-    for (button, symbol, action, size) in extras {
-      button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: CGFloat(size), weight: .medium))
-      button.isBordered = false
-      button.bezelStyle = .regularSquare
-      button.imagePosition = .imageOnly
-      button.contentTintColor = .white
-      button.target = self
-      button.action = action
-      button.translatesAutoresizingMaskIntoConstraints = false
-      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
-    }
-
-    leftPanelStackAdd()
-    NSLayoutConstraint.activate([
-      shuffleButton.leadingAnchor.constraint(equalTo: leftPanelView!.leadingAnchor),
-      shuffleButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-      repeatButton.trailingAnchor.constraint(equalTo: leftPanelView!.trailingAnchor),
-      repeatButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
-    ])
-  }
-
-  private func leftPanelStackAdd() {
-    guard let leftPanel = leftPanelView else { return }
-    for view in [shuffleButton, repeatButton, favoriteButton, optionsButton] {
-      leftPanel.addSubview(view)
-    }
-    for view in [airplayButton, queueButton, moreButton] {
-      self.view.addSubview(view)
-    }
-    moreButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -28).isActive = true
-    queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -18).isActive = true
-    airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -18).isActive = true
-    for view in [airplayButton, queueButton, moreButton] {
-      view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor, constant: -22).isActive = true
-    }
-  }
-
-  @objc
-  private func toggleShuffle() {
-    player.toggleShuffle()
-  }
-
-  @objc
-  private func cycleRepeat() {
-    player.setRepeatMode(player.repeatMode.nextMode)
-  }
-
-  @objc
-  private func toggleFavorite() {
-    guard let song = player.currentlyPlaying?.asSong else { return }
-    song.isFavorite.toggle()
-  }
-
-  @objc
-  private func showOptionsMenu() {
-    let menu = NSMenu()
-    let item = NSMenuItem(title: L10n.tr("Queue"), action: #selector(showQueue), keyEquivalent: "")
-    item.target = self
-    menu.addItem(item)
-    menu.popUp(
-      positioning: nil,
-      at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
-      in: optionsButton
-    )
-  }
-
-  @objc
-  private func showQueue() {
-    PlayerPageWindowController.presentQueue()
-  }
-
-  @objc
-  private func openSoundSettings() {
-    if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
-      NSWorkspace.shared.open(url)
-    }
-  }
-
-  private func refreshExtraState() {
-    shuffleButton.contentTintColor = player.isShuffle
-      ? MacTheme.accentColor
-      : NSColor.white.withAlphaComponent(0.85)
-    let favorite = player.currentlyPlaying?.asSong?.isFavorite ?? false
-    favoriteButton.image = NSImage(
-      systemSymbolName: favorite ? "heart.fill" : "heart",
-      accessibilityDescription: nil
-    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
-    switch player.repeatMode {
-    case .off:
-      repeatButton.contentTintColor = NSColor.white.withAlphaComponent(0.85)
-      repeatButton.image = NSImage(systemSymbolName: "repeat", accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .medium))
-    case .all:
-      repeatButton.contentTintColor = MacTheme.accentColor
-    case .single:
-      repeatButton.contentTintColor = MacTheme.accentColor
-      repeatButton.image = NSImage(systemSymbolName: "repeat.1", accessibilityDescription: nil)?
-        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .medium))
-    }
-  }
-
-  private func configureTransport() {
-    configure(
-      button: previousButton,
-      symbol: "backward.fill",
-      symbolSize: 18,
-      pointSize: 30
-    )
-    previousButton.action = #selector(playPrevious)
-    configure(
-      button: playPauseButton,
-      symbol: "play.fill",
-      symbolSize: 26,
-      pointSize: 44
-    )
-    playPauseButton.action = #selector(togglePlayPause)
-    configure(
-      button: nextButton,
-      symbol: "forward.fill",
-      symbolSize: 18,
-      pointSize: 30
-    )
-    nextButton.action = #selector(playNext)
-  }
-
-  private func configureProgress() {
-    progressSlider.minValue = 0
-    progressSlider.maxValue = 1
-    progressSlider.isContinuous = false
-    progressSlider.target = self
-    progressSlider.action = #selector(seek)
-    progressSlider.translatesAutoresizingMaskIntoConstraints = false
-
-    elapsedLabel.font = MacTheme.tabularBodyFont
-    elapsedLabel.textColor = .secondaryLabelColor
-    elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
-
-    remainingLabel.font = MacTheme.tabularBodyFont
-    remainingLabel.textColor = .secondaryLabelColor
-    remainingLabel.alignment = .right
-    remainingLabel.translatesAutoresizingMaskIntoConstraints = false
-  }
-
-  private func configure(
-    button: NSButton,
-    symbol: String,
-    symbolSize: CGFloat,
-    pointSize: CGFloat
-  ) {
-    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-      .withSymbolConfiguration(
-        NSImage.SymbolConfiguration(pointSize: symbolSize, weight: .medium)
-      )
-    button.isBordered = false
-    button.bezelStyle = .regularSquare
-    button.imagePosition = .imageOnly
-    button.target = self
-    button.contentTintColor = .labelColor
-    button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: pointSize).isActive = true
-    button.heightAnchor.constraint(equalToConstant: pointSize).isActive = true
   }
 
   override func viewDidLoad() {
@@ -515,7 +120,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       name: .accountActiveChanged,
       object: nil
     )
-
     progressTimer = Timer(
       timeInterval: 0.5,
       target: self,
@@ -533,26 +137,218 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     NotificationCenter.default.removeObserver(self)
   }
 
-  // MARK: - Notifications
+  // MARK: - Build
 
-  @objc
-  private func themeColorChanged() {
-    refreshArtwork()
-    refreshPlaybackState()
+  private func buildChrome(in root: NSView) {
+    configureRound(closeButton, symbol: "chevron.down", action: #selector(closePressed), size: 15)
+    closeButton.layer?.cornerRadius = 21
+    closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    closeButton.widthAnchor.constraint(equalToConstant: 42).isActive = true
+    closeButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
+
+    volumePill.wantsLayer = true
+    volumePill.layer?.cornerRadius = 16
+    volumePill.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.22).cgColor
+    volumePill.translatesAutoresizingMaskIntoConstraints = false
+
+    volumeIcon.image = NSImage(systemSymbolName: "speaker.fill", accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+    volumeIcon.contentTintColor = .white
+    volumeIcon.translatesAutoresizingMaskIntoConstraints = false
+
+    volumeSlider.minValue = 0
+    volumeSlider.maxValue = 1
+    volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
+    volumeSlider.isContinuous = true
+    volumeSlider.controlSize = .small
+    volumeSlider.target = self
+    volumeSlider.action = #selector(volumeChanged)
+    volumeSlider.translatesAutoresizingMaskIntoConstraints = false
+
+    for item in [closeButton, volumePill] {
+      root.addSubview(item)
+    }
+    volumePill.addSubview(volumeSlider)
+    volumePill.addSubview(volumeIcon)
+
+    NSLayoutConstraint.activate([
+      closeButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
+      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
+
+      volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+      volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+      volumePill.widthAnchor.constraint(equalToConstant: 240),
+      volumePill.heightAnchor.constraint(equalToConstant: 32),
+
+      volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 14),
+      volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
+      volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
+
+      volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -14),
+      volumeIcon.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
+    ])
   }
 
-  @objc
-  private func libraryChanged() {
-    refreshInfo()
-    refreshArtwork()
-    queueSection.reload()
+  private func buildArtworkColumn(in root: NSView) {
+    artworkView.imageScaling = .scaleProportionallyUpOrDown
+    artworkView.wantsLayer = true
+    artworkView.layer?.cornerRadius = 10
+    artworkView.layer?.masksToBounds = true
+    artworkView.layer?.shadowColor = NSColor.black.cgColor
+    artworkView.layer?.shadowOpacity = 0.35
+    artworkView.layer?.shadowRadius = 30
+    artworkView.layer?.shadowOffset = CGSize(width: 0, height: -12)
+    artworkView.translatesAutoresizingMaskIntoConstraints = false
+
+    songTitleLabel.font = .systemFont(ofSize: 22, weight: .bold)
+    songTitleLabel.textColor = .white
+    songTitleLabel.lineBreakMode = .byTruncatingTail
+    albumLabel.font = .systemFont(ofSize: 15)
+    albumLabel.textColor = NSColor.white.withAlphaComponent(0.85)
+    albumLabel.lineBreakMode = .byTruncatingTail
+    artistLabel.font = .systemFont(ofSize: 13)
+    artistLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+    artistLabel.lineBreakMode = .byTruncatingTail
+    for label in [songTitleLabel, albumLabel, artistLabel] {
+      label.translatesAutoresizingMaskIntoConstraints = false
+    }
+
+    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 14)
+    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 14)
+    favoriteButton.layer?.cornerRadius = 15
+    favoriteButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    optionsButton.layer?.cornerRadius = 15
+    optionsButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    for button in [favoriteButton, optionsButton] {
+      button.widthAnchor.constraint(equalToConstant: 30).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+    }
+
+    progressSlider.minValue = 0
+    progressSlider.maxValue = 1
+    progressSlider.isContinuous = false
+    progressSlider.controlSize = .small
+    progressSlider.target = self
+    progressSlider.action = #selector(seek)
+    progressSlider.translatesAutoresizingMaskIntoConstraints = false
+    for label in [elapsedLabel, remainingLabel] {
+      label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+      label.textColor = NSColor.white.withAlphaComponent(0.65)
+      label.translatesAutoresizingMaskIntoConstraints = false
+    }
+    remainingLabel.alignment = .right
+
+    configureRound(shuffleButton, symbol: "shuffle", action: #selector(toggleShuffle), size: 16)
+    configureRound(previousButton, symbol: "backward.fill", action: #selector(playPrevious), size: 22)
+    configureRound(playPauseButton, symbol: "play.fill", action: #selector(togglePlayPause), size: 26)
+    configureRound(nextButton, symbol: "forward.fill", action: #selector(playNext), size: 22)
+    configureRound(repeatButton, symbol: "repeat", action: #selector(cycleRepeat), size: 16)
+
+    for item in [
+      artworkView, songTitleLabel, albumLabel, artistLabel,
+      favoriteButton, optionsButton, progressSlider, elapsedLabel, remainingLabel,
+      shuffleButton, previousButton, playPauseButton, nextButton, repeatButton,
+    ] {
+      root.addSubview(item)
+    }
+
+    NSLayoutConstraint.activate([
+      artworkView.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: sideMargin),
+      artworkView.topAnchor.constraint(equalTo: root.topAnchor, constant: 122),
+      artworkView.widthAnchor.constraint(equalToConstant: artworkSide),
+      artworkView.heightAnchor.constraint(equalToConstant: artworkSide),
+
+      songTitleLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
+      songTitleLabel.topAnchor.constraint(equalTo: artworkView.bottomAnchor, constant: 26),
+
+      albumLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
+      albumLabel.topAnchor.constraint(equalTo: songTitleLabel.bottomAnchor, constant: 6),
+
+      artistLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
+      artistLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 3),
+
+      favoriteButton.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
+      favoriteButton.topAnchor.constraint(equalTo: songTitleLabel.topAnchor),
+      optionsButton.leadingAnchor.constraint(equalTo: favoriteButton.trailingAnchor, constant: 10),
+      optionsButton.centerYAnchor.constraint(equalTo: favoriteButton.centerYAnchor),
+
+      progressSlider.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
+      progressSlider.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 34),
+      progressSlider.topAnchor.constraint(equalTo: artistLabel.bottomAnchor, constant: 40),
+
+      elapsedLabel.leadingAnchor.constraint(equalTo: progressSlider.leadingAnchor),
+      elapsedLabel.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 6),
+
+      remainingLabel.trailingAnchor.constraint(equalTo: progressSlider.trailingAnchor),
+      remainingLabel.topAnchor.constraint(equalTo: elapsedLabel.topAnchor),
+
+      shuffleButton.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor, constant: 20),
+      shuffleButton.topAnchor.constraint(equalTo: elapsedLabel.bottomAnchor, constant: 24),
+      repeatButton.leadingAnchor.constraint(equalTo: nextButton.trailingAnchor, constant: 42),
+      repeatButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
+
+      previousButton.leadingAnchor.constraint(equalTo: shuffleButton.trailingAnchor, constant: 42),
+      previousButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
+      playPauseButton.leadingAnchor.constraint(equalTo: previousButton.trailingAnchor, constant: 30),
+      playPauseButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
+      nextButton.leadingAnchor.constraint(equalTo: playPauseButton.trailingAnchor, constant: 30),
+      nextButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
+    ])
   }
 
-  @objc
-  private func modeChanged() {
-    let showQueue = modeControl.selectedSegment == 1
-    lyricsPane.isHidden = showQueue
-    queueSection.isHidden = !showQueue
+  private func buildLyricsColumn(in root: NSView) {
+    // The Catalyst large player uses the same LyricTableCell rendering as the
+    // inspector: 29/24/17 pt, active line sharp, inactive lines blurred.
+    lyricsPane.usesTransparentBackground = true
+    lyricsPane.compactRows = true
+    addChild(lyricsPane)
+    let lyricsView = lyricsPane.view
+    lyricsView.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(lyricsView)
+    NSLayoutConstraint.activate([
+      lyricsView.leadingAnchor.constraint(
+        equalTo: artworkView.trailingAnchor,
+        constant: lyricsGap
+      ),
+      lyricsView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
+      lyricsView.topAnchor.constraint(equalTo: root.topAnchor, constant: 108),
+      lyricsView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -80),
+    ])
+  }
+
+  private func buildBottomCluster(in root: NSView) {
+    configureRound(airplayButton, symbol: "airplayaudio", action: #selector(openSoundSettings), size: 16)
+    configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 16)
+    configureRound(moreButton, symbol: "ellipsis.circle", action: #selector(showOptionsMenu), size: 16)
+    for button in [airplayButton, queueButton, moreButton] {
+      root.addSubview(button)
+      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+      button.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -24).isActive = true
+    }
+    NSLayoutConstraint.activate([
+      moreButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -30),
+      queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -22),
+      airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -22),
+    ])
+  }
+
+  private func configureRound(
+    _ button: NSButton,
+    symbol: String,
+    action: Selector,
+    size: CGFloat
+  ) {
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium))
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.imagePosition = .imageOnly
+    button.contentTintColor = NSColor.white.withAlphaComponent(0.9)
+    button.target = self
+    button.action = action
+    button.wantsLayer = true
+    button.translatesAutoresizingMaskIntoConstraints = false
   }
 
   // MARK: - Refresh
@@ -561,21 +357,31 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     refreshInfo()
     refreshArtwork()
     refreshPlaybackState()
+    refreshModeState()
     updateProgress()
-    queueSection.reload()
   }
 
   private func refreshInfo() {
-    songTitleLabel.stringValue = player.currentlyPlaying?.title ?? L10n.tr("No music playing")
-    artistLabel.stringValue = player.currentlyPlaying?.creatorName ?? ""
-    albumLabel.stringValue = player.currentlyPlaying?.asSong?.album?.name ?? ""
+    guard let playable = player.currentlyPlaying else {
+      songTitleLabel.stringValue = L10n.tr("No music playing")
+      albumLabel.stringValue = ""
+      artistLabel.stringValue = ""
+      return
+    }
+    songTitleLabel.stringValue = playable.title
+    albumLabel.stringValue = playable.asSong?.album?.name ?? ""
+    artistLabel.stringValue = playable.creatorName
   }
 
   private func refreshArtwork() {
     let setting = storage.settings.accounts.activeSetting.read
-    let image: NSImage
+    let image: NSImage?
     if let playable = player.currentlyPlaying {
-      image = LMLibraryArtwork.image(for: playable, setting: setting)
+      image = ArtworkImageLoader.image(
+        for: playable,
+        themePreference: setting.themePreference,
+        artworkDisplayPreference: setting.artworkDisplayPreference
+      )
     } else {
       image = ArtworkImageLoader.generatedImage(
         theme: setting.themePreference,
@@ -587,38 +393,32 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func refreshPlaybackState() {
-    let symbol = player.isPlaying ? "pause.fill" : "play.fill"
-    playPauseButton.image = NSImage(
-      systemSymbolName: symbol,
-      accessibilityDescription: nil
-    )?.withSymbolConfiguration(
-      NSImage.SymbolConfiguration(pointSize: 26, weight: .medium)
-    )
-    let duration = player.duration
-    progressSlider.isEnabled = duration.isFinite && duration > 0
-    if duration.isFinite, duration > 0 {
-      progressSlider.maxValue = duration
-    }
+    setSymbol(playPauseButton, symbol: player.isPlaying ? "pause.fill" : "play.fill", size: 26)
+    volumeSlider.doubleValue = Double(player.volume)
   }
 
-  @objc
-  private func updateProgress() {
-    guard !isUpdatingProgress else { return }
-    isUpdatingProgress = true
-    defer { isUpdatingProgress = false }
-
-    let duration = player.duration
-    guard duration.isFinite, duration > 0 else {
-      elapsedLabel.stringValue = "0:00"
-      remainingLabel.stringValue = "-0:00"
-      progressSlider.doubleValue = 0
-      return
+  private func refreshModeState() {
+    let accent = MacTheme.accentColor
+    let idle = NSColor.white.withAlphaComponent(0.85)
+    shuffleButton.contentTintColor = player.isShuffle ? accent : idle
+    switch player.repeatMode {
+    case .off:
+      repeatButton.contentTintColor = idle
+      setSymbol(repeatButton, symbol: "repeat", size: 16)
+    case .all:
+      repeatButton.contentTintColor = accent
+      setSymbol(repeatButton, symbol: "repeat", size: 16)
+    case .single:
+      repeatButton.contentTintColor = accent
+      setSymbol(repeatButton, symbol: "repeat.1", size: 16)
     }
-    let elapsed = min(max(player.elapsedTime, 0), duration)
-    progressSlider.doubleValue = elapsed
-    elapsedLabel.stringValue = ClockTime(timeInSeconds: Int(elapsed)).asShortString()
-    remainingLabel.stringValue = "-" + ClockTime(timeInSeconds: Int(duration - elapsed))
-      .asShortString()
+    let favorite = player.currentlyPlaying?.asSong?.isFavorite ?? false
+    setSymbol(favoriteButton, symbol: favorite ? "heart.fill" : "heart", size: 14)
+  }
+
+  private func setSymbol(_ button: NSButton, symbol: String, size: CGFloat) {
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium))
   }
 
   @objc
@@ -627,7 +427,47 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     updateProgress()
   }
 
+  private func updateProgress() {
+    guard !isUpdatingProgress else { return }
+    isUpdatingProgress = true
+    defer { isUpdatingProgress = false }
+    let duration = player.duration
+    guard duration.isFinite, duration > 0 else {
+      progressSlider.doubleValue = 0
+      elapsedLabel.stringValue = "0:00"
+      remainingLabel.stringValue = "-0:00"
+      return
+    }
+    let elapsed = min(max(player.elapsedTime, 0), duration)
+    progressSlider.maxValue = duration
+    progressSlider.doubleValue = elapsed
+    elapsedLabel.stringValue = ClockTime(timeInSeconds: Int(elapsed)).asShortString()
+    remainingLabel.stringValue = "-" +
+      ClockTime(timeInSeconds: Int(duration - elapsed)).asShortString()
+  }
+
+  @objc
+  private func themeColorChanged() {
+    refreshArtwork()
+    refreshModeState()
+  }
+
+  @objc
+  private func libraryChanged() {
+    refreshAll()
+  }
+
   // MARK: - Actions
+
+  @objc
+  private func closePressed() {
+    onClose?()
+  }
+
+  @objc
+  private func volumeChanged() {
+    player.volume = Float(volumeSlider.doubleValue)
+  }
 
   @objc
   private func togglePlayPause() {
@@ -636,13 +476,25 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   @objc
+  private func playPrevious() {
+    player.playPreviousOrReplay()
+  }
+
+  @objc
   private func playNext() {
     player.playNext()
   }
 
   @objc
-  private func playPrevious() {
-    player.playPreviousOrReplay()
+  private func toggleShuffle() {
+    player.toggleShuffle()
+    refreshModeState()
+  }
+
+  @objc
+  private func cycleRepeat() {
+    player.setRepeatMode(player.repeatMode.nextMode)
+    refreshModeState()
   }
 
   @objc
@@ -650,47 +502,146 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     player.seek(toSecond: progressSlider.doubleValue)
   }
 
+  @objc
+  private func toggleFavorite() {
+    guard let song = player.currentlyPlaying?.asSong else { return }
+    song.isFavorite.toggle()
+    refreshModeState()
+  }
+
+  @objc
+  private func showOptionsMenu() {
+    let menu = NSMenu()
+    let item = NSMenuItem(
+      title: L10n.tr("Queue"),
+      action: #selector(showQueue),
+      keyEquivalent: ""
+    )
+    item.target = self
+    menu.addItem(item)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
+      in: optionsButton
+    )
+  }
+
+  @objc
+  private func showQueue() {
+    PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  private func openSoundSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
   // MARK: - MusicPlayable
 
-  func didStartPlayingFromBeginning() {}
+  func didStartPlayingFromBeginning() { refreshAll() }
 
-  func didStartPlaying() {
-    refreshAll()
-  }
+  func didStartPlaying() { refreshAll() }
 
-  func didPause() {
-    refreshPlaybackState()
-    updateProgress()
-  }
+  func didPause() { refreshPlaybackState() }
 
-  func didStopPlaying() {
-    refreshAll()
-  }
+  func didStopPlaying() { refreshAll() }
 
-  func didElapsedTimeChange() {
-    updateProgress()
-  }
+  func didElapsedTimeChange() { updateProgress() }
 
   func didLyricsTimeChange(time: CMTime) {}
 
-  func didPlaylistChange() {
-    refreshInfo()
-    refreshArtwork()
-    refreshPlaybackState()
-    queueSection.reload()
-  }
+  func didPlaylistChange() { refreshAll() }
 
-  func didArtworkChange() {
-    refreshArtwork()
-  }
+  func didArtworkChange() { refreshArtwork() }
 
-  func didNowPlayingInfoChange() {
-    refreshInfo()
-  }
+  func didNowPlayingInfoChange() { refreshInfo() }
 
-  func didShuffleChange() {}
+  func didShuffleChange() { refreshModeState() }
 
-  func didRepeatChange() {}
+  func didRepeatChange() { refreshModeState() }
 
   func didPlaybackRateChange() {}
+}
+
+// MARK: - PlayerBlurredArtworkBackground
+
+/// The Catalyst popup paints the artwork (blurred) behind a vertical gradient of
+/// its dominant colours. This view reproduces that with a blurred artwork image
+/// plus a dark gradient so the foreground stays legible.
+@MainActor
+private final class PlayerBlurredArtworkBackground: NSView {
+  private let imageView = NSImageView()
+  private let gradientView = NSView()
+  private let gradientLayer = CAGradientLayer()
+  private let context = CIContext(options: nil)
+  private var currentArtwork: NSImage?
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.backgroundColor = NSColor.black.cgColor
+
+    imageView.imageScaling = .scaleAxesIndependently
+    imageView.wantsLayer = true
+    imageView.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(imageView)
+
+    gradientView.wantsLayer = true
+    gradientView.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(gradientView)
+    gradientLayer.startPoint = CGPoint(x: 0.5, y: 1)
+    gradientLayer.endPoint = CGPoint(x: 0.5, y: 0)
+    gradientLayer.colors = [
+      NSColor.black.withAlphaComponent(0.62).cgColor,
+      NSColor.black.withAlphaComponent(0.18).cgColor,
+    ]
+    gradientView.layer?.addSublayer(gradientLayer)
+
+    NSLayoutConstraint.activate([
+      imageView.topAnchor.constraint(equalTo: topAnchor),
+      imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+      gradientView.topAnchor.constraint(equalTo: topAnchor),
+      gradientView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      gradientView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      gradientView.bottomAnchor.constraint(equalTo: bottomAnchor),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    gradientLayer.frame = gradientView.bounds
+    CATransaction.commit()
+  }
+
+  func apply(artwork: NSImage?, accent: NSColor) {
+    guard artwork !== currentArtwork else { return }
+    currentArtwork = artwork
+    imageView.image = Self.blurred(artwork, context: context)
+  }
+
+  private static func blurred(_ image: NSImage?, context: CIContext) -> NSImage? {
+    guard let image,
+          let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    else { return image }
+    let ciImage = CIImage(cgImage: cgImage)
+    guard let filter = CIFilter(name: "CIGaussianBlur") else { return image }
+    filter.setValue(ciImage, forKey: kCIInputImageKey)
+    filter.setValue(60, forKey: kCIInputRadiusKey)
+    guard let output = filter.outputImage else { return image }
+    let cropped = output.cropped(to: ciImage.extent)
+    guard let rendered = context.createCGImage(cropped, from: ciImage.extent) else {
+      return image
+    }
+    return NSImage(cgImage: rendered, size: image.size)
+  }
 }

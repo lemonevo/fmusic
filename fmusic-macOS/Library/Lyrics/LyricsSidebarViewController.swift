@@ -31,9 +31,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   NSTableViewDataSource, NSTableViewDelegate {
   /// The large player draws its own gradient; the pane must stay transparent there.
   var usesTransparentBackground = false
+  /// The large player packs lines closer than the 30 pt inspector spacing.
+  var compactRows = false
 
   // Catalyst `LyricsView.lineSpacing` (space above each row) and `LyricTableCell` fonts.
-  private static let rowSpacing: CGFloat = 30
+  private var rowSpacing: CGFloat { compactRows ? 6 : 30 }
   private static let horizontalInset: CGFloat = 20
   private static let activeFontSize: CGFloat = 29
   private static let inactiveFontSize: CGFloat = 24
@@ -349,7 +351,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       isActive: row == currentLine,
       syllables: syllableCache.indices.contains(row) ? syllableCache[row] : [],
       time: playbackLyricsTime(),
-      rowSpacing: Self.rowSpacing,
+      rowSpacing: rowSpacing,
       inset: Self.horizontalInset,
       contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
       distance: row == currentLine ? 0 : abs(row - currentLine),
@@ -452,7 +454,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       ofSize: isActive ? Self.activeFontSize : Self.inactiveFontSize,
       weight: isActive ? .bold : .semibold
     )
-    var height = Self.rowSpacing + Self.textHeight(
+    var height = rowSpacing + Self.textHeight(
       line.value.isEmpty ? " " : line.value,
       font: font,
       width: availableWidth
@@ -489,7 +491,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       isActive: isActive,
       syllables: syllables,
       time: time,
-      rowSpacing: Self.rowSpacing,
+      rowSpacing: rowSpacing,
       inset: Self.horizontalInset,
       contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
       distance: isActive ? 0 : abs(row - currentLine)
