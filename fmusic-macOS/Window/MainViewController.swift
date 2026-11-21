@@ -270,7 +270,11 @@ final class MainViewController: NSViewController {
     overlayWindow.isOpaque = false
     overlayWindow.backgroundColor = .clear
     overlayWindow.hasShadow = false
-    overlayWindow.setFrame(parent.frame, display: true)
+    // Slide the page up from below the main window.
+    let targetFrame = parent.frame
+    var startFrame = targetFrame
+    startFrame.origin.y = targetFrame.minY - targetFrame.height
+    overlayWindow.setFrame(startFrame, display: false)
     // Match the main window's rounded corners instead of a square borderless window.
     if let content = overlayWindow.contentView {
       content.wantsLayer = true
@@ -279,16 +283,36 @@ final class MainViewController: NSViewController {
       content.layer?.masksToBounds = true
     }
     parent.addChildWindow(overlayWindow, ordered: .above)
-    NSLog("fmusic: overlay added \(overlayWindow.frame)")
     overlayWindow.orderFront(nil)
     nowPlayingWindow = overlayWindow
+    overlayWindow.setFrame(startFrame, display: true)
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.34
+      context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      overlayWindow.animator().setFrame(targetFrame, display: true)
+    }
   }
 
   func dismissNowPlayingOverlay(animated: Bool) {
     guard let window = nowPlayingWindow else { return }
     nowPlayingWindow = nil
-    window.parent?.removeChildWindow(window)
-    window.orderOut(nil)
+    let finish = {
+      window.parent?.removeChildWindow(window)
+      window.orderOut(nil)
+    }
+    guard animated else {
+      finish()
+      return
+    }
+    var targetFrame = window.frame
+    targetFrame.origin.y = (window.parent?.frame.minY ?? window.frame.minY) - window.frame.height
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.26
+      context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+      window.animator().setFrame(targetFrame, display: true)
+    } completionHandler: {
+      finish()
+    }
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
