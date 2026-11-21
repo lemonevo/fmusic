@@ -63,6 +63,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
+  private var sleepTimer: Timer?
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -541,34 +542,154 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   @objc
   private func showOptionsMenu() {
     let menu = NSMenu()
-    let favorite = player.currentlyPlaying?.asSong?.isFavorite ?? false
-    let favoriteItem = NSMenuItem(
-      title: favorite ? L10n.tr("Remove from Favorites") : L10n.tr("Add to Favorites"),
-      action: #selector(toggleFavorite),
-      keyEquivalent: ""
-    )
-    favoriteItem.target = self
-    menu.addItem(favoriteItem)
-    let item = NSMenuItem(
-      title: L10n.tr("Queue"),
-      action: #selector(showQueue),
-      keyEquivalent: ""
-    )
-    item.target = self
-    menu.addItem(item)
-    menu.addItem(.separator())
-    let settings = NSMenuItem(
-      title: L10n.tr("Sound Settings…"),
-      action: #selector(openSoundSettings),
-      keyEquivalent: ""
-    )
-    settings.target = self
-    menu.addItem(settings)
+    menu.addItem(headerItem(L10n.tr("Player Options")))
+
+    menu.addItem(actionItem(L10n.tr("Clear Player"), #selector(clearPlayer)))
+
+    let sleep = NSMenuItem(title: L10n.tr("Sleep Timer"), action: nil, keyEquivalent: "")
+    sleep.submenu = sleepTimerMenu()
+    menu.addItem(sleep)
+
+    let speed = NSMenuItem(title: L10n.tr("Playback Speed"), action: nil, keyEquivalent: "")
+    speed.submenu = playbackRateMenu()
+    menu.addItem(speed)
+
+    let offset = NSMenuItem(title: L10n.tr("Lyrics Offset"), action: nil, keyEquivalent: "")
+    offset.submenu = lyricsOffsetMenu()
+    menu.addItem(offset)
+
+    menu.addItem(actionItem(L10n.tr("Hide Lyrics"), #selector(hideLyrics)))
+    menu.addItem(disabledItem(L10n.tr("Show Audio Visualizer")))
+    menu.addItem(disabledItem(L10n.tr("Add Current Queue to Playlist")))
+    menu.addItem(actionItem(L10n.tr("Player Information"), #selector(showPlayerInfo)))
+
     menu.popUp(
       positioning: nil,
-      at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
-      in: optionsButton
+      at: NSPoint(x: moreButton.bounds.midX, y: moreButton.bounds.minY - 4),
+      in: moreButton
     )
+  }
+
+  private func headerItem(_ title: String) -> NSMenuItem {
+    let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+    item.isEnabled = false
+    return item
+  }
+
+  private func disabledItem(_ title: String) -> NSMenuItem {
+    let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+    item.isEnabled = false
+    return item
+  }
+
+  private func actionItem(_ title: String, _ action: Selector) -> NSMenuItem {
+    let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+    item.target = self
+    return item
+  }
+
+  private func sleepTimerMenu() -> NSMenu {
+    let menu = NSMenu()
+    for (title, seconds) in [
+      (L10n.tr("Off"), 0),
+      (L10n.tr("15 Minutes"), 15 * 60),
+      (L10n.tr("30 Minutes"), 30 * 60),
+      (L10n.tr("60 Minutes"), 60 * 60),
+    ] {
+      let item = NSMenuItem(title: title, action: #selector(setSleepTimer(_:)), keyEquivalent: "")
+      item.target = self
+      item.tag = seconds
+      menu.addItem(item)
+    }
+    return menu
+  }
+
+  private func playbackRateMenu() -> NSMenu {
+    let menu = NSMenu()
+    let rates: [(String, PlaybackRate)] = [
+      ("0.5×", .dot5), ("0.75×", .dot75), ("1×", .one),
+      ("1.25×", .oneDot25), ("1.5×", .oneDot5), ("1.75×", .oneDot75), ("2×", .two),
+    ]
+    for (title, rate) in rates {
+      let item = NSMenuItem(title: title, action: #selector(setPlaybackRate(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = rate.rawValue
+      item.state = player.playbackRate == rate ? .on : .off
+      menu.addItem(item)
+    }
+    return menu
+  }
+
+  private func lyricsOffsetMenu() -> NSMenu {
+    let menu = NSMenu()
+    for (title, delta) in [
+      (L10n.tr("−0.5 s"), -500), (L10n.tr("−0.25 s"), -250),
+      (L10n.tr("Reset"), 0), (L10n.tr("+0.25 s"), 250), (L10n.tr("+0.5 s"), 500),
+    ] {
+      let item = NSMenuItem(title: title, action: #selector(adjustLyricsOffset(_:)), keyEquivalent: "")
+      item.target = self
+      item.tag = delta
+      menu.addItem(item)
+    }
+    return menu
+  }
+
+  @objc
+  private func clearPlayer() {
+    player.stop()
+  }
+
+  @objc
+  private func setSleepTimer(_ sender: NSMenuItem) {
+    sleepTimer?.invalidate()
+    sleepTimer = nil
+    guard sender.tag > 0 else { return }
+    sleepTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(sender.tag), repeats: false) { [weak self] _ in
+      Task { @MainActor in
+        FmusicKit.shared.player.pause()
+        _ = self
+      }
+    }
+  }
+
+  @objc
+  private func setPlaybackRate(_ sender: NSMenuItem) {
+    guard let raw = sender.representedObject as? Int,
+          let rate = PlaybackRate(rawValue: raw)
+    else { return }
+    player.setPlaybackRate(rate)
+  }
+
+  @objc
+  private func adjustLyricsOffset(_ sender: NSMenuItem) {
+    var user = storage.settings.user
+    user.lyricsOffsetMs = sender.tag == 0 ? 0 : user.lyricsOffsetMs + sender.tag
+    storage.settings.user = user
+    NotificationCenter.default.post(name: .lyricsOffsetChanged, object: nil)
+  }
+
+  @objc
+  private func hideLyrics() {
+    (NSApp.delegate as? AppDelegate)?
+      .mainWindowController?
+      .mainViewController?
+      .toggleLyricsPane()
+  }
+
+  @objc
+  private func showPlayerInfo() {
+    let playable = player.currentlyPlaying
+    let lines = [
+      L10n.tr("Title") + ": " + (playable?.title ?? "-"),
+      L10n.tr("Album") + ": " + (playable?.asSong?.album?.name ?? "-"),
+      L10n.tr("Artist") + ": " + (playable?.creatorName ?? "-"),
+      String(format: "Duration: %.0f s", player.duration),
+    ]
+    let alert = NSAlert()
+    alert.messageText = L10n.tr("Player Information")
+    alert.informativeText = lines.joined(separator: "\n")
+    alert.addButton(withTitle: L10n.tr("OK"))
+    alert.runModal()
   }
 
   @objc

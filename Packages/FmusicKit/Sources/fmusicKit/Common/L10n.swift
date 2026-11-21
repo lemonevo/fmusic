@@ -180,6 +180,10 @@ public enum L10n {
     // MARK: Player & queue
 
     "Queue": "播放队列",
+    "Playback Speed": "播放速度",
+    "Add Current Queue to Playlist": "将当前队列添加到播放列表",
+    "Player Information": "播放器信息",
+    "60 Minutes": "60 分钟",
     "Add to Favorites": "添加到喜爱",
     "Remove from Favorites": "从喜爱中移除",
     "Sound Settings…": "声音设置…",
