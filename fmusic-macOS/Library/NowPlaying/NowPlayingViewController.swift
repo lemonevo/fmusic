@@ -42,8 +42,8 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let songTitleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
   private let albumLabel = NSTextField(labelWithString: "")
   private let artistLabel = NSTextField(labelWithString: "")
-  private let favoriteButton = NSButton()
-  private let optionsButton = NSButton()
+  private let favoriteButton = RoundedGlyphButton()
+  private let optionsButton = RoundedGlyphButton()
 
   private let progressSlider = NSSlider()
   private let elapsedLabel = NSTextField(labelWithString: "0:00")
@@ -175,7 +175,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
       volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
       volumePill.widthAnchor.constraint(equalToConstant: 200),
-      volumePill.heightAnchor.constraint(equalToConstant: 28),
+      volumePill.heightAnchor.constraint(equalToConstant: 32),
 
       volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
@@ -211,18 +211,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       label.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 15)
-    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 15)
-    favoriteButton.layer?.cornerRadius = 12
-    favoriteButton.layer?.cornerCurve = .continuous
-    favoriteButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.13).cgColor
-    optionsButton.layer?.cornerRadius = 12
-    optionsButton.layer?.cornerCurve = .continuous
-    optionsButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.13).cgColor
-    for button in [favoriteButton, optionsButton] {
-      button.widthAnchor.constraint(equalToConstant: 34).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 34).isActive = true
-    }
+    configureGlyphButton(favoriteButton, symbol: "heart", action: #selector(toggleFavorite))
+    configureGlyphButton(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu))
+
 
     progressSlider.minValue = 0
     progressSlider.maxValue = 1
@@ -325,6 +316,21 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -22),
       airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -22),
     ])
+  }
+
+  private func configureGlyphButton(_ button: NSButton, symbol: String, action: Selector) {
+    let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(config)
+    (button as? RoundedGlyphButton)?.setSymbol(symbol, tint: .white)
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.imagePosition = .imageOnly
+    button.target = self
+    button.action = action
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.widthAnchor.constraint(equalToConstant: 36).isActive = true
+    button.heightAnchor.constraint(equalToConstant: 36).isActive = true
   }
 
   private func configureRound(
@@ -689,13 +695,13 @@ private final class PlayerVolumeSlider: NSView {
 
   var onChange: ((CGFloat) -> Void)?
 
-  private let knobSize = NSSize(width: 20, height: 28)
-  private let trackHeight: CGFloat = 6
+  private let knobSize = NSSize(width: 22, height: 26)
+  private let trackHeight: CGFloat = 8
 
   override func draw(_ dirtyRect: NSRect) {
     let trackY = (bounds.height - trackHeight) / 2
     let radius = trackHeight / 2
-    NSColor.white.withAlphaComponent(0.25).setFill()
+    NSColor.white.withAlphaComponent(0.30).setFill()
     NSBezierPath(
       roundedRect: NSRect(x: 0, y: trackY, width: bounds.width, height: trackHeight),
       xRadius: radius,
@@ -743,5 +749,54 @@ private final class PlayerVolumeSlider: NSView {
     guard bounds.width > 0 else { return }
     value = min(1, max(0, point.x / bounds.width))
     onChange?(value)
+  }
+}
+
+// MARK: - RoundedGlyphButton
+
+/// Exactly sized rounded-square button with a tinted SF Symbol, matching the
+/// Catalyst options / favourite buttons (identical bounds for both buttons).
+@MainActor
+private final class RoundedGlyphButton: NSButton {
+  private var symbolName = "ellipsis"
+  private var tint: NSColor = .white
+
+  override var intrinsicContentSize: NSSize {
+    NSSize(width: 36, height: 36)
+  }
+
+  func setSymbol(_ name: String, tint: NSColor) {
+    symbolName = name
+    self.tint = tint
+    needsDisplay = true
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    NSColor.white.withAlphaComponent(0.12).setFill()
+    NSBezierPath(
+      roundedRect: bounds,
+      xRadius: 12,
+      yRadius: 12
+    ).fill()
+
+    guard let symbol = NSImage(
+      systemSymbolName: symbolName,
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular))
+    else { return }
+    let size = symbol.size
+    let rect = NSRect(
+      x: (bounds.width - size.width) / 2,
+      y: (bounds.height - size.height) / 2,
+      width: size.width,
+      height: size.height
+    )
+    let image = NSImage(size: size, flipped: false) { imageRect in
+      symbol.draw(in: imageRect)
+      self.tint.set()
+      imageRect.fill(using: .sourceAtop)
+      return true
+    }
+    image.draw(in: rect)
   }
 }
