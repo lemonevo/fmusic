@@ -137,8 +137,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
-    rightGroup.distribution = .equalSpacing
-    rightGroup.spacing = 10
+    rightGroup.spacing = 16
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsule.addSubview(controlsGroup)
@@ -164,7 +163,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
-      rightGroup.leadingAnchor.constraint(equalTo: infoGroup.trailingAnchor, constant: 18),
+      rightGroup.leadingAnchor.constraint(greaterThanOrEqualTo: infoGroup.trailingAnchor, constant: 12),
     ])
 
     // The progress line runs directly under the artwork + title block.
@@ -241,46 +240,46 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   private func configureTransportButtons() {
-    configure(button: shuffleButton, symbol: "shuffle", size: 15, action: #selector(toggleShuffle))
-    configure(button: previousButton, symbol: "backward.fill", size: 20, action: #selector(playPrevious))
+    configure(button: shuffleButton, symbol: "shuffle", size: 13, action: #selector(toggleShuffle))
+    configure(button: previousButton, symbol: "backward.fill", size: 16, action: #selector(playPrevious))
     configure(
       button: playPauseButton,
       symbol: "play.fill",
-      size: 26,
+      size: 20,
       action: #selector(togglePlayPause)
     )
-    configure(button: nextButton, symbol: "forward.fill", size: 20, action: #selector(playNext))
+    configure(button: nextButton, symbol: "forward.fill", size: 16, action: #selector(playNext))
     configure(
       button: repeatButton,
       symbol: "repeat",
-      size: 15,
+      size: 13,
       action: #selector(cycleRepeatMode)
     )
-    playPauseButton.widthAnchor.constraint(equalToConstant: 34).isActive = true
+    playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
   }
 
   private func configureRightCluster() {
     configure(
       button: moreButton,
       symbol: "ellipsis.circle",
-      size: 18,
+      size: 15,
       action: #selector(showMoreMenu)
     )
     configure(
       button: lyricsButton,
       symbol: "quote.bubble",
-      size: 18,
+      size: 15,
       action: #selector(toggleLyricsPane)
     )
-    configure(button: queueButton, symbol: "list.bullet", size: 18, action: #selector(showQueue))
+    configure(button: queueButton, symbol: "list.bullet", size: 15, action: #selector(showQueue))
     configure(
       button: outputButton,
       symbol: "airplayaudio",
-      size: 18,
+      size: 15,
       action: #selector(showOutputMenu)
     )
 
-    volumeIcon.image = symbolImage("speaker.wave.2.fill", size: 16)
+    volumeIcon.image = symbolImage("speaker.wave.2.fill", size: 14)
     volumeIcon.isBordered = false
     volumeIcon.bezelStyle = .regularSquare
     volumeIcon.imagePosition = .imageOnly
@@ -342,7 +341,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 26).isActive = true
+    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
     button.heightAnchor.constraint(equalToConstant: 26).isActive = true
   }
 
