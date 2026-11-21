@@ -283,10 +283,15 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       artistLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
       artistLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 3),
 
+      // Both buttons on one horizontal line, right-aligned with the info block.
       optionsButton.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
-      optionsButton.topAnchor.constraint(equalTo: songTitleLabel.topAnchor),
-      favoriteButton.trailingAnchor.constraint(equalTo: optionsButton.trailingAnchor),
-      favoriteButton.bottomAnchor.constraint(equalTo: optionsButton.topAnchor, constant: -10),
+      optionsButton.centerYAnchor.constraint(equalTo: songTitleLabel.centerYAnchor),
+      optionsButton.widthAnchor.constraint(equalToConstant: 36),
+      optionsButton.heightAnchor.constraint(equalToConstant: 36),
+      favoriteButton.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: -10),
+      favoriteButton.centerYAnchor.constraint(equalTo: optionsButton.centerYAnchor),
+      favoriteButton.widthAnchor.constraint(equalToConstant: 36),
+      favoriteButton.heightAnchor.constraint(equalToConstant: 36),
 
 
       progressSlider.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
