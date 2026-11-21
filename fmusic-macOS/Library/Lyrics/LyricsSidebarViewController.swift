@@ -35,7 +35,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   var compactRows = false
 
   // Catalyst `LyricsView.lineSpacing` (space above each row) and `LyricTableCell` fonts.
-  private var rowSpacing: CGFloat { compactRows ? 6 : 30 }
+  private var rowSpacing: CGFloat { compactRows ? 4 : 30 }
   private static let horizontalInset: CGFloat = 20
   private static let activeFontSize: CGFloat = 29
   private static let inactiveFontSize: CGFloat = 24
@@ -467,7 +467,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
         width: availableWidth
       ) + 6
     }
-    return max(44, ceil(height))
+    return max(compactRows ? 32 : 44, ceil(height))
   }
 
   func tableView(

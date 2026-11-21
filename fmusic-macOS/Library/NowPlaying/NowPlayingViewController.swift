@@ -594,8 +594,8 @@ private final class PlayerBlurredArtworkBackground: NSView {
     gradientLayer.startPoint = CGPoint(x: 0.5, y: 1)
     gradientLayer.endPoint = CGPoint(x: 0.5, y: 0)
     gradientLayer.colors = [
-      NSColor.black.withAlphaComponent(0.62).cgColor,
-      NSColor.black.withAlphaComponent(0.18).cgColor,
+      NSColor.black.withAlphaComponent(0.55).cgColor,
+      NSColor.black.withAlphaComponent(0.85).cgColor,
     ]
     gradientView.layer?.addSublayer(gradientLayer)
 
@@ -627,6 +627,44 @@ private final class PlayerBlurredArtworkBackground: NSView {
     guard artwork !== currentArtwork else { return }
     currentArtwork = artwork
     imageView.image = Self.blurred(artwork, context: context)
+    // Catalyst uses the artwork's dominant colours for the gradient; take the
+    // average colour and darken it towards the bottom.
+    let base = Self.averageColor(of: artwork) ?? accent
+    let dark = base.blended(withFraction: 0.55, of: .black) ?? base
+    let deeper = base.blended(withFraction: 0.82, of: .black) ?? base
+    gradientLayer.colors = [
+      deeper.withAlphaComponent(0.92).cgColor,
+      dark.withAlphaComponent(0.55).cgColor,
+    ]
+  }
+
+  private static func averageColor(of image: NSImage?) -> NSColor? {
+    guard let image,
+          let tiff = image.tiffRepresentation,
+          let bitmap = NSBitmapImageRep(data: tiff),
+          let cgImage = bitmap.cgImage
+    else { return nil }
+    let input = CIImage(cgImage: cgImage)
+    guard let filter = CIFilter(name: "CIAreaAverage") else { return nil }
+    filter.setValue(input, forKey: kCIInputImageKey)
+    filter.setValue(CIVector(cgRect: input.extent), forKey: kCIInputExtentKey)
+    guard let output = filter.outputImage else { return nil }
+    let context = CIContext(options: nil)
+    var pixel = [UInt8](repeating: 0, count: 4)
+    context.render(
+      output,
+      toBitmap: &pixel,
+      rowBytes: 4,
+      bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+      format: .RGBA8,
+      colorSpace: nil
+    )
+    return NSColor(
+      srgbRed: CGFloat(pixel[0]) / 255,
+      green: CGFloat(pixel[1]) / 255,
+      blue: CGFloat(pixel[2]) / 255,
+      alpha: 1
+    )
   }
 
   private static func blurred(_ image: NSImage?, context: CIContext) -> NSImage? {
