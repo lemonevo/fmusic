@@ -243,10 +243,11 @@ final class MainViewController: NSViewController {
     let lyricsWidth: CGFloat = isLyricsPaneVisible ? 210 : 0
     let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
-    let width = min(780, max(300, available - 16))
+    // The mini player spans the whole content column; only its middle block flexes.
+    let width = max(300, available - 8)
     let height = PlayerBarViewController.capsuleHeight
     playerBarViewController.view.frame = NSRect(
-      x: sidebarWidth + (available - width) / 2,
+      x: sidebarWidth + 4,
       y: 12,
       width: width,
       height: height
