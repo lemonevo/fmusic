@@ -168,12 +168,16 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     rightGroup.alignment = .centerY
     rightGroup.spacing = 12
     rightGroupView = rightGroup
-    rightGroup.translatesAutoresizingMaskIntoConstraints = true
+    rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsuleView = capsule
     capsule.addSubview(controlsGroup)
     capsule.addSubview(infoGroup)
     capsule.addSubview(rightGroup)
+    NSLayoutConstraint.activate([
+      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
+      rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
+    ])
 
     NSLayoutConstraint.activate([
       capsule.topAnchor.constraint(equalTo: root.topAnchor),
@@ -412,18 +416,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     else { return }
     let height = capsule.bounds.height
     controls.setFrameSize(controls.fittingSize)
-    right.setFrameSize(right.fittingSize)
     controls.frame = NSRect(
       x: 18,
       y: (height - controls.frame.height) / 2 - 2,
       width: controls.frame.width,
       height: controls.frame.height
-    )
-    right.frame = NSRect(
-      x: capsule.bounds.width - 18 - right.frame.width,
-      y: (height - right.frame.height) / 2 - 2,
-      width: right.frame.width,
-      height: right.frame.height
     )
     let infoX = controls.frame.maxX + 12
     let infoWidth = max(0, right.frame.minX - 18 - infoX)
