@@ -126,6 +126,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     controlsGroup.orientation = .horizontal
     controlsGroup.alignment = .centerY
     controlsGroup.spacing = 8
+    // Three-section bar: left transport cluster hugs left, middle flexes, right
+    // utilities hug right.
+    controlsGroup.setContentHuggingPriority(.required, for: .horizontal)
+    controlsGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
     controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let infoGroup = NSStackView(views: [artworkView, infoStack()])
@@ -143,6 +147,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     infoGroup.alignment = .centerY
     infoGroup.distribution = .fill
     infoGroup.spacing = 9
+    infoGroup.setContentHuggingPriority(.defaultLow, for: .horizontal)
+    infoGroup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     infoGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let rightGroup = NSStackView(views: [
@@ -151,11 +157,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       queueButton,
       outputButton,
       volumeIcon,
-      volumeSlider,
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
     rightGroup.spacing = 12
+    rightGroup.setContentHuggingPriority(.required, for: .horizontal)
+    rightGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsule.addSubview(controlsGroup)
