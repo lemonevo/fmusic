@@ -49,6 +49,7 @@ final class MainViewController: NSViewController {
   private(set) var isLyricsPaneVisible = false
 
   private var didApplyInitialSplitPositions = false
+  private var nowPlayingOverlay: NowPlayingViewController?
 
   override func loadView() {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
@@ -250,6 +251,52 @@ final class MainViewController: NSViewController {
       width: width,
       height: height
     )
+  }
+
+  // MARK: - Now Playing overlay
+
+  /// Full-window Now Playing page, presented over the whole main window like the
+  /// Catalyst `PopupPlayerVC`.
+  func presentNowPlayingOverlay() {
+    dismissNowPlayingOverlay(animated: false)
+    let controller = NowPlayingViewController()
+    controller.onClose = { [weak self] in
+      self?.dismissNowPlayingOverlay(animated: true)
+    }
+    addChild(controller)
+    controller.view.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(controller.view)
+    NSLayoutConstraint.activate([
+      controller.view.topAnchor.constraint(equalTo: view.topAnchor),
+      controller.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      controller.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      controller.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+    ])
+    controller.view.alphaValue = 0
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.22
+      controller.view.animator().alphaValue = 1
+    }
+    nowPlayingOverlay = controller
+  }
+
+  func dismissNowPlayingOverlay(animated: Bool) {
+    guard let controller = nowPlayingOverlay else { return }
+    nowPlayingOverlay = nil
+    let finish = {
+      controller.view.removeFromSuperview()
+      controller.removeFromParent()
+    }
+    guard animated else {
+      finish()
+      return
+    }
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.18
+      controller.view.animator().alphaValue = 0
+    } completionHandler: {
+      finish()
+    }
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.

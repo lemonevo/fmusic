@@ -370,7 +370,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @objc
   func showNowPlaying(_ sender: Any?) {
-    PlayerPageWindowController.presentNowPlaying()
+    showMainWindow(nil)
+    mainWindowController?.mainViewController?.presentNowPlayingOverlay()
   }
 
   @objc

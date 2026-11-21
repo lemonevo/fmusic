@@ -26,8 +26,12 @@ import fmusicKit
 /// Big "正在播放" page. Two toggle buttons show the lyrics pane or the queue inline.
 @MainActor
 final class NowPlayingViewController: NSViewController, MusicPlayable {
+  /// Called when the user taps the chevron (full-window overlay mode).
+  var onClose: (() -> Void)?
   private let backgroundView = ArtworkGradientBackgroundView()
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Now Playing"))
+  private let closeButton = NSButton()
+  private let volumeSlider = NSSlider()
 
   private let artworkView = NSImageView()
   private let songTitleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
@@ -71,11 +75,27 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     titleLabel.font = MacTheme.largeTitleFont
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    configureCloseButton()
+    configureVolumeControl()
+    root.addSubview(closeButton)
+    root.addSubview(volumeSlider)
+    NSLayoutConstraint.activate([
+      closeButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
+      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
+      closeButton.widthAnchor.constraint(equalToConstant: 34),
+      closeButton.heightAnchor.constraint(equalToConstant: 34),
+      volumeSlider.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+      volumeSlider.topAnchor.constraint(equalTo: root.topAnchor, constant: 26),
+      volumeSlider.widthAnchor.constraint(equalToConstant: 190),
+    ])
+
     configureArtwork()
     configureLabels()
     configureTransport()
     configureProgress()
 
+    modeControl.isHidden = true
+    queueSection.isHidden = true
     modeControl.selectedSegment = 0
     modeControl.target = self
     modeControl.action = #selector(modeChanged)
@@ -101,6 +121,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     leftPanel.addSubview(elapsedLabel)
     leftPanel.addSubview(remainingLabel)
 
+    titleLabel.isHidden = true
     root.addSubview(titleLabel)
     root.addSubview(leftPanel)
     root.addSubview(modeControl)
@@ -112,10 +133,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       backgroundView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       backgroundView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
 
-      titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 32),
-      titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 22),
-
-      leftPanel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 22),
+      leftPanel.topAnchor.constraint(equalTo: root.topAnchor, constant: 96),
       leftPanel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 32),
       leftPanel.widthAnchor.constraint(equalToConstant: 280),
       leftPanel.bottomAnchor.constraint(lessThanOrEqualTo: root.bottomAnchor, constant: -24),
@@ -156,12 +174,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       remainingLabel.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 2),
       remainingLabel.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
 
-      modeControl.leadingAnchor.constraint(equalTo: leftPanel.trailingAnchor, constant: 32),
-      modeControl.topAnchor.constraint(equalTo: leftPanel.topAnchor),
-
-      panesContainer.leadingAnchor.constraint(equalTo: modeControl.leadingAnchor),
-      panesContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -32),
-      panesContainer.topAnchor.constraint(equalTo: modeControl.bottomAnchor, constant: 12),
+      panesContainer.leadingAnchor.constraint(equalTo: leftPanel.trailingAnchor, constant: 40),
+      panesContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -40),
+      panesContainer.topAnchor.constraint(equalTo: root.topAnchor, constant: 96),
       panesContainer.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -24),
 
       lyricsPane.topAnchor.constraint(equalTo: panesContainer.topAnchor),
@@ -176,6 +191,44 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     ])
 
     self.view = root
+  }
+
+  private func configureCloseButton() {
+    closeButton.image = NSImage(
+      systemSymbolName: "chevron.down",
+      accessibilityDescription: L10n.tr("Close")
+    )
+    closeButton.isBordered = false
+    closeButton.bezelStyle = .regularSquare
+    closeButton.imagePosition = .imageOnly
+    closeButton.contentTintColor = .labelColor
+    closeButton.wantsLayer = true
+    closeButton.layer?.cornerRadius = 17
+    closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    closeButton.target = self
+    closeButton.action = #selector(closePressed)
+    closeButton.translatesAutoresizingMaskIntoConstraints = false
+  }
+
+  private func configureVolumeControl() {
+    volumeSlider.minValue = 0
+    volumeSlider.maxValue = 1
+    volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
+    volumeSlider.isContinuous = true
+    volumeSlider.controlSize = .small
+    volumeSlider.target = self
+    volumeSlider.action = #selector(volumeChanged)
+    volumeSlider.translatesAutoresizingMaskIntoConstraints = false
+  }
+
+  @objc
+  private func closePressed() {
+    onClose?()
+  }
+
+  @objc
+  private func volumeChanged() {
+    FmusicKit.shared.player.volume = Float(volumeSlider.doubleValue)
   }
 
   private func configureArtwork() {

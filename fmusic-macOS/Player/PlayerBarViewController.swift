@@ -536,7 +536,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func openNowPlayingPage() {
-    PlayerPageWindowController.presentNowPlaying()
+    AppDelegate.sharedAppDelegate?.showNowPlaying(nil)
   }
 
   @objc
