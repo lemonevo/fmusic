@@ -198,6 +198,10 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
       ]
     )
     button.contentTintColor = filled ? .white : accent
+    button.wantsLayer = true
+    button.layer?.backgroundColor = (filled ? accent : accent.withAlphaComponent(0.18))
+      .cgColor
+    button.layer?.cornerRadius = 17
     button.translatesAutoresizingMaskIntoConstraints = false
     button.heightAnchor.constraint(equalToConstant: 34).isActive = true
     button.widthAnchor.constraint(greaterThanOrEqualToConstant: 96).isActive = true

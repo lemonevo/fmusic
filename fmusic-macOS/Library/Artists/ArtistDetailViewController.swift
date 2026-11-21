@@ -170,13 +170,8 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
     button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
     button.imagePosition = .imageLeading
     button.imageHugsTitle = true
-    button.imageScaling = .scaleProportionallyDown
-    // System push button with the accent bezel colour instead of a hand-drawn pill.
-    button.isBordered = true
-    button.bezelStyle = .push
-    button.bezelColor = filled ? accent : accent.withAlphaComponent(0.28)
-    button.contentTintColor = filled ? NSColor.white : accent
-    button.font = .systemFont(ofSize: 13, weight: .medium)
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
     button.attributedTitle = NSAttributedString(
       string: title,
       attributes: [
@@ -184,10 +179,16 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
         .font: NSFont.systemFont(ofSize: 13, weight: .medium),
       ]
     )
+    button.contentTintColor = filled ? .white : accent
+    button.wantsLayer = true
+    button.layer?.backgroundColor = (filled ? accent : accent.withAlphaComponent(0.18))
+      .cgColor
+    button.layer?.cornerRadius = 17
     button.translatesAutoresizingMaskIntoConstraints = false
     button.heightAnchor.constraint(equalToConstant: 34).isActive = true
     button.widthAnchor.constraint(greaterThanOrEqualToConstant: 96).isActive = true
   }
+
   private func configureTableView() {
     tableView.style = .inset
     tableView.backgroundColor = .clear
