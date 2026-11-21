@@ -28,7 +28,7 @@ extension NSFetchedResultsController {
     do {
       try performFetch()
     } catch let error as NSError {
-      print("Unable to perform fetch: \(error.localizedDescription)")
+      // Silent: a failed fetch is reported through the controller state.
     }
   }
 

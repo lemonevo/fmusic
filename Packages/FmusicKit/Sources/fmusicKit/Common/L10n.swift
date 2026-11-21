@@ -180,6 +180,17 @@ public enum L10n {
     // MARK: Player & queue
 
     "Queue": "播放队列",
+    "Choose Folder…": "选择文件夹…",
+    "No items in queue": "队列中没有项目",
+    "+0.25 s": "+0.25 秒",
+    "+0.5 s": "+0.5 秒",
+    "−0.25 s": "−0.25 秒",
+    "−0.5 s": "−0.5 秒",
+    "Audio Output": "音频输出",
+    "Open System Sound Settings": "打开系统声音设置",
+    "Seek": "跳转",
+    "Search History": "搜索历史",
+    "Minutes": "分钟",
     "Recent Searches": "最近搜索",
     "Search Library": "在“资料库”中搜索",
     "Match Online Lyrics": "在线匹配歌词",
