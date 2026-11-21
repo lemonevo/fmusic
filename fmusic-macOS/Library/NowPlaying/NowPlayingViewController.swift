@@ -59,7 +59,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let queueButton = NSButton()
   private let moreButton = NSButton()
 
-  private let lyricsPane = LyricsSidebarViewController()
+  private let lyricsPane = LyricsPaneView()
 
   nonisolated(unsafe) private var progressTimer: Timer?
   private var isUpdatingProgress = false
@@ -297,22 +297,16 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func buildLyricsColumn(in root: NSView) {
-    // The Catalyst large player uses the same LyricTableCell rendering as the
-    // inspector: 29/24/17 pt, active line sharp, inactive lines blurred.
-    lyricsPane.usesTransparentBackground = true
-    lyricsPane.compactRows = true
-    addChild(lyricsPane)
-    let lyricsView = lyricsPane.view
-    lyricsView.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(lyricsView)
+    lyricsPane.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(lyricsPane)
     NSLayoutConstraint.activate([
-      lyricsView.leadingAnchor.constraint(
+      lyricsPane.leadingAnchor.constraint(
         equalTo: artworkView.trailingAnchor,
         constant: lyricsGap
       ),
-      lyricsView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
-      lyricsView.topAnchor.constraint(equalTo: root.topAnchor, constant: 108),
-      lyricsView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -80),
+      lyricsPane.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
+      lyricsPane.topAnchor.constraint(equalTo: root.topAnchor, constant: 108),
+      lyricsPane.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -80),
     ])
   }
 
