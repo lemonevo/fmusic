@@ -62,6 +62,7 @@ enum SettingsStore {
   /// Applies the persisted appearance mode to every window immediately.
   static func applyAppearance() {
     MacTheme.applyAppearanceMode()
+    NotificationCenter.default.post(name: .macAppearanceChanged, object: nil)
   }
 
   /// Tells the package that offline mode changed so downloaders and network code react.

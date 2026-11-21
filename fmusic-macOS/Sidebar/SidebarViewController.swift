@@ -62,7 +62,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let columnIdentifier = NSUserInterfaceItemIdentifier("SidebarColumn")
 
   override func loadView() {
-    let root = NSView()
+    // ThemedBackgroundView re-applies its layer colour when light/dark changes.
+    let root = ThemedBackgroundView()
     root.wantsLayer = true
     root.layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
 

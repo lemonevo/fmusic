@@ -51,6 +51,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.regular)
     MacTheme.applyAppearanceMode()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appearanceChanged),
+      name: .macAppearanceChanged,
+      object: nil
+    )
     AppIconManager.applySavedIcon()
     NSApp.mainMenu = MainMenuBuilder.build()
 
@@ -221,6 +227,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func toggleDesktopLyrics(_ sender: Any?) {
     SettingsStore.updateUser { $0.isDesktopLyricsEnabled.toggle() }
     NotificationCenter.default.post(name: .macPlaybackSettingsChanged, object: nil)
+  }
+
+  @objc
+  private func appearanceChanged() {
+    for window in NSApp.windows {
+      window.backgroundColor = MacTheme.contentBackgroundColor
+      window.contentView?.needsDisplay = true
+      window.contentView?.needsLayout = true
+    }
   }
 
   @objc

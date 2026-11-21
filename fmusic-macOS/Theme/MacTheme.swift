@@ -86,6 +86,8 @@ enum MacTheme {
 extension Notification.Name {
   /// Posted when the account's theme colour changed (settings window).
   static let macThemeColorChanged = Notification.Name("fmusic.mac.themeColorChanged")
+  /// Posted after the app-wide light/dark appearance was applied.
+  static let macAppearanceChanged = Notification.Name("fmusic.mac.appearanceChanged")
   /// Posted when playback related user settings (volume, …) changed.
   static let macPlaybackSettingsChanged = Notification.Name(
     "fmusic.mac.playbackSettingsChanged"
