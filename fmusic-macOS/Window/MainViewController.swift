@@ -324,6 +324,9 @@ final class MainViewController: NSViewController {
     DispatchQueue.main.async { [weak self] in
       self?.layoutPlayerCapsule()
     }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+      self?.layoutPlayerCapsule()
+    }
   }
 
   func openArtist(_ artist: Artist) {
@@ -375,6 +378,11 @@ final class MainViewController: NSViewController {
     lyricsPaneItem?.isCollapsed = !visible
     playerBarViewController.isLyricsPaneVisible = visible
 
+    // Opening/closing the pane changes the middle column width: re-centre the capsule.
+    DispatchQueue.main.async { [weak self] in self?.layoutPlayerCapsule() }
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+      self?.layoutPlayerCapsule()
+    }
     // Opening/closing the pane only shrinks/grows the middle column, the window keeps
     // its size (restore it explicitly in case AppKit grew it to satisfy constraints).
     if let window, let sizeBeforeToggle {
