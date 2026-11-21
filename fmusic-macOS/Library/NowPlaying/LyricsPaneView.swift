@@ -277,7 +277,7 @@ final class LyricsPaneView: NSView {
       return
     }
 
-    let currentIndex = currentSyncedLineIndex()
+    let currentIndex = max(0, currentSyncedLineIndex())
     let output = NSMutableAttributedString()
     lineLocations = []
 
@@ -323,7 +323,7 @@ final class LyricsPaneView: NSView {
 
   private func renderCurrentLine(force: Bool) {
     guard let lyrics, !lyrics.line.isEmpty else { return }
-    let currentIndex = currentSyncedLineIndex()
+    let currentIndex = max(0, currentSyncedLineIndex())
     if !force, currentIndex == lastRenderedLine, renderedSongID == player.currentlyPlaying?.id {
       return
     }

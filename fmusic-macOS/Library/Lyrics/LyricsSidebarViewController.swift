@@ -68,7 +68,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
     tableView.headerView = nil
     tableView.backgroundColor = .clear
-    tableView.rowHeight = 44
+    tableView.rowHeight = compactRows ? 34 : 44
     tableView.intercellSpacing = NSSize(width: 0, height: 0)
     tableView.style = .plain
     tableView.selectionHighlightStyle = .none
@@ -125,6 +125,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     super.viewDidLoad()
     player.addNotifier(notifier: self)
     loadLyrics(force: true)
+    updateActiveLine(force: true)
     NotificationCenter.default.addObserver(
       self,
       selector: #selector(themeColorChanged),
@@ -290,7 +291,9 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     let offsetSeconds = (Double(lyrics.offset) +
       Double(storage.settings.user.lyricsOffsetMs)) / 1000.0
     let position = max(0, time + offsetSeconds)
-    var index = -1
+    // Before the first timestamp the first line is the active one (Catalyst keeps
+    // the first row highlighted instead of blurring the whole list).
+    var index = lyrics.line.isEmpty ? -1 : 0
     for (lineIndex, line) in lyrics.line.enumerated() {
       guard let start = line.start else { continue }
       if Double(start) / 1000.0 <= position {
@@ -446,6 +449,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
     guard let lyrics, lyrics.line.indices.contains(row) else { return 0 }
+    if compactRows { return 34 }
     let line = lyrics.line[row]
     let isActive = row == currentLine
     let availableWidth = max(
