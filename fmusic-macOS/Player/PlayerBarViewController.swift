@@ -45,7 +45,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let volumeIcon = NSButton()
   private let volumeSlider = NSSlider()
 
-  private let progressTrack = NSView()
+  private let progressTrack = SeekTrackView()
   private let progressFill = NSView()
   private var progressFillWidth: NSLayoutConstraint?
   private var progressFraction: CGFloat = 0
@@ -335,9 +335,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     progressTrack.layer?.cornerRadius = 4
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
-    progressTrack.addGestureRecognizer(
-      NSClickGestureRecognizer(target: self, action: #selector(progressLineClicked(_:)))
-    )
+    progressTrack.onScrub = { [weak self] fraction in
+      self?.seek(to: fraction)
+    }
 
     progressFill.wantsLayer = true
     progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
@@ -559,13 +559,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   @objc
-  private func progressLineClicked(_ recognizer: NSClickGestureRecognizer) {
-    let location = recognizer.location(in: progressTrack)
-    guard progressTrack.bounds.width > 0 else { return }
-    let fraction = min(max(location.x / progressTrack.bounds.width, 0), 1)
+  private func seek(to fraction: CGFloat) {
     let duration = player.duration
     guard duration.isFinite, duration > 0 else { return }
-    player.seek(toSecond: Double(fraction) * duration)
+    player.seek(toSecond: Double(min(max(fraction, 0), 1)) * duration)
     progressFraction = fraction
     updateProgressFill()
   }
@@ -776,4 +773,29 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   func didPlaybackRateChange() {}
+}
+
+// MARK: - SeekTrackView
+
+/// Click/drag seek bar matching the behaviour of the Catalyst `SeekableTimeSlider`.
+private final class SeekTrackView: NSView {
+  var onScrub: ((CGFloat) -> Void)?
+
+  override func mouseDown(with event: NSEvent) {
+    report(event)
+    // Track the drag until mouse-up.
+    while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+      if next.type == .leftMouseDragged {
+        report(next)
+      } else {
+        break
+      }
+    }
+  }
+
+  private func report(_ event: NSEvent) {
+    guard bounds.width > 0 else { return }
+    let x = convert(event.locationInWindow, from: nil).x
+    onScrub?(min(max(x / bounds.width, 0), 1))
+  }
 }

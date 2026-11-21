@@ -386,6 +386,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   func focusSearch(_ sender: Any?) {
     showMainWindow(sender)
     (mainWindowController?.contentViewController as? MainViewController)?.select(item: .search)
+    (mainWindowController?.contentViewController as? MainViewController)?.focusToolbarSearch()
   }
 
   @objc
@@ -490,6 +491,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 extension AppDelegate: NSMenuItemValidation {
   func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+    // ⌘←/⌘→ etc. belong to the text system while a field editor is active.
+    if NSApp.keyWindow?.firstResponder is NSTextView {
+      let playbackActions: Set<Selector> = [
+        #selector(playNext(_:)), #selector(playPrevious(_:)),
+        #selector(toggleShuffle(_:)), #selector(cycleRepeatMode(_:)),
+      ]
+      if let action = menuItem.action, playbackActions.contains(action) {
+        return false
+      }
+    }
     switch menuItem.action {
     case #selector(togglePlayPause(_:)):
       menuItem.title = player.isPlaying ? L10n.tr("Pause") : L10n.tr("Play")

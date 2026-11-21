@@ -497,6 +497,10 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   // MARK: - Actions
 
+  override func cancelOperation(_ sender: Any?) {
+    closePressed()
+  }
+
   @objc
   private func closePressed() {
     if let onClose {

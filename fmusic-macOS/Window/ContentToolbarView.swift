@@ -136,6 +136,12 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     onBack?()
   }
 
+  /// Focuses the toolbar search field (⌘F).
+  @objc
+  func focusSearchField() {
+    window?.makeFirstResponder(searchField)
+  }
+
   // MARK: - NSSearchFieldDelegate
 
   func controlTextDidChange(_ obj: Notification) {

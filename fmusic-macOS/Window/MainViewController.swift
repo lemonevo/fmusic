@@ -368,6 +368,11 @@ final class MainViewController: NSViewController {
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
+  /// Focuses the content toolbar's search field.
+  func focusToolbarSearch() {
+    toolbar.focusSearchField()
+  }
+
   func select(item: SidebarItem) {
     sidebarViewController.select(item: item)
     showRoot(item: item)
