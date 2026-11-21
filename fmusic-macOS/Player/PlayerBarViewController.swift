@@ -285,6 +285,19 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
   }
 
+  private func configureAccessibilityLabels() {
+    shuffleButton.setAccessibilityLabel(L10n.tr("Shuffle"))
+    previousButton.setAccessibilityLabel(L10n.tr("Previous"))
+    nextButton.setAccessibilityLabel(L10n.tr("Next"))
+    repeatButton.setAccessibilityLabel(L10n.tr("Repeat"))
+    moreButton.setAccessibilityLabel(L10n.tr("More"))
+    lyricsButton.setAccessibilityLabel(L10n.tr("Lyrics"))
+    queueButton.setAccessibilityLabel(L10n.tr("Queue"))
+    outputButton.setAccessibilityLabel(L10n.tr("Audio Output"))
+    volumeIcon.setAccessibilityLabel(L10n.tr("Volume"))
+    refreshPlaybackState()
+  }
+
   private func configureRightCluster() {
     configure(
       button: moreButton,
@@ -458,6 +471,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func refreshPlaybackState() {
     let symbol = player.isPlaying ? "pause.fill" : "play.fill"
     playPauseButton.image = symbolImage(symbol, size: 21)
+    playPauseButton.setAccessibilityLabel(
+      player.isPlaying ? L10n.tr("Pause") : L10n.tr("Play")
+    )
   }
 
   private func updateModeButtons() {

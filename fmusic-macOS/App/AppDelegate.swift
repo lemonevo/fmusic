@@ -48,6 +48,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   // MARK: - Lifecycle
 
+  func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    true
+  }
+
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.regular)
     MacTheme.applyAppearanceMode()
@@ -380,6 +384,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   @objc
   func showQueue(_ sender: Any?) {
     PlayerPageWindowController.presentQueue()
+  }
+
+  /// ⌘1…⌘9: jump to the corresponding sidebar entry.
+  @objc
+  func selectSidebarSlot(_ sender: NSMenuItem) {
+    let items = SidebarItem.allCases
+    guard items.indices.contains(sender.tag) else { return }
+    showMainWindow(nil)
+    mainWindowController?.mainViewController?.select(item: items[sender.tag])
   }
 
   @objc

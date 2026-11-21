@@ -268,8 +268,21 @@ enum MainMenuBuilder {
     menu.addItem(
       withTitle: L10n.tr("Show Main Window"),
       action: #selector(AppDelegate.showMainWindow(_:)),
-      keyEquivalent: "1"
+      keyEquivalent: "0"
     ).target = appDelegate
+
+    // ⌘1…⌘9 jump to the sidebar entries like other native media/library apps.
+    for (index, sidebarItem) in SidebarItem.allCases.enumerated() where index < 9 {
+      let nav = NSMenuItem(
+        title: sidebarItem.title,
+        action: #selector(AppDelegate.selectSidebarSlot(_:)),
+        keyEquivalent: String(index + 1)
+      )
+      nav.tag = index
+      nav.target = appDelegate
+      menu.addItem(nav)
+    }
+    menu.addItem(.separator())
 
     let nowPlaying = NSMenuItem(
       title: L10n.tr("Now Playing"),
