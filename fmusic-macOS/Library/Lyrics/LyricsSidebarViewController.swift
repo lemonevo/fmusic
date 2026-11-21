@@ -637,6 +637,13 @@ private final class LyricsSidebarCellView: NSTableCellView {
       : NSColor(white: 0.34, alpha: 0.82)
   }
   private static let blurContext = CIContext(options: nil)
+  /// Rasterized lyric lines are static per (text, width, scale, active style, appearance):
+  /// cache them so scrolling and line changes do not re-layout/re-blur every row.
+  private static let rasterCache: NSCache<NSString, NSImage> = {
+    let cache = NSCache<NSString, NSImage>()
+    cache.countLimit = 400
+    return cache
+  }()
 
   private let glyphView = LyricsGlyphView()
   private let translationLabel = NSTextField(wrappingLabelWithString: "")
@@ -743,25 +750,32 @@ private final class LyricsSidebarCellView: NSTableCellView {
     // `LyricTableCell.updateBlurredImageIfNeeded`: inactive lines use a blurred copy
     // with CIGaussianBlur radius 2.2 * screen scale; the active line stays sharp.
     _ = distance
-    let sharpDimImage = LyricsRasterizer.image(
-      layout: layout,
-      size: size,
-      scale: scale,
-      foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
-    )
+    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     // The Catalyst snapshot is already at screen scale; 2.2 px there is subtle.
     // Our rasterizer blurs at pixel resolution with the same factor, which reads
     // stronger, so use half the radius to match the original look.
     let blurRadius = isActive ? 0 : 1.1 * scale
-    let dimImage = isActive
-      ? sharpDimImage
-      : sharpDimImage.flatMap { Self.blurred($0, radius: blurRadius) }
+    let dimColor = isActive ? Self.activeDimColor : Self.inactiveColor
+    let dimImage = Self.raster(
+      text: text,
+      width: width,
+      layout: layout,
+      size: size,
+      scale: scale,
+      color: dimColor,
+      blurRadius: blurRadius,
+      isDark: isDark
+    )
     if isActive {
-      let brightImage = LyricsRasterizer.image(
+      let brightImage = Self.raster(
+        text: text,
+        width: width,
         layout: layout,
         size: size,
         scale: scale,
-        foregroundColor: Self.activeBrightColor
+        color: Self.activeBrightColor,
+        blurRadius: 0,
+        isDark: isDark
       )
       glyphView.setImages(dim: dimImage, bright: brightImage)
       glyphView.updateMask(rects: Self.maskRects(
@@ -826,6 +840,41 @@ private final class LyricsSidebarCellView: NSTableCellView {
   func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
     guard isActiveLine else { return }
     glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+  }
+
+  private static func raster(
+    text: String,
+    width: CGFloat,
+    layout: LyricsTextLayout,
+    size: CGSize,
+    scale: CGFloat,
+    color: NSColor,
+    blurRadius: CGFloat,
+    isDark: Bool
+  )
+    -> CGImage? {
+    let key = "v1|\(isDark)|\(width)|\(scale)|\(blurRadius)|\(color.description)|\(text)" as NSString
+    if let cached = rasterCache.object(forKey: key),
+       let cgImage = cached.cgImage(forProposedRect: nil, context: nil, hints: nil) {
+      return cgImage
+    }
+    guard let sharp = LyricsRasterizer.image(
+      layout: layout,
+      size: size,
+      scale: scale,
+      foregroundColor: color
+    )
+    else { return nil }
+    let result: CGImage?
+    if blurRadius > 0 {
+      result = blurred(sharp, radius: blurRadius)
+    } else {
+      result = sharp
+    }
+    if let result {
+      rasterCache.setObject(NSImage(cgImage: result, size: size), forKey: key)
+    }
+    return result
   }
 
   private static func blurred(_ image: CGImage, radius: CGFloat) -> CGImage? {

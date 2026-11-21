@@ -148,7 +148,12 @@ final class MainViewController: NSViewController {
 
     // Dev hooks: `--songs` or `--page <sidebar-item-raw-value>` open a page directly.
     let arguments = ProcessInfo.processInfo.arguments
+    splitViewController.splitView.autosaveName = "fmusic.mainSplit"
     var initialItem: SidebarItem = .home
+    if let saved = UserDefaults.standard.string(forKey: "fmusic.lastSidebarItem"),
+       let item = SidebarItem(rawValue: saved) {
+      initialItem = item
+    }
     if let pageIndex = arguments.firstIndex(of: "--page"),
        pageIndex + 1 < arguments.count,
        let item = SidebarItem(rawValue: arguments[pageIndex + 1]) {
@@ -383,6 +388,7 @@ final class MainViewController: NSViewController {
 
   func select(item: SidebarItem) {
     sidebarViewController.select(item: item)
+    UserDefaults.standard.set(item.rawValue, forKey: "fmusic.lastSidebarItem")
     showRoot(item: item)
   }
 
