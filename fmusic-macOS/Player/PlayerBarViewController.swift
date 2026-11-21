@@ -131,13 +131,14 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     controlsGroup.spacing = 8
     // Three-section bar: left transport cluster hugs left, middle flexes, right
     // utilities hug right.
-    controlsGroupView = controlsGroup
-    controlsGroup.translatesAutoresizingMaskIntoConstraints = true
+    controlsGroup.setContentHuggingPriority(.required, for: .horizontal)
+    controlsGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
+    controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let infoGroup = NSView()
     self.infoGroup = infoGroup
     let titleStack = infoStack()
-    infoGroup.translatesAutoresizingMaskIntoConstraints = true
+    infoGroup.translatesAutoresizingMaskIntoConstraints = false
     titleStack.translatesAutoresizingMaskIntoConstraints = false
     infoGroup.addSubview(artworkView)
     infoGroup.addSubview(titleStack)
@@ -175,8 +176,15 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     capsule.addSubview(infoGroup)
     capsule.addSubview(rightGroup)
     NSLayoutConstraint.activate([
+      controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
+      controlsGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
+
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
+
+      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
+      infoGroup.trailingAnchor.constraint(equalTo: rightGroup.leadingAnchor, constant: -18),
+      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -7),
     ])
 
     NSLayoutConstraint.activate([
@@ -398,7 +406,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   override func viewDidLayout() {
     super.viewDidLayout()
-    layoutCapsuleSections()
     let width = view.bounds.width
     infoGroup?.isHidden = width < 470
     volumeSlider.isHidden = width < 640
@@ -408,25 +415,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     compactMode = width < 470
   }
 
-  private func layoutCapsuleSections() {
-    guard let controls = controlsGroupView,
-          let info = infoGroup,
-          let right = rightGroupView,
-          let capsule = capsuleView
-    else { return }
-    let height = capsule.bounds.height
-    controls.setFrameSize(controls.fittingSize)
-    controls.frame = NSRect(
-      x: 18,
-      y: (height - controls.frame.height) / 2 - 2,
-      width: controls.frame.width,
-      height: controls.frame.height
-    )
-    let infoX = controls.frame.maxX + 12
-    let infoWidth = max(0, right.frame.minX - 18 - infoX)
-    info.frame = NSRect(x: infoX, y: 0, width: infoWidth, height: height)
-    info.layoutSubtreeIfNeeded()
-  }
+
 
   // MARK: - Refresh
 
