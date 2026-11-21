@@ -232,6 +232,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   @objc
   private func appearanceChanged() {
     for window in NSApp.windows {
+      // Transparent panels (desktop lyrics, mini player, Now Playing overlay) keep
+      // their own background; painting them here turns them into opaque rectangles.
+      guard window.isOpaque else { continue }
       window.backgroundColor = MacTheme.contentBackgroundColor
       window.contentView?.needsDisplay = true
       window.contentView?.needsLayout = true

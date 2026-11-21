@@ -44,6 +44,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
 
   private var query = ""
   private var rows: [Row] = []
+  private var pendingSearch: DispatchWorkItem?
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -458,6 +459,16 @@ extension SearchViewController: ContentSearchable {
 
   func contentSearchDidChange(text: String) {
     query = text
-    reloadResults()
+    // Debounce the four library queries so typing stays responsive.
+    pendingSearch?.cancel()
+    guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+      reloadResults()
+      return
+    }
+    let work = DispatchWorkItem { [weak self] in
+      self?.reloadResults()
+    }
+    pendingSearch = work
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18, execute: work)
   }
 }

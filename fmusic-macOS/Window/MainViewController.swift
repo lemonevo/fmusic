@@ -232,7 +232,7 @@ final class MainViewController: NSViewController {
     let splitView = splitViewController.splitView
     splitView.setPosition(210, ofDividerAt: 0)
     if isLyricsPaneVisible, splitView.subviews.count > 2 {
-      splitView.setPosition(splitView.bounds.width - 210, ofDividerAt: 1)
+      splitView.setPosition(splitView.bounds.width - 260, ofDividerAt: 1)
     }
   }
 
@@ -321,10 +321,6 @@ final class MainViewController: NSViewController {
     window.setFrame(parent.frame, display: false)
     nowPlayingWindow = window
 
-    NSLog("fmusic: overlay A window=\(window.frame) parent=\(parent.frame) page=\(page.frame) container=\(container.frame)")
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-      NSLog("fmusic: overlay B window=\(window.frame) page=\(page.frame)")
-    }
     if let layer = page.layer {
       let slide = CABasicAnimation(keyPath: "transform.translation.y")
       slide.fromValue = -container.bounds.height

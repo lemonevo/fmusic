@@ -153,13 +153,10 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
     // The player notifications are not delivered at a fixed rate; the Catalyst lyrics
     // view runs its own clock for the character fill, so mirror that here.
-    syncTimer = Timer(
-      timeInterval: 1.0 / 60.0,
-      target: self,
-      selector: #selector(syncTick),
-      userInfo: nil,
-      repeats: true
-    )
+    syncTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) {
+      [weak self] _ in
+      Task { @MainActor in self?.syncTick() }
+    }
     if let syncTimer {
       RunLoop.main.add(syncTimer, forMode: .common)
     }
@@ -278,6 +275,8 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   @objc
   private func syncTick() {
+    // The pane is collapsed most of the time: skip all per-frame work.
+    guard view.window != nil else { return }
     stepScrollSpring()
     updateActiveLine(force: false)
   }

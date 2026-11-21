@@ -70,7 +70,7 @@ final class DownloadRequestManager: Sendable {
 
   func add(downloadInfos: [DownloadElementInfo]) async -> [DownloadRequest] {
     guard !downloadInfos.isEmpty else { return [] }
-    return try! await storage.performAndGet { asyncCompanion in
+    return (try? await storage.performAndGet { asyncCompanion in
       var asyncRequests = [DownloadRequest]()
       var objects = [(DownloadElementInfo, Downloadable)]()
       downloadInfos.forEach {
@@ -88,7 +88,7 @@ final class DownloadRequestManager: Sendable {
         ))
       }
       return asyncRequests
-    }
+    }) ?? []
   }
 
   nonisolated private func addLowPrio(

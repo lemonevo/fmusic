@@ -263,16 +263,19 @@ final class QueueViewController: NSViewController, MusicPlayable {
       object: nil
     )
 
-    progressTimer = Timer(
-      timeInterval: 0.5,
-      target: self,
-      selector: #selector(timerTick),
-      userInfo: nil,
-      repeats: true
-    )
+    progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
+      [weak self] _ in
+      Task { @MainActor in self?.timerTick() }
+    }
     if let progressTimer {
       RunLoop.main.add(progressTimer, forMode: .common)
     }
+  }
+
+  override func viewDidDisappear() {
+    super.viewDidDisappear()
+    progressTimer?.invalidate()
+    progressTimer = nil
   }
 
   deinit {
