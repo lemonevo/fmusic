@@ -265,7 +265,7 @@ final class MainViewController: NSViewController {
     controller.onClose = { [weak self] in
       self?.dismissNowPlayingOverlay(animated: true)
     }
-    let overlayWindow = NSWindow(contentViewController: controller)
+    let overlayWindow = NowPlayingOverlayWindow(contentViewController: controller)
     overlayWindow.styleMask = [.borderless]
     overlayWindow.isOpaque = false
     overlayWindow.backgroundColor = .clear
@@ -470,5 +470,26 @@ final class MainViewController: NSViewController {
       result.append(contentsOf: allScrollViews(in: subview))
     }
     return result
+  }
+}
+
+private final class NowPlayingOverlayWindow: NSWindow {
+  /// AppKit grows borderless windows to the content view's fitting size; pin the
+  /// overlay to the parent window rectangle so it covers it exactly.
+  override func setFrame(_ frameRect: NSRect, display flag: Bool) {
+    var rect = frameRect
+    if let parent {
+      rect.size = parent.frame.size
+      rect.origin = parent.frame.origin
+    }
+    super.setFrame(rect, display: flag)
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    if let parent {
+      parent.performDrag(with: event)
+    } else {
+      super.mouseDown(with: event)
+    }
   }
 }
