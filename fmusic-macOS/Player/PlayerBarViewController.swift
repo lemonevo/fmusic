@@ -315,7 +315,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   private func configureProgressLine() {
     progressTrack.wantsLayer = true
-    progressTrack.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.22).cgColor
+    progressTrack.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor
     progressTrack.layer?.cornerRadius = 4
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
