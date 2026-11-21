@@ -29,6 +29,9 @@ import fmusicKit
 @MainActor
 final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   NSTableViewDataSource, NSTableViewDelegate {
+  /// The large player draws its own gradient; the pane must stay transparent there.
+  var usesTransparentBackground = false
+
   // Catalyst `LyricsView.lineSpacing` (space above each row) and `LyricTableCell` fonts.
   private static let rowSpacing: CGFloat = 30
   private static let horizontalInset: CGFloat = 20
@@ -59,7 +62,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   override func loadView() {
-    let root = LyricsPaneBackgroundView()
+    let root = usesTransparentBackground ? NSView() : LyricsPaneBackgroundView()
 
     tableView.headerView = nil
     tableView.backgroundColor = .clear

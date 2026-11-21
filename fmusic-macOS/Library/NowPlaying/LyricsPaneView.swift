@@ -281,9 +281,13 @@ final class LyricsPaneView: NSView {
     let output = NSMutableAttributedString()
     lineLocations = []
 
-    let normalFont = NSFont.systemFont(ofSize: 13)
-    let currentFont = NSFont.systemFont(ofSize: 14, weight: .semibold)
-    let translationFont = NSFont.systemFont(ofSize: 11)
+    // Catalyst `LyricTableCell` sizes: 24 pt inactive, 29 pt bold active, 17 pt translation.
+    let normalFont = NSFont.systemFont(ofSize: 24, weight: .semibold)
+    let currentFont = NSFont.systemFont(ofSize: 29, weight: .bold)
+    let translationFont = NSFont.systemFont(ofSize: 17)
+
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.lineSpacing = 8
 
     for (index, line) in lyrics.line.enumerated() {
       lineLocations.append(output.length)
@@ -291,11 +295,11 @@ final class LyricsPaneView: NSView {
       let text = line.value.isEmpty ? " " : line.value
       var attributes: [NSAttributedString.Key: Any] = [
         .font: isCurrent ? currentFont : normalFont,
-        .foregroundColor: isCurrent ? MacTheme.accentColor : NSColor.labelColor,
+        .foregroundColor: isCurrent
+          ? NSColor.white
+          : NSColor.white.withAlphaComponent(0.6),
+        .paragraphStyle: paragraph,
       ]
-      if isCurrent {
-        attributes[.backgroundColor] = MacTheme.accentColor.withAlphaComponent(0.12)
-      }
       output.append(NSAttributedString(string: text + "\n", attributes: attributes))
 
       if let translation = line.translation, !translation.isEmpty {
@@ -303,7 +307,8 @@ final class LyricsPaneView: NSView {
           string: translation + "\n",
           attributes: [
             .font: translationFont,
-            .foregroundColor: NSColor.secondaryLabelColor,
+            .foregroundColor: NSColor.white.withAlphaComponent(0.45),
+            .paragraphStyle: paragraph,
           ]
         ))
       }

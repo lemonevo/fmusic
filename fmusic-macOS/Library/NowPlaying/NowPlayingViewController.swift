@@ -41,6 +41,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let previousButton = NSButton()
   private let playPauseButton = NSButton()
   private let nextButton = NSButton()
+  private let shuffleButton = NSButton()
+  private let repeatButton = NSButton()
+  private let favoriteButton = NSButton()
+  private let optionsButton = NSButton()
+  private weak var leftPanelView: NSView?
+  private let airplayButton = NSButton()
+  private let queueButton = NSButton()
+  private let moreButton = NSButton()
 
   private let elapsedLabel = NSTextField(labelWithString: "0:00")
   private let remainingLabel = NSTextField(labelWithString: "-0:00")
@@ -68,6 +76,8 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     let root = NSView()
     root.wantsLayer = true
     root.layer?.backgroundColor = NSColor.clear.cgColor
+    // The Catalyst player is always dark.
+    root.appearance = NSAppearance(named: .darkAqua)
 
     backgroundView.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(backgroundView)
@@ -109,6 +119,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     panesContainer.addSubview(queueSection)
 
     let leftPanel = NSView()
+    leftPanelView = leftPanel
     leftPanel.translatesAutoresizingMaskIntoConstraints = false
     leftPanel.addSubview(artworkView)
     leftPanel.addSubview(songTitleLabel)
@@ -193,6 +204,54 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     self.view = root
   }
 
+  private func addExtraControls(leftPanel: NSView) {
+    let extras: [(NSButton, String, Selector, CGFloat)] = [
+      (shuffleButton, "shuffle", #selector(toggleShuffle), 15),
+      (repeatButton, "repeat", #selector(cycleRepeat), 15),
+      (favoriteButton, "heart", #selector(toggleFavorite), 14),
+      (optionsButton, "ellipsis", #selector(showOptionsMenu), 14),
+      (airplayButton, "airplayaudio", #selector(openSoundSettings), 15),
+      (queueButton, "list.bullet", #selector(showQueue), 15),
+      (moreButton, "ellipsis.circle", #selector(showOptionsMenu), 15),
+    ]
+    for (button, symbol, action, size) in extras {
+      button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: .medium))
+      button.isBordered = false
+      button.bezelStyle = .regularSquare
+      button.imagePosition = .imageOnly
+      button.contentTintColor = .white
+      button.target = self
+      button.action = action
+      button.translatesAutoresizingMaskIntoConstraints = false
+    }
+    for button in [shuffleButton, repeatButton, favoriteButton, optionsButton] {
+      leftPanel.addSubview(button)
+      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+    }
+    for button in [airplayButton, queueButton, moreButton] {
+      view.addSubview(button)
+      button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 24).isActive = true
+      button.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -22).isActive = true
+    }
+    NSLayoutConstraint.activate([
+      shuffleButton.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
+      shuffleButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
+      repeatButton.trailingAnchor.constraint(equalTo: leftPanel.trailingAnchor),
+      repeatButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
+      favoriteButton.leadingAnchor.constraint(equalTo: leftPanel.leadingAnchor),
+      favoriteButton.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 14),
+      optionsButton.leadingAnchor.constraint(equalTo: favoriteButton.trailingAnchor, constant: 10),
+      optionsButton.centerYAnchor.constraint(equalTo: favoriteButton.centerYAnchor),
+      moreButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -28),
+      queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -18),
+      airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -18),
+    ])
+    refreshExtraState()
+  }
+
   private func configureCloseButton() {
     closeButton.image = NSImage(
       systemSymbolName: "chevron.down",
@@ -257,6 +316,119 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     albumLabel.textColor = .tertiaryLabelColor
     albumLabel.lineBreakMode = .byTruncatingTail
     albumLabel.translatesAutoresizingMaskIntoConstraints = false
+  }
+
+  private func configureExtraControls() {
+    let extras: [(NSButton, String, Selector, Int)] = [
+      (shuffleButton, "shuffle", #selector(toggleShuffle), 15),
+      (repeatButton, "repeat", #selector(cycleRepeat), 15),
+      (favoriteButton, "heart", #selector(toggleFavorite), 14),
+      (optionsButton, "ellipsis", #selector(showOptionsMenu), 14),
+      (airplayButton, "airplayaudio", #selector(openSoundSettings), 15),
+      (queueButton, "list.bullet", #selector(showQueue), 15),
+      (moreButton, "ellipsis.circle", #selector(showOptionsMenu), 15),
+    ]
+    for (button, symbol, action, size) in extras {
+      button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: CGFloat(size), weight: .medium))
+      button.isBordered = false
+      button.bezelStyle = .regularSquare
+      button.imagePosition = .imageOnly
+      button.contentTintColor = .white
+      button.target = self
+      button.action = action
+      button.translatesAutoresizingMaskIntoConstraints = false
+      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
+    }
+
+    leftPanelStackAdd()
+    NSLayoutConstraint.activate([
+      shuffleButton.leadingAnchor.constraint(equalTo: leftPanelView!.leadingAnchor),
+      shuffleButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
+      repeatButton.trailingAnchor.constraint(equalTo: leftPanelView!.trailingAnchor),
+      repeatButton.centerYAnchor.constraint(equalTo: previousButton.centerYAnchor),
+    ])
+  }
+
+  private func leftPanelStackAdd() {
+    guard let leftPanel = leftPanelView else { return }
+    for view in [shuffleButton, repeatButton, favoriteButton, optionsButton] {
+      leftPanel.addSubview(view)
+    }
+    for view in [airplayButton, queueButton, moreButton] {
+      self.view.addSubview(view)
+    }
+    moreButton.trailingAnchor.constraint(equalTo: self.view.trailingAnchor, constant: -28).isActive = true
+    queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -18).isActive = true
+    airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -18).isActive = true
+    for view in [airplayButton, queueButton, moreButton] {
+      view.bottomAnchor.constraint(equalTo: self.view.bottomAnchor, constant: -22).isActive = true
+    }
+  }
+
+  @objc
+  private func toggleShuffle() {
+    player.toggleShuffle()
+  }
+
+  @objc
+  private func cycleRepeat() {
+    player.setRepeatMode(player.repeatMode.nextMode)
+  }
+
+  @objc
+  private func toggleFavorite() {
+    guard let song = player.currentlyPlaying?.asSong else { return }
+    song.isFavorite.toggle()
+  }
+
+  @objc
+  private func showOptionsMenu() {
+    let menu = NSMenu()
+    let item = NSMenuItem(title: L10n.tr("Queue"), action: #selector(showQueue), keyEquivalent: "")
+    item.target = self
+    menu.addItem(item)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
+      in: optionsButton
+    )
+  }
+
+  @objc
+  private func showQueue() {
+    PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  private func openSoundSettings() {
+    if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
+      NSWorkspace.shared.open(url)
+    }
+  }
+
+  private func refreshExtraState() {
+    shuffleButton.contentTintColor = player.isShuffle
+      ? MacTheme.accentColor
+      : NSColor.white.withAlphaComponent(0.85)
+    let favorite = player.currentlyPlaying?.asSong?.isFavorite ?? false
+    favoriteButton.image = NSImage(
+      systemSymbolName: favorite ? "heart.fill" : "heart",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
+    switch player.repeatMode {
+    case .off:
+      repeatButton.contentTintColor = NSColor.white.withAlphaComponent(0.85)
+      repeatButton.image = NSImage(systemSymbolName: "repeat", accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .medium))
+    case .all:
+      repeatButton.contentTintColor = MacTheme.accentColor
+    case .single:
+      repeatButton.contentTintColor = MacTheme.accentColor
+      repeatButton.image = NSImage(systemSymbolName: "repeat.1", accessibilityDescription: nil)?
+        .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 15, weight: .medium))
+    }
   }
 
   private func configureTransport() {
