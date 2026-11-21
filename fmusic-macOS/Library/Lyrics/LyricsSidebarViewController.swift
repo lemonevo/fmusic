@@ -136,6 +136,12 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       name: .lyricsOffsetChanged,
       object: nil
     )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appearanceChanged),
+      name: .macAppearanceChanged,
+      object: nil
+    )
 
     // The player notifications are not delivered at a fixed rate; the Catalyst lyrics
     // view runs its own clock for the character fill, so mirror that here.
@@ -219,6 +225,12 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   @objc
   private func lyricsOffsetChanged() {
+    updateActiveLine(force: true)
+  }
+
+  @objc
+  private func appearanceChanged() {
+    tableView.reloadData()
     updateActiveLine(force: true)
   }
 
@@ -592,9 +604,28 @@ private final class LyricsGlyphView: NSView {
 private final class LyricsSidebarCellView: NSTableCellView {
   private static let activeFontSize: CGFloat = 29
   private static let inactiveFontSize: CGFloat = 24
-  private static let activeDimColor = NSColor.white.withAlphaComponent(0.55)
-  private static let activeBrightColor = NSColor.white
-  private static let inactiveColor = NSColor.white.withAlphaComponent(0.60)
+  // Catalyst `LyricTableCellModel` uses dynamic colours (white on the dark player,
+  // dark grey on a light panel); mirror those values.
+  private static let activeBrightColor = NSColor(name: nil) { appearance in
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      ? .white
+      : NSColor(white: 0.32, alpha: 1)
+  }
+  private static let activeDimColor = NSColor(name: nil) { appearance in
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      ? NSColor.white.withAlphaComponent(0.55)
+      : NSColor(white: 0.32, alpha: 0.55)
+  }
+  private static let inactiveColor = NSColor(name: nil) { appearance in
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      ? NSColor.white.withAlphaComponent(0.60)
+      : NSColor(white: 0.5, alpha: 1)
+  }
+  private static let activeTranslationColor = NSColor(name: nil) { appearance in
+    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      ? NSColor.white.withAlphaComponent(0.72)
+      : NSColor(white: 0.34, alpha: 0.82)
+  }
   private static let blurContext = CIContext(options: nil)
 
   private let glyphView = LyricsGlyphView()
@@ -749,7 +780,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
         string: translationText,
         attributes: [
           .font: NSFont.systemFont(ofSize: 17, weight: .regular),
-          .foregroundColor: NSColor.white.withAlphaComponent(isActive ? 0.72 : 0.60),
+          .foregroundColor: isActive ? Self.activeTranslationColor : Self.inactiveColor,
           .paragraphStyle: translationParagraph,
         ]
       )
