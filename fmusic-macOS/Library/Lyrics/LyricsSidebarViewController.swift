@@ -75,7 +75,9 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     tableView.allowsEmptySelection = true
     tableView.allowsMultipleSelection = false
     tableView.focusRingType = .none
-    tableView.usesAutomaticRowHeights = true
+    // The large player uses explicit, tighter row heights; the inspector keeps
+    // the automatic heights that match the Catalyst cell constraints.
+    tableView.usesAutomaticRowHeights = !compactRows
     tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
     tableView.dataSource = self
     tableView.delegate = self
