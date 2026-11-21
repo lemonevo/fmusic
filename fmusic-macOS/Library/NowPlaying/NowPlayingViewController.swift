@@ -326,7 +326,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func buildBottomCluster(in root: NSView) {
-    configureRound(airplayButton, symbol: "airplayaudio", action: #selector(openSoundSettings), size: 16)
+    configureRound(airplayButton, symbol: "airplayaudio", action: #selector(showDeviceMenu), size: 16)
     configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 16)
     configureRound(moreButton, symbol: "ellipsis.circle", action: #selector(showOptionsMenu), size: 16)
     for button in [airplayButton, queueButton, moreButton] {
@@ -541,6 +541,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   @objc
   private func showOptionsMenu() {
     let menu = NSMenu()
+    let favorite = player.currentlyPlaying?.asSong?.isFavorite ?? false
+    let favoriteItem = NSMenuItem(
+      title: favorite ? L10n.tr("Remove from Favorites") : L10n.tr("Add to Favorites"),
+      action: #selector(toggleFavorite),
+      keyEquivalent: ""
+    )
+    favoriteItem.target = self
+    menu.addItem(favoriteItem)
     let item = NSMenuItem(
       title: L10n.tr("Queue"),
       action: #selector(showQueue),
@@ -548,6 +556,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     )
     item.target = self
     menu.addItem(item)
+    menu.addItem(.separator())
+    let settings = NSMenuItem(
+      title: L10n.tr("Sound Settings…"),
+      action: #selector(openSoundSettings),
+      keyEquivalent: ""
+    )
+    settings.target = self
+    menu.addItem(settings)
     menu.popUp(
       positioning: nil,
       at: NSPoint(x: optionsButton.bounds.midX, y: optionsButton.bounds.minY - 4),
@@ -558,6 +574,42 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   @objc
   private func showQueue() {
     PlayerPageWindowController.presentQueue()
+  }
+
+  @objc
+  private func showDeviceMenu() {
+    let menu = NSMenu()
+    let defaultDevice = AudioOutputDevices.defaultOutputDevice()
+    for device in AudioOutputDevices.outputDevices() {
+      let item = NSMenuItem(
+        title: device.name,
+        action: #selector(selectDevice(_:)),
+        keyEquivalent: ""
+      )
+      item.target = self
+      item.representedObject = device.id
+      item.state = device.id == defaultDevice ? .on : .off
+      menu.addItem(item)
+    }
+    menu.addItem(.separator())
+    let settings = NSMenuItem(
+      title: L10n.tr("Sound Settings…"),
+      action: #selector(openSoundSettings),
+      keyEquivalent: ""
+    )
+    settings.target = self
+    menu.addItem(settings)
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: airplayButton.bounds.midX, y: airplayButton.bounds.minY - 4),
+      in: airplayButton
+    )
+  }
+
+  @objc
+  private func selectDevice(_ sender: NSMenuItem) {
+    guard let id = sender.representedObject as? AudioDeviceID else { return }
+    AudioOutputDevices.setDefaultOutputDevice(id)
   }
 
   @objc
