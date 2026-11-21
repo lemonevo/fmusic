@@ -69,7 +69,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   /// Height of the floating capsule (also used by the window layout).
-  static let capsuleHeight: CGFloat = 64
+  static let capsuleHeight: CGFloat = 54
 
   // MARK: - Lifecycle
 
@@ -146,7 +146,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
-    rightGroup.spacing = 16
+    rightGroup.spacing = 12
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
 
     capsule.addSubview(controlsGroup)
