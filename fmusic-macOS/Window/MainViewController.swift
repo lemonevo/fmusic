@@ -258,17 +258,20 @@ final class MainViewController: NSViewController {
   /// Full-window Now Playing page, presented over the whole main window like the
   /// Catalyst `PopupPlayerVC`.
   func presentNowPlayingOverlay() {
+    NSLog("fmusic: overlay requested")
     dismissNowPlayingOverlay(animated: false)
     guard let parent = view.window ?? NSApp.windows.first(where: { $0.isVisible }) else { return }
     let controller = NowPlayingViewController()
     controller.onClose = { [weak self] in
       self?.dismissNowPlayingOverlay(animated: true)
     }
-    let overlayWindow = NowPlayingOverlayWindow(contentViewController: controller)
+    let overlayWindow = NSWindow(contentViewController: controller)
     overlayWindow.styleMask = [.borderless]
     overlayWindow.isOpaque = false
     overlayWindow.backgroundColor = .clear
     overlayWindow.hasShadow = false
+    overlayWindow.setFrame(parent.frame, display: true)
+    // Match the main window's rounded corners instead of a square borderless window.
     if let content = overlayWindow.contentView {
       content.wantsLayer = true
       content.layer?.cornerRadius = 12
@@ -276,64 +279,16 @@ final class MainViewController: NSViewController {
       content.layer?.masksToBounds = true
     }
     parent.addChildWindow(overlayWindow, ordered: .above)
-    overlayWindow.setFrame(parent.frame, display: true)
-    // The page's Auto Layout fitting size is taller than the window; pin its view
-    // to the exact content rectangle so nothing is shifted or clipped.
-    if let content = overlayWindow.contentView {
-      content.setBoundsSize(parent.frame.size)
-      content.setBoundsOrigin(.zero)
-      controller.view.frame = NSRect(origin: .zero, size: parent.frame.size)
-      controller.view.autoresizingMask = [.width, .height]
-    }
+    NSLog("fmusic: overlay added \(overlayWindow.frame)")
     overlayWindow.orderFront(nil)
-    DispatchQueue.main.async {
-      let size = overlayWindow.contentLayoutRect.size
-      overlayWindow.setContentSize(parent.frame.size)
-      overlayWindow.setFrame(parent.frame, display: false)
-      overlayWindow.contentView?.setBoundsOrigin(.zero)
-      controller.view.setBoundsOrigin(.zero)
-      controller.view.frame = NSRect(origin: .zero, size: size)
-      NSLog("fmusic: overlay content=\(controller.view.frame) window=\(overlayWindow.frame) parent=\(parent.frame)")
-    }
     nowPlayingWindow = overlayWindow
-
-    // UIKit `.coverVertical`: animate the page layer inside the fixed window.
-    if let layer = overlayWindow.contentView?.layer {
-      let height = parent.frame.height
-      let slide = CABasicAnimation(keyPath: "transform.translation.y")
-      slide.fromValue = -height
-      slide.toValue = 0
-      slide.duration = 0.32
-      slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
-      layer.add(slide, forKey: "coverVertical")
-    }
   }
 
   func dismissNowPlayingOverlay(animated: Bool) {
     guard let window = nowPlayingWindow else { return }
     nowPlayingWindow = nil
-    let finish = {
-      window.parent?.removeChildWindow(window)
-      window.orderOut(nil)
-    }
-    guard animated, let layer = window.contentView?.layer else {
-      finish()
-      return
-    }
-    let height = window.frame.height
-    CATransaction.begin()
-    CATransaction.setCompletionBlock { finish() }
-    let slide = CABasicAnimation(keyPath: "transform.translation.y")
-    slide.fromValue = 0
-    slide.toValue = -height
-    slide.duration = 0.26
-    slide.timingFunction = CAMediaTimingFunction(name: .easeIn)
-    slide.fillMode = .forwards
-    slide.isRemovedOnCompletion = false
-    layer.add(slide, forKey: "coverVerticalDismiss")
-    CATransaction.setDisableActions(true)
-    layer.transform = CATransform3DMakeTranslation(0, -height, 0)
-    CATransaction.commit()
+    window.parent?.removeChildWindow(window)
+    window.orderOut(nil)
   }
 
   /// Selects a sidebar entry programmatically (used by menu shortcuts) and shows its page.
@@ -515,30 +470,5 @@ final class MainViewController: NSViewController {
       result.append(contentsOf: allScrollViews(in: subview))
     }
     return result
-  }
-}
-
-// MARK: - NowPlayingOverlayWindow
-
-/// Borderless full-window overlay. Dragging its background (mouse or the system
-/// three-finger drag) moves the main window, so the shortcut keeps working.
-private final class NowPlayingOverlayWindow: NSWindow {
-  /// AppKit tries to resize the borderless window to the player page's fitting
-  /// size; keep it locked to the parent window rectangle instead.
-  override func setFrame(_ frameRect: NSRect, display flag: Bool) {
-    var rect = frameRect
-    if let parent {
-      rect.size = parent.frame.size
-      rect.origin = parent.frame.origin
-    }
-    super.setFrame(rect, display: flag)
-  }
-
-  override func mouseDown(with event: NSEvent) {
-    if let parent {
-      parent.performDrag(with: event)
-    } else {
-      super.mouseDown(with: event)
-    }
   }
 }
