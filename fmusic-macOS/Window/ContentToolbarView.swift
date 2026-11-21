@@ -60,6 +60,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
 
     titleLabel.font = .systemFont(ofSize: 17, weight: .semibold)
     titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.maximumNumberOfLines = 1
+    // Long album names must truncate instead of stretching across the toolbar.
+    titleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
 
     searchField.placeholderString = ""
@@ -90,6 +93,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
         lessThanOrEqualTo: searchField.leadingAnchor,
         constant: -16
       ),
+      titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
 
       searchField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
       searchField.centerYAnchor.constraint(equalTo: centerYAnchor),
