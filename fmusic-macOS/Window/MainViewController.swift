@@ -68,8 +68,8 @@ final class MainViewController: NSViewController {
     contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
     let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
-    lyricsItem.minimumThickness = 210
-    lyricsItem.maximumThickness = 210
+    lyricsItem.minimumThickness = 260
+    lyricsItem.maximumThickness = 260
     lyricsItem.canCollapse = true
     lyricsItem.isCollapsed = true
     lyricsItem.holdingPriority = NSLayoutConstraint.Priority(270)
@@ -240,7 +240,7 @@ final class MainViewController: NSViewController {
     // The capsule lives inside the content column and scales with it: opening the
     // lyrics pane shrinks the middle column, so the capsule shrinks too.
     let sidebarWidth: CGFloat = (sidebarItem?.isCollapsed ?? false) ? 0 : 210
-    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 210 : 0
+    let lyricsWidth: CGFloat = isLyricsPaneVisible ? 260 : 0
     let available = view.bounds.width - sidebarWidth - lyricsWidth
     guard available > 0 else { return }
     // The mini player spans the whole content column; only its middle block flexes.
