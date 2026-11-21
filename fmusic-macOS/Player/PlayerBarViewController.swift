@@ -26,7 +26,7 @@ import fmusicKit
 /// line along the bottom edge of the capsule.
 @MainActor
 final class PlayerBarViewController: NSViewController, MusicPlayable {
-  private let capsule = NSVisualEffectView()
+  private let capsule = NSView()
 
   private let artworkView = NSImageView()
   private let titleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
@@ -78,28 +78,35 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     root.translatesAutoresizingMaskIntoConstraints = false
     root.wantsLayer = true
 
-    capsule.material = .popover
-    capsule.blendingMode = .withinWindow
-    capsule.state = .active
+    // The Catalyst bar uses `UIGlassEffect` (Liquid Glass). AppKit's equivalent is
+    // `NSGlassEffectView` on macOS 26; older systems fall back to vibrancy.
     capsule.wantsLayer = true
-    capsule.layer?.cornerRadius = Self.capsuleHeight / 2
-    capsule.layer?.masksToBounds = true
-    capsule.layer?.borderWidth = 1
-    capsule.layer?.borderColor = NSColor.white.withAlphaComponent(0.14).cgColor
     capsule.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(capsule)
 
-    let highlight = NSView()
-    highlight.wantsLayer = true
-    highlight.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.07).cgColor
-    highlight.layer?.cornerRadius = Self.capsuleHeight / 2
-    highlight.translatesAutoresizingMaskIntoConstraints = false
-    capsule.addSubview(highlight)
+    let glassBackdrop: NSView
+    if #available(macOS 26.0, *) {
+      let glass = NSGlassEffectView()
+      glass.style = .regular
+      glass.cornerRadius = Self.capsuleHeight / 2
+      glassBackdrop = glass
+    } else {
+      let effect = NSVisualEffectView()
+      effect.material = .popover
+      effect.blendingMode = .withinWindow
+      effect.state = .active
+      effect.wantsLayer = true
+      effect.layer?.cornerRadius = Self.capsuleHeight / 2
+      effect.layer?.masksToBounds = true
+      glassBackdrop = effect
+    }
+    glassBackdrop.translatesAutoresizingMaskIntoConstraints = false
+    capsule.addSubview(glassBackdrop)
     NSLayoutConstraint.activate([
-      highlight.topAnchor.constraint(equalTo: capsule.topAnchor),
-      highlight.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
-      highlight.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
-      highlight.heightAnchor.constraint(equalTo: capsule.heightAnchor, multiplier: 0.5),
+      glassBackdrop.topAnchor.constraint(equalTo: capsule.topAnchor),
+      glassBackdrop.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
+      glassBackdrop.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
+      glassBackdrop.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
     ])
 
     configureArtwork()
