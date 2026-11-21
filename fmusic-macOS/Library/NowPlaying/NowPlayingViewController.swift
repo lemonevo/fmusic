@@ -284,9 +284,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       artistLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 3),
 
       optionsButton.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
-      optionsButton.centerYAnchor.constraint(equalTo: songTitleLabel.centerYAnchor),
-      favoriteButton.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: -10),
-      favoriteButton.centerYAnchor.constraint(equalTo: optionsButton.centerYAnchor),
+      optionsButton.topAnchor.constraint(equalTo: songTitleLabel.topAnchor),
+      favoriteButton.trailingAnchor.constraint(equalTo: optionsButton.trailingAnchor),
+      favoriteButton.bottomAnchor.constraint(equalTo: optionsButton.topAnchor, constant: -10),
 
 
       progressSlider.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
