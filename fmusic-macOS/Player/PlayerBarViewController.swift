@@ -167,7 +167,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       ),
 
       infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
-      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
+      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -7),
       infoGroup.widthAnchor.constraint(lessThanOrEqualToConstant: 200),
 
       rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
@@ -180,6 +180,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       progressTrack.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
       progressTrack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
     ])
+
+    capsule.addSubview(progressTrack, positioned: .above, relativeTo: nil)
 
     self.view = root
   }
@@ -313,7 +315,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   private func configureProgressLine() {
     progressTrack.wantsLayer = true
-    progressTrack.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.26).cgColor
+    progressTrack.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.35).cgColor
     progressTrack.layer?.cornerRadius = 4
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
@@ -329,7 +331,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
-      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -7),
+      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -6),
       progressTrack.heightAnchor.constraint(equalToConstant: 8),
 
       progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
