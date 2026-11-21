@@ -36,7 +36,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let closeButton = NSButton()
   private let volumePill = NSView()
   private let volumeIcon = NSImageView()
-  private let volumeSlider = NSSlider()
+  private let volumeSlider = PlayerVolumeSlider()
 
   private let artworkView = NSImageView()
   private let songTitleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
@@ -156,13 +156,10 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     volumeIcon.contentTintColor = .white
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
 
-    volumeSlider.minValue = 0
-    volumeSlider.maxValue = 1
-    volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
-    volumeSlider.isContinuous = true
-    volumeSlider.controlSize = .mini
-    volumeSlider.target = self
-    volumeSlider.action = #selector(volumeChanged)
+    volumeSlider.value = CGFloat(player.volume)
+    volumeSlider.onChange = { [weak self] value in
+      self?.player.volume = Float(value)
+    }
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
 
     for item in [closeButton, volumePill] {
@@ -183,6 +180,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
       volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
+      volumeSlider.heightAnchor.constraint(equalToConstant: 28),
 
       volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -12),
       volumeIcon.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
@@ -213,15 +211,17 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       label.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 12)
-    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 12)
-    favoriteButton.layer?.cornerRadius = 14
-    favoriteButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    optionsButton.layer?.cornerRadius = 14
-    optionsButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 15)
+    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 15)
+    favoriteButton.layer?.cornerRadius = 12
+    favoriteButton.layer?.cornerCurve = .continuous
+    favoriteButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.13).cgColor
+    optionsButton.layer?.cornerRadius = 12
+    optionsButton.layer?.cornerCurve = .continuous
+    optionsButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.13).cgColor
     for button in [favoriteButton, optionsButton] {
-      button.widthAnchor.constraint(equalToConstant: 28).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 28).isActive = true
+      button.widthAnchor.constraint(equalToConstant: 34).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 34).isActive = true
     }
 
     progressSlider.minValue = 0
@@ -388,7 +388,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private func refreshPlaybackState() {
     setSymbol(playPauseButton, symbol: player.isPlaying ? "pause.fill" : "play.fill", size: 26)
-    volumeSlider.doubleValue = Double(player.volume)
+    volumeSlider.value = CGFloat(player.volume)
   }
 
   private func refreshModeState() {
@@ -460,7 +460,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func volumeChanged() {
-    player.volume = Float(volumeSlider.doubleValue)
+    player.volume = Float(volumeSlider.value)
   }
 
   @objc
@@ -675,5 +675,73 @@ private final class PlayerBlurredArtworkBackground: NSView {
       return image
     }
     return NSImage(cgImage: rendered, size: image.size)
+  }
+}
+
+// MARK: - PlayerVolumeSlider
+
+/// macOS 26 style volume control: white filled track with a rounded white knob.
+@MainActor
+private final class PlayerVolumeSlider: NSView {
+  var value: CGFloat = 0 {
+    didSet { needsDisplay = true }
+  }
+
+  var onChange: ((CGFloat) -> Void)?
+
+  private let knobSize = NSSize(width: 20, height: 28)
+  private let trackHeight: CGFloat = 6
+
+  override func draw(_ dirtyRect: NSRect) {
+    let trackY = (bounds.height - trackHeight) / 2
+    let radius = trackHeight / 2
+    NSColor.white.withAlphaComponent(0.25).setFill()
+    NSBezierPath(
+      roundedRect: NSRect(x: 0, y: trackY, width: bounds.width, height: trackHeight),
+      xRadius: radius,
+      yRadius: radius
+    ).fill()
+
+    let clamped = max(0, min(1, value))
+    let filledWidth = clamped * bounds.width
+    if filledWidth > 0 {
+      NSColor.white.setFill()
+      NSBezierPath(
+        roundedRect: NSRect(x: 0, y: trackY, width: filledWidth, height: trackHeight),
+        xRadius: radius,
+        yRadius: radius
+      ).fill()
+    }
+
+    let knobX = min(
+      max(0, filledWidth - knobSize.width / 2),
+      bounds.width - knobSize.width
+    )
+    NSColor.white.setFill()
+    NSBezierPath(
+      roundedRect: NSRect(
+        x: knobX,
+        y: (bounds.height - knobSize.height) / 2,
+        width: knobSize.width,
+        height: knobSize.height
+      ),
+      xRadius: knobSize.width / 2,
+      yRadius: knobSize.width / 2
+    ).fill()
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    updateValue(with: event)
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    updateValue(with: event)
+  }
+
+  private func updateValue(with event: NSEvent) {
+    let point = convert(event.locationInWindow, from: nil)
+    guard bounds.width > 0 else { return }
+    value = min(1, max(0, point.x / bounds.width))
+    onChange?(value)
   }
 }
