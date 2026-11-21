@@ -147,12 +147,12 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     closeButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
 
     volumePill.wantsLayer = true
-    volumePill.layer?.cornerRadius = 16
-    volumePill.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.22).cgColor
+    volumePill.layer?.cornerRadius = 14
+    volumePill.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
     volumePill.translatesAutoresizingMaskIntoConstraints = false
 
     volumeIcon.image = NSImage(systemSymbolName: "speaker.fill", accessibilityDescription: nil)?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 10, weight: .medium))
     volumeIcon.contentTintColor = .white
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
 
@@ -160,7 +160,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     volumeSlider.maxValue = 1
     volumeSlider.doubleValue = Double(storage.settings.user.playerVolume)
     volumeSlider.isContinuous = true
-    volumeSlider.controlSize = .small
+    volumeSlider.controlSize = .mini
     volumeSlider.target = self
     volumeSlider.action = #selector(volumeChanged)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
@@ -177,14 +177,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
       volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
       volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
-      volumePill.widthAnchor.constraint(equalToConstant: 240),
-      volumePill.heightAnchor.constraint(equalToConstant: 32),
+      volumePill.widthAnchor.constraint(equalToConstant: 200),
+      volumePill.heightAnchor.constraint(equalToConstant: 28),
 
-      volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 14),
+      volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
       volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
 
-      volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -14),
+      volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -12),
       volumeIcon.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
     ])
   }
@@ -213,15 +213,15 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       label.translatesAutoresizingMaskIntoConstraints = false
     }
 
-    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 14)
-    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 14)
-    favoriteButton.layer?.cornerRadius = 15
+    configureRound(favoriteButton, symbol: "heart", action: #selector(toggleFavorite), size: 12)
+    configureRound(optionsButton, symbol: "ellipsis", action: #selector(showOptionsMenu), size: 12)
+    favoriteButton.layer?.cornerRadius = 14
     favoriteButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    optionsButton.layer?.cornerRadius = 15
+    optionsButton.layer?.cornerRadius = 14
     optionsButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
     for button in [favoriteButton, optionsButton] {
-      button.widthAnchor.constraint(equalToConstant: 30).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 30).isActive = true
+      button.widthAnchor.constraint(equalToConstant: 28).isActive = true
+      button.heightAnchor.constraint(equalToConstant: 28).isActive = true
     }
 
     progressSlider.minValue = 0
