@@ -705,7 +705,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let paragraph = NSMutableParagraphStyle()
     paragraph.lineSpacing = 6
     paragraph.lineBreakMode = .byWordWrapping
-    paragraph.alignment = .center
+    paragraph.alignment = .left
 
     let text = line.value.isEmpty ? " " : line.value
     func attributed(_ color: NSColor) -> NSAttributedString {
@@ -730,19 +730,16 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let scale = window?.backingScaleFactor ?? 2
     let size = CGSize(width: width, height: imageHeight)
 
-    // Inactive lines fade and soften with distance from the current line: the
-    // nearest line stays readable, rows further away get progressively blurrier.
-    let distanceAlpha = max(0.28, 0.60 - CGFloat(max(distance - 1, 0)) * 0.07)
-    let inactiveColor = NSColor.white.withAlphaComponent(distanceAlpha)
+    // `LyricTableCell.updateBlurredImageIfNeeded`: inactive lines use a blurred copy
+    // with CIGaussianBlur radius 2.2 * screen scale; the active line stays sharp.
+    _ = distance
     let sharpDimImage = LyricsRasterizer.image(
       layout: layout,
       size: size,
       scale: scale,
-      foregroundColor: isActive ? Self.activeDimColor : inactiveColor
+      foregroundColor: isActive ? Self.activeDimColor : Self.inactiveColor
     )
-    let blurRadius = isActive
-      ? 0
-      : (0.6 + CGFloat(distance) * 0.7) * scale
+    let blurRadius = isActive ? 0 : 2.2 * scale
     let dimImage = isActive
       ? sharpDimImage
       : sharpDimImage.flatMap { Self.blurred($0, radius: blurRadius) }
@@ -775,7 +772,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       let translationParagraph = NSMutableParagraphStyle()
       translationParagraph.lineSpacing = 3
       translationParagraph.lineBreakMode = .byWordWrapping
-      translationParagraph.alignment = .center
+      translationParagraph.alignment = .left
       translationLabel.attributedStringValue = NSAttributedString(
         string: translationText,
         attributes: [
