@@ -863,10 +863,17 @@ private final class LyricsPaneBackgroundView: NSView {
     nil
   }
 
-  /// `LyricsVC` sets its view background to `.clear`; the inspector column draws the
-  /// sidebar surface (`secondarySystemBackground`), so the panel inherits that colour.
+  /// `LyricsVC` sets its view background to `.clear`; the inspector column draws its
+  /// own material. Sampled from the running Catalyst app in light mode that material
+  /// renders as a warm grey (#EAE9E8), darker than `secondarySystemBackground`; dark
+  /// mode matches the sidebar surface.
   static var paneColor: NSColor {
-    MacTheme.sidebarBackgroundColor
+    NSColor(name: nil) { appearance in
+      if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
+        return MacTheme.sidebarBackgroundColor.usingColorSpace(.sRGB) ?? .black
+      }
+      return NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
+    }
   }
 
   override func viewDidChangeEffectiveAppearance() {
