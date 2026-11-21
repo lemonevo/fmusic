@@ -51,7 +51,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private var progressFraction: CGFloat = 0
   private var isSeekingProgress = false
 
-  private var infoGroup: NSStackView?
+  private var infoGroup: NSView?
+  private weak var capsuleView: NSView?
+  private var controlsGroupView: NSStackView?
+  private var rightGroupView: NSStackView?
   private var compactMode: Bool?
 
   /// Called when the user toggles the lyrics side pane.
@@ -128,12 +131,23 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     controlsGroup.spacing = 8
     // Three-section bar: left transport cluster hugs left, middle flexes, right
     // utilities hug right.
-    controlsGroup.setContentHuggingPriority(.required, for: .horizontal)
-    controlsGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
-    controlsGroup.translatesAutoresizingMaskIntoConstraints = false
+    controlsGroupView = controlsGroup
+    controlsGroup.translatesAutoresizingMaskIntoConstraints = true
 
-    let infoGroup = NSStackView(views: [artworkView, infoStack()])
+    let infoGroup = NSView()
     self.infoGroup = infoGroup
+    let titleStack = infoStack()
+    infoGroup.translatesAutoresizingMaskIntoConstraints = true
+    titleStack.translatesAutoresizingMaskIntoConstraints = false
+    infoGroup.addSubview(artworkView)
+    infoGroup.addSubview(titleStack)
+    NSLayoutConstraint.activate([
+      artworkView.leadingAnchor.constraint(equalTo: infoGroup.leadingAnchor),
+      artworkView.centerYAnchor.constraint(equalTo: infoGroup.centerYAnchor),
+      titleStack.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 9),
+      titleStack.trailingAnchor.constraint(equalTo: infoGroup.trailingAnchor),
+      titleStack.centerYAnchor.constraint(equalTo: infoGroup.centerYAnchor),
+    ])
     // Tapping the cover/title opens the large Now Playing page, like the Catalyst
     // mini player opening PopupPlayerVC.
     let openNowPlaying = NSClickGestureRecognizer(
@@ -142,14 +156,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     )
     infoGroup.addGestureRecognizer(openNowPlaying)
     infoGroup.toolTip = L10n.tr("Now Playing")
-
-    infoGroup.orientation = .horizontal
-    infoGroup.alignment = .centerY
-    infoGroup.distribution = .fill
-    infoGroup.spacing = 9
-    infoGroup.setContentHuggingPriority(.defaultLow, for: .horizontal)
-    infoGroup.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    infoGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let rightGroup = NSStackView(views: [
       moreButton,
@@ -161,10 +167,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
     rightGroup.spacing = 12
-    rightGroup.setContentHuggingPriority(.required, for: .horizontal)
-    rightGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
-    rightGroup.translatesAutoresizingMaskIntoConstraints = false
+    rightGroupView = rightGroup
+    rightGroup.translatesAutoresizingMaskIntoConstraints = true
 
+    capsuleView = capsule
     capsule.addSubview(controlsGroup)
     capsule.addSubview(infoGroup)
     capsule.addSubview(rightGroup)
@@ -176,18 +182,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       capsule.bottomAnchor.constraint(equalTo: root.bottomAnchor),
       capsule.heightAnchor.constraint(equalToConstant: Self.capsuleHeight),
 
-      controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
-      controlsGroup.centerYAnchor.constraint(
-        equalTo: capsule.centerYAnchor,
-        constant: -2
-      ),
 
-      infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
-      infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -7),
-
-      rightGroup.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -18),
-      rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
-      infoGroup.trailingAnchor.constraint(equalTo: rightGroup.leadingAnchor, constant: -18),
     ])
 
     // The progress line runs directly under the artwork + title block.
@@ -262,6 +257,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = 0
+    // Fill width so the title truncates instead of sizing the capsule.
+    titleLabel.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
+    artistLabel.widthAnchor.constraint(equalTo: stack.widthAnchor).isActive = true
     return stack
   }
 
@@ -380,6 +378,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   override func viewDidLayout() {
     super.viewDidLayout()
+    layoutCapsuleSections()
     let width = view.bounds.width
     infoGroup?.isHidden = width < 470
     volumeSlider.isHidden = width < 640
@@ -387,6 +386,36 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     outputButton.isHidden = width < 430
     updateProgressFill()
     compactMode = width < 470
+    if let right = view.subviews.compactMap({ $0 as? NSStackView }).last {
+      NSLog("fmusic: capsule width=\(width) right=\(right.frame)")
+    }
+  }
+
+  private func layoutCapsuleSections() {
+    guard let controls = controlsGroupView,
+          let info = infoGroup,
+          let right = rightGroupView,
+          let capsule = capsuleView
+    else { return }
+    let height = capsule.bounds.height
+    controls.setFrameSize(controls.fittingSize)
+    right.setFrameSize(right.fittingSize)
+    controls.frame = NSRect(
+      x: 18,
+      y: (height - controls.frame.height) / 2 - 2,
+      width: controls.frame.width,
+      height: controls.frame.height
+    )
+    right.frame = NSRect(
+      x: capsule.bounds.width - 18 - right.frame.width,
+      y: (height - right.frame.height) / 2 - 2,
+      width: right.frame.width,
+      height: right.frame.height
+    )
+    let infoX = controls.frame.maxX + 12
+    let infoWidth = max(0, right.frame.minX - 18 - infoX)
+    info.frame = NSRect(x: infoX, y: 0, width: infoWidth, height: height)
+    info.layoutSubtreeIfNeeded()
   }
 
   // MARK: - Refresh
