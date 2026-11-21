@@ -260,6 +260,14 @@ final class MainViewController: NSViewController {
   /// Catalyst `PopupPlayerVC`.
   private var nowPlayingController: NowPlayingViewController?
 
+  override func cancelOperation(_ sender: Any?) {
+    if nowPlayingController != nil {
+      dismissNowPlayingOverlay(animated: true)
+    } else {
+      super.cancelOperation(sender)
+    }
+  }
+
   func presentNowPlayingOverlay() {
     dismissNowPlayingOverlay(animated: false)
     guard let parent = view.window else { return }
