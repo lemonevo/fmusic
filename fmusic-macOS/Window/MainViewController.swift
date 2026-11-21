@@ -494,12 +494,20 @@ final class MainViewController: NSViewController {
     let window = view.window
     let sizeBeforeToggle = window?.contentLayoutRect.size
     isLyricsPaneVisible = visible
-    lyricsPaneItem?.isCollapsed = !visible
+    // Animate the inspector column like UIKit's splitViewController.show(.inspector):
+    // the lyrics pane slides in/out instead of snapping.
+    if let item = lyricsPaneItem {
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = 0.34
+        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        item.animator().isCollapsed = !visible
+      }
+    }
     playerBarViewController.isLyricsPaneVisible = visible
 
     // Opening/closing the pane changes the middle column width: re-centre the capsule.
     DispatchQueue.main.async { [weak self] in self?.layoutPlayerCapsule() }
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.36) { [weak self] in
       self?.layoutPlayerCapsule()
     }
     // Opening/closing the pane only shrinks/grows the middle column, the window keeps
@@ -525,7 +533,7 @@ final class MainViewController: NSViewController {
     DispatchQueue.main.async { [weak self, weak splitView] in
       guard let self, let splitView, splitView.subviews.count > 2 else { return }
       splitView.setPosition(
-        max(210, splitView.bounds.width - 210),
+        max(260, splitView.bounds.width - 260),
         ofDividerAt: 1
       )
     }
