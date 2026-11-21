@@ -96,19 +96,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     statusLabel.maximumNumberOfLines = 0
     statusLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    // Divider between the lyrics inspector and the content column.
-    let border = NSView()
-    border.wantsLayer = true
-    border.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.55).cgColor
-    border.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(border)
-    NSLayoutConstraint.activate([
-      border.topAnchor.constraint(equalTo: root.topAnchor),
-      border.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-      border.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      border.widthAnchor.constraint(equalToConstant: 1),
-    ])
-
     root.addSubview(scrollView)
     root.addSubview(statusLabel)
 
@@ -838,7 +825,7 @@ private final class LyricsPaneBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
   }
 
   required init?(coder: NSCoder) {
@@ -847,6 +834,6 @@ private final class LyricsPaneBackgroundView: NSView {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
   }
 }

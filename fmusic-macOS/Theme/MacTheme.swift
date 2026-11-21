@@ -53,7 +53,7 @@ enum MacTheme {
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
       return isDark
         ? NSColor(white: 0.12, alpha: 1)
-        : NSColor(white: 0.96, alpha: 1)
+        : NSColor(white: 0.955, alpha: 1)
     }
   }
 
