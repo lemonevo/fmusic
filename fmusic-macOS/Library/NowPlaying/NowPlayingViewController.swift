@@ -36,14 +36,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let closeButton = NSButton()
   private let volumePill = NSView()
   private let volumeIcon = NSImageView()
-  private let volumeSlider = PlayerVolumeSlider()
+  private let volumeSlider = NSSlider()
 
   private let artworkView = NSImageView()
   private let songTitleLabel = NSTextField(labelWithString: L10n.tr("No music playing"))
   private let albumLabel = NSTextField(labelWithString: "")
   private let artistLabel = NSTextField(labelWithString: "")
-  private let favoriteButton = RoundedGlyphButton()
-  private let optionsButton = RoundedGlyphButton()
+  private let favoriteButton = NSButton()
+  private let optionsButton = NSButton()
 
   private let progressSlider = NSSlider()
   private let elapsedLabel = NSTextField(labelWithString: "0:00")
@@ -147,19 +147,39 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     closeButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
 
     volumePill.wantsLayer = true
-    volumePill.layer?.cornerRadius = 14
-    volumePill.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    volumePill.layer?.cornerRadius = 16
+    volumePill.layer?.masksToBounds = true
     volumePill.translatesAutoresizingMaskIntoConstraints = false
+    let volumeGlass: NSView
+    if #available(macOS 26.0, *) {
+      let glass = NSGlassEffectView()
+      glass.style = .regular
+      glass.cornerRadius = 16
+      volumeGlass = glass
+    } else {
+      let effect = NSVisualEffectView()
+      effect.material = .popover
+      effect.blendingMode = .withinWindow
+      effect.state = .active
+      volumeGlass = effect
+    }
+    volumeGlass.translatesAutoresizingMaskIntoConstraints = false
+    volumePill.addSubview(volumeGlass)
 
-    volumeIcon.image = NSImage(systemSymbolName: "speaker.fill", accessibilityDescription: nil)?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 10, weight: .medium))
+    volumeIcon.image = NSImage(
+      systemSymbolName: "speaker.wave.2.fill",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
     volumeIcon.contentTintColor = .white
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
 
-    volumeSlider.value = CGFloat(player.volume)
-    volumeSlider.onChange = { [weak self] value in
-      self?.player.volume = Float(value)
-    }
+    volumeSlider.minValue = 0
+    volumeSlider.maxValue = 1
+    volumeSlider.doubleValue = Double(player.volume)
+    volumeSlider.controlSize = .large
+    volumeSlider.isContinuous = true
+    volumeSlider.target = self
+    volumeSlider.action = #selector(volumeChanged)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
 
     for item in [closeButton, volumePill] {
@@ -177,10 +197,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       volumePill.widthAnchor.constraint(equalToConstant: 200),
       volumePill.heightAnchor.constraint(equalToConstant: 32),
 
+      volumeGlass.topAnchor.constraint(equalTo: volumePill.topAnchor),
+      volumeGlass.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor),
+      volumeGlass.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor),
+      volumeGlass.bottomAnchor.constraint(equalTo: volumePill.bottomAnchor),
       volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
       volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
-      volumeSlider.heightAnchor.constraint(equalToConstant: 28),
+      volumeSlider.heightAnchor.constraint(equalToConstant: 22),
 
       volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -12),
       volumeIcon.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
@@ -319,15 +343,20 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func configureGlyphButton(_ button: NSButton, symbol: String, action: Selector) {
-    let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .regular)
     button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-      .withSymbolConfiguration(config)
-    (button as? RoundedGlyphButton)?.setSymbol(symbol, tint: .white)
-    button.isBordered = false
-    button.bezelStyle = .regularSquare
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(scale: .medium))
     button.imagePosition = .imageOnly
     button.target = self
     button.action = action
+    if #available(macOS 26.0, *) {
+      // System-provided Liquid Glass bezel (same component family the Catalyst app
+      // gets from UIButton.Configuration.gray()).
+      button.bezelStyle = .glass
+      button.isBordered = true
+    } else {
+      button.bezelStyle = .regularSquare
+      button.isBordered = false
+    }
     button.translatesAutoresizingMaskIntoConstraints = false
     button.widthAnchor.constraint(equalToConstant: 36).isActive = true
     button.heightAnchor.constraint(equalToConstant: 36).isActive = true
@@ -394,7 +423,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private func refreshPlaybackState() {
     setSymbol(playPauseButton, symbol: player.isPlaying ? "pause.fill" : "play.fill", size: 26)
-    volumeSlider.value = CGFloat(player.volume)
+    volumeSlider.doubleValue = Double(player.volume)
   }
 
   private func refreshModeState() {
@@ -466,7 +495,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func volumeChanged() {
-    player.volume = Float(volumeSlider.value)
+    player.volume = Float(volumeSlider.doubleValue)
   }
 
   @objc
