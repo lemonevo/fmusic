@@ -130,9 +130,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     controlsGroup.alignment = .centerY
     controlsGroup.spacing = 8
     // Three-section bar: left transport cluster hugs left, middle flexes, right
-    // utilities hug right.
-    controlsGroup.setContentHuggingPriority(.required, for: .horizontal)
-    controlsGroup.setContentCompressionResistancePriority(.required, for: .horizontal)
+    // utilities hug right. Stack views have no intrinsic width, so they need the
+    // stack-specific hugging API — setContentHuggingPriority does not apply to them.
+    controlsGroup.setHuggingPriority(.required, for: .horizontal)
+    controlsGroup.setClippingResistancePriority(.required, for: .horizontal)
     controlsGroup.translatesAutoresizingMaskIntoConstraints = false
 
     let infoGroup = NSView()
@@ -176,8 +177,19 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     rightGroup.orientation = .horizontal
     rightGroup.alignment = .centerY
     rightGroup.spacing = 12
+    // A stack view has no intrinsic width, so the slack between the transport cluster
+    // and this one would be handed to it and the icons would bunch at its leading edge,
+    // leaving a long empty strip before the capsule's trailing edge. Stacks need the
+    // stack-specific hugging API; setContentHuggingPriority is ignored for this.
+    rightGroup.setHuggingPriority(.required, for: .horizontal)
+    rightGroup.setClippingResistancePriority(.required, for: .horizontal)
     rightGroupView = rightGroup
     rightGroup.translatesAutoresizingMaskIntoConstraints = false
+
+    let infoTrailing = infoGroup.trailingAnchor.constraint(
+      equalTo: rightGroup.leadingAnchor,
+      constant: -18
+    )
 
     capsuleView = capsule
     capsule.addSubview(controlsGroup)
@@ -191,7 +203,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       rightGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
 
       infoGroup.leadingAnchor.constraint(equalTo: controlsGroup.trailingAnchor, constant: 12),
-      infoGroup.trailingAnchor.constraint(equalTo: rightGroup.leadingAnchor, constant: -18),
+      // The info block takes all the slack: the utility cluster hugs its content, so
+      // this equality only stretches the info block and keeps the icons at the edge.
+      infoTrailing,
       infoGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -7),
       // Give the info block a real hit area: without a height the transparent
       // "open Now Playing" button collapses to its intrinsic 2 pt.

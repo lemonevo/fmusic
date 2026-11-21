@@ -250,12 +250,18 @@ final class MainViewController: NSViewController {
     // The mini player spans the whole content column; only its middle block flexes.
     let width = max(300, available - 8)
     let height = PlayerBarViewController.capsuleHeight
-    playerBarViewController.view.frame = NSRect(
+    let barView = playerBarViewController.view
+    barView.frame = NSRect(
       x: sidebarWidth + 4,
       y: 12,
       width: width,
       height: height
     )
+    // The frame is set during the window's layout pass, so the capsule's own Auto
+    // Layout would otherwise solve against the previous width and its trailing
+    // cluster would lag one resize behind (long empty gap on the right).
+    barView.needsLayout = true
+    barView.layoutSubtreeIfNeeded()
   }
 
   // MARK: - Now Playing overlay
