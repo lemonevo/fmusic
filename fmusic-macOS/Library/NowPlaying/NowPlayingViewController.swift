@@ -72,7 +72,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private let sideMargin: CGFloat = 92
   private let artworkSide: CGFloat = 350
-  private let lyricsGap: CGFloat = 120
+  private let lyricsGap: CGFloat = 170
 
   // MARK: - Lifecycle
 
@@ -283,10 +283,11 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       artistLabel.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
       artistLabel.topAnchor.constraint(equalTo: albumLabel.bottomAnchor, constant: 3),
 
-      favoriteButton.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 24),
-      favoriteButton.topAnchor.constraint(equalTo: songTitleLabel.topAnchor),
-      optionsButton.leadingAnchor.constraint(equalTo: favoriteButton.trailingAnchor, constant: 10),
-      optionsButton.centerYAnchor.constraint(equalTo: favoriteButton.centerYAnchor),
+      optionsButton.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
+      optionsButton.centerYAnchor.constraint(equalTo: songTitleLabel.centerYAnchor),
+      favoriteButton.trailingAnchor.constraint(equalTo: optionsButton.leadingAnchor, constant: -10),
+      favoriteButton.centerYAnchor.constraint(equalTo: optionsButton.centerYAnchor),
+
 
       progressSlider.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor),
       progressSlider.trailingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 40),
