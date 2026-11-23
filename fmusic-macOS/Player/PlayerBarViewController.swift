@@ -47,6 +47,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   private let progressTrack = SeekTrackView()
   private let progressFill = NSView()
+  private let shuffleHighlight = NSView()
+  private let repeatHighlight = NSView()
+  private let glassSheen = GlassSheenView()
   private var progressFillWidth: NSLayoutConstraint?
   private var progressFraction: CGFloat = 0
   private var isSeekingProgress = false
@@ -56,6 +59,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private var controlsGroupView: NSStackView?
   private var rightGroupView: NSStackView?
   private var compactMode: Bool?
+  private var playerMoreMenuPanel: PlayerMoreMenuPanel?
+  private weak var glassBackdropView: NSView?
+  private let entityActions = PlayerEntityActions()
 
   /// Called when the user toggles the lyrics side pane.
   var onToggleLyricsPane: (() -> Void)?
@@ -65,14 +71,15 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     didSet { updateLyricsButton() }
   }
 
-  nonisolated(unsafe) private var progressTimer: Timer?
+  private var clockToken: UUID?
   private var isUpdatingProgress = false
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
-  /// Height of the floating capsule (also used by the window layout).
+  /// Catalyst `SplitVC.miniPlayerWidth/Height`: a fixed, centred 700 x 54 capsule.
   static let capsuleHeight: CGFloat = 54
+  static let capsuleWidth: CGFloat = 700
 
   // MARK: - Lifecycle
 
@@ -83,7 +90,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     // The Catalyst bar uses `UIGlassEffect` (Liquid Glass). AppKit's equivalent is
     // `NSGlassEffectView` on macOS 26; older systems fall back to vibrancy.
+    // Keep the root unmasked so the outer shadow is not clipped; only the glass
+    // backdrop view itself clips its own corners (Catalyst glassContainer).
     capsule.wantsLayer = true
+    capsule.layer?.backgroundColor = NSColor.clear.cgColor
+    capsule.layer?.masksToBounds = false
     capsule.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(capsule)
 
@@ -91,8 +102,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     if #available(macOS 26.0, *) {
       let glass = NSGlassEffectView()
       glass.style = .regular
-      // Slightly more see-through than the stock regular glass.
-      glass.alphaValue = 0.85
       glass.cornerRadius = Self.capsuleHeight / 2
       glassBackdrop = glass
     } else {
@@ -106,12 +115,28 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       glassBackdrop = effect
     }
     glassBackdrop.translatesAutoresizingMaskIntoConstraints = false
+    if glassBackdrop.layer == nil { glassBackdrop.wantsLayer = true }
+    glassBackdrop.layer?.masksToBounds = true
+    glassBackdrop.layer?.cornerRadius = Self.capsuleHeight / 2
+    glassBackdrop.layer?.borderWidth = 0.5
+    glassBackdropView = glassBackdrop
     capsule.addSubview(glassBackdrop)
+
+    // Inner top highlight + imperceptible bottom bounce: this is what makes the
+    // glass read as a curved, translucent surface instead of a flat grey bar.
+    glassSheen.translatesAutoresizingMaskIntoConstraints = false
+    capsule.addSubview(glassSheen)
+
     NSLayoutConstraint.activate([
       glassBackdrop.topAnchor.constraint(equalTo: capsule.topAnchor),
       glassBackdrop.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
       glassBackdrop.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
       glassBackdrop.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
+
+      glassSheen.topAnchor.constraint(equalTo: capsule.topAnchor),
+      glassSheen.leadingAnchor.constraint(equalTo: capsule.leadingAnchor),
+      glassSheen.trailingAnchor.constraint(equalTo: capsule.trailingAnchor),
+      glassSheen.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
     ])
 
     configureArtwork()
@@ -195,6 +220,26 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     capsule.addSubview(controlsGroup)
     capsule.addSubview(infoGroup)
     capsule.addSubview(rightGroup)
+
+    // Catalyst draws the active shuffle/repeat fill as a circular tinted plate.
+    // A dedicated view keeps it perfectly round; the NSButton's own layer is not
+    // square because of its alignment-rect insets.
+    for (highlight, button, size) in [
+      (shuffleHighlight, shuffleButton, CGFloat(26)),
+      (repeatHighlight, repeatButton, CGFloat(26)),
+    ] {
+      highlight.wantsLayer = true
+      highlight.layer?.cornerRadius = size / 2
+      highlight.layer?.backgroundColor = NSColor.clear.cgColor
+      highlight.translatesAutoresizingMaskIntoConstraints = false
+      capsule.addSubview(highlight, positioned: .below, relativeTo: controlsGroup)
+      NSLayoutConstraint.activate([
+        highlight.centerXAnchor.constraint(equalTo: button.centerXAnchor),
+        highlight.centerYAnchor.constraint(equalTo: button.centerYAnchor),
+        highlight.widthAnchor.constraint(equalToConstant: size),
+        highlight.heightAnchor.constraint(equalToConstant: size),
+      ])
+    }
     NSLayoutConstraint.activate([
       controlsGroup.leadingAnchor.constraint(equalTo: capsule.leadingAnchor, constant: 18),
       controlsGroup.centerYAnchor.constraint(equalTo: capsule.centerYAnchor, constant: -2),
@@ -229,6 +274,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
 
     capsule.addSubview(progressTrack, positioned: .above, relativeTo: nil)
+    applyGlassStyle()
 
     self.view = root
   }
@@ -249,24 +295,31 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       name: .macPlaybackSettingsChanged,
       object: nil
     )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(glassStyleChanged),
+      name: .macGlassStyleChanged,
+      object: nil
+    )
 
-    progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
-      [weak self] _ in
-      Task { @MainActor in self?.timerTick() }
-    }
-    if let progressTimer {
-      RunLoop.main.add(progressTimer, forMode: .common)
+  }
+
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    if clockToken == nil {
+      clockToken = PlaybackClock.shared.subscribe { [weak self] in
+        self?.timerTick()
+      }
     }
   }
 
   override func viewDidDisappear() {
     super.viewDidDisappear()
-    progressTimer?.invalidate()
-    progressTimer = nil
+    PlaybackClock.shared.unsubscribe(clockToken)
+    clockToken = nil
   }
 
   deinit {
-    progressTimer?.invalidate()
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -288,9 +341,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     titleLabel.font = .systemFont(ofSize: 12.5, weight: .semibold)
     titleLabel.textColor = .labelColor
     titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.alignment = .center
     titleLabel.translatesAutoresizingMaskIntoConstraints = false
     artistLabel.font = .systemFont(ofSize: 10.5)
     artistLabel.textColor = .secondaryLabelColor
+    artistLabel.alignment = .center
     artistLabel.lineBreakMode = .byTruncatingTail
     artistLabel.translatesAutoresizingMaskIntoConstraints = false
     let stack = NSStackView(views: [titleLabel, artistLabel])
@@ -317,7 +372,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       button: repeatButton,
       symbol: "repeat",
       size: 13,
-      action: #selector(cycleRepeatMode)
+      action: #selector(cycleRepeatMode),
+      width: 26
     )
     playPauseButton.widthAnchor.constraint(equalToConstant: 28).isActive = true
   }
@@ -360,7 +416,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     volumeIcon.isBordered = false
     volumeIcon.bezelStyle = .regularSquare
     volumeIcon.imagePosition = .imageOnly
-    volumeIcon.contentTintColor = .secondaryLabelColor
+    volumeIcon.contentTintColor = .labelColor
     volumeIcon.target = self
     volumeIcon.action = #selector(showVolumePopover)
     volumeIcon.toolTip = L10n.tr("Volume")
@@ -380,9 +436,10 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   private func configureProgressLine() {
+    // Clear hit area; SeekTrackView draws the 3 pt Catalyst line itself so a
+    // 10 pt tall view stays easy to click without looking heavy.
     progressTrack.wantsLayer = true
-    progressTrack.layer?.backgroundColor = NSColor.secondaryLabelColor.withAlphaComponent(0.15).cgColor
-    progressTrack.layer?.cornerRadius = 4
+    progressTrack.layer?.backgroundColor = NSColor.clear.cgColor
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
     progressTrack.onScrub = { [weak self] fraction in
@@ -397,11 +454,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
     capsule.addSubview(progressTrack)
     NSLayoutConstraint.activate([
-      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor, constant: -6),
-      progressTrack.heightAnchor.constraint(equalToConstant: 8),
+      progressTrack.bottomAnchor.constraint(equalTo: capsule.bottomAnchor),
+      progressTrack.heightAnchor.constraint(equalToConstant: 14),
 
       progressFill.leadingAnchor.constraint(equalTo: progressTrack.leadingAnchor),
-      progressFill.centerYAnchor.constraint(equalTo: progressTrack.centerYAnchor),
+      progressFill.bottomAnchor.constraint(equalTo: progressTrack.bottomAnchor),
       progressFill.heightAnchor.constraint(equalToConstant: 8),
     ])
     let width = progressFill.widthAnchor.constraint(equalToConstant: 0)
@@ -409,7 +466,13 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     width.isActive = true
   }
 
-  private func configure(button: NSButton, symbol: String, size: CGFloat, action: Selector) {
+  private func configure(
+    button: NSButton,
+    symbol: String,
+    size: CGFloat,
+    action: Selector,
+    width: CGFloat = 24
+  ) {
     button.image = symbolImage(symbol, size: size)
     button.isBordered = false
     button.bezelStyle = .regularSquare
@@ -418,7 +481,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     button.action = action
     button.contentTintColor = .labelColor
     button.translatesAutoresizingMaskIntoConstraints = false
-    button.widthAnchor.constraint(equalToConstant: 24).isActive = true
+    button.widthAnchor.constraint(equalToConstant: width).isActive = true
     button.heightAnchor.constraint(equalToConstant: 26).isActive = true
   }
 
@@ -429,8 +492,42 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       )
   }
 
+  private func applyGlassStyle() {
+    let style = GlassStyleManager.configuration
+    if #available(macOS 26.0, *), let glass = glassBackdropView as? NSGlassEffectView {
+      glass.style = style.material == .clear ? .clear : .regular
+    }
+    glassBackdropView?.alphaValue = style.glassAlpha
+    glassBackdropView?.layer?.borderColor =
+      NSColor.white.withAlphaComponent(style.borderAlpha).cgColor
+    glassSheen.apply(style: style)
+    if let layer = capsule.layer {
+      layer.shadowColor = NSColor.black.cgColor
+      layer.shadowOpacity = Float(style.shadowOpacity)
+      layer.shadowRadius = style.shadowRadius
+      layer.shadowOffset = style.shadowOffset
+    }
+  }
+
+  @objc
+  private func glassStyleChanged() {
+    applyGlassStyle()
+  }
+
   override func viewDidLayout() {
     super.viewDidLayout()
+    // Apply the shadow once the view is in a window: assigning layer properties in
+    // loadView can be a no-op because the backing layer is created later, which left
+    // the capsule flat against the page (observed shadowOpacity = 0 at runtime).
+    applyGlassStyle()
+    if let layer = capsule.layer {
+      layer.shadowPath = CGPath(
+        roundedRect: capsule.bounds,
+        cornerWidth: Self.capsuleHeight / 2,
+        cornerHeight: Self.capsuleHeight / 2,
+        transform: nil
+      )
+    }
     let width = view.bounds.width
     infoGroup?.isHidden = width < 470
     volumeSlider.isHidden = width < 640
@@ -490,6 +587,13 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func updateModeButtons() {
     let accent = MacTheme.accentColor
     shuffleButton.contentTintColor = player.isShuffle ? accent : .secondaryLabelColor
+    shuffleHighlight.layer?.backgroundColor = player.isShuffle
+      ? accent.withAlphaComponent(0.16).cgColor
+      : NSColor.clear.cgColor
+    let repeatActive = player.repeatMode != .off
+    repeatHighlight.layer?.backgroundColor = repeatActive
+      ? accent.withAlphaComponent(0.16).cgColor
+      : NSColor.clear.cgColor
     switch player.repeatMode {
     case .off:
       repeatButton.contentTintColor = .secondaryLabelColor
@@ -505,9 +609,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   private func updateLyricsButton() {
+    // Catalyst keeps every normal utility icon at .label; only the active
+    // toggles use the accent tint.
     lyricsButton.contentTintColor = isLyricsPaneVisible
       ? MacTheme.accentColor
-      : .secondaryLabelColor
+      : .labelColor
   }
 
   private func updateProgress() {
@@ -612,61 +718,75 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func showMoreMenu() {
-    let menu = NSMenu()
-    let nowPlaying = NSMenuItem(
-      title: L10n.tr("Now Playing"),
-      action: #selector(showNowPlayingFromMenu),
-      keyEquivalent: ""
-    )
-    nowPlaying.target = self
-    menu.addItem(nowPlaying)
-    let queue = NSMenuItem(
-      title: L10n.tr("Queue"),
-      action: #selector(showQueueFromMenu),
-      keyEquivalent: ""
-    )
-    queue.target = self
-    menu.addItem(queue)
-    let lyrics = NSMenuItem(
-      title: L10n.tr("Show Lyrics"),
-      action: #selector(showLyricsPageFromMenu),
-      keyEquivalent: ""
-    )
-    lyrics.target = self
-    menu.addItem(lyrics)
-    menu.addItem(.separator())
-    let mini = NSMenuItem(
-      title: L10n.tr("Mini Player"),
-      action: #selector(showMiniPlayerFromMenu),
-      keyEquivalent: ""
-    )
-    mini.target = self
-    menu.addItem(mini)
-    menu.popUp(
-      positioning: nil,
-      at: NSPoint(x: moreButton.bounds.midX, y: moreButton.bounds.minY - 6),
-      in: moreButton
-    )
-  }
+    guard let song = player.currentlyPlaying?.asSong else { return }
 
-  @objc
-  private func showNowPlayingFromMenu() {
-    AppDelegate.sharedAppDelegate?.showNowPlaying(nil)
-  }
+    var entries: [PlayerMoreMenuPanel.Entry] = [
+      .item(L10n.tr("Instant Mix"), symbol: "sparkles") { [weak self] in
+        self?.entityActions.instantMix()
+      },
+      .separator,
+      .item(
+        L10n.tr("Show Album"),
+        symbol: "square.stack",
+        enabled: song.album != nil
+      ) { [weak self] in
+        self?.entityActions.showAlbum()
+      },
+      .item(
+        L10n.tr("Show Artist"),
+        symbol: "music.mic",
+        enabled: song.artist != nil
+      ) { [weak self] in
+        self?.entityActions.showArtist()
+      },
+      .item(L10n.tr("Desktop Lyrics"), symbol: "text.bubble") { [weak self] in
+        self?.entityActions.toggleDesktopLyrics()
+      },
+      .item(L10n.tr("Match Online Lyrics"), symbol: "magnifyingglass") { [weak self] in
+        self?.entityActions.matchOnlineLyrics()
+      },
+      .separator,
+      .item(
+        song.isFavorite ? L10n.tr("Unmark favorite") : L10n.tr("Favorite"),
+        symbol: "heart"
+      ) { [weak self] in
+        self?.entityActions.toggleFavorite()
+      },
+      .rating(song.rating) { [weak self] rating in
+        self?.entityActions.setRating(rating)
+      },
+      .separator,
+    ]
 
-  @objc
-  private func showQueueFromMenu() {
-    PlayerPageWindowController.presentQueue()
-  }
+    let playlistOptions = entityActions.addToPlaylistOptions(for: song)
+    if playlistOptions.isEmpty {
+      entries.append(.item(
+        L10n.tr("Add to Playlist"),
+        symbol: "text.badge.plus",
+        enabled: false
+      ) {})
+    } else {
+      entries.append(.submenu(
+        L10n.tr("Add to Playlist"),
+        symbol: "text.badge.plus",
+        options: playlistOptions
+      ))
+    }
+    entries.append(.item(
+      L10n.tr("Download"),
+      symbol: "arrow.down.circle",
+      enabled: entityActions.canDownload(song)
+    ) { [weak self] in
+      self?.entityActions.download(song)
+    })
+    entries.append(.item(L10n.tr("Share"), symbol: "square.and.arrow.up") { [weak self] in
+      guard let self else { return }
+      self.entityActions.share(song, relativeTo: self.moreButton)
+    })
 
-  @objc
-  private func showLyricsPageFromMenu() {
-    LyricsPageWindowController.present()
-  }
-
-  @objc
-  private func showMiniPlayerFromMenu() {
-    AppDelegate.sharedAppDelegate?.showMiniPlayer(nil)
+    let panel = PlayerMoreMenuPanel()
+    playerMoreMenuPanel = panel
+    panel.present(entries: entries, anchor: moreButton)
   }
 
   private var volumePopover: NSPopover?
@@ -805,10 +925,92 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 // MARK: - SeekTrackView
 
 /// Click/drag seek bar matching the behaviour of the Catalyst `SeekableTimeSlider`.
+/// Top-lit inner glow for the glass capsule. Decorative only; it must never
+/// intercept the player controls underneath it.
+private final class GlassSheenView: NSView {
+  private let gradient = CAGradientLayer()
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.cornerRadius = PlayerBarViewController.capsuleHeight / 2
+    layer?.masksToBounds = true
+    gradient.locations = [0, 0.42, 0.72, 1]
+    gradient.startPoint = CGPoint(x: 0.5, y: 1)
+    gradient.endPoint = CGPoint(x: 0.5, y: 0)
+    layer?.addSublayer(gradient)
+    apply(style: GlassStyleManager.configuration)
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  func apply(style: GlassStyleConfiguration) {
+    gradient.colors = [
+      NSColor.white.withAlphaComponent(style.sheenTopAlpha).cgColor,
+      NSColor.white.withAlphaComponent(style.sheenMidAlpha).cgColor,
+      NSColor.clear.cgColor,
+      NSColor.white.withAlphaComponent(style.sheenMidAlpha * 0.5).cgColor,
+    ]
+  }
+
+  override func layout() {
+    super.layout()
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    layer?.cornerRadius = bounds.height / 2
+    gradient.frame = bounds
+    CATransaction.commit()
+  }
+
+  override func hitTest(_ point: NSPoint) -> NSView? { nil }
+}
+
 private final class SeekTrackView: NSView {
   var onScrub: ((CGFloat) -> Void)?
 
+  private var isHovered = false
+  private var isDragging = false
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(
+      NSTrackingArea(
+        rect: .zero,
+        options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+        owner: self,
+        userInfo: nil
+      )
+    )
+  }
+
+  override func resetCursorRects() {
+    addCursorRect(bounds, cursor: .pointingHand)
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    needsDisplay = true
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    if !isDragging { needsDisplay = true }
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    // 8 pt line; hover/drag slightly brightens the soft track.
+    let bar = NSRect(x: 0, y: 0, width: bounds.width, height: 8)
+    let alpha: CGFloat = isDragging ? 0.30 : (isHovered ? 0.24 : 0.18)
+    NSColor.secondaryLabelColor.withAlphaComponent(alpha).setFill()
+    NSBezierPath(roundedRect: bar, xRadius: 4, yRadius: 4).fill()
+  }
+
   override func mouseDown(with event: NSEvent) {
+    isDragging = true
+    needsDisplay = true
     report(event)
     // Track the drag until mouse-up.
     while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
@@ -818,6 +1020,8 @@ private final class SeekTrackView: NSView {
         break
       }
     }
+    isDragging = false
+    needsDisplay = true
   }
 
   private func report(_ event: NSEvent) {

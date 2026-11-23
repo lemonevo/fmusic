@@ -71,9 +71,12 @@ final class SettingsWindowController: NSWindowController {
     toolbar.displayMode = .iconOnly
     window.toolbar = toolbar
     window.toolbarStyle = .unified
-    window.contentViewController = SettingsViewController()
+    window.isRestorable = false
 
     self.init(window: window)
+    // Assign after NSWindowController init: doing it before was cleared by the
+    // controller initialization and produced an empty settings window.
+    window.contentViewController = SettingsViewController()
 
     // Esc closes the settings window now that the explicit “Back to App” row is gone.
     // A local monitor keeps normal Escape handling (text fields, popovers) intact:

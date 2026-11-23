@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// `.newestAlbums` — albums ordered by the library's "newest" index (date added, descending).
@@ -30,21 +31,18 @@ final class NewestAlbumsViewController: AlbumGridPageViewController {
   override var targetItemWidth: CGFloat { 140 }
   override var maxColumnCount: Int { 7 }
 
-  override func loadAlbums() -> [Album] {
-    let storage = FmusicKit.shared.storage
-    guard let accountInfo = storage.settings.accounts.active else { return [] }
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
-
+  nonisolated override func loadAlbumIDs(
+    in library: LibraryStorage,
+    account: Account
+  )
+    -> [NSManagedObjectID] {
     let newest = library.getNewestAlbums(for: account, offset: 0, count: 100)
     if !newest.isEmpty {
-      return newest
+      return newest.map(\.managedObject.objectID)
     }
-
-    // Fallback for libraries whose denormalised "newest" index has not been written yet.
     return library.getAlbums(for: account).sorted { lhs, rhs in
       if lhs.year != rhs.year { return lhs.year > rhs.year }
       return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
-    }
+    }.map(\.managedObject.objectID)
   }
 }

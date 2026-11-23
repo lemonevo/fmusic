@@ -931,6 +931,12 @@ final class DesktopLyricsWindowController: NSObject {
       name: NSApplication.didResignActiveNotification,
       object: nil
     )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(glassStyleChanged),
+      name: .macGlassStyleChanged,
+      object: nil
+    )
   }
 
   deinit {
@@ -2262,8 +2268,20 @@ final class DesktopLyricsWindowController: NSObject {
 
   // MARK: - Chrome
 
+  @objc
+  private func glassStyleChanged() {
+    updateChrome()
+  }
+
   private func updateChrome() {
-    let opacity = min(1, max(0, style.backgroundOpacity))
+    let glassStyle = GlassStyleManager.configuration
+    if #available(macOS 26.0, *), let glass = backgroundView as? NSGlassEffectView {
+      glass.style = glassStyle.material == .clear ? .clear : .regular
+    }
+    let opacity = min(
+      1,
+      max(0, style.backgroundOpacity * glassStyle.desktopLyricsOpacityScale)
+    )
     let hasChrome = opacity > 0.001
     let reduceTransparency = Self.reduceTransparencyEnabled()
     // LyricsX Next's Liquid Glass tint: a top-weighted black shade that
@@ -2292,7 +2310,8 @@ final class DesktopLyricsWindowController: NSObject {
     }
     // Clear Liquid Glass draws its own refraction highlight along the rim.
     borderLayer.isHidden = !hasChrome || glassActive
-    borderLayer.borderColor = NSColor.white.withAlphaComponent(0.16).cgColor
+    borderLayer.borderColor =
+      NSColor.white.withAlphaComponent(glassStyle.borderAlpha).cgColor
     CATransaction.commit()
 
     applyControlIconColor()
@@ -2302,7 +2321,7 @@ final class DesktopLyricsWindowController: NSObject {
       // A visible glass view is fully blurred at any alpha; scaling the whole
       // backdrop makes the slider progress from clear to frosted instead of
       // getting blurriest in the middle.
-      backgroundView.alphaValue = opacity
+      backgroundView.alphaValue = opacity * glassStyle.glassAlpha
     }
   }
 

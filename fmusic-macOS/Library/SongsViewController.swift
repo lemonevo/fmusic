@@ -20,6 +20,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// Flat song list backed by `NSTableView` with one flexible custom row cell.
@@ -31,6 +32,8 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
   private let countLabel = NSTextField(labelWithString: "")
 
   private var songs: [Song] = []
+  private var reloadGeneration = 0
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
   private let cellIdentifier = NSUserInterfaceItemIdentifier("songListCell")
   private let columnIdentifier = NSUserInterfaceItemIdentifier("songListColumn")
 
@@ -123,16 +126,34 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
   @objc
   private func reloadSongs() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       songs = []
       tableView.reloadData()
       countLabel.stringValue = ""
       return
     }
-    let account = storage.main.library.getAccount(info: accountInfo)
-    songs = storage.main.library.getSongs(for: account)
-    tableView.reloadData()
-    countLabel.stringValue = songs.isEmpty ? "" : String(format: "%d", songs.count)
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+
+    Task { [weak self] in
+      guard let self else { return }
+      let objectIDs = try? await self.storage.async.performAndGet { companion
+        -> [NSManagedObjectID] in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        return companion.library.getSongs(for: account).map(\.managedObject.objectID)
+      }
+      guard generation == self.reloadGeneration,
+            self.storage.settings.accounts.active == accountInfo else { return }
+      let context = self.storage.main.context
+      self.songs = (objectIDs ?? [])
+        .compactMap { context.object(with: $0) as? SongMO }
+        .compactMap { Song(managedObject: $0) }
+      self.tableView.reloadData()
+      self.countLabel.stringValue = self.songs.isEmpty
+        ? ""
+        : String(format: "%d", self.songs.count)
+    }
   }
 
   private var librarySetting: AccountSetting {

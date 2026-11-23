@@ -866,5 +866,13 @@ public enum L10n {
     "All Songs": "全部歌曲",
     "Refresh": "刷新",
     "Copy ID to Clipboard": "拷贝 ID 到剪贴板",
+    "Liquid Glass": "液态玻璃",
+    "New Playlist": "新建播放列表",
+    "Automatically Clean Cache": "自动清理缓存",
+    "Remove the least recently used cached audio, artwork and lyrics files when the cache limit is exceeded. The currently playing file and files touched in the last 15 minutes are protected.": "超过上限时清理最久未使用的缓存；当前播放及最近 15 分钟访问的文件会保留。",
+    "Soft": "柔和",
+    "Standard": "标准",
+    "Translucent": "通透",
+    "Adjust the transparency and depth of the app's glass surfaces.": "调整应用内玻璃表面的透明度与层次。",
   ]
 }

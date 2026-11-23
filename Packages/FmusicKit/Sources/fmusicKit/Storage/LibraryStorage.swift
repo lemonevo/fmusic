@@ -2034,11 +2034,30 @@ public class LibraryStorage: PlayableFileCachable {
 
   // MARK: LogEntries
 
-  public func getAllLogEntries() -> [LogEntry] {
+  public func getAllLogEntries(limit: Int? = nil) -> [LogEntry] {
     let fetchRequest: NSFetchRequest<LogEntryMO> = LogEntryMO.creationDateSortedFetchRequest
+    if let limit, limit > 0 {
+      fetchRequest.fetchLimit = limit
+    }
     let foundEntries = try? context.fetch(fetchRequest)
     let entries = foundEntries?.compactMap { LogEntry(managedObject: $0) }
     return entries ?? [LogEntry]()
+  }
+
+  /// Keeps the event log bounded. The request is newest-first, so entries beyond
+  /// the retention limit are the oldest and safe to delete.
+  public func pruneLogEntries(keepingLast maxCount: Int = 2000) {
+    let fetchRequest: NSFetchRequest<LogEntryMO> = LogEntryMO.creationDateSortedFetchRequest
+    guard let count = try? context.count(for: fetchRequest), count > maxCount else {
+      return
+    }
+    fetchRequest.fetchOffset = maxCount
+    fetchRequest.fetchLimit = count - maxCount
+    guard let oldEntries = try? context.fetch(fetchRequest), !oldEntries.isEmpty else {
+      return
+    }
+    oldEntries.forEach(context.delete)
+    saveContext()
   }
 
   // MARK: PlayerData

@@ -6,6 +6,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 @MainActor
@@ -13,10 +14,11 @@ final class FavoriteAlbumsViewController: AlbumGridPageViewController {
   override var pageTitle: String { L10n.tr("Favorite Albums") }
   override var emptyMessage: String { L10n.tr("No %@", L10n.tr("Favorite Albums")) }
 
-  override func loadAlbums() -> [Album] {
-    let storage = FmusicKit.shared.storage
-    guard let accountInfo = storage.settings.accounts.active else { return [] }
-    let library = storage.main.library
-    return library.getFavoriteAlbums(for: library.getAccount(info: accountInfo))
+  nonisolated override func loadAlbumIDs(
+    in library: LibraryStorage,
+    account: Account
+  )
+    -> [NSManagedObjectID] {
+    library.getFavoriteAlbums(for: account).map(\.managedObject.objectID)
   }
 }

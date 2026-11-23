@@ -205,6 +205,7 @@ actor DownloadManager: NSObject, DownloadManageable {
     else { return }
 
     Task.detached {
+      await self.evictCacheIfNeeded()
       let isStorageExceeded = await self.storageExceedsCacheLimit()
       guard await !self.isCacheSizeLimited || !isStorageExceeded
       else { return }
@@ -228,6 +229,7 @@ actor DownloadManager: NSObject, DownloadManageable {
     guard !downloadObjects.isEmpty else { return }
 
     Task.detached {
+      await self.evictCacheIfNeeded()
       let isStorageExceeded = await self.storageExceedsCacheLimit()
       guard await !self.isCacheSizeLimited || !isStorageExceeded
       else { return }
@@ -355,6 +357,29 @@ actor DownloadManager: NSObject, DownloadManageable {
   func storageExceedsCacheLimit() -> Bool {
     guard settings.user.cacheLimit != 0 else { return false }
     return fileManager.completePlayableCacheSize > settings.user.cacheLimit
+  }
+
+  private func evictCacheIfNeeded() {
+    guard isCacheSizeLimited,
+          settings.user.cacheLimit > 0,
+          UserDefaults.standard.bool(forKey: CacheFileManager.automaticEvictionDefaultsKey),
+          let accountInfo = settings.accounts.active,
+          fileManager.completePlayableCacheSize > settings.user.cacheLimit
+    else { return }
+
+    let plan = fileManager.makeCacheEvictionPlan(
+      for: accountInfo,
+      limitBytes: Int64(settings.user.cacheLimit)
+    )
+    guard !plan.isEmpty else { return }
+    let removed = fileManager.applyCacheEvictionPlan(plan, accountInfo: accountInfo)
+    os_log(
+      "Cache eviction removed %d files (~%lld bytes)",
+      log: log,
+      type: .info,
+      removed,
+      plan.totalBytes
+    )
   }
 
   private func setupDownloadQueue() async {

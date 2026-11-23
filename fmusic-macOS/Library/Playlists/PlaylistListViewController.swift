@@ -19,6 +19,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// Playlist list managed by `PlaylistsViewController`.
@@ -34,6 +35,7 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
   private let scrollView = NSScrollView()
 
   private var playlists: [Playlist] = []
+  private var reloadGeneration = 0
 
   private enum Column {
     static let artwork = NSUserInterfaceItemIdentifier("playlistArtwork")
@@ -150,6 +152,8 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
   @objc
   private func reloadPlaylists() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       playlists = []
       tableView.reloadData()
@@ -158,12 +162,25 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
       emptyLabel.isHidden = false
       return
     }
-    let account = storage.main.library.getAccount(info: accountInfo)
-    playlists = storage.main.library.getPlaylists(for: account)
-    tableView.reloadData()
-    countLabel.stringValue = playlists.isEmpty ? "" : "\(playlists.count)"
-    emptyLabel.stringValue = L10n.tr("No Results")
-    emptyLabel.isHidden = !playlists.isEmpty
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+    Task { [weak self] in
+      guard let self else { return }
+      let ids = try? await storage.async.performAndGet { companion
+        -> [NSManagedObjectID] in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        return companion.library.getPlaylists(for: account).map(\.managedObject.objectID)
+      }
+      guard generation == self.reloadGeneration,
+            storage.settings.accounts.active == accountInfo else { return }
+      let context = storage.main.context
+      self.playlists = (ids ?? [])
+        .compactMap { context.object(with: $0) as? PlaylistMO }
+        .compactMap { Playlist(library: storage.main.library, managedObject: $0) }
+      self.tableView.reloadData()
+      self.countLabel.stringValue = self.playlists.isEmpty ? "" : "\(self.playlists.count)"
+      self.emptyLabel.stringValue = L10n.tr("No Results")
+      self.emptyLabel.isHidden = !self.playlists.isEmpty
+    }
   }
 
   @objc

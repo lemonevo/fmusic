@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// Metrics shared by the Apple Music style artwork grids (home/albums/newest/recent).
@@ -293,8 +294,12 @@ class AlbumGridPageViewController: NSViewController {
   var targetItemWidth: CGFloat { 140 }
   /// Upper bound for the adaptive column count.
   var maxColumnCount: Int { 7 }
-  /// The albums rendered by this page.
-  func loadAlbums() -> [Album] { [] }
+  /// Pure data loader for the background Core Data context.
+  nonisolated func loadAlbumIDs(
+    in library: LibraryStorage,
+    account: Account
+  )
+    -> [NSManagedObjectID] { [] }
 
   // MARK: - Views
 
@@ -306,6 +311,8 @@ class AlbumGridPageViewController: NSViewController {
 
   private(set) var albums: [Album] = []
   private var lastLayoutWidth: CGFloat = 0
+  private var reloadGeneration = 0
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   // MARK: - Lifecycle
 
@@ -438,11 +445,40 @@ class AlbumGridPageViewController: NSViewController {
 
   @objc
   func reloadAlbums() {
-    albums = loadAlbums()
-    collectionView.reloadData()
-    subtitleLabel.stringValue = albums.isEmpty ? "" : LibraryCountText.albums(albums.count)
-    emptyLabel.stringValue = emptyMessage
-    emptyLabel.isHidden = !albums.isEmpty
+    let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
+    guard let accountInfo = storage.settings.accounts.active else {
+      albums = []
+      collectionView.reloadData()
+      subtitleLabel.stringValue = ""
+      emptyLabel.stringValue = emptyMessage
+      emptyLabel.isHidden = false
+      return
+    }
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+
+    Task { [weak self] in
+      guard let self else { return }
+      let objectIDs = try? await self.storage.async.performAndGet { [weak self] companion
+        -> [NSManagedObjectID] in
+        guard let self else { return [] }
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        return self.loadAlbumIDs(in: companion.library, account: account)
+      }
+      guard generation == self.reloadGeneration,
+            self.storage.settings.accounts.active == accountInfo else { return }
+      let context = self.storage.main.context
+      self.albums = (objectIDs ?? [])
+        .compactMap { context.object(with: $0) as? AlbumMO }
+        .compactMap { Album(managedObject: $0) }
+      self.collectionView.reloadData()
+      self.subtitleLabel.stringValue = self.albums.isEmpty
+        ? ""
+        : LibraryCountText.albums(self.albums.count)
+      self.emptyLabel.stringValue = self.emptyMessage
+      self.emptyLabel.isHidden = !self.albums.isEmpty
+    }
   }
 
   @objc

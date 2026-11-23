@@ -50,7 +50,21 @@ final class DisplaySettingsViewController: SettingsPageViewController {
       SettingsStore.updateUser { $0.appearanceMode = mode }
       SettingsStore.applyAppearance()
     }
-    addSection(rows: [appearanceRow])
+    let glassLabels = GlassStyleMode.allCases.map(\.title)
+    let glassRow = makeRow(
+      title: L10n.tr("Liquid Glass"),
+      subtitle: L10n.tr(
+        "Adjust the transparency and depth of the app's glass surfaces."
+      ),
+      control: SettingsSegmentedControl(
+        labels: glassLabels,
+        selectedIndex: GlassStyleManager.mode.rawValue
+      ) { index in
+        guard let mode = GlassStyleMode(rawValue: index) else { return }
+        GlassStyleManager.setMode(mode)
+      }
+    )
+    addSection(rows: [appearanceRow, glassRow])
 
     let themeControl = SettingsThemeColorControl(
       selected: accountSetting.themePreference

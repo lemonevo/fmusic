@@ -178,6 +178,9 @@ class SidebarTableCellView: NSTableCellView {
   func configure(symbolName: String, title: String, isFilled: Bool = false) {
     let name = isFilled ? symbolName : Self.outlineSymbolName(symbolName)
     iconView.image = Self.image(named: name)
+    // Theme colour is a concrete value, not a dynamic system colour, so reused
+    // cells must re-read it after a theme change.
+    iconView.contentTintColor = MacTheme.accentColor
     titleField.stringValue = title
   }
 

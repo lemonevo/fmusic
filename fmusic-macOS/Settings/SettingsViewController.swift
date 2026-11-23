@@ -31,9 +31,6 @@ final class SettingsViewController: NSViewController {
 
   private var currentPage: SettingsPage?
   private var currentPageViewController: NSViewController?
-  private var sidebarLeadingConstraint: NSLayoutConstraint?
-  private var contentLeadingConstraint: NSLayoutConstraint?
-  private var isSidebarVisible = true
 
   override func loadView() {
     let root = NSView(frame: NSRect(origin: .zero, size: Self.contentSize))
@@ -78,9 +75,6 @@ final class SettingsViewController: NSViewController {
       contentBackground.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       contentBackground.bottomAnchor.constraint(equalTo: root.bottomAnchor),
     ])
-    sidebarLeadingConstraint = sidebarLeading
-    contentLeadingConstraint = contentLeading
-
     self.view = root
   }
 
@@ -89,27 +83,8 @@ final class SettingsViewController: NSViewController {
     sidebarViewController.onSelectionChanged = { [weak self] page in
       self?.show(page: page)
     }
-    sidebarViewController.onToggleSidebar = { [weak self] in
-      self?.toggleSidebar()
-    }
     sidebarViewController.select(page: .general)
     show(page: .general)
-  }
-
-  // MARK: - Sidebar visibility
-
-  func toggleSidebar() {
-    guard let sidebarLeadingConstraint, let contentLeadingConstraint else { return }
-    isSidebarVisible.toggle()
-    let offset = isSidebarVisible ? 0 : -Self.sidebarWidth
-    sidebarLeadingConstraint.constant = offset
-    contentLeadingConstraint.constant = offset
-    NSAnimationContext.runAnimationGroup { context in
-      context.duration = 0.22
-      sidebarLeadingConstraint.animator().constant = offset
-      contentLeadingConstraint.animator().constant = offset
-      view.superview?.layoutSubtreeIfNeeded()
-    }
   }
 
   // MARK: - Page switching

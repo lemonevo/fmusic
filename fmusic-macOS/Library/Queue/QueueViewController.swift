@@ -47,7 +47,7 @@ final class QueueViewController: NSViewController, MusicPlayable {
   private let lyricsPane = LyricsPaneView()
   private let queueSection = QueueSectionView()
 
-  nonisolated(unsafe) private var progressTimer: Timer?
+  private var clockToken: UUID?
   private var isUpdatingProgress = false
 
   private var player: PlayerFacade { FmusicKit.shared.player }
@@ -263,23 +263,20 @@ final class QueueViewController: NSViewController, MusicPlayable {
       object: nil
     )
 
-    progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
-      [weak self] _ in
-      Task { @MainActor in self?.timerTick() }
-    }
-    if let progressTimer {
-      RunLoop.main.add(progressTimer, forMode: .common)
+    if clockToken == nil {
+      clockToken = PlaybackClock.shared.subscribe { [weak self] in
+        self?.timerTick()
+      }
     }
   }
 
   override func viewDidDisappear() {
     super.viewDidDisappear()
-    progressTimer?.invalidate()
-    progressTimer = nil
+    PlaybackClock.shared.unsubscribe(clockToken)
+    clockToken = nil
   }
 
   deinit {
-    progressTimer?.invalidate()
     NotificationCenter.default.removeObserver(self)
   }
 

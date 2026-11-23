@@ -504,7 +504,11 @@ final class SettingsThemeSwatchButton: NSButton {
     isBordered = false
     focusRingType = .none
     setButtonType(.momentaryChange)
-    wantsLayer = true
+    imagePosition = .imageOnly
+    imageScaling = .scaleProportionallyDown
+    // Draw the swatch ourselves so selecting it never changes NSButton's image
+    // geometry or the circle's aspect ratio.
+    wantsLayer = false
     widthAnchor.constraint(equalToConstant: 24).isActive = true
     heightAnchor.constraint(equalToConstant: 24).isActive = true
   }
@@ -515,28 +519,41 @@ final class SettingsThemeSwatchButton: NSButton {
 
   func setSelected(_ selected: Bool) {
     isSelected = selected
-    if selected {
-      image = NSImage(
-        systemSymbolName: "checkmark",
-        accessibilityDescription: L10n.tr("Selected")
-      )?.withSymbolConfiguration(
-        NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
-      )
-      contentTintColor = preference.contrastColor
-    } else {
-      image = nil
-    }
+    needsDisplay = true
   }
 
-  override var wantsUpdateLayer: Bool { true }
+  override func draw(_ dirtyRect: NSRect) {
+    let diameter = min(bounds.width, bounds.height)
+    let circle = NSRect(
+      x: bounds.midX - diameter / 2,
+      y: bounds.midY - diameter / 2,
+      width: diameter,
+      height: diameter
+    )
+    preference.asColor.setFill()
+    NSBezierPath(ovalIn: circle).fill()
 
-  override func updateLayer() {
-    var cgColor = preference.asColor.cgColor
-    effectiveAppearance.performAsCurrentDrawingAppearance {
-      cgColor = preference.asColor.cgColor
+    guard isSelected,
+          let check = NSImage(
+            systemSymbolName: "checkmark",
+            accessibilityDescription: L10n.tr("Selected")
+          )?.withSymbolConfiguration(
+            NSImage.SymbolConfiguration(pointSize: 10, weight: .bold)
+          )
+    else { return }
+    let tinted = NSImage(size: check.size, flipped: false) { rect in
+      check.draw(in: rect)
+      self.preference.contrastColor.set()
+      rect.fill(using: .sourceAtop)
+      return true
     }
-    layer?.backgroundColor = cgColor
-    layer?.cornerRadius = 12
+    let size = tinted.size
+    tinted.draw(in: NSRect(
+      x: circle.midX - size.width / 2,
+      y: circle.midY - size.height / 2,
+      width: size.width,
+      height: size.height
+    ))
   }
 
   override func viewDidChangeEffectiveAppearance() {

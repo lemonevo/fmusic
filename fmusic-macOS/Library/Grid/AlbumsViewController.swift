@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// `.albums` — Apple Music style grid of every album of the active account.
@@ -30,11 +31,11 @@ final class AlbumsViewController: AlbumGridPageViewController {
   override var targetItemWidth: CGFloat { 140 }
   override var maxColumnCount: Int { 7 }
 
-  override func loadAlbums() -> [Album] {
-    let storage = FmusicKit.shared.storage
-    guard let accountInfo = storage.settings.accounts.active else { return [] }
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
-    return library.getAlbums(for: account)
+  nonisolated override func loadAlbumIDs(
+    in library: LibraryStorage,
+    account: Account
+  )
+    -> [NSManagedObjectID] {
+    library.getAlbums(for: account).map(\.managedObject.objectID)
   }
 }

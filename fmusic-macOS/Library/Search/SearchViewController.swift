@@ -22,6 +22,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 @MainActor
@@ -45,6 +46,20 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
   private var query = ""
   private var rows: [Row] = []
   private var pendingSearch: DispatchWorkItem?
+  private var searchGeneration = 0
+
+  private struct LyricCandidate: Sendable {
+    let objectID: NSManagedObjectID
+    let identifier: String
+    let path: String
+  }
+
+  private struct SearchResultIDs: Sendable {
+    var artists: [NSManagedObjectID] = []
+    var albums: [NSManagedObjectID] = []
+    var playlists: [NSManagedObjectID] = []
+    var songs: [NSManagedObjectID] = []
+  }
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
@@ -181,29 +196,76 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
       return
     }
 
-    let artists = library.searchArtists(
-      for: account,
-      searchText: trimmed,
-      onlyCached: false,
-      displayFilter: .all
-    )
-    let albums = library.searchAlbums(
-      for: account,
-      searchText: trimmed,
-      onlyCached: false,
-      displayFilter: .all
-    )
-    let songs = library.searchSongs(
-      for: account,
-      searchText: trimmed,
-      onlyCached: false,
-      displayFilter: .all
-    )
-    let playlists = library.searchPlaylists(
-      for: account,
-      searchText: trimmed,
-      playlistSearchCategory: .all
-    )
+    searchGeneration += 1
+    let generation = searchGeneration
+    let accountID = account.managedObject.objectID
+
+    Task { [weak self] in
+      guard let self else { return }
+      let ids = try? await self.storage.async.performAndGet { companion
+        -> SearchResultIDs in
+        let asyncAccount = companion.library.getAccount(managedObjectId: accountID)
+        let artists = companion.library.searchArtists(
+          for: asyncAccount,
+          searchText: trimmed,
+          onlyCached: false,
+          displayFilter: .all
+        )
+        let albums = companion.library.searchAlbums(
+          for: asyncAccount,
+          searchText: trimmed,
+          onlyCached: false,
+          displayFilter: .all
+        )
+        let songs = companion.library.searchSongs(
+          for: asyncAccount,
+          searchText: trimmed,
+          onlyCached: false,
+          displayFilter: .all
+        )
+        let playlists = companion.library.searchPlaylists(
+          for: asyncAccount,
+          searchText: trimmed,
+          playlistSearchCategory: .all
+        )
+        return SearchResultIDs(
+          artists: artists.map(\.managedObject.objectID),
+          albums: albums.map(\.managedObject.objectID),
+          playlists: playlists.map(\.managedObject.objectID),
+          songs: songs.map(\.managedObject.objectID)
+        )
+      }
+      guard generation == self.searchGeneration else { return }
+      guard self.query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmed else {
+        return
+      }
+      self.applySearchResults(
+        ids ?? SearchResultIDs(),
+        query: trimmed,
+        accountInfo: accountInfo
+      )
+    }
+  }
+
+  private func applySearchResults(
+    _ ids: SearchResultIDs,
+    query: String,
+    accountInfo: AccountInfo
+  ) {
+    let context = storage.main.context
+    let library = storage.main.library
+    let artists = ids.artists
+      .compactMap { context.object(with: $0) as? ArtistMO }
+      .compactMap { Artist(managedObject: $0) }
+    let albums = ids.albums
+      .compactMap { context.object(with: $0) as? AlbumMO }
+      .compactMap { Album(managedObject: $0) }
+    let songs = ids.songs
+      .compactMap { context.object(with: $0) as? SongMO }
+      .compactMap { Song(managedObject: $0) }
+    let playlists = ids.playlists
+      .compactMap { context.object(with: $0) as? PlaylistMO }
+      .compactMap { Playlist(library: library, managedObject: $0) }
 
     var rows: [Row] = []
     if !artists.isEmpty {
@@ -233,7 +295,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     let knownSongIDs = Set(songs.map(\.identifier))
     Task { [weak self] in
       await self?.searchLyrics(
-        query: trimmed,
+        query: query,
         accountInfo: accountInfo,
         excluding: knownSongIDs,
         baseRows: rows
@@ -249,29 +311,40 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     excluding knownSongIDs: Set<String>,
     baseRows: [Row]
   ) async {
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
-    let allSongs = library.getSongs(for: account)
-    var songsByID: [String: Song] = [:]
-    var candidates: [(id: String, path: URL)] = []
-    for song in allSongs {
-      let id = song.identifier
-      guard !id.isEmpty,
-            !knownSongIDs.contains(id),
-            let rel = song.lyricsRelFilePath,
-            let abs = CacheFileManager.shared.getAbsolutefmusicPath(relFilePath: rel)
-      else { continue }
-      songsByID[id] = song
-      candidates.append((id, abs))
-    }
+    guard let accountID = storage.settings.accounts.active == accountInfo
+      ? storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+      : nil
+    else { return }
+
+    let candidates = (try? await storage.async.performAndGet { companion
+      -> [LyricCandidate] in
+      let account = companion.library.getAccount(managedObjectId: accountID)
+      return companion.library.getSongs(for: account).compactMap { song in
+        let identifier = song.identifier
+        guard !identifier.isEmpty,
+              !knownSongIDs.contains(identifier),
+              let rel = song.lyricsRelFilePath,
+              let absolute = CacheFileManager.shared.getAbsolutefmusicPath(
+                relFilePath: rel
+              )
+        else { return nil }
+        return LyricCandidate(
+          objectID: song.managedObject.objectID,
+          identifier: identifier,
+          path: absolute.path
+        )
+      }
+    }) ?? []
     guard !candidates.isEmpty else { return }
 
-    let needle = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
-    let capturedQuery = query
-    let matched: [String] = await Task.detached(priority: .userInitiated) {
-      var result: [String] = []
+    let needle = query.folding(
+      options: [.caseInsensitive, .diacriticInsensitive],
+      locale: .current
+    )
+    let matched: [LyricCandidate] = await Task.detached(priority: .userInitiated) {
+      var result = [LyricCandidate]()
       for candidate in candidates {
-        guard let data = try? Data(contentsOf: candidate.path),
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: candidate.path)),
               let text = String(data: data, encoding: .utf8)
               ?? String(data: data, encoding: .utf16)
         else { continue }
@@ -280,17 +353,25 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
           locale: .current
         )
         if folded.contains(needle) {
-          result.append(candidate.id)
+          result.append(candidate)
           if result.count >= 50 { break }
         }
       }
       return result
     }.value
 
+    let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !matched.isEmpty,
-          query.trimmingCharacters(in: .whitespacesAndNewlines) == capturedQuery
+          self.query.trimmingCharacters(in: .whitespacesAndNewlines) == trimmedQuery
     else { return }
-    let matchedSongs = matched.compactMap { songsByID[$0] }
+    let context = storage.main.context
+    let matchedSongs = matched.compactMap { candidate
+      -> Song? in
+      guard let songMO = context.object(with: candidate.objectID) as? SongMO else {
+        return nil
+      }
+      return Song(managedObject: songMO)
+    }
     guard !matchedSongs.isEmpty else { return }
     var updated = baseRows
     updated.append(.header(L10n.tr("Lyrics")))

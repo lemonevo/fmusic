@@ -350,14 +350,6 @@ enum MainMenuBuilder {
     menu.addItem(withTitle: L10n.tr("Zoom"), action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
     menu.addItem(.separator())
 
-    let miniPlayer = NSMenuItem(
-      title: L10n.tr("Mini Player"),
-      action: #selector(AppDelegate.showMiniPlayer(_:)),
-      keyEquivalent: "m"
-    )
-    miniPlayer.keyEquivalentModifierMask = [.command, .shift]
-    miniPlayer.target = appDelegate
-    menu.addItem(miniPlayer)
     menu.addItem(.separator())
 
     menu.addItem(withTitle: L10n.tr("Bring All to Front"), action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")

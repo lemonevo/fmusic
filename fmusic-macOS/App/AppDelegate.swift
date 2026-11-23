@@ -29,7 +29,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private(set) var mainWindowController: MainWindowController?
   private var settingsWindowController: SettingsWindowController?
   private(set) var lyricsOverlay: LyricsOverlayController?
-  private(set) var miniPlayerWindowController: MiniPlayerWindowController?
 
   /// Handles `fmusic://x-callback-url/...` URLs (script / Stream Deck / Shortcuts automation).
   private(set) lazy var xCallbackManager = XCallbackManager()
@@ -193,7 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func bootstrapCore() {
     let storage = fmusic.storage
-    storage.applyMultiAccountSettingsUpdateIfNeeded()
+    storage.purgeLegacyCatalystDefaultsIfNeeded()
     fmusic.libraryUpdater.performAccountCleanUpIfNeccessaryInBackground()
     OpenedFileLibrary.shared.activateBookmarks()
 
@@ -203,11 +202,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard storage.settings.app.isLibrarySynced,
           storage.settings.accounts.active != nil else { return }
 
-    fmusic.libraryUpdater.performSmallBlockingLibraryUpdatesIfNeeded()
-    for accountInfo in storage.settings.accounts.allAccounts {
-      fmusic.getMeta(accountInfo).startManagerForNormalOperation(player: player)
+    // Keep the first window responsive: run the one-shot library migrations and
+    // manager startup after the first runloop turn. The updater and manager setup
+    // are main-actor serial and version-gated, so this remains idempotent and ordered.
+    Task { @MainActor [weak self] in
+      guard let self else { return }
+      try? await Task.sleep(nanoseconds: 250_000_000)
+      self.fmusic.libraryUpdater.performSmallBlockingLibraryUpdatesIfNeeded()
+      for accountInfo in self.storage.settings.accounts.allAccounts {
+        self.fmusic.getMeta(accountInfo).startManagerForNormalOperation(player: player)
+      }
+      self.fmusic.userStatistics.sessionStarted()
     }
-    fmusic.userStatistics.sessionStarted()
 
     let overlay = LyricsOverlayController()
     overlay.onOpenMainWindow = { [weak self] in self?.showMainWindow(nil) }
@@ -282,45 +288,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     mainWindowController?.close()
   }
 
-  // MARK: - Mini player
-
-  /// The mini player window is open (visible) — used for the Window menu check mark.
-  var isMiniPlayerVisible: Bool {
-    miniPlayerWindowController?.window?.isVisible ?? false
-  }
-
-  /// Opens (or brings to the front) the small floating player window without closing
-  /// or replacing the library window. Playback keeps running if the library window is
-  /// closed afterwards, because the app does not terminate after the last window.
-  @objc
-  func showMiniPlayer(_ sender: Any?) {
-    let controller: MiniPlayerWindowController
-    if let existing = miniPlayerWindowController {
-      controller = existing
-    } else {
-      controller = MiniPlayerWindowController()
-      controller.onExpand = { [weak self] in self?.expandMiniPlayerToMainWindow() }
-      miniPlayerWindowController = controller
-    }
-    controller.applyAlwaysOnTopSetting()
-    controller.showWindow(sender)
-    NSApp.activate(ignoringOtherApps: true)
-    controller.window?.makeKeyAndOrderFront(sender)
-  }
-
-  /// Closes the mini player (the app keeps running, like closing the library window).
-  @objc
-  func closeMiniPlayer(_ sender: Any?) {
-    miniPlayerWindowController?.close()
-  }
-
-  /// "Expand" inside the mini player: bring the library window back and close the
-  /// compact window (Apple Music's switch between library and mini player).
-  func expandMiniPlayerToMainWindow() {
-    showMainWindow(nil)
-    miniPlayerWindowController?.close()
-  }
-
   // MARK: - Files
 
   @objc
@@ -368,11 +335,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   @objc
   func addAccount(_ sender: Any?) {
     LoginWindowController.presentLogin()
-  }
-
-  @objc
-  func showLyricsPage(_ sender: Any?) {
-    LyricsPageWindowController.present()
   }
 
   @objc
@@ -527,9 +489,6 @@ extension AppDelegate: NSMenuItemValidation {
       case .all: menuItem.state = .on
       case .single: menuItem.state = .mixed
       }
-      return true
-    case #selector(showMiniPlayer(_:)):
-      menuItem.state = isMiniPlayerVisible ? .on : .off
       return true
     default:
       return true

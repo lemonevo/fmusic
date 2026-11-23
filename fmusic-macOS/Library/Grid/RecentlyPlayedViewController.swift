@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// `.recentlyPlayed` — albums ordered by the library's "recent" index.
@@ -32,18 +33,15 @@ final class RecentlyPlayedViewController: AlbumGridPageViewController {
   override var targetItemWidth: CGFloat { 140 }
   override var maxColumnCount: Int { 7 }
 
-  override func loadAlbums() -> [Album] {
-    let storage = FmusicKit.shared.storage
-    guard let accountInfo = storage.settings.accounts.active else { return [] }
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
-
+  nonisolated override func loadAlbumIDs(
+    in library: LibraryStorage,
+    account: Account
+  )
+    -> [NSManagedObjectID] {
     let recent = library.getRecentAlbums(for: account, offset: 0, count: 100)
     if !recent.isEmpty {
-      return recent
+      return recent.map(\.managedObject.objectID)
     }
-
-    // Fallback for libraries whose denormalised "recent" index has not been written yet.
     return library.getAlbums(for: account)
       .filter { $0.lastTimePlayed != nil || $0.playCount > 0 }
       .sorted { lhs, rhs in
@@ -52,5 +50,6 @@ final class RecentlyPlayedViewController: AlbumGridPageViewController {
         if lhsDate != rhsDate { return lhsDate > rhsDate }
         return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
       }
+      .map(\.managedObject.objectID)
   }
 }

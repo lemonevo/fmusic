@@ -261,19 +261,19 @@ final class MainViewController: NSViewController {
   }
 
   private func layoutPlayerCapsule() {
-    // The capsule lives inside the content column and scales with it: opening the
-    // lyrics pane shrinks the middle column, so the capsule shrinks too.
+    // Catalyst `SplitVC` keeps a fixed 700 x 54 glass capsule, centred in the
+    // secondary column with 24 pt breathing space on each side. It shrinks only
+    // when that column cannot fit width + margins; it never fills the window.
     let sidebarWidth: CGFloat = (sidebarItem?.isCollapsed ?? false) ? 0 : 210
     let lyricsWidth: CGFloat = (lyricsPaneItem?.isCollapsed ?? true) ? 0 : 260
-    let available = view.bounds.width - sidebarWidth - lyricsWidth
-    guard available > 0 else { return }
-    // The mini player spans the whole content column; only its middle block flexes.
-    let width = max(300, available - 8)
+    let contentWidth = max(0, view.bounds.width - sidebarWidth - lyricsWidth)
+    guard contentWidth > 0 else { return }
     let height = PlayerBarViewController.capsuleHeight
+    let width = min(PlayerBarViewController.capsuleWidth, max(320, contentWidth - 48))
     let barView = playerBarViewController.view
     barView.frame = NSRect(
-      x: sidebarWidth + 4,
-      y: 12,
+      x: sidebarWidth + (contentWidth - width) / 2,
+      y: 10,
       width: width,
       height: height
     )
@@ -510,6 +510,7 @@ final class MainViewController: NSViewController {
     let window = view.window
     let sizeBeforeToggle = window?.contentLayoutRect.size
     isLyricsPaneVisible = visible
+    lyricsPaneViewController.setPaneVisible(visible)
     // Animate the inspector column like UIKit's splitViewController.show(.inspector):
     // the lyrics pane slides in/out instead of snapping.
     if let item = lyricsPaneItem {

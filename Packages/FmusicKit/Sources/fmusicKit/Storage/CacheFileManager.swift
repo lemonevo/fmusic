@@ -83,6 +83,9 @@ public class MimeFileConverter {
 
 final public class CacheFileManager: Sendable {
   public static let shared = CacheFileManager()
+  /// Explicit opt-in used by the storage settings switch. Defaults to off so the
+  /// app never deletes downloaded files without the user asking for it.
+  public static let automaticEvictionDefaultsKey = "fmusic.cacheAutomaticEvictionEnabled"
 
   // Get the URL to the app container's 'Library' directory.
   private let fmusicLibraryDirectory: URL?
@@ -303,14 +306,139 @@ final public class CacheFileManager: Sendable {
   }
 
   private func calculatePlayableCacheSize(for accountInfo: AccountInfo) -> Int64 {
-    var bytes = Int64(0)
-    if let absSongsDir = getOrCreateAbsoluteSongsDirectory(for: accountInfo) {
-      bytes += directorySize(url: absSongsDir)
+    cacheUsage(for: accountInfo).total
+  }
+
+  /// Cache footprint of every directory that belongs to an account. Audio and the
+  /// auxiliary artwork/lyrics caches all count toward the user's cache limit.
+  public struct CacheUsage: Sendable {
+    public let songs: Int64
+    public let episodes: Int64
+    public let artworks: Int64
+    public let embeddedArtworks: Int64
+    public let lyrics: Int64
+
+    public var total: Int64 { songs + episodes + artworks + embeddedArtworks + lyrics }
+  }
+
+  public struct CacheEvictionPlan: Sendable {
+    public let files: [URL]
+    public let totalBytes: Int64
+    public let bytesOverLimit: Int64
+    public var isEmpty: Bool { files.isEmpty }
+  }
+
+  public func cacheUsage(for accountInfo: AccountInfo) -> CacheUsage {
+    CacheUsage(
+      songs: getOrCreateAbsoluteSongsDirectory(for: accountInfo)
+        .map(directorySize) ?? 0,
+      episodes: getOrCreateAbsolutePodcastEpisodesDirectory(for: accountInfo)
+        .map(directorySize) ?? 0,
+      artworks: getOrCreateAbsoluteArtworksDirectory(for: accountInfo)
+        .map(directorySize) ?? 0,
+      embeddedArtworks: getOrCreateAbsoluteEmbeddedArtworksDirectory(for: accountInfo)
+        .map(directorySize) ?? 0,
+      lyrics: getOrCreateAbsoluteLyricsDirectory(for: accountInfo)
+        .map(directorySize) ?? 0
+    )
+  }
+
+  /// Builds a dry-run LRU eviction plan. Files touched in the last 15 minutes are
+  /// protected so the currently playing item and freshly downloaded files are not
+  /// removed. Nothing is deleted by this method.
+  public func makeCacheEvictionPlan(
+    for accountInfo: AccountInfo,
+    limitBytes: Int64,
+    protectedPaths: Set<String> = []
+  )
+    -> CacheEvictionPlan {
+    let usage = cacheUsage(for: accountInfo)
+    guard limitBytes > 0, usage.total > limitBytes else {
+      return CacheEvictionPlan(files: [], totalBytes: 0, bytesOverLimit: 0)
     }
-    if let absEpisodesDir = getOrCreateAbsolutePodcastEpisodesDirectory(for: accountInfo) {
-      bytes += directorySize(url: absEpisodesDir)
+    let directories = [
+      getOrCreateAbsoluteSongsDirectory(for: accountInfo),
+      getOrCreateAbsolutePodcastEpisodesDirectory(for: accountInfo),
+      getOrCreateAbsoluteArtworksDirectory(for: accountInfo),
+      getOrCreateAbsoluteEmbeddedArtworksDirectory(for: accountInfo),
+      getOrCreateAbsoluteLyricsDirectory(for: accountInfo),
+    ].compactMap { $0 }
+
+    let now = Date()
+    let recentCutoff = now.addingTimeInterval(-15 * 60)
+    var candidates = [(url: URL, date: Date, size: Int64)]()
+    for directory in directories {
+      candidates.append(contentsOf: evictionCandidates(in: directory))
     }
-    return bytes
+    candidates = candidates.filter { candidate in
+      let path = candidate.url.standardizedFileURL.path
+      return !protectedPaths.contains(path) && candidate.date < recentCutoff
+    }.sorted { $0.date < $1.date }
+
+    let bytesOverLimit = usage.total - limitBytes
+    var selected = [URL]()
+    var freed: Int64 = 0
+    for candidate in candidates where freed < bytesOverLimit {
+      selected.append(candidate.url)
+      freed += candidate.size
+    }
+    return CacheEvictionPlan(
+      files: selected,
+      totalBytes: freed,
+      bytesOverLimit: bytesOverLimit
+    )
+  }
+
+  /// Applies a previously reviewed plan. Returns the number of removed files.
+  @discardableResult
+  public func applyCacheEvictionPlan(
+    _ plan: CacheEvictionPlan,
+    accountInfo: AccountInfo
+  )
+    -> Int {
+    var removed = 0
+    for url in plan.files {
+      if (try? FileManager.default.removeItem(at: url)) != nil {
+        removed += 1
+      }
+    }
+    if removed > 0 {
+      recalculatePlayableCacheSizes()
+    }
+    return removed
+  }
+
+  private func evictionCandidates(in directory: URL)
+    -> [(url: URL, date: Date, size: Int64)] {
+    guard let enumerator = FileManager.default.enumerator(
+      at: directory,
+      includingPropertiesForKeys: [
+        .isRegularFileKey,
+        .fileSizeKey,
+        .contentModificationDateKey,
+        .contentAccessDateKey,
+      ]
+    )
+    else { return [] }
+
+    var result = [(url: URL, date: Date, size: Int64)]()
+    for case let url as URL in enumerator {
+      guard let values = try? url.resourceValues(forKeys: [
+        .isRegularFileKey,
+        .fileSizeKey,
+        .contentModificationDateKey,
+        .contentAccessDateKey,
+      ]),
+        values.isRegularFile == true,
+        let size = values.fileSize,
+        size > 0
+      else { continue }
+      let date = values.contentAccessDate
+        ?? values.contentModificationDate
+        ?? .distantPast
+      result.append((url, date, Int64(size)))
+    }
+    return result
   }
 
   /// Size of this account's downloaded artwork on disk. Unlike `getPlayableCacheSize`, this is

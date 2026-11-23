@@ -469,8 +469,16 @@ final class LyricsOverlayController: NSObject, MusicPlayable {
       return loaded
     }
     set {
-      overlaySongOffsetsCache = newValue
-      UserDefaults.standard.set(newValue, forKey: Self.songOffsetDefaultsKey)
+      // Keep the per-song offset store bounded; most songs never get a custom offset.
+      var bounded = newValue
+      if bounded.count > 300 {
+        let overflow = bounded.count - 300
+        for key in bounded.keys.prefix(overflow) {
+          bounded.removeValue(forKey: key)
+        }
+      }
+      overlaySongOffsetsCache = bounded
+      UserDefaults.standard.set(bounded, forKey: Self.songOffsetDefaultsKey)
     }
   }
 

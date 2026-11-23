@@ -59,12 +59,24 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private var syllableCache = [[LyricsSyllableTiming]]()
 
   nonisolated(unsafe) private var syncTimer: Timer?
+  private var isPaneVisible = false
 
   private var player: PlayerFacade { FmusicKit.shared.player }
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   override func loadView() {
-    let root = usesTransparentBackground ? NSView() : LyricsPaneBackgroundView()
+    let root: NSView
+    if usesTransparentBackground {
+      // Hosted by the large Now Playing overlay, which already draws its dark artwork
+      // gradient. Keep glyph rasters on the dark branch via usesTransparentBackground.
+      root = NSView()
+    } else {
+      // Match Catalyst: the lyrics inspector inherits the window appearance and
+      // paints the same warm grey surface as the split inspector material.
+      root = LyricsPaneBackgroundView(
+        frame: NSRect(x: 0, y: 0, width: 260, height: 730)
+      )
+    }
 
     tableView.headerView = nil
     tableView.backgroundColor = .clear
@@ -151,15 +163,42 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       object: nil
     )
 
-    // The player notifications are not delivered at a fixed rate; the Catalyst lyrics
-    // view runs its own clock for the character fill, so mirror that here.
-    syncTimer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) {
+    // The timer is started only while the inspector pane is visible; the 60 Hz
+    // character fill clock must not keep waking the CPU when the pane is collapsed.
+  }
+
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    startSyncTimerIfNeeded()
+  }
+
+  override func viewDidDisappear() {
+    super.viewDidDisappear()
+    stopSyncTimer()
+  }
+
+  func setPaneVisible(_ visible: Bool) {
+    isPaneVisible = visible
+    if visible {
+      startSyncTimerIfNeeded()
+    } else {
+      stopSyncTimer()
+    }
+  }
+
+  private func startSyncTimerIfNeeded() {
+    guard isPaneVisible, syncTimer == nil, view.window != nil else { return }
+    let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) {
       [weak self] _ in
       Task { @MainActor in self?.syncTick() }
     }
-    if let syncTimer {
-      RunLoop.main.add(syncTimer, forMode: .common)
-    }
+    RunLoop.main.add(timer, forMode: .common)
+    syncTimer = timer
+  }
+
+  private func stopSyncTimer() {
+    syncTimer?.invalidate()
+    syncTimer = nil
   }
 
   deinit {
@@ -287,20 +326,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     guard force || abs(time - lastActiveTime) > 0.02 else { return }
     lastActiveTime = time
 
-    let offsetSeconds = (Double(lyrics.offset) +
-      Double(storage.settings.user.lyricsOffsetMs)) / 1000.0
-    let position = max(0, time + offsetSeconds)
-    // Before the first timestamp the first line is the active one (Catalyst keeps
-    // the first row highlighted instead of blurring the whole list).
-    var index = lyrics.line.isEmpty ? -1 : 0
-    for (lineIndex, line) in lyrics.line.enumerated() {
-      guard let start = line.start else { continue }
-      if Double(start) / 1000.0 <= position {
-        index = lineIndex
-      } else {
-        break
-      }
-    }
+    let index = LyricsPresentation.currentLineIndex(
+      lyrics: lyrics,
+      elapsed: time,
+      userOffsetMs: storage.settings.user.lyricsOffsetMs
+    )
     let previous = currentLine
     if index != previous {
       currentLine = index
@@ -357,7 +387,10 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       time: playbackLyricsTime(),
       rowSpacing: rowSpacing,
       inset: Self.horizontalInset,
-      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
+      contentWidth: LyricsPresentation.contentWidth(
+        containerWidth: tableView.bounds.width,
+        horizontalInset: Self.horizontalInset
+      ),
       distance: row == currentLine ? 0 : abs(row - currentLine),
       animated: animated
     )
@@ -365,9 +398,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   private func playbackLyricsTime() -> TimeInterval {
     guard let lyrics else { return player.elapsedTime }
-    return player.elapsedTime + (
-      Double(lyrics.offset) + Double(storage.settings.user.lyricsOffsetMs)
-    ) / 1000.0
+    return LyricsPresentation.playbackTime(
+      elapsed: player.elapsedTime,
+      lyricsOffsetMs: lyrics.offset,
+      userOffsetMs: storage.settings.user.lyricsOffsetMs
+    )
   }
 
   // MARK: - Spring scrolling (same constants as the Catalyst LyricsView)
@@ -485,6 +520,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as?
       LyricsSidebarCellView ?? LyricsSidebarCellView()
     cell.identifier = cellIdentifier
+    cell.forcesDarkRaster = usesTransparentBackground
 
     let isActive = row == currentLine
     let syllables = syllableCache.indices.contains(row) ? syllableCache[row] : []
@@ -498,7 +534,10 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
       time: time,
       rowSpacing: rowSpacing,
       inset: Self.horizontalInset,
-      contentWidth: max(80, tableView.bounds.width - Self.horizontalInset * 2),
+      contentWidth: LyricsPresentation.contentWidth(
+        containerWidth: tableView.bounds.width,
+        horizontalInset: Self.horizontalInset
+      ),
       distance: isActive ? 0 : abs(row - currentLine)
     )
     return cell
@@ -612,29 +651,35 @@ private final class LyricsGlyphView: NSView {
 /// One lyric row: dim/bright glyph rasters plus a translation label.
 @MainActor
 private final class LyricsSidebarCellView: NSTableCellView {
+  /// The large Now Playing host is always dark; the inspector follows the window.
+  var forcesDarkRaster = false
+
   private static let activeFontSize: CGFloat = 29
   private static let inactiveFontSize: CGFloat = 24
-  // Catalyst `LyricTableCellModel` uses dynamic colours (white on the dark player,
-  // dark grey on a light panel); mirror those values.
-  private static let activeBrightColor = NSColor(name: nil) { appearance in
-    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      ? .white
-      : NSColor(white: 0.32, alpha: 1)
-  }
-  private static let activeDimColor = NSColor(name: nil) { appearance in
-    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+  private static let activeBrightColor = NSColor(name: "lyricsActiveBright", dynamicProvider: { appearance in
+    LyricsSidebarCellView.isDark(appearance) ? .white : NSColor(white: 0.32, alpha: 1)
+  })
+  private static let activeDimColor = NSColor(name: "lyricsActiveDim", dynamicProvider: { appearance in
+    LyricsSidebarCellView.isDark(appearance)
       ? NSColor.white.withAlphaComponent(0.55)
       : NSColor(white: 0.32, alpha: 0.55)
-  }
-  private static let inactiveColor = NSColor(name: nil) { appearance in
-    appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+  })
+  private static let inactiveColor = NSColor(name: "lyricsInactive", dynamicProvider: { appearance in
+    LyricsSidebarCellView.isDark(appearance)
       ? NSColor.white.withAlphaComponent(0.60)
       : NSColor(white: 0.5, alpha: 1)
-  }
-  private static let activeTranslationColor = NSColor(name: nil) { appearance in
+  })
+  private static let activeTranslationColor = NSColor(
+    name: "lyricsActiveTranslation",
+    dynamicProvider: { appearance in
+      LyricsSidebarCellView.isDark(appearance)
+        ? NSColor.white.withAlphaComponent(0.72)
+        : NSColor(white: 0.34, alpha: 0.82)
+    }
+  )
+
+  private static func isDark(_ appearance: NSAppearance) -> Bool {
     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      ? NSColor.white.withAlphaComponent(0.72)
-      : NSColor(white: 0.34, alpha: 0.82)
   }
   private static let blurContext = CIContext(options: nil)
   /// Rasterized lyric lines are static per (text, width, scale, active style, appearance):
@@ -642,6 +687,8 @@ private final class LyricsSidebarCellView: NSTableCellView {
   private static let rasterCache: NSCache<NSString, NSImage> = {
     let cache = NSCache<NSString, NSImage>()
     cache.countLimit = 400
+    // A 2x lyric raster is large; cap the total decoded pixels as well as count.
+    cache.totalCostLimit = 32 * 1024 * 1024
     return cache
   }()
 
@@ -719,10 +766,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let fontSize = isActive ? Self.activeFontSize : Self.inactiveFontSize
     let weight: NSFont.Weight = isActive ? .bold : .semibold
     let font = NSFont.systemFont(ofSize: fontSize, weight: weight)
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.lineSpacing = 6
-    paragraph.lineBreakMode = .byWordWrapping
-    paragraph.alignment = .left
+    let paragraph = LyricsPresentation.paragraphStyle(lineSpacing: 6)
 
     let text = line.value.isEmpty ? " " : line.value
     func attributed(_ color: NSColor) -> NSAttributedString {
@@ -750,7 +794,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     // `LyricTableCell.updateBlurredImageIfNeeded`: inactive lines use a blurred copy
     // with CIGaussianBlur radius 2.2 * screen scale; the active line stays sharp.
     _ = distance
-    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    let isDark = Self.isDark(effectiveAppearance) || forcesDarkRaster
     // The Catalyst snapshot is already at screen scale; 2.2 px there is subtle.
     // Our rasterizer blurs at pixel resolution with the same factor, which reads
     // stronger, so use half the radius to match the original look.
@@ -796,10 +840,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       translationLabel.isHidden = true
     } else {
       translationLabel.isHidden = false
-      let translationParagraph = NSMutableParagraphStyle()
-      translationParagraph.lineSpacing = 3
-      translationParagraph.lineBreakMode = .byWordWrapping
-      translationParagraph.alignment = .left
+      let translationParagraph = LyricsPresentation.paragraphStyle(lineSpacing: 3)
       translationLabel.attributedStringValue = NSAttributedString(
         string: translationText,
         attributes: [
@@ -872,7 +913,12 @@ private final class LyricsSidebarCellView: NSTableCellView {
       result = sharp
     }
     if let result {
-      rasterCache.setObject(NSImage(cgImage: result, size: size), forKey: key)
+      let pixelCost = Int(size.width * size.height * scale * scale * 4)
+      rasterCache.setObject(
+        NSImage(cgImage: result, size: size),
+        forKey: key,
+        cost: pixelCost
+      )
     }
     return result
   }
@@ -908,24 +954,31 @@ private final class LyricsSidebarCellView: NSTableCellView {
 
 // MARK: - LyricsPaneBackgroundView
 
-/// The lyrics inspector shares the library sidebar surface (Catalyst draws the
-/// sidebar background behind the inspector column).
+/// Opaque inspector surface. Catalyst leaves the LyricsVC view clear and lets the
+/// UISplitViewController inspector material paint behind it; AppKit's split wrapper
+/// has no matching material, so this view paints the same continuous fill itself.
+/// It follows the window appearance: warm grey in light mode, graphite in dark mode.
 @MainActor
 private final class LyricsPaneBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = Self.paneColor.cgColor
+    layer?.contentsGravity = .resize
+    refresh()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(refresh),
+      name: .macAppearanceChanged,
+      object: nil
+    )
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
-  /// `LyricsVC` sets its view background to `.clear`; the inspector column draws its
-  /// own material. Sampled from the running Catalyst app in light mode that material
-  /// renders as a warm grey (#EAE9E8), darker than `secondarySystemBackground`; dark
-  /// mode matches the sidebar surface.
+  deinit { NotificationCenter.default.removeObserver(self) }
+
   static var paneColor: NSColor {
     NSColor(name: nil) { appearance in
       if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
@@ -935,8 +988,31 @@ private final class LyricsPaneBackgroundView: NSView {
     }
   }
 
+  @objc private func refresh() {
+    // Resolve the dynamic colour against this view's effective appearance instead of
+    // storing a CGColor resolved once against the process-wide Aqua appearance.
+    let appearance = effectiveAppearance
+    var resolved = Self.paneColor.cgColor
+    appearance.performAsCurrentDrawingAppearance {
+      resolved = Self.paneColor.cgColor
+    }
+    layer?.backgroundColor = resolved
+    needsDisplay = true
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    refresh()
+  }
+
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = Self.paneColor.cgColor
+    refresh()
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    // Paint the same resolved colour during split collapse/expand animations.
+    Self.paneColor.setFill()
+    dirtyRect.fill()
   }
 }

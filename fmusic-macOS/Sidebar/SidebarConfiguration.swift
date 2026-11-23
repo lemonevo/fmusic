@@ -77,17 +77,25 @@ enum SidebarConfiguration {
 
   /// Drops entries that no longer exist and appends newly added ones.
   private static func normalized(_ state: State) -> State {
+    // Rebuild from the current catalogue in its canonical order. A saved order is
+    // only used to preserve the user's manual sort for entries that still exist;
+    // stale entries from older builds never leak back into Edit mode.
     let valid = configurableItems.map(\.rawValue)
+    let validSet = Set(valid)
+    let savedOrder = state.order.filter { validSet.contains($0) }
     var order: [String] = []
-    for raw in state.order where valid.contains(raw) && !order.contains(raw) {
+    for raw in savedOrder where !order.contains(raw) {
       order.append(raw)
     }
-    var hidden = state.hidden.filter { valid.contains($0) }
     for raw in valid where !order.contains(raw) {
       order.append(raw)
-      // Newly added entries follow the default visibility policy.
-      if let item = SidebarItem(rawValue: raw), !defaultVisible.contains(item) {
-        hidden.append(raw)
+    }
+    var hidden = state.hidden.filter { validSet.contains($0) }
+    for item in configurableItems where !defaultVisible.contains(item) {
+      // Entries hidden by default stay hidden unless the user explicitly enabled
+      // them in this build. This removes stale "checked" flags for old entries.
+      if !savedOrder.contains(item.rawValue) {
+        if !hidden.contains(item.rawValue) { hidden.append(item.rawValue) }
       }
     }
     return State(order: order, hidden: hidden)

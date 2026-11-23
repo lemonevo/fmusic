@@ -66,6 +66,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let sidebarButton = SidebarTitleButton()
   private let accountAvatar = AvatarView()
 
+  // Normal and edit modes share one cell class and identifier; edit mode only
+  // toggles the optional check circle / drag handle on the same layout.
   private let cellIdentifier = NSUserInterfaceItemIdentifier("SidebarCell")
   private let editableIdentifier = NSUserInterfaceItemIdentifier("SidebarEditableCell")
   private let groupIdentifier = NSUserInterfaceItemIdentifier("SidebarGroup")
@@ -370,15 +372,13 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
       let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self)
         as? SidebarCellView ?? SidebarCellView(frame: .zero)
       cell.identifier = cellIdentifier
-      cell.showsLeadingAccessory = false
-      cell.showsDragHandle = false
-      cell.configure(item: item)
+      cell.configureNormal(item: item)
       return cell
     case .editable(let item):
       let cell = tableView.makeView(withIdentifier: editableIdentifier, owner: self)
         as? SidebarEditableCellView ?? SidebarEditableCellView(frame: .zero)
       cell.identifier = editableIdentifier
-      cell.configure(
+      cell.configureEdit(
         item: item,
         isVisible: SidebarConfiguration.isVisible(item),
         onToggle: { [weak self] in self?.toggleVisibility(item) }
@@ -457,69 +457,83 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
 
 @MainActor
 class SidebarCellView: SidebarTableCellView {
-  var showsLeadingAccessory = false {
-    didSet { leadingInset = showsLeadingAccessory ? 38 : SidebarStyle.iconLeading }
-  }
+  /// Edit-mode check circle. It is an optional overlay on the exact same base
+  /// layout used in normal mode, so symbols, typography and row height never change.
+  private let checkButton = CheckCircleButton()
+  private var onToggle: (() -> Void)?
 
-  /// NSTableView uses `init(frame:)`, matching the shared base cell.
   convenience init() {
     self.init(frame: .zero)
   }
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect, usesMediumText: false, supportsDragHandle: true)
+    checkButton.translatesAutoresizingMaskIntoConstraints = false
+    checkButton.target = self
+    checkButton.action = #selector(checkTapped)
+    addSubview(checkButton)
+    NSLayoutConstraint.activate([
+      checkButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+      checkButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      checkButton.widthAnchor.constraint(equalToConstant: 18),
+      checkButton.heightAnchor.constraint(equalToConstant: 18),
+    ])
+    checkButton.isHidden = true
   }
 
   required init?(coder: NSCoder) {
     super.init(coder: coder)
   }
 
-  func configure(item: SidebarItem) {
-    // Favourites are status items: keep their filled heart; everything else is
-    // forced to the outline variant even if the source symbol ends in `.fill`.
+  /// Edit mode reserves 34 pt before the icon (10 + 18 circle + 6 gap).
+  var showsLeadingAccessory: Bool {
+    get { !checkButton.isHidden }
+    set {
+      checkButton.isHidden = !newValue
+      leadingInset = newValue ? 34 : SidebarStyle.iconLeading
+    }
+  }
+
+  /// Configures the exact normal-mode layout: no check circle, no drag handle.
+  func configureNormal(item: SidebarItem) {
+    showsLeadingAccessory = false
+    showsDragHandle = false
+    apply(item: item)
+  }
+
+  /// Configures the same layout with edit-mode accessories only.
+  func configureEdit(item: SidebarItem, isVisible: Bool, onToggle: @escaping () -> Void) {
+    self.onToggle = onToggle
+    showsLeadingAccessory = true
+    showsDragHandle = true
+    apply(item: item)
+    checkButton.isOn = isVisible
+  }
+
+  private func apply(item: SidebarItem) {
     let isFavourite = item == .favoriteSongs || item == .favoriteAlbums ||
       item == .favoriteArtists
     configure(symbolName: item.symbolName, title: item.title, isFilled: isFavourite)
+  }
+
+  @objc private func checkTapped() {
+    onToggle?()
   }
 }
 
 // MARK: - SidebarEditableCellView
 
-/// Edit-mode row: red check circle on the left (tap toggles visibility) and a
-/// drag handle on the right (drag to reorder).
+/// Same class/metrics as normal rows, with the check circle visible by default.
 @MainActor
 private final class SidebarEditableCellView: SidebarCellView {
-  private let checkButton = CheckCircleButton()
-  private var onToggle: (() -> Void)?
-
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    checkButton.translatesAutoresizingMaskIntoConstraints = false
-    checkButton.target = self
-    checkButton.action = #selector(checkTapped)
-    addSubview(checkButton)
-    NSLayoutConstraint.activate([
-      checkButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
-      checkButton.centerYAnchor.constraint(equalTo: centerYAnchor),
-      checkButton.widthAnchor.constraint(equalToConstant: 22),
-      checkButton.heightAnchor.constraint(equalToConstant: 22),
-    ])
     showsLeadingAccessory = true
     showsDragHandle = true
   }
 
   required init?(coder: NSCoder) {
     super.init(coder: coder)
-  }
-
-  func configure(item: SidebarItem, isVisible: Bool, onToggle: @escaping () -> Void) {
-    self.onToggle = onToggle
-    configure(item: item)
-    checkButton.isOn = isVisible
-  }
-
-  @objc private func checkTapped() {
-    onToggle?()
   }
 }
 
@@ -739,7 +753,7 @@ private final class ColumnSeparatorView: NSView {
 /// looked blurry). A plain, non-layer-backed `NSView` is rasterised by the window at
 /// native resolution, so it stays crisp — verified side-by-side at 2×.
 @MainActor
-final class SidebarTitleButton: NSView {
+final class SidebarTitleButton: NSControl {
   enum Content {
     case title(String)
     case symbol(String)
@@ -759,14 +773,35 @@ final class SidebarTitleButton: NSView {
     super.init(frame: frameRect)
     // Deliberately NOT layer-backed: the titlebar glass blurs layer-backed content.
     wantsLayer = false
+    // NSControl makes AppKit treat clicks as control hits instead of titlebar
+    // double-clicks (Catalyst uses a UIBarButtonItem here, also a real control).
+    target = self
+    action = #selector(press)
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(glassStyleChanged),
+      name: .macGlassStyleChanged,
+      object: nil
+    )
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  @objc private func press() {
+    onClick?()
+  }
+
+  @objc private func glassStyleChanged() {
+    needsDisplay = true
+  }
+
   /// Height is fixed by constraints (32 pt); the radius follows to make a pill.
   override func draw(_ dirtyRect: NSRect) {
+    let style = GlassStyleManager.configuration
     let r = bounds.insetBy(dx: 0.5, dy: 0.5)
     let path = NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2)
     // The reference buttons have NO hard outline — a white pill that fades into the
@@ -774,16 +809,18 @@ final class SidebarTitleButton: NSView {
     // rim gives the same weightless "floating" edge instead of a visible stroke.
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.10)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(style.buttonShadowOpacity)
     shadow.shadowBlurRadius = 3
     shadow.shadowOffset = NSSize(width: 0, height: -0.5)
     shadow.set()
-    (isPressed ? NSColor.black.withAlphaComponent(0.05) : fillColor).setFill()
+    (isPressed
+      ? NSColor.black.withAlphaComponent(0.05)
+      : fillColor.withAlphaComponent(style.buttonFillAlpha)).setFill()
     path.fill()
     NSGraphicsContext.restoreGraphicsState()
     // Very faint inner rim (≈4% black) so the pill reads on both light and dark,
     // far softer than a separator-coloured 1 pt line.
-    NSColor.black.withAlphaComponent(0.05).setStroke()
+    NSColor.black.withAlphaComponent(style.buttonBorderAlpha).setStroke()
     path.lineWidth = 0.5
     path.stroke()
 
@@ -819,19 +856,26 @@ final class SidebarTitleButton: NSView {
     }
   }
 
+  override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+    true
+  }
+
   override func mouseDown(with event: NSEvent) {
     isPressed = true
+    window?.makeFirstResponder(self)
   }
 
   override func mouseUp(with event: NSEvent) {
     let wasPressed = isPressed
     isPressed = false
     let point = convert(event.locationInWindow, from: nil)
-    if wasPressed, bounds.contains(point) { onClick?() }
+    if wasPressed, bounds.contains(point) {
+      sendAction(action, to: target)
+    }
   }
 
   override func accessibilityPerformPress() -> Bool {
-    onClick?()
+    sendAction(action, to: target)
     return true
   }
 }

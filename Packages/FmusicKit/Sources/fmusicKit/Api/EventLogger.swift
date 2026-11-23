@@ -219,6 +219,7 @@ public class EventLogger {
           logEntry.statusCode = statusCode
           logEntry.message = logMessage
           asynCompanion.saveContext()
+          asynCompanion.library.pruneLogEntries()
         }
         if displayPopup {
           self.displayAlert(

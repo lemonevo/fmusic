@@ -94,6 +94,8 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     searchField.controlSize = .large
     searchField.delegate = self
     searchField.sendsSearchStringImmediately = true
+    searchField.target = self
+    searchField.action = #selector(searchSubmitted)
     searchField.translatesAutoresizingMaskIntoConstraints = false
     // Draw the field itself without a bezel and let the surrounding pill provide the
     // grey fill (NSSearchField's own bezel can't be tinted to #ECECEE reliably).
@@ -268,6 +270,11 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   // MARK: - NSSearchFieldDelegate
 
   func controlTextDidChange(_ obj: Notification) {
+    onSearchChange?(searchField.stringValue)
+  }
+
+  @objc
+  private func searchSubmitted() {
     onSearchChange?(searchField.stringValue)
   }
 }

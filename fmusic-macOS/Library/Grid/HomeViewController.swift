@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// `.home` — Apple Music style start page with random, recently played and newest albums.
@@ -27,6 +28,13 @@ import fmusicKit
 /// the random selection.
 @MainActor
 final class HomeViewController: NSViewController {
+  private struct HomeSnapshot: Sendable {
+    var random: [NSManagedObjectID] = []
+    var recent: [NSManagedObjectID] = []
+    var newest: [NSManagedObjectID] = []
+    var albumCount = 0
+  }
+
   private struct Section {
     enum Kind {
       case random
@@ -118,6 +126,7 @@ final class HomeViewController: NSViewController {
   private let emptyLabel = NSTextField(labelWithString: "")
 
   private var sections: [Section] = []
+  private var reloadGeneration = 0
   private var lastLayoutWidth: CGFloat = 0
 
   // MARK: - Lifecycle
@@ -276,6 +285,8 @@ final class HomeViewController: NSViewController {
   @objc
   private func reloadHome() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       sections = []
       collectionView.reloadData()
@@ -284,60 +295,82 @@ final class HomeViewController: NSViewController {
       emptyLabel.isHidden = false
       return
     }
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+    let showRandom = SectionVisibility.isEnabled(.random)
+    let showRecent = SectionVisibility.isEnabled(.recent)
+    let showNewest = SectionVisibility.isEnabled(.newest)
+    let perSection = Metrics.albumsPerSection
 
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
+    Task { [weak self] in
+      guard let self else { return }
+      let fetched = try? await storage.async.performAndGet { companion
+        -> HomeSnapshot in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        var result = HomeSnapshot()
+        let random = companion.library.getRandomAlbums(
+          for: account,
+          count: perSection,
+          onlyCached: false
+        )
+        let fallbackRandom = random.isEmpty
+          ? Array(companion.library.getAlbums(for: account).prefix(perSection))
+          : random
+        result.random = fallbackRandom.map(\.managedObject.objectID)
+        result.recent = companion.library.getRecentAlbums(
+          for: account,
+          offset: 0,
+          count: perSection
+        ).map(\.managedObject.objectID)
+        result.newest = companion.library.getNewestAlbums(
+          for: account,
+          offset: 0,
+          count: perSection
+        ).map(\.managedObject.objectID)
+        result.albumCount = companion.library.getAlbumCount(for: account)
+        return result
+      }
+      guard generation == self.reloadGeneration,
+            storage.settings.accounts.active == accountInfo else { return }
 
-    var newSections = [Section]()
-    let random = library.getRandomAlbums(
-      for: account,
-      count: Metrics.albumsPerSection,
-      onlyCached: false
-    )
-    let fallbackRandom = random.isEmpty
-      ? Array(library.getAlbums(for: account).prefix(Metrics.albumsPerSection))
-      : random
-    if !fallbackRandom.isEmpty, SectionVisibility.isEnabled(.random) {
-      newSections.append(Section(
-        kind: .random,
-        title: L10n.tr("Random Albums"),
-        albums: fallbackRandom
-      ))
+      let context = storage.main.context
+      func albums(_ ids: [NSManagedObjectID]) -> [Album] {
+        ids.compactMap { context.object(with: $0) as? AlbumMO }
+          .compactMap { Album(managedObject: $0) }
+      }
+      let snapshot = fetched ?? HomeSnapshot()
+      var newSections = [Section]()
+      let random = albums(snapshot.random)
+      if !random.isEmpty, showRandom {
+        newSections.append(Section(
+          kind: .random,
+          title: L10n.tr("Random Albums"),
+          albums: random
+        ))
+      }
+      let recent = albums(snapshot.recent)
+      if !recent.isEmpty, showRecent {
+        newSections.append(Section(
+          kind: .recent,
+          title: L10n.tr("Recently Played Albums"),
+          albums: recent
+        ))
+      }
+      let newest = albums(snapshot.newest)
+      if !newest.isEmpty, showNewest {
+        newSections.append(Section(
+          kind: .newest,
+          title: L10n.tr("Newest Albums"),
+          albums: newest
+        ))
+      }
+      self.sections = newSections
+      self.collectionView.reloadData()
+      self.subtitleLabel.stringValue = snapshot.albumCount > 0
+        ? LibraryCountText.albums(snapshot.albumCount)
+        : ""
+      self.emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Albums"))
+      self.emptyLabel.isHidden = !newSections.isEmpty
     }
-
-    let recent = library.getRecentAlbums(
-      for: account,
-      offset: 0,
-      count: Metrics.albumsPerSection
-    )
-    if !recent.isEmpty, SectionVisibility.isEnabled(.recent) {
-      newSections.append(Section(
-        kind: .recent,
-        title: L10n.tr("Recently Played Albums"),
-        albums: recent
-      ))
-    }
-
-    let newest = library.getNewestAlbums(
-      for: account,
-      offset: 0,
-      count: Metrics.albumsPerSection
-    )
-    if !newest.isEmpty, SectionVisibility.isEnabled(.newest) {
-      newSections.append(Section(
-        kind: .newest,
-        title: L10n.tr("Newest Albums"),
-        albums: newest
-      ))
-    }
-
-    sections = newSections
-    collectionView.reloadData()
-
-    let albumCount = library.getAlbums(for: account).count
-    subtitleLabel.stringValue = albumCount > 0 ? LibraryCountText.albums(albumCount) : ""
-    emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Albums"))
-    emptyLabel.isHidden = !sections.isEmpty
   }
 
   /// Re-rolls only the 随机专辑 section without touching the other sections.

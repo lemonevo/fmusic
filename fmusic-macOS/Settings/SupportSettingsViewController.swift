@@ -105,7 +105,7 @@ final class SupportSettingsViewController: SettingsPageViewController {
   }
 
   private static func loadEventRows() -> [EventRow] {
-    FmusicKit.shared.storage.main.library.getAllLogEntries().map { entry in
+    FmusicKit.shared.storage.main.library.getAllLogEntries(limit: 300).map { entry in
       EventRow(
         type: entry.type,
         statusCode: entry.statusCode,

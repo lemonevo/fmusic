@@ -24,7 +24,6 @@ import fmusicKit
 @MainActor
 final class SettingsSidebarViewController: NSViewController {
   var onSelectionChanged: ((SettingsPage) -> Void)?
-  var onToggleSidebar: (() -> Void)?
 
   private struct Section {
     let title: String
@@ -58,6 +57,21 @@ final class SettingsSidebarViewController: NSViewController {
     return result
   }()
 
+  /// Human descriptions shown in the pages, indexed for live search.
+  private let searchDescriptions: [SettingsPage: String] = [
+    .general: "language offline mode screen lock prevention 语言 离线 锁屏 外观",
+    .account: "account server url username password 账号 服务器 用户名 密码",
+    .playback: "playback volume crossfade resume 播放 音量 淡入淡出 继续播放",
+    .equalizer: "equalizer audio effects 均衡器 音效 音频",
+    .lyrics: "lyrics smooth scrolling desktop lyrics font alignment 歌词 滚动 桌面歌词 字号 对齐",
+    .displayInteraction: "appearance theme color artwork display liquid glass transparency depth soft standard translucent 外观 主题颜色 封面显示 液态玻璃 透明度 层次 柔和 标准 通透",
+    .storage: "storage cache artwork size limit 存储 缓存 封面 缓存上限",
+    .library: "library playlists artists albums songs sync 资料库 播放列表 艺人 专辑 歌曲 同步",
+    .support: "support about 支持 关于",
+    .developer: "developer 开发者",
+    .about: "about 关于",
+  ]
+
   private let searchCatalog: [(page: SettingsPage, keywords: [String])] = [
     (.general, ["language", "offline", "screen lock", "语言", "离线", "锁屏", "外观"]),
     (.account, ["account", "server", "url", "username", "账号", "服务器", "用户名"]),
@@ -75,8 +89,8 @@ final class SettingsSidebarViewController: NSViewController {
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
   private let searchField = NSSearchField()
+  private let searchIcon = NSImageView()
   private let searchContainer = SettingsBackgroundView()
-  private let toggleButton = SidebarTitleButton()
 
   private let cellIdentifier = NSUserInterfaceItemIdentifier("SettingsSidebarCell")
   private let headerIdentifier = NSUserInterfaceItemIdentifier("SettingsSidebarHeader")
@@ -121,34 +135,47 @@ final class SettingsSidebarViewController: NSViewController {
     searchField.translatesAutoresizingMaskIntoConstraints = false
     searchField.target = self
     searchField.action = #selector(searchChanged)
+    searchField.delegate = self
+    searchField.sendsSearchStringImmediately = true
+    searchField.sendsWholeSearchString = false
+    searchField.isEditable = true
+    searchField.isSelectable = true
+    // Drop the cell's built-in magnifier: once the field editor is active it spans
+    // the whole field and paints text from x=0 under the icon.
+    (searchField.cell as? NSSearchFieldCell)?.searchButtonCell = nil
+
+    searchIcon.image = NSImage(
+      systemSymbolName: "magnifyingglass",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(.init(pointSize: 12, weight: .regular))
+    searchIcon.contentTintColor = .secondaryLabelColor
+    searchIcon.imageScaling = .scaleProportionallyDown
+    searchIcon.translatesAutoresizingMaskIntoConstraints = false
+
+    searchContainer.addSubview(searchIcon)
     searchContainer.addSubview(searchField)
     searchContainer.backgroundColor = MacTheme.searchFieldBackgroundColor
     searchContainer.cornerRadius = 7
     searchContainer.translatesAutoresizingMaskIntoConstraints = false
 
-    // Circular sidebar toggle in the top-right of the sidebar, like the Catalyst scene.
-    toggleButton.content = .symbol("sidebar.left")
-    toggleButton.toolTip = L10n.tr("Show Sidebar")
-    toggleButton.onClick = { [weak self] in self?.onToggleSidebar?() }
-    toggleButton.translatesAutoresizingMaskIntoConstraints = false
-
-    root.addSubview(searchContainer)
-    root.addSubview(toggleButton)
+    // The table scroll view spans the full column; add it first so the search
+    // field sits above it and receives clicks/keyboard input.
     root.addSubview(scrollView)
+    root.addSubview(searchContainer)
 
     NSLayoutConstraint.activate([
-      toggleButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 8),
-      toggleButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -14),
-      toggleButton.widthAnchor.constraint(equalToConstant: 36),
-      toggleButton.heightAnchor.constraint(equalToConstant: 36),
-
       searchContainer.topAnchor.constraint(equalTo: root.topAnchor, constant: 52),
       searchContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 10),
       searchContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -10),
       searchContainer.heightAnchor.constraint(equalToConstant: 28),
 
-      searchField.leadingAnchor.constraint(equalTo: searchContainer.leadingAnchor, constant: 8),
-      searchField.trailingAnchor.constraint(equalTo: searchContainer.trailingAnchor, constant: -6),
+      searchIcon.leadingAnchor.constraint(equalTo: searchContainer.leadingAnchor, constant: 8),
+      searchIcon.centerYAnchor.constraint(equalTo: searchContainer.centerYAnchor),
+      searchIcon.widthAnchor.constraint(equalToConstant: 14),
+      searchIcon.heightAnchor.constraint(equalToConstant: 14),
+
+      searchField.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 6),
+      searchField.trailingAnchor.constraint(equalTo: searchContainer.trailingAnchor, constant: -7),
       searchField.centerYAnchor.constraint(equalTo: searchContainer.centerYAnchor),
 
       scrollView.topAnchor.constraint(equalTo: root.topAnchor),
@@ -159,6 +186,23 @@ final class SettingsSidebarViewController: NSViewController {
 
     self.view = root
     refreshRows()
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(themeColorChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
+  }
+
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  @objc
+  private func themeColorChanged() {
+    tableView.reloadData()
   }
 
   // MARK: - Selection
@@ -187,7 +231,8 @@ final class SettingsSidebarViewController: NSViewController {
     } else {
       let matches = searchCatalog.filter { entry in
         entry.page.title.localizedStandardContains(query) ||
-          entry.keywords.contains { $0.localizedStandardContains(query) }
+          entry.keywords.contains { $0.localizedStandardContains(query) } ||
+          (searchDescriptions[entry.page]?.localizedStandardContains(query) ?? false)
       }
       filteredRows = matches.isEmpty
         ? [.header(L10n.tr("No Settings Found"))]
@@ -263,3 +308,12 @@ extension SettingsSidebarViewController: NSTableViewDelegate {
 }
 
 // MARK: - Settings side deferential rows are provided by SidebarStyle.
+
+
+// MARK: - Live search
+
+extension SettingsSidebarViewController: NSSearchFieldDelegate {
+  func controlTextDidChange(_ obj: Notification) {
+    refreshRows()
+  }
+}

@@ -20,6 +20,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// Cached (downloaded) songs of the active account, using the flat song row style.
@@ -33,6 +34,7 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
   private let scrollView = NSScrollView()
 
   private var songs: [Song] = []
+  private var reloadGeneration = 0
 
   private enum Column {
     static let artwork = NSUserInterfaceItemIdentifier("downloadArtwork")
@@ -192,6 +194,8 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
   @objc
   private func reloadSongs() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       songs = []
       tableView.reloadData()
@@ -200,19 +204,32 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
       emptyLabel.isHidden = false
       return
     }
-    let account = storage.main.library.getAccount(info: accountInfo)
-    songs = storage.main.library.getCachedSongs(for: account)
-
-    var infoParts = [LibraryCountText.songs(songs.count)]
-    let cacheSize = CacheFileManager.shared.getPlayableCacheSize(for: accountInfo)
-    if cacheSize > 0 {
-      infoParts.append(cacheSize.asByteString)
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+    Task { [weak self] in
+      guard let self else { return }
+      let ids = try? await storage.async.performAndGet { companion
+        -> [NSManagedObjectID] in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        return companion.library.getCachedSongs(for: account).map(\.managedObject.objectID)
+      }
+      guard generation == self.reloadGeneration,
+            storage.settings.accounts.active == accountInfo else { return }
+      let context = storage.main.context
+      self.songs = (ids ?? [])
+        .compactMap { context.object(with: $0) as? SongMO }
+        .compactMap { Song(managedObject: $0) }
+      var infoParts = [LibraryCountText.songs(self.songs.count)]
+      let cacheSize = CacheFileManager.shared.getPlayableCacheSize(for: accountInfo)
+      if cacheSize > 0 {
+        infoParts.append(cacheSize.asByteString)
+      }
+      self.countLabel.stringValue = self.songs.isEmpty
+        ? ""
+        : infoParts.joined(separator: " · ")
+      self.tableView.reloadData()
+      self.emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Downloads"))
+      self.emptyLabel.isHidden = !self.songs.isEmpty
     }
-    countLabel.stringValue = songs.isEmpty ? "" : infoParts.joined(separator: " · ")
-
-    tableView.reloadData()
-    emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Downloads"))
-    emptyLabel.isHidden = !songs.isEmpty
   }
 
   @objc

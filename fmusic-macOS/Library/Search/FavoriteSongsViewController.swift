@@ -19,6 +19,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// Flat list of the account's favorite songs, reusing the song-row look of
@@ -33,6 +34,7 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
   private let scrollView = NSScrollView()
 
   private var songs: [Song] = []
+  private var reloadGeneration = 0
 
   private enum Column {
     static let artwork = NSUserInterfaceItemIdentifier("favoriteArtwork")
@@ -168,6 +170,8 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
   @objc
   private func reloadSongs() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       songs = []
       tableView.reloadData()
@@ -176,12 +180,25 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
       emptyLabel.isHidden = false
       return
     }
-    let account = storage.main.library.getAccount(info: accountInfo)
-    songs = storage.main.library.getFavoriteSongs(for: account)
-    tableView.reloadData()
-    countLabel.stringValue = songs.isEmpty ? "" : "\(songs.count)"
-    emptyLabel.stringValue = L10n.tr("No Results")
-    emptyLabel.isHidden = !songs.isEmpty
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+    Task { [weak self] in
+      guard let self else { return }
+      let ids = try? await storage.async.performAndGet { companion
+        -> [NSManagedObjectID] in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        return companion.library.getFavoriteSongs(for: account).map(\.managedObject.objectID)
+      }
+      guard generation == self.reloadGeneration,
+            storage.settings.accounts.active == accountInfo else { return }
+      let context = storage.main.context
+      self.songs = (ids ?? [])
+        .compactMap { context.object(with: $0) as? SongMO }
+        .compactMap { Song(managedObject: $0) }
+      self.tableView.reloadData()
+      self.countLabel.stringValue = self.songs.isEmpty ? "" : "\(self.songs.count)"
+      self.emptyLabel.stringValue = L10n.tr("No Results")
+      self.emptyLabel.isHidden = !self.songs.isEmpty
+    }
   }
 
   // MARK: - Actions

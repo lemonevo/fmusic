@@ -64,10 +64,12 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private var artworkWidthConstraint: NSLayoutConstraint?
   private var artworkHeightConstraint: NSLayoutConstraint?
 
-  nonisolated(unsafe) private var progressTimer: Timer?
+  private var clockToken: UUID?
   private var isUpdatingProgress = false
 
   private var player: PlayerFacade { FmusicKit.shared.player }
+  private let entityActions = PlayerEntityActions()
+  private var entityPlaylistHandlers: [() -> Void] = []
   private var storage: PersistentStorage { FmusicKit.shared.storage }
 
   // MARK: - Layout constants (scaled from the Catalyst large player)
@@ -128,19 +130,17 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       name: .accountActiveChanged,
       object: nil
     )
-    progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) {
-      [weak self] _ in
-      Task { @MainActor in self?.timerTick() }
-    }
-    if let progressTimer {
-      RunLoop.main.add(progressTimer, forMode: .common)
+    if clockToken == nil {
+      clockToken = PlaybackClock.shared.subscribe { [weak self] in
+        self?.timerTick()
+      }
     }
   }
 
   override func viewDidDisappear() {
     super.viewDidDisappear()
-    progressTimer?.invalidate()
-    progressTimer = nil
+    PlaybackClock.shared.unsubscribe(clockToken)
+    clockToken = nil
   }
 
   override func viewDidLayout() {
@@ -156,7 +156,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   deinit {
-    progressTimer?.invalidate()
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -213,7 +212,8 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
     NSLayoutConstraint.activate([
       closeButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
-      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
+      // Clear the traffic lights instead of sitting in the same titlebar band.
+      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 44),
 
       volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
       volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
@@ -272,6 +272,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     for label in [elapsedLabel, remainingLabel] {
       label.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
       label.textColor = NSColor.white.withAlphaComponent(0.65)
+      label.lineBreakMode = .byClipping
+      label.maximumNumberOfLines = 1
+      label.setContentCompressionResistancePriority(.required, for: .horizontal)
       label.translatesAutoresizingMaskIntoConstraints = false
     }
     remainingLabel.alignment = .right
@@ -327,9 +330,15 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
       elapsedLabel.leadingAnchor.constraint(equalTo: progressSlider.leadingAnchor),
       elapsedLabel.topAnchor.constraint(equalTo: progressSlider.bottomAnchor, constant: 6),
+      elapsedLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
 
       remainingLabel.trailingAnchor.constraint(equalTo: progressSlider.trailingAnchor),
-      remainingLabel.topAnchor.constraint(equalTo: elapsedLabel.topAnchor),
+      remainingLabel.centerYAnchor.constraint(equalTo: elapsedLabel.centerYAnchor),
+      remainingLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 44),
+      remainingLabel.leadingAnchor.constraint(
+        greaterThanOrEqualTo: elapsedLabel.trailingAnchor,
+        constant: 12
+      ),
 
       shuffleButton.leadingAnchor.constraint(equalTo: artworkView.leadingAnchor, constant: 20),
       shuffleButton.topAnchor.constraint(equalTo: elapsedLabel.bottomAnchor, constant: 24),
@@ -342,6 +351,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       playPauseButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
       nextButton.leadingAnchor.constraint(equalTo: playPauseButton.trailingAnchor, constant: 30),
       nextButton.centerYAnchor.constraint(equalTo: shuffleButton.centerYAnchor),
+      repeatButton.trailingAnchor.constraint(
+        lessThanOrEqualTo: progressSlider.trailingAnchor
+      ),
     ])
   }
 
@@ -575,8 +587,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func toggleFavorite() {
-    guard let song = player.currentlyPlaying?.asSong else { return }
-    song.isFavorite.toggle()
+    entityActions.toggleFavorite()
     refreshModeState()
   }
 
@@ -646,9 +657,35 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     menu.addItem(rating)
     menu.addItem(.separator())
 
-    menu.addItem(disabledItem(L10n.tr("Add to Playlist")))
-    menu.addItem(disabledItem(L10n.tr("Delete Cache")))
-    menu.addItem(disabledItem(L10n.tr("Share")))
+    let playlistOptions = entityActions.addToPlaylistOptions(for: song)
+    entityPlaylistHandlers = playlistOptions.map(\.1)
+    let playlistItem = NSMenuItem(
+      title: L10n.tr("Add to Playlist"),
+      action: nil,
+      keyEquivalent: ""
+    )
+    if playlistOptions.isEmpty {
+      playlistItem.isEnabled = false
+    } else {
+      let submenu = NSMenu()
+      for (index, option) in playlistOptions.enumerated() {
+        let item = NSMenuItem(
+          title: option.0,
+          action: #selector(addToPlaylistChosen(_:)),
+          keyEquivalent: ""
+        )
+        item.target = self
+        item.tag = index
+        submenu.addItem(item)
+      }
+      playlistItem.submenu = submenu
+    }
+    menu.addItem(playlistItem)
+
+    let downloadItem = actionItem(L10n.tr("Download"), #selector(downloadCurrentSong))
+    downloadItem.isEnabled = entityActions.canDownload(song)
+    menu.addItem(downloadItem)
+    menu.addItem(actionItem(L10n.tr("Share"), #selector(shareCurrentSong)))
 
     menu.popUp(
       positioning: nil,
@@ -659,46 +696,50 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   @objc
   private func instantMix() {
-    if let url = URL(string: "fmusic://x-callback-url/playRandomSongs") {
-      NSWorkspace.shared.open(url)
-    }
+    entityActions.instantMix()
   }
 
   @objc
   private func showAlbumPage() {
-    guard let album = player.currentlyPlaying?.asSong?.album else { return }
-    (NSApp.delegate as? AppDelegate)?
-      .mainWindowController?
-      .mainViewController?
-      .openAlbum(album)
+    entityActions.showAlbum()
   }
 
   @objc
   private func showArtistPage() {
-    guard let artist = player.currentlyPlaying?.asSong?.artist else { return }
-    (NSApp.delegate as? AppDelegate)?
-      .mainWindowController?
-      .mainViewController?
-      .openArtist(artist)
+    entityActions.showArtist()
   }
 
   @objc
   private func toggleDesktopLyrics() {
-    AppDelegate.sharedAppDelegate?.toggleDesktopLyrics(nil)
+    entityActions.toggleDesktopLyrics()
   }
 
   @objc
   private func matchOnlineLyrics() {
-    guard let song = player.currentlyPlaying?.asSong else { return }
-    Task { @MainActor in
-      _ = await OnlineLyricsService.shared.matchLyrics(for: song)
-    }
+    entityActions.matchOnlineLyrics()
   }
 
   @objc
   private func setRating(_ sender: NSMenuItem) {
+    entityActions.setRating(sender.tag)
+  }
+
+  @objc
+  private func addToPlaylistChosen(_ sender: NSMenuItem) {
+    guard entityPlaylistHandlers.indices.contains(sender.tag) else { return }
+    entityPlaylistHandlers[sender.tag]()
+  }
+
+  @objc
+  private func downloadCurrentSong() {
     guard let song = player.currentlyPlaying?.asSong else { return }
-    song.rating = sender.tag
+    entityActions.download(song)
+  }
+
+  @objc
+  private func shareCurrentSong() {
+    guard let song = player.currentlyPlaying?.asSong else { return }
+    entityActions.share(song, relativeTo: optionsButton)
   }
 
   private func headerItem(_ title: String) -> NSMenuItem {

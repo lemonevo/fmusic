@@ -103,59 +103,30 @@ public class PersistentStorage {
     case SettingsApp = "settings.app"
     case SettingsUser = "settings.user"
     case SettingsAccount = "settings.account"
-
-    // Deprecated Settings
-    case ServerUrl = "serverUrl"
-    case AlternativeServerUrls = "alternativeServerUrls"
-    case Username = "username"
-    case Password = "password"
-    case BackendApi = "backendApi"
-    case LibraryIsSynced = "libraryIsSynced"
-    case InitialSyncCompletionStatus = "initialSyncCompletionStatus"
-    case ArtworkDownloadSetting = "artworkDownloadSetting"
-    case ArtworkDisplayPreference = "artworkDisplayPreference"
-    case SleepTimerInterval = "sleepTimerInterval" // not used anymore !!!
-    case ScreenLockPreventionPreference = "screenLockPreventionPreference"
-    case CacheLimit = "cacheLimitInBytes" // limit in byte
-    case PlayerVolume = "playerVolume"
-    case ShowDetailedInfo = "showDetailedInfo"
-    case ShowSongDuration = "showSongDuration"
-    case ShowAlbumDuration = "showAlbumDuration"
-    case ShowArtistDuration = "showArtistDuration"
-    case PlayerShuffleButtonEnabled = "enablePlayerShuffleButton"
-    case ShowMusicPlayerSkipButtons = "showMusicPlayerSkipButtons"
-    case AlwaysHidePlayerLyricsButton = "alwaysHidePlayerLyricsButton"
-    case IsLyricsSmoothScrolling = "isLyricsSmoothScrolling"
-    case AppearanceMode = "appearanceMode"
-    case SongActionOnTab = "songActionOnTab"
-    case LibraryDisplaySettings = "libraryDisplaySettings"
-    case SwipeLeadingActionSettings = "swipeLeadingActionSettings"
-    case SwipeTrailingActionSettings = "swipeTrailingActionSettings"
-    case PlaylistsSortSetting = "playlistsSortSetting"
-    case ArtistsSortSetting = "artistsSortSetting"
-    case AlbumsSortSetting = "albumsSortSetting"
-    case SongsSortSetting = "songsSortSetting"
-    case FavoriteSongSortSetting = "favoriteSongSortSetting"
-    case ArtistsFilterSetting = "artistsFilterSetting"
-    case AlbumsDisplayStyleSetting = "albumsDisplayStyleSetting"
-    case AlbumsGridSizeSetting = "albumsGridSizeSetting"
-    case PodcastsShowSetting = "podcastsShowSetting"
-    case PlayerDisplayStyle = "playerDisplayStyle"
-    case IsPlayerLyricsDisplayed = "isPlayerLyricsDisplayed" // not used anymore
-    case IsPlayerVisualizerDisplayed = "isPlayerVisualizerDisplayed"
-    case IsOfflineMode = "isOfflineMode"
-    case IsAutoDownloadLatestSongsActive = "isAutoDownloadLatestSongsActive"
-    case IsPlaybackStartOnlyOnPlay = "isPlaybackStartOnlyOnPlay"
-    case LibrarySyncVersion = "librarySyncVersion"
-    case IsHapticsEnabled = "isHapticsEnabled"
-    case HomeSections = "homeSections"
-    case LibrarySyncInfoReadByUser = "librarySyncInfoReadByUser"
-    case ThemePreference = "themePreference"
-    case IsEqualizerEnabled = "isEqualizerEnabled"
-    case EqualizerSettings = "equalizerSettings"
-    case ActiveEqualizerSetting = "activeEqualizerSetting"
-    case IsReplayGainEnabled = "isReplayGainEnabled"
   }
+
+  /// Flat keys from the Catalyst front-end. They are no longer read or written; the
+  /// AppKit app keeps everything in the three `settings.*` blobs above.
+  private static let legacyCatalystDefaultsKeys = [
+    "serverUrl", "alternativeServerUrls", "username", "password", "backendApi",
+    "libraryIsSynced", "initialSyncCompletionStatus", "artworkDownloadSetting",
+    "artworkDisplayPreference", "sleepTimerInterval", "screenLockPreventionPreference",
+    "cacheLimitInBytes", "playerVolume", "showDetailedInfo", "showSongDuration",
+    "showAlbumDuration", "showArtistDuration", "enablePlayerShuffleButton",
+    "showMusicPlayerSkipButtons", "alwaysHidePlayerLyricsButton",
+    "isLyricsSmoothScrolling", "appearanceMode", "songActionOnTab",
+    "libraryDisplaySettings", "swipeLeadingActionSettings",
+    "swipeTrailingActionSettings", "playlistsSortSetting", "artistsSortSetting",
+    "albumsSortSetting", "songsSortSetting", "favoriteSongSortSetting",
+    "artistsFilterSetting", "albumsDisplayStyleSetting", "albumsGridSizeSetting",
+    "podcastsShowSetting", "playerDisplayStyle", "isPlayerLyricsDisplayed",
+    "isPlayerVisualizerDisplayed", "isOfflineMode", "isAutoDownloadLatestSongsActive",
+    "isPlaybackStartOnlyOnPlay", "librarySyncVersion", "isHapticsEnabled",
+    "homeSections", "librarySyncInfoReadByUser", "themePreference",
+    "isEqualizerEnabled", "equalizerSettings", "activeEqualizerSetting",
+    "isReplayGainEnabled",
+  ]
+  private static let legacyPurgeMarkerKey = "fmusic.legacyCatalystDefaultsPurged"
 
   private var coreDataManager: CoreDataManagable
 
@@ -163,10 +134,19 @@ public class PersistentStorage {
     self.coreDataManager = coreDataManager
   }
 
-  // deprecated
-  public var legacySettings = LegacySettings()
-
   public var settings = fmusicSettings()
+
+  /// One-time removal of the old Catalyst login/settings keys. The new AppKit
+  /// settings live in `settings.app`, `settings.user` and `settings.account` and
+  /// are deliberately not touched.
+  public func purgeLegacyCatalystDefaultsIfNeeded() {
+    let defaults = UserDefaults.standard
+    guard !defaults.bool(forKey: Self.legacyPurgeMarkerKey) else { return }
+    for key in Self.legacyCatalystDefaultsKeys {
+      defaults.removeObject(forKey: key)
+    }
+    defaults.set(true, forKey: Self.legacyPurgeMarkerKey)
+  }
 
   @MainActor
   public lazy var main: CoreDataCompanion = {

@@ -29,7 +29,6 @@ import fmusicKit
 final class LyricsPaneView: NSView {
   private let scrollView = NSScrollView()
   private let textView = NSTextView()
-  private let tracker = LyricsLineTracker()
 
   private var lyrics: StructuredLyrics?
   private var renderedSongID: String?
@@ -175,7 +174,6 @@ final class LyricsPaneView: NSView {
     // Lyrics files may have been written by the sync; reload the current song.
     loadedSongID = nil
     lyrics = nil
-    tracker.setLyrics(nil)
     refreshSongIfNeeded()
     renderCurrentLine(force: true)
   }
@@ -197,7 +195,6 @@ final class LyricsPaneView: NSView {
     else { return }
     loadedSongID = nil
     lyrics = nil
-    tracker.setLyrics(nil)
     refreshSongIfNeeded()
     renderCurrentLine(force: true)
   }
@@ -208,8 +205,7 @@ final class LyricsPaneView: NSView {
     guard let playable = player.currentlyPlaying, let song = playable.asSong else {
       loadedSongID = nil
       lyrics = nil
-      tracker.setLyrics(nil)
-        renderedSongID = nil
+          renderedSongID = nil
       lastRenderedLine = -2
       renderStatus(L10n.tr("Play a song to see the lyrics here."))
       return
@@ -219,7 +215,6 @@ final class LyricsPaneView: NSView {
     guard loadedSongID != songID else { return }
     loadedSongID = songID
     lyrics = nil
-    tracker.setLyrics(nil)
     renderedSongID = nil
     lastRenderedLine = -2
 
@@ -244,7 +239,6 @@ final class LyricsPaneView: NSView {
         return
       }
       self.lyrics = structuredLyrics
-      self.tracker.setLyrics(structuredLyrics)
       self.renderLyrics()
     }
   }
@@ -286,8 +280,7 @@ final class LyricsPaneView: NSView {
     let currentFont = NSFont.systemFont(ofSize: 29, weight: .bold)
     let translationFont = NSFont.systemFont(ofSize: 17)
 
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.lineSpacing = 34
+    let paragraph = LyricsPresentation.paragraphStyle(lineSpacing: 34)
 
     for (index, line) in lyrics.line.enumerated() {
       lineLocations.append(output.length)
@@ -331,25 +324,13 @@ final class LyricsPaneView: NSView {
   }
 
   private func currentSyncedLineIndex() -> Int {
-    guard let lyrics, lyrics.synced, !lyrics.line.isEmpty else { return -1 }
-    guard let snapshot = tracker.snapshot(
-      at: player.elapsedTime,
-      userOffsetMs: FmusicKit.shared.storage.settings.user.lyricsOffsetMs
-    ) else { return -1 }
-
-    let target = snapshot.currentText
-    let count = lyrics.line.count
-    let index = min(max(lastRenderedLine, 0), count - 1)
-    if lyrics.line[index].value == target { return index }
-    for candidate in index..<count where lyrics.line[candidate].value == target {
-      return candidate
-    }
-    for candidate in stride(from: min(index, count - 1), through: 0, by: -1)
-      where lyrics.line[candidate].value == target
-    {
-      return candidate
-    }
-    return index
+    guard let lyrics else { return -1 }
+    return LyricsPresentation.currentLineIndex(
+      lyrics: lyrics,
+      elapsed: player.elapsedTime,
+      userOffsetMs: FmusicKit.shared.storage.settings.user.lyricsOffsetMs,
+      leadTime: LyricsPresentation.leadTime
+    )
   }
 
   private func scrollToLine(_ lineIndex: Int) {

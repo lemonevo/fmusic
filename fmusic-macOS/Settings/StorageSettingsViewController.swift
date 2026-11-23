@@ -57,9 +57,24 @@ final class StorageSettingsViewController: SettingsPageViewController {
     cachedCountRow = cachedRow
     cacheSizeRow = sizeRow
 
+    let autoCleanupRow = makeSwitchRow(
+      title: L10n.tr("Automatically Clean Cache"),
+      subtitle: L10n.tr(
+        "Remove the least recently used cached audio, artwork and lyrics files when the cache limit is exceeded. The currently playing file and files touched in the last 15 minutes are protected."
+      ),
+      isOn: UserDefaults.standard.bool(
+        forKey: CacheFileManager.automaticEvictionDefaultsKey
+      )
+    ) { isOn in
+      UserDefaults.standard.set(
+        isOn,
+        forKey: CacheFileManager.automaticEvictionDefaultsKey
+      )
+    }
+
     addSection(
       header: L10n.tr("Cache"),
-      rows: [cachedRow, sizeRow, limitRow]
+      rows: [cachedRow, sizeRow, limitRow, autoCleanupRow]
     )
     refreshStats()
 

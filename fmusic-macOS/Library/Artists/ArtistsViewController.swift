@@ -17,6 +17,7 @@
 //
 
 import AppKit
+import CoreData
 import fmusicKit
 
 /// `.artists` — artist list with circular artwork, name and album/song counts.
@@ -34,6 +35,7 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
   private let emptyLabel = NSTextField(labelWithString: "")
 
   private var artists: [Artist] = []
+  private var reloadGeneration = 0
 
   private let columnIdentifier = NSUserInterfaceItemIdentifier("artistColumn")
   private let cellIdentifier = NSUserInterfaceItemIdentifier("artistCell")
@@ -161,6 +163,8 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
   @objc
   private func reloadArtists() {
     let storage = FmusicKit.shared.storage
+    reloadGeneration += 1
+    let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
       artists = []
       tableView.reloadData()
@@ -169,23 +173,39 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
       emptyLabel.isHidden = false
       return
     }
+    let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
+    let filter: ArtistCategoryFilter = forceFavoritesOnly
+      ? .favorites
+      : storage.settings.user.artistsFilterSetting
 
-    let library = storage.main.library
-    let account = library.getAccount(info: accountInfo)
-    let filter: ArtistCategoryFilter = forceFavoritesOnly ? .favorites : storage.settings.user.artistsFilterSetting
-    switch filter {
-    case .all:
-      artists = library.getArtists(for: account)
-    case .favorites:
-      artists = library.getFavoriteArtists(for: account)
-    case .albumArtists:
-      artists = library.getAlbumArtists(for: account)
+    Task { [weak self] in
+      guard let self else { return }
+      let storage = FmusicKit.shared.storage
+      let objectIDs = try? await storage.async.performAndGet { companion
+        -> [NSManagedObjectID] in
+        let account = companion.library.getAccount(managedObjectId: accountID)
+        switch filter {
+        case .all:
+          return companion.library.getArtists(for: account).map(\.managedObject.objectID)
+        case .favorites:
+          return companion.library.getFavoriteArtists(for: account).map(\.managedObject.objectID)
+        case .albumArtists:
+          return companion.library.getAlbumArtists(for: account).map(\.managedObject.objectID)
+        }
+      }
+      guard generation == self.reloadGeneration,
+            storage.settings.accounts.active == accountInfo else { return }
+      let context = storage.main.context
+      self.artists = (objectIDs ?? [])
+        .compactMap { context.object(with: $0) as? ArtistMO }
+        .compactMap { Artist(managedObject: $0) }
+      self.tableView.reloadData()
+      self.subtitleLabel.stringValue = self.artists.isEmpty
+        ? ""
+        : LibraryCountText.artists(self.artists.count)
+      self.emptyLabel.stringValue = self.emptyMessage
+      self.emptyLabel.isHidden = !self.artists.isEmpty
     }
-
-    tableView.reloadData()
-    subtitleLabel.stringValue = artists.isEmpty ? "" : LibraryCountText.artists(artists.count)
-    emptyLabel.stringValue = emptyMessage
-    emptyLabel.isHidden = !artists.isEmpty
   }
 
   @objc
