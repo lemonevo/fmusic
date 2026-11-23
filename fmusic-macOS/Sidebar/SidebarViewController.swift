@@ -590,20 +590,22 @@ final class SidebarTitleButton: NSView {
   override func draw(_ dirtyRect: NSRect) {
     let r = bounds.insetBy(dx: 0.5, dy: 0.5)
     let path = NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2)
-    // Soft drop shadow drawn with the path (kept in the same non-layer pass so it
-    // doesn't force offscreen compositing).
+    // The reference buttons have NO hard outline — a white pill that fades into the
+    // surface via a soft, barely-there shadow. A soft outer glow plus a faint inner
+    // rim gives the same weightless "floating" edge instead of a visible stroke.
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(0.12)
-    shadow.shadowBlurRadius = 2
-    shadow.shadowOffset = NSSize(width: 0, height: -1)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.10)
+    shadow.shadowBlurRadius = 3
+    shadow.shadowOffset = NSSize(width: 0, height: -0.5)
     shadow.set()
-    (isPressed ? NSColor.black.withAlphaComponent(0.06) : NSColor.white).setFill()
+    (isPressed ? NSColor.black.withAlphaComponent(0.05) : NSColor.white).setFill()
     path.fill()
     NSGraphicsContext.restoreGraphicsState()
-    // Hairline border on top of the fill.
-    NSColor.separatorColor.withAlphaComponent(0.55).setStroke()
-    path.lineWidth = 1
+    // Very faint inner rim (≈4% black) so the pill reads on both light and dark,
+    // far softer than a separator-coloured 1 pt line.
+    NSColor.black.withAlphaComponent(0.05).setStroke()
+    path.lineWidth = 0.5
     path.stroke()
 
     switch content {
