@@ -36,6 +36,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   private let backButton = NSButton()
   private let titleLabel = NSTextField(labelWithString: "")
   private let searchField = NSSearchField()
+  /// Grey pill that hosts the bezel-less search field (matches the requested toolbar
+  /// search box fill `#ECECEE`).
+  private let searchFieldContainer = NSView()
   private let separator = NSView()
   /// Title pinned right after the back button (pushed pages).
   private var titleAfterBack: NSLayoutConstraint?
@@ -49,7 +52,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.toolbarBackgroundColor.cgColor
 
     backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
     backButton.isBordered = false
@@ -77,7 +80,20 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     searchField.delegate = self
     searchField.sendsSearchStringImmediately = true
     searchField.translatesAutoresizingMaskIntoConstraints = false
-    searchField.isHidden = true
+    // Draw the field itself without a bezel and let the surrounding pill provide the
+    // grey fill (NSSearchField's own bezel can't be tinted to #ECECEE reliably).
+    searchField.isBezeled = false
+    searchField.drawsBackground = false
+    searchField.focusRingType = .none
+
+    searchFieldContainer.wantsLayer = true
+    searchFieldContainer.layer?.cornerRadius = 10
+    searchFieldContainer.layer?.cornerCurve = .continuous
+    searchFieldContainer.layer?.backgroundColor =
+      MacTheme.searchFieldBackgroundColor.cgColor
+    searchFieldContainer.isHidden = true
+    searchFieldContainer.translatesAutoresizingMaskIntoConstraints = false
+    searchFieldContainer.addSubview(searchField)
 
     separator.isHidden = true
     separator.wantsLayer = true
@@ -85,7 +101,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
 
     addSubview(backButton)
     addSubview(titleLabel)
-    addSubview(searchField)
+    addSubview(searchFieldContainer)
     addSubview(separator)
 
     let afterBack = titleLabel.leadingAnchor.constraint(
@@ -106,16 +122,20 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
       atLeading,
       titleLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
       titleLabel.trailingAnchor.constraint(
-        lessThanOrEqualTo: searchField.leadingAnchor,
+        lessThanOrEqualTo: searchFieldContainer.leadingAnchor,
         constant: -16
       ),
       titleLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 460),
 
-      searchField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
-      searchField.centerYAnchor.constraint(equalTo: centerYAnchor),
-      // Matches the Catalyst integrated search field width; the height comes from
-      // `controlSize = .large` (a hard height constraint breaks its bezel drawing).
-      searchField.widthAnchor.constraint(equalToConstant: 325),
+      searchFieldContainer.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -24),
+      searchFieldContainer.centerYAnchor.constraint(equalTo: centerYAnchor),
+      // Matches the Catalyst integrated search field width.
+      searchFieldContainer.widthAnchor.constraint(equalToConstant: 325),
+      searchFieldContainer.heightAnchor.constraint(equalToConstant: 32),
+
+      searchField.leadingAnchor.constraint(equalTo: searchFieldContainer.leadingAnchor, constant: 12),
+      searchField.trailingAnchor.constraint(equalTo: searchFieldContainer.trailingAnchor, constant: -12),
+      searchField.centerYAnchor.constraint(equalTo: searchFieldContainer.centerYAnchor),
 
       separator.leadingAnchor.constraint(equalTo: leadingAnchor),
       separator.trailingAnchor.constraint(equalTo: trailingAnchor),
@@ -130,7 +150,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.toolbarBackgroundColor.cgColor
+    searchFieldContainer.layer?.backgroundColor =
+      MacTheme.searchFieldBackgroundColor.cgColor
   }
 
   func configure(title: String, showsBack: Bool, searchPlaceholder: String?) {
@@ -141,10 +163,12 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     titleAfterBack?.isActive = showsBack
     titleAtLeading?.isActive = !showsBack
     if let searchPlaceholder, !searchPlaceholder.isEmpty {
+      searchFieldContainer.isHidden = false
       searchField.isHidden = false
       searchField.placeholderString = searchPlaceholder
       searchField.stringValue = ""
     } else {
+      searchFieldContainer.isHidden = true
       searchField.isHidden = true
       searchField.stringValue = ""
     }

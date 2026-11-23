@@ -66,6 +66,13 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     root.wantsLayer = true
     root.layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
 
+    // 1 px divider flush with the sidebar's trailing edge. It lives inside the sidebar
+    // column so it tracks the split position automatically (resize, collapse, drag)
+    // without the main controller having to lay it out.
+    let divider = ColumnSeparatorView()
+    divider.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(divider)
+
     let column = NSTableColumn(identifier: columnIdentifier)
     column.resizingMask = .autoresizingMask
     tableView.addTableColumn(column)
@@ -132,6 +139,11 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     ])
 
     NSLayoutConstraint.activate([
+      divider.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      divider.topAnchor.constraint(equalTo: root.topAnchor),
+      divider.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+      divider.widthAnchor.constraint(equalToConstant: 1),
+
       scrollView.topAnchor.constraint(equalTo: root.topAnchor),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
@@ -317,6 +329,9 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     let rowView = ThemedRowView()
     rowView.cornerRadius = 6
     rowView.horizontalInset = 8
+    // Sidebar uses a flat light-grey pill (#DCDCE0) rather than the translucent tint.
+    rowView.solidSelectionColor = MacTheme.sidebarSelectionColor
+    rowView.needsDisplay = true
     return rowView
   }
 
@@ -490,5 +505,27 @@ private final class SidebarBackgroundView: NSView {
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
     layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+  }
+}
+
+// MARK: - ColumnSeparatorView
+
+/// 1 px light-grey line marking the sidebar / content boundary; repaints on
+/// appearance changes so it stays correct in dark mode.
+@MainActor
+private final class ColumnSeparatorView: NSView {
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.backgroundColor = MacTheme.columnDividerColor.cgColor
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    layer?.backgroundColor = MacTheme.columnDividerColor.cgColor
   }
 }

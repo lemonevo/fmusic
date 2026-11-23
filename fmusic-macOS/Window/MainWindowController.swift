@@ -34,7 +34,7 @@ final class MainWindowController: NSWindowController {
     window.title = "fmusic"
     window.titleVisibility = .hidden
     window.titlebarAppearsTransparent = true
-    window.backgroundColor = MacTheme.sidebarBackgroundColor
+    window.backgroundColor = MacTheme.contentBackgroundColor
     window.minSize = NSSize(width: 980, height: 540)
     window.isReleasedWhenClosed = false
     window.tabbingMode = .disallowed

@@ -52,8 +52,9 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
   // MARK: - Lifecycle
 
   override func loadView() {
-    let root = NSView()
-    root.wantsLayer = true
+    // Same warm grey page surface as the other library pages (Catalyst paints the
+    // whole window body with the base background; only the toolbar is white).
+    let root = ThemedBackgroundView()
 
     let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("search"))
     column.resizingMask = .autoresizingMask

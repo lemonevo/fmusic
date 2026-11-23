@@ -50,22 +50,67 @@ enum MacTheme {
     FmusicKit.shared.storage.settings.accounts.activeSetting.read.themePreference.asColor
   }
 
-  /// The Catalyst app uses `UIColor.secondarySystemBackground` for the sidebar
-  /// (SideBarVC) and `UIColor.systemBackground` for the content area. These are
-  /// the exact UIKit values expressed as AppKit dynamic colours.
+  /// Two-column light layout requested for the main window:
+  ///  - sidebar: cool light grey #ECECEE
+  ///  - content page + toolbar: pure white #FFFFFF
+  ///  - 1 pt hairline divider between the columns: #E1E1E4
+  /// Dark mode keeps the earlier Catalyst-derived tones.
   static var sidebarBackgroundColor: NSColor {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
       return isDark
         ? NSColor(srgbRed: 0x26 / 255, green: 0x25 / 255, blue: 0x24 / 255, alpha: 1)
-        : NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
+        : NSColor(srgbRed: 0xEC / 255, green: 0xEC / 255, blue: 0xEE / 255, alpha: 1)
     }
   }
 
+  /// Main content + toolbar surface: pure white in light mode.
   static var contentBackgroundColor: NSColor {
     NSColor(name: nil) { appearance in
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-      return isDark ? NSColor(white: 0.118, alpha: 1) : .white
+      return isDark
+        ? NSColor(srgbRed: 0x1D / 255, green: 0x1D / 255, blue: 0x1D / 255, alpha: 1)
+        : .white
+    }
+  }
+
+  /// The content toolbar shares the page surface (white).
+  static var toolbarBackgroundColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor(srgbRed: 0x1D / 255, green: 0x1D / 255, blue: 0x1D / 255, alpha: 1)
+        : .white
+    }
+  }
+
+  /// Sidebar selected-row plate: light grey #DCDCE0 (light), neutral grey in dark.
+  static var sidebarSelectionColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.10)
+        : NSColor(srgbRed: 0xDC / 255, green: 0xDC / 255, blue: 0xE0 / 255, alpha: 1)
+    }
+  }
+
+  /// 1 pt divider between the sidebar and the content column (#E1E1E4 light).
+  static var columnDividerColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.08)
+        : NSColor(srgbRed: 0xE1 / 255, green: 0xE1 / 255, blue: 0xE4 / 255, alpha: 1)
+    }
+  }
+
+  /// Pill fill for the toolbar search field: cool light grey #ECECEE in light mode.
+  static var searchFieldBackgroundColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.08)
+        : NSColor(srgbRed: 0xEC / 255, green: 0xEC / 255, blue: 0xEE / 255, alpha: 1)
     }
   }
 
@@ -109,13 +154,21 @@ final class ThemedRowView: NSTableRowView {
   var horizontalInset: CGFloat = 6
   /// Whether to tint the plate with the theme accent (used by pages that want it).
   var usesAccentColor = false
+  /// When set, the selection plate is filled with this solid colour (e.g. the sidebar's
+  /// #DCDCE0 pill) instead of the translucent label tint.
+  var solidSelectionColor: NSColor?
 
   override func drawSelection(in dirtyRect: NSRect) {
     guard selectionHighlightStyle != .none else { return }
     let rect = bounds.insetBy(dx: horizontalInset, dy: 2)
-    let color = usesAccentColor
-      ? MacTheme.accentColor.withAlphaComponent(isEmphasized ? 0.22 : 0.14)
-      : NSColor.labelColor.withAlphaComponent(isEmphasized ? 0.13 : 0.09)
+    let color: NSColor
+    if let solidSelectionColor {
+      color = solidSelectionColor
+    } else if usesAccentColor {
+      color = MacTheme.accentColor.withAlphaComponent(isEmphasized ? 0.22 : 0.14)
+    } else {
+      color = NSColor.labelColor.withAlphaComponent(isEmphasized ? 0.13 : 0.09)
+    }
     color.setFill()
     NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
   }
