@@ -24,31 +24,40 @@ import fmusicKit
 final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
   var onSelectionChanged: ((SidebarItem) -> Void)?
   var onToggleSidebar: (() -> Void)?
-  var onEditHome: (() -> Void)?
   var onOpenSettings: (() -> Void)?
 
   private enum Row {
     case section(String)
     case item(SidebarItem)
+    /// A configurable row in Edit mode: shows a check circle + drag handle.
+    case editable(SidebarItem)
   }
 
-  private let rows: [Row] = [
-    .item(.search),
-    .item(.home),
-    .section(L10n.tr("Library")),
-    .item(.songs),
-    .item(.artists),
-    .item(.albums),
-    .item(.newestAlbums),
-    .item(.recentlyPlayed),
-    .item(.lyricsSearch),
-    .item(.favoriteSongs),
-    .item(.playlists),
-    .item(.podcasts),
-    .item(.directories),
-    .item(.radios),
-    .item(.downloads),
-  ]
+  private var rows: [Row] = []
+
+  /// Whether the sidebar is in its "编辑 / 完成" configuration mode.
+  private var isEditingSidebar = false
+
+  /// Index of the first configurable row (the editable block starts here).
+  private var editableStartIndex: Int {
+    rows.firstIndex(where: {
+      if case .editable = $0 { return true }
+      if case .item(let item) = $0 { return !SidebarConfiguration.fixedItems.contains(item) }
+      return false
+    }) ?? rows.count
+  }
+
+  private var configuredItems: [SidebarItem] {
+    isEditingSidebar ? SidebarConfiguration.editingItems() : SidebarConfiguration.visibleItems()
+  }
+
+  private func rebuildRows() {
+    var result: [Row] = [.item(.search), .item(.home), .section(L10n.tr("Library"))]
+    for item in configuredItems {
+      result.append(isEditingSidebar ? .editable(item) : .item(item))
+    }
+    rows = result
+  }
 
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
@@ -58,6 +67,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let accountAvatar = AvatarView()
 
   private let cellIdentifier = NSUserInterfaceItemIdentifier("SidebarCell")
+  private let editableIdentifier = NSUserInterfaceItemIdentifier("SidebarEditableCell")
   private let groupIdentifier = NSUserInterfaceItemIdentifier("SidebarGroup")
   private let columnIdentifier = NSUserInterfaceItemIdentifier("SidebarColumn")
 
@@ -84,6 +94,9 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     tableView.backgroundColor = .clear
     tableView.dataSource = self
     tableView.delegate = self
+    tableView.registerForDraggedTypes([.string])
+    tableView.setDraggingSourceOperationMask(.move, forLocal: true)
+    tableView.draggingDestinationFeedbackStyle = .gap
 
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = false
@@ -99,7 +112,7 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     // independent raised controls (white pill, hairline border, soft shadow) drawn with
     // draw(_:) so the labels stay crisp inside the titlebar's glass band.
     editButton.content = .title(L10n.tr("Edit"))
-    editButton.onClick = { [weak self] in self?.editPressed() }
+    editButton.onClick = { [weak self] in self?.toggleEditMode() }
     editButton.translatesAutoresizingMaskIntoConstraints = false
     editButton.toolTip = L10n.tr("Edit")
     editButton.setAccessibilityRole(.button)
@@ -122,12 +135,12 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
       // aligned with the traffic lights. Tight 6 pt gap keeps them a coherent cluster.
       editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 108),
       editButton.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 26),
-      editButton.heightAnchor.constraint(equalToConstant: 32),
+      editButton.heightAnchor.constraint(equalToConstant: SidebarStyle.rowHeight),
       editButton.widthAnchor.constraint(equalToConstant: 52),
       sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 6),
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
       sidebarButton.widthAnchor.constraint(equalToConstant: 36),
-      sidebarButton.heightAnchor.constraint(equalToConstant: 32),
+      sidebarButton.heightAnchor.constraint(equalToConstant: SidebarStyle.rowHeight),
     ])
 
     NSLayoutConstraint.activate([
@@ -152,6 +165,14 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
 
   override func viewDidLoad() {
     super.viewDidLoad()
+    // Dev hook, mirroring `--page`: open directly in sidebar edit mode for inspection.
+    if ProcessInfo.processInfo.arguments.contains("--edit-sidebar") {
+      isEditingSidebar = true
+      editButton.content = .title(L10n.tr("Done"))
+      tableView.selectionHighlightStyle = .none
+    }
+    rebuildRows()
+    tableView.reloadData()
     selectRow(for: .home)
     updateAccountFooter()
     NotificationCenter.default.addObserver(
@@ -172,41 +193,46 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
 
   // MARK: - Top bar actions
 
-  @objc
-  private func editPressed() {
-    let menu = NSMenu()
-    let home = NSMenuItem(
-      title: L10n.tr("Edit Home"),
-      action: #selector(editHomePressed),
-      keyEquivalent: ""
-    )
-    home.target = self
-    menu.addItem(home)
-    let settings = NSMenuItem(
-      title: L10n.tr("Settings…"),
-      action: #selector(settingsPressed),
-      keyEquivalent: ""
-    )
-    settings.target = self
-    menu.addItem(settings)
-    menu.popUp(
-      positioning: nil,
-      at: NSPoint(x: editButton.bounds.midX, y: editButton.bounds.minY - 4),
-      in: editButton
-    )
+  /// 编辑 ↔ 完成. In edit mode every configurable row shows a visibility
+  /// check circle (left) and a reorder handle (right); Done hides them and
+  /// renders only the enabled rows.
+  private func toggleEditMode() {
+    isEditingSidebar.toggle()
+    editButton.content = .title(L10n.tr(isEditingSidebar ? "Done" : "Edit"))
+    tableView.selectionHighlightStyle = isEditingSidebar ? .none : .regular
+    let selected = currentSelectedItem()
+    rebuildRows()
+    tableView.reloadData()
+    if isEditingSidebar {
+      if let selected { selectRow(for: selected) }
+    } else if let selected, selected != .search, selected != .home,
+              !SidebarConfiguration.isVisible(selected) {
+      // The page the user was on just got hidden: fall back to Home.
+      selectRow(for: .home)
+    } else if let selected {
+      selectRow(for: selected)
+    }
   }
 
-  @objc
-  private func editHomePressed() {
-    onEditHome?()
+  /// Toggles visibility of a configurable item without changing the selection.
+  private func toggleVisibility(_ item: SidebarItem) {
+    let nowVisible = !SidebarConfiguration.isVisible(item)
+    SidebarConfiguration.setVisible(item, isVisible: nowVisible)
+    let selected = currentSelectedItem()
+    rebuildRows()
+    tableView.reloadData()
+    if let selected { selectRow(for: selected) }
   }
 
-  @objc
-  private func settingsPressed() {
-    onOpenSettings?()
+  private func currentSelectedItem() -> SidebarItem? {
+    let row = tableView.selectedRow
+    guard row >= 0, row < rows.count else { return nil }
+    switch rows[row] {
+    case .item(let item), .editable(let item): return item
+    case .section: return nil
+    }
   }
 
-  @objc
   private func sidebarPressed() {
     onToggleSidebar?()
   }
@@ -294,8 +320,10 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
 
   private func selectRow(for item: SidebarItem) {
     guard let index = rows.firstIndex(where: {
-      if case .item(let value) = $0 { return value == item }
-      return false
+      switch $0 {
+      case .item(let value), .editable(let value): return value == item
+      case .section: return false
+      }
     }) else { return }
     tableView.selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false)
   }
@@ -312,18 +340,15 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   }
 
   func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
-    if case .section = rows[row] { return MacTheme.sidebarSectionRowHeight }
-    return MacTheme.sidebarRowHeight
+    if case .section = rows[row] { return SidebarStyle.sectionRowHeight }
+    return SidebarStyle.rowHeight
   }
 
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
     guard !self.tableView(tableView, isGroupRow: row) else { return nil }
-    let rowView = ThemedRowView()
-    // Apple-Music-style fully rounded pill (height 38 pt → radius ~19).
-    rowView.cornerRadius = MacTheme.sidebarRowHeight / 2
-    rowView.horizontalInset = 8
-    // Sidebar uses a flat light-grey pill (#DCDCE0) rather than the translucent tint.
-    rowView.solidSelectionColor = MacTheme.sidebarSelectionColor
+    let rowView = SidebarRowView()
+    // Apple-Music-style fully rounded pill (38 pt row → 19 pt radius).
+    rowView.cornerRadius = SidebarStyle.rowHeight / 2
     rowView.needsDisplay = true
     return rowView
   }
@@ -336,18 +361,83 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     -> NSView? {
     switch rows[row] {
     case .section(let title):
-      let cell = tableView.makeView(withIdentifier: groupIdentifier, owner: self) as?
-        SidebarGroupCellView ?? SidebarGroupCellView()
+      let cell = tableView.makeView(withIdentifier: groupIdentifier, owner: self)
+        as? SidebarSectionCellView ?? SidebarSectionCellView()
       cell.identifier = groupIdentifier
       cell.title = title
       return cell
     case .item(let item):
-      let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self) as?
-        SidebarCellView ?? SidebarCellView()
+      let cell = tableView.makeView(withIdentifier: cellIdentifier, owner: self)
+        as? SidebarCellView ?? SidebarCellView(frame: .zero)
       cell.identifier = cellIdentifier
+      cell.showsLeadingAccessory = false
+      cell.showsDragHandle = false
       cell.configure(item: item)
       return cell
+    case .editable(let item):
+      let cell = tableView.makeView(withIdentifier: editableIdentifier, owner: self)
+        as? SidebarEditableCellView ?? SidebarEditableCellView(frame: .zero)
+      cell.identifier = editableIdentifier
+      cell.configure(
+        item: item,
+        isVisible: SidebarConfiguration.isVisible(item),
+        onToggle: { [weak self] in self?.toggleVisibility(item) }
+      )
+      return cell
     }
+  }
+
+  // MARK: - Drag reordering (Edit mode only)
+
+  func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int)
+    -> NSPasteboardWriting? {
+    guard isEditingSidebar, case .editable = rows[row] else { return nil }
+    let item = NSPasteboardItem()
+    item.setString(String(row), forType: .string)
+    return item
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    validateDrop info: NSDraggingInfo,
+    proposedRow row: Int,
+    proposedDropOperation dropOperation: NSTableView.DropOperation
+  )
+    -> NSDragOperation {
+    guard isEditingSidebar else { return [] }
+    // Only allow drops inside the configurable block (never above Search/Home
+    // or onto the section header).
+    let start = editableStartIndex
+    guard row >= start, row <= rows.count else { return [] }
+    return .move
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    acceptDrop info: NSDraggingInfo,
+    row: Int,
+    dropOperation: NSTableView.DropOperation
+  )
+    -> Bool {
+    guard isEditingSidebar,
+          let raw = info.draggingPasteboard.string(forType: .string),
+          let sourceRow = Int(raw),
+          sourceRow >= 0, sourceRow < rows.count,
+          case .editable = rows[sourceRow] else { return false }
+
+    // Translate the table row back to an index within the editable block.
+    let start = editableStartIndex
+    let sourceIndex = sourceRow - start
+    let count = SidebarConfiguration.editingItems().count
+    var targetIndex = row - start
+    if targetIndex > sourceIndex { targetIndex -= 1 }
+    targetIndex = min(max(targetIndex, 0), max(count - 1, 0))
+    guard sourceIndex >= 0, sourceIndex < count else { return false }
+
+    SidebarConfiguration.moveItem(from: sourceIndex, to: targetIndex)
+    rebuildRows()
+    tableView.reloadData()
+    return true
   }
 
   // MARK: - NSTableViewDelegate
@@ -355,6 +445,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   func tableViewSelectionDidChange(_ notification: Notification) {
     let row = tableView.selectedRow
     guard row >= 0, row < rows.count else { return }
+    // Edit mode is a configuration surface: selecting rows must not navigate.
+    guard !isEditingSidebar else { return }
     if case .item(let item) = rows[row] {
       onSelectionChanged?(item)
     }
@@ -364,77 +456,161 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
 // MARK: - SidebarCellView
 
 @MainActor
-private final class SidebarCellView: NSTableCellView {
-  private let iconView = NSImageView()
-  private let titleField = NSTextField(labelWithString: "")
+class SidebarCellView: SidebarTableCellView {
+  var showsLeadingAccessory = false {
+    didSet { leadingInset = showsLeadingAccessory ? 38 : SidebarStyle.iconLeading }
+  }
+
+  /// NSTableView uses `init(frame:)`, matching the shared base cell.
+  convenience init() {
+    self.init(frame: .zero)
+  }
 
   override init(frame frameRect: NSRect) {
-    super.init(frame: frameRect)
-    iconView.contentTintColor = MacTheme.accentColor
-    iconView.translatesAutoresizingMaskIntoConstraints = false
-    iconView.imageScaling = .scaleProportionallyDown
-    titleField.font = MacTheme.bodyFont
-    titleField.lineBreakMode = .byTruncatingTail
-    titleField.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(iconView)
-    addSubview(titleField)
-    // Catalyst indents rows by 8 pt (indentationLevel 1) and reserves a 26 pt icon
-    // slot, so the symbol sits ~16 pt from the sidebar edge like the section header.
-    NSLayoutConstraint.activate([
-      iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-      iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
-      iconView.widthAnchor.constraint(equalToConstant: 22),
-      iconView.heightAnchor.constraint(equalToConstant: 22),
-
-      titleField.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 8),
-      titleField.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
-      titleField.centerYAnchor.constraint(equalTo: centerYAnchor),
-    ])
-    self.textField = titleField
-    self.imageView = iconView
+    super.init(frame: frameRect, usesMediumText: false, supportsDragHandle: true)
   }
 
   required init?(coder: NSCoder) {
-    nil
+    super.init(coder: coder)
   }
 
   func configure(item: SidebarItem) {
-    iconView.image = NSImage(
-      systemSymbolName: item.symbolName,
-      accessibilityDescription: nil
-    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 16, weight: .regular))
-    titleField.stringValue = item.title
+    // Favourites are status items: keep their filled heart; everything else is
+    // forced to the outline variant even if the source symbol ends in `.fill`.
+    let isFavourite = item == .favoriteSongs || item == .favoriteAlbums ||
+      item == .favoriteArtists
+    configure(symbolName: item.symbolName, title: item.title, isFilled: isFavourite)
   }
 }
 
-// MARK: - SidebarGroupCellView
+// MARK: - SidebarEditableCellView
 
+/// Edit-mode row: red check circle on the left (tap toggles visibility) and a
+/// drag handle on the right (drag to reorder).
 @MainActor
-private final class SidebarGroupCellView: NSTableCellView {
-  private let titleField = NSTextField(labelWithString: "")
-
-  var title: String {
-    get { titleField.stringValue }
-    set { titleField.stringValue = newValue }
-  }
+private final class SidebarEditableCellView: SidebarCellView {
+  private let checkButton = CheckCircleButton()
+  private var onToggle: (() -> Void)?
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
-    titleField.font = .systemFont(ofSize: 11, weight: .semibold)
-    titleField.textColor = .secondaryLabelColor
-    titleField.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(titleField)
-    // Catalyst gives the section header 20 pt of air above and 2 pt below.
+    checkButton.translatesAutoresizingMaskIntoConstraints = false
+    checkButton.target = self
+    checkButton.action = #selector(checkTapped)
+    addSubview(checkButton)
     NSLayoutConstraint.activate([
-      titleField.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-      titleField.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
+      checkButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+      checkButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      checkButton.widthAnchor.constraint(equalToConstant: 22),
+      checkButton.heightAnchor.constraint(equalToConstant: 22),
     ])
+    showsLeadingAccessory = true
+    showsDragHandle = true
+  }
+
+  required init?(coder: NSCoder) {
+    super.init(coder: coder)
+  }
+
+  func configure(item: SidebarItem, isVisible: Bool, onToggle: @escaping () -> Void) {
+    self.onToggle = onToggle
+    configure(item: item)
+    checkButton.isOn = isVisible
+  }
+
+  @objc private func checkTapped() {
+    onToggle?()
+  }
+}
+
+// MARK: - CheckCircleButton
+
+/// Red circular checkbox: filled red with a white check when enabled, hollow red
+/// ring when disabled (mirrors Catalyst `checkmark.circle.fill` / `circle`).
+@MainActor
+private final class CheckCircleButton: NSButton {
+  var isOn = false {
+    didSet { needsDisplay = true }
+  }
+
+  private var isHovered = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    isBordered = false
+    title = ""
+    setButtonType(.momentaryChange)
   }
 
   required init?(coder: NSCoder) {
     nil
   }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(
+      NSTrackingArea(
+        rect: bounds,
+        options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
+        owner: self,
+        userInfo: nil
+      )
+    )
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    needsDisplay = true
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    needsDisplay = true
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    let diameter: CGFloat = 18
+    let rect = NSRect(
+      x: (bounds.width - diameter) / 2,
+      y: (bounds.height - diameter) / 2,
+      width: diameter,
+      height: diameter
+    )
+    let red = MacTheme.accentColor
+    if isOn {
+      red.setFill()
+      NSBezierPath(ovalIn: rect).fill()
+      let check = NSImage(
+        systemSymbolName: "checkmark",
+        accessibilityDescription: nil
+      )?.withSymbolConfiguration(.init(pointSize: 10, weight: .bold))
+      if let check {
+        let tinted = NSImage(size: check.size, flipped: false) { r in
+          check.draw(in: r)
+          NSColor.white.set()
+          r.fill(using: .sourceAtop)
+          return true
+        }
+        let sz = tinted.size
+        tinted.draw(in: NSRect(
+          x: rect.midX - sz.width / 2,
+          y: rect.midY - sz.height / 2,
+          width: sz.width,
+          height: sz.height
+        ))
+      }
+    } else {
+      (isHovered ? red.withAlphaComponent(0.12) : NSColor.clear).setFill()
+      NSBezierPath(ovalIn: rect.insetBy(dx: -2, dy: -2)).fill()
+      red.setStroke()
+      let ring = NSBezierPath(ovalIn: rect.insetBy(dx: 0.75, dy: 0.75))
+      ring.lineWidth = 1.5
+      ring.stroke()
+    }
+  }
 }
+
 
 // MARK: - AvatarView
 
@@ -570,6 +746,9 @@ final class SidebarTitleButton: NSView {
   }
 
   var content: Content = .title("") { didSet { needsDisplay = true } }
+  /// Pill fill. The sidebar's grey surface takes the default white; the content
+  /// toolbar uses the search-field grey so the button stays visible on white.
+  var fillColor: NSColor = .white { didSet { needsDisplay = true } }
   var onClick: (() -> Void)?
 
   private var isPressed = false {
@@ -599,7 +778,7 @@ final class SidebarTitleButton: NSView {
     shadow.shadowBlurRadius = 3
     shadow.shadowOffset = NSSize(width: 0, height: -0.5)
     shadow.set()
-    (isPressed ? NSColor.black.withAlphaComponent(0.05) : NSColor.white).setFill()
+    (isPressed ? NSColor.black.withAlphaComponent(0.05) : fillColor).setFill()
     path.fill()
     NSGraphicsContext.restoreGraphicsState()
     // Very faint inner rim (≈4% black) so the pill reads on both light and dark,
@@ -649,6 +828,11 @@ final class SidebarTitleButton: NSView {
     isPressed = false
     let point = convert(event.locationInWindow, from: nil)
     if wasPressed, bounds.contains(point) { onClick?() }
+  }
+
+  override func accessibilityPerformPress() -> Bool {
+    onClick?()
+    return true
   }
 }
 

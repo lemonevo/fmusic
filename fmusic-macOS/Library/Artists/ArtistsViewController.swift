@@ -24,8 +24,10 @@ import fmusicKit
 /// Double-click (or the context menu) starts playback of the whole artist. The list
 /// respects the global `artistsFilterSetting` (all / album artists / favourites).
 @MainActor
-final class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
-  private let titleLabel = NSTextField(labelWithString: L10n.tr("Artists"))
+class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+  var pageTitle: String { L10n.tr("Artists") }
+  var forceFavoritesOnly: Bool { false }
+  private lazy var titleLabel = NSTextField(labelWithString: pageTitle)
   private let subtitleLabel = NSTextField(labelWithString: "")
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
@@ -170,7 +172,8 @@ final class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTa
 
     let library = storage.main.library
     let account = library.getAccount(info: accountInfo)
-    switch storage.settings.user.artistsFilterSetting {
+    let filter: ArtistCategoryFilter = forceFavoritesOnly ? .favorites : storage.settings.user.artistsFilterSetting
+    switch filter {
     case .all:
       artists = library.getArtists(for: account)
     case .favorites:
@@ -190,7 +193,7 @@ final class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTa
     tableView.reloadData()
   }
 
-  private var emptyMessage: String {
+  var emptyMessage: String {
     L10n.tr("No %@", L10n.tr("Artists"))
   }
 

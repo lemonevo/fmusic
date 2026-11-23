@@ -31,15 +31,18 @@ final class SettingsViewController: NSViewController {
 
   private var currentPage: SettingsPage?
   private var currentPageViewController: NSViewController?
+  private var sidebarLeadingConstraint: NSLayoutConstraint?
+  private var contentLeadingConstraint: NSLayoutConstraint?
+  private var isSidebarVisible = true
 
   override func loadView() {
     let root = NSView(frame: NSRect(origin: .zero, size: Self.contentSize))
     root.wantsLayer = true
 
-    contentBackground.backgroundColor = .windowBackgroundColor
+    contentBackground.backgroundColor = MacTheme.contentBackgroundColor
     contentBackground.translatesAutoresizingMaskIntoConstraints = false
 
-    separatorView.backgroundColor = .separatorColor
+    separatorView.backgroundColor = MacTheme.columnDividerColor
     separatorView.translatesAutoresizingMaskIntoConstraints = false
     separatorView.widthAnchor.constraint(equalToConstant: 1).isActive = true
 
@@ -50,9 +53,15 @@ final class SettingsViewController: NSViewController {
     root.addSubview(sidebarViewController.view)
     root.addSubview(separatorView)
 
+    let sidebarLeading = sidebarViewController.view.leadingAnchor.constraint(
+      equalTo: root.leadingAnchor
+    )
+    let contentLeading = contentBackground.leadingAnchor.constraint(
+      equalTo: separatorView.trailingAnchor
+    )
     NSLayoutConstraint.activate([
       sidebarViewController.view.topAnchor.constraint(equalTo: root.topAnchor),
-      sidebarViewController.view.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      sidebarLeading,
       sidebarViewController.view.bottomAnchor.constraint(equalTo: root.bottomAnchor),
       sidebarViewController.view.widthAnchor.constraint(
         equalToConstant: Self.sidebarWidth
@@ -60,13 +69,17 @@ final class SettingsViewController: NSViewController {
 
       separatorView.topAnchor.constraint(equalTo: root.topAnchor),
       separatorView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
-      separatorView.leadingAnchor.constraint(equalTo: sidebarViewController.view.trailingAnchor),
+      separatorView.leadingAnchor.constraint(
+        equalTo: sidebarViewController.view.trailingAnchor
+      ),
 
       contentBackground.topAnchor.constraint(equalTo: root.topAnchor),
-      contentBackground.leadingAnchor.constraint(equalTo: separatorView.trailingAnchor),
+      contentLeading,
       contentBackground.trailingAnchor.constraint(equalTo: root.trailingAnchor),
       contentBackground.bottomAnchor.constraint(equalTo: root.bottomAnchor),
     ])
+    sidebarLeadingConstraint = sidebarLeading
+    contentLeadingConstraint = contentLeading
 
     self.view = root
   }
@@ -76,8 +89,27 @@ final class SettingsViewController: NSViewController {
     sidebarViewController.onSelectionChanged = { [weak self] page in
       self?.show(page: page)
     }
+    sidebarViewController.onToggleSidebar = { [weak self] in
+      self?.toggleSidebar()
+    }
     sidebarViewController.select(page: .general)
     show(page: .general)
+  }
+
+  // MARK: - Sidebar visibility
+
+  func toggleSidebar() {
+    guard let sidebarLeadingConstraint, let contentLeadingConstraint else { return }
+    isSidebarVisible.toggle()
+    let offset = isSidebarVisible ? 0 : -Self.sidebarWidth
+    sidebarLeadingConstraint.constant = offset
+    contentLeadingConstraint.constant = offset
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.22
+      sidebarLeadingConstraint.animator().constant = offset
+      contentLeadingConstraint.animator().constant = offset
+      view.superview?.layoutSubtreeIfNeeded()
+    }
   }
 
   // MARK: - Page switching

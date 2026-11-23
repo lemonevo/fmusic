@@ -1,0 +1,97 @@
+//
+//  StorageSettingsViewController.swift
+//  fmusic-macOS
+//
+//  Native AppKit port of Catalyst `StorageSettingsView`. Cache statistics come from
+//  the shared `CacheFileManager`; the cache-limit popup writes the same
+//  `UserSettings.cacheLimit` binding the Catalyst settings screen writes.
+//
+
+import AppKit
+import fmusicKit
+
+@MainActor
+final class StorageSettingsViewController: SettingsPageViewController {
+  private enum LimitValue {
+    static let values: [Int] = {
+      var result = stride(from: 10, through: 100, by: 10).map { $0 * 1_000_000 }
+      result.append(contentsOf: stride(from: 125, through: 950, by: 25).map { $0 * 1_000_000 })
+      result.append(contentsOf: stride(from: 1, through: 10, by: 1).map { $0 * 1_000_000_000 })
+      return [0] + result
+    }()
+
+    static func title(_ value: Int) -> String {
+      value == 0 ? L10n.tr("No Limit") : Int64(value).asByteString
+    }
+  }
+
+  private var refreshTimer: Timer?
+  private var limitRow: NSView?
+  private var cachedCountRow: NSView?
+  private var cacheSizeRow: NSView?
+
+  init() {
+    super.init(title: L10n.tr("Storage & Artwork"))
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    let limit = SettingsStore.user.cacheLimit
+    let limitRow = makePopupRow(
+      title: L10n.tr("Cache Size Limit"),
+      titles: LimitValue.values.map(LimitValue.title),
+      selectedIndex: max(0, LimitValue.values.firstIndex(of: limit) ?? 0)
+    ) { [weak self] index in
+      guard index >= 0, index < LimitValue.values.count else { return }
+      SettingsStore.updateUser { $0.cacheLimit = LimitValue.values[index] }
+      self?.refreshStats()
+    }
+    self.limitRow = limitRow
+
+    let cachedRow = makeValueRow(title: L10n.tr("Cached Songs"), value: "0")
+    let sizeRow = makeValueRow(title: L10n.tr("Complete Cache Size"), value: "")
+    cachedCountRow = cachedRow
+    cacheSizeRow = sizeRow
+
+    addSection(
+      header: L10n.tr("Cache"),
+      rows: [cachedRow, sizeRow, limitRow]
+    )
+    refreshStats()
+
+    refreshTimer = Timer.scheduledTimer(
+      timeInterval: 1,
+      target: self,
+      selector: #selector(refreshStats),
+      userInfo: nil,
+      repeats: true
+    )
+  }
+
+  override func viewWillDisappear() {
+    super.viewWillDisappear()
+    refreshTimer?.invalidate()
+    refreshTimer = nil
+  }
+
+  @objc
+  private func refreshStats() {
+    guard let accountInfo = SettingsStore.activeAccount else { return }
+    let library = SettingsStore.storage.main.library
+    let account = library.getAccount(info: accountInfo)
+    let cached = library.getCachedSongCount(for: account)
+    let bytes = CacheFileManager.shared.getPlayableCacheSize(for: accountInfo)
+    let size = bytes > 1_000_000 ? Int64(bytes).asByteString : Int64(0).asByteString
+
+    func update(_ row: NSView?, title: String, value: String) {
+      guard let row = row as? SettingsRowView else { return }
+      row.updateControl(from: makeValueRow(title: title, value: value))
+    }
+    update(cachedCountRow, title: L10n.tr("Cached Songs"), value: "\(cached)")
+    update(cacheSizeRow, title: L10n.tr("Complete Cache Size"), value: size)
+  }
+}

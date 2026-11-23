@@ -26,14 +26,15 @@ enum SidebarItem: String, CaseIterable, Sendable {
   case songs
   case artists
   case albums
+  case genres
   case newestAlbums
   case recentlyPlayed
   case lyricsSearch
   case favoriteSongs
+  case favoriteAlbums
+  case favoriteArtists
   case playlists
-  case podcasts
   case directories
-  case radios
   case downloads
 
   var title: String {
@@ -43,14 +44,15 @@ enum SidebarItem: String, CaseIterable, Sendable {
     case .songs: return L10n.tr("Songs")
     case .artists: return L10n.tr("Artists")
     case .albums: return L10n.tr("Albums")
+    case .genres: return L10n.tr("Genres")
     case .newestAlbums: return L10n.tr("Newest Albums")
     case .recentlyPlayed: return L10n.tr("Recently Played Albums")
     case .lyricsSearch: return L10n.tr("Lyrics Search")
     case .favoriteSongs: return L10n.tr("Favorite Songs")
+    case .favoriteAlbums: return L10n.tr("Favorite Albums")
+    case .favoriteArtists: return L10n.tr("Favorite Artists")
     case .playlists: return L10n.tr("Playlists")
-    case .podcasts: return L10n.tr("Podcasts")
     case .directories: return L10n.tr("Directories")
-    case .radios: return L10n.tr("Radios")
     case .downloads: return L10n.tr("Downloads")
     }
   }
@@ -62,14 +64,15 @@ enum SidebarItem: String, CaseIterable, Sendable {
     case .songs: return "music.note"
     case .artists: return "music.mic"
     case .albums: return "square.stack"
+    case .genres: return "guitars.fill"
     case .newestAlbums: return "sparkles"
     case .recentlyPlayed: return "clock"
     case .lyricsSearch: return "quote.bubble"
-    case .favoriteSongs: return "heart"
+    case .favoriteSongs: return "heart.fill"
+    case .favoriteAlbums: return "heart.fill"
+    case .favoriteArtists: return "heart.fill"
     case .playlists: return "music.note.list"
-    case .podcasts: return "mic"
     case .directories: return "folder"
-    case .radios: return "dot.radiowaves.left.and.right"
     case .downloads: return "arrow.down.circle"
     }
   }

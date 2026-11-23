@@ -272,7 +272,8 @@ enum MainMenuBuilder {
     ).target = appDelegate
 
     // ⌘1…⌘9 jump to the sidebar entries like other native media/library apps.
-    for (index, sidebarItem) in SidebarItem.allCases.enumerated() where index < 9 {
+    let menuItems = SidebarConfiguration.fixedItems + SidebarConfiguration.visibleItems()
+    for (index, sidebarItem) in menuItems.enumerated() where index < 9 {
       let nav = NSMenuItem(
         title: sidebarItem.title,
         action: #selector(AppDelegate.selectSidebarSlot(_:)),

@@ -389,7 +389,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   /// ⌘1…⌘9: jump to the corresponding sidebar entry.
   @objc
   func selectSidebarSlot(_ sender: NSMenuItem) {
-    let items = SidebarItem.allCases
+    let items = SidebarConfiguration.fixedItems + SidebarConfiguration.visibleItems()
     guard items.indices.contains(sender.tag) else { return }
     showMainWindow(nil)
     mainWindowController?.mainViewController?.select(item: items[sender.tag])

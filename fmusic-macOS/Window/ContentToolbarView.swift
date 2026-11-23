@@ -33,21 +33,36 @@ protocol ContentSearchable: AnyObject {
 final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   static let height: CGFloat = 52
 
+  /// Leading inset of the back button / root title with the sidebar expanded.
+  private static let expandedLeading: CGFloat = 20
+  /// Collapsed layout, measured from the Catalyst window: the toolbar's sidebar
+  /// toggle item starts 92 pt in (right of the 16 pt traffic lights at 18/41/64),
+  /// and the page title starts at 136 pt, immediately after it.
+  private static let collapsedToggleLeading: CGFloat = 92
+  private static let collapsedLeading: CGFloat = 136
+
   private let backButton = NSButton()
   private let titleLabel = NSTextField(labelWithString: "")
   private let searchField = NSSearchField()
+  private let searchIcon = NSImageView()
   /// Grey pill that hosts the bezel-less search field (matches the requested toolbar
   /// search box fill `#ECECEE`).
   private let searchFieldContainer = NSView()
   private let separator = NSView()
+  /// Shown only while the library sidebar is collapsed, where the sidebar's own
+  /// toggle is hidden along with its column (Catalyst moves its toolbar toggle here).
+  private let sidebarToggleButton = SidebarTitleButton()
   /// Title pinned right after the back button (pushed pages).
   private var titleAfterBack: NSLayoutConstraint?
   /// Title pinned to the toolbar's leading edge (root pages, where the Catalyst
   /// app shows the title without reserving space for a hidden back button).
   private var titleAtLeading: NSLayoutConstraint?
+  private var backLeading: NSLayoutConstraint?
+  private var sidebarCollapsed = false
 
   var onBack: (() -> Void)?
   var onSearchChange: ((String) -> Void)?
+  var onToggleSidebar: (() -> Void)?
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
@@ -85,6 +100,20 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     searchField.isBezeled = false
     searchField.drawsBackground = false
     searchField.focusRingType = .none
+    // The cell's built-in magnifier sticks at the field's left edge, while the field
+    // editor (once focused) spans the full bounds and paints the placeholder under
+    // it. Drop the built-in button and draw our own icon in the pill instead.
+    (searchField.cell as? NSSearchFieldCell)?.searchButtonCell = nil
+
+    searchIcon.image = NSImage(
+      systemSymbolName: "magnifyingglass",
+      accessibilityDescription: nil
+    )?.withSymbolConfiguration(.init(pointSize: 14, weight: .regular))
+    // The system field draws its magnifier in the label colour, noticeably darker
+    // than the placeholder text; keep that weight so the pill reads the same.
+    searchIcon.contentTintColor = .labelColor
+    searchIcon.imageScaling = .scaleProportionallyDown
+    searchIcon.translatesAutoresizingMaskIntoConstraints = false
 
     searchFieldContainer.wantsLayer = true
     searchFieldContainer.layer?.cornerRadius = 10
@@ -93,12 +122,25 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
       MacTheme.cgColor(MacTheme.searchFieldBackgroundColor, for: effectiveAppearance)
     searchFieldContainer.isHidden = true
     searchFieldContainer.translatesAutoresizingMaskIntoConstraints = false
+    searchFieldContainer.addSubview(searchIcon)
     searchFieldContainer.addSubview(searchField)
+
+    sidebarToggleButton.content = .symbol("sidebar.left")
+    // White would vanish on the white content surface; the pill matches the search
+    // field's grey, like the Catalyst toolbar's glass circle.
+    sidebarToggleButton.fillColor = MacTheme.searchFieldBackgroundColor
+    sidebarToggleButton.toolTip = L10n.tr("Show Sidebar")
+    sidebarToggleButton.setAccessibilityRole(.button)
+    sidebarToggleButton.setAccessibilityLabel(L10n.tr("Show Sidebar"))
+    sidebarToggleButton.onClick = { [weak self] in self?.onToggleSidebar?() }
+    sidebarToggleButton.isHidden = true
+    sidebarToggleButton.translatesAutoresizingMaskIntoConstraints = false
 
     separator.isHidden = true
     separator.wantsLayer = true
     separator.translatesAutoresizingMaskIntoConstraints = false
 
+    addSubview(sidebarToggleButton)
     addSubview(backButton)
     addSubview(titleLabel)
     addSubview(searchFieldContainer)
@@ -108,12 +150,28 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
       equalTo: backButton.trailingAnchor,
       constant: 12
     )
-    let atLeading = titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20)
+    let atLeading = titleLabel.leadingAnchor.constraint(
+      equalTo: leadingAnchor,
+      constant: Self.expandedLeading
+    )
+    let backLeading = backButton.leadingAnchor.constraint(
+      equalTo: leadingAnchor,
+      constant: Self.expandedLeading
+    )
     titleAfterBack = afterBack
     titleAtLeading = atLeading
+    self.backLeading = backLeading
 
     NSLayoutConstraint.activate([
-      backButton.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 20),
+      sidebarToggleButton.leadingAnchor.constraint(
+        equalTo: leadingAnchor,
+        constant: Self.collapsedToggleLeading
+      ),
+      sidebarToggleButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      sidebarToggleButton.widthAnchor.constraint(equalToConstant: 36),
+      sidebarToggleButton.heightAnchor.constraint(equalToConstant: 32),
+
+      backLeading,
       backButton.centerYAnchor.constraint(equalTo: centerYAnchor),
       backButton.widthAnchor.constraint(equalToConstant: 32),
       backButton.heightAnchor.constraint(equalToConstant: 32),
@@ -133,7 +191,15 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
       searchFieldContainer.widthAnchor.constraint(equalToConstant: 325),
       searchFieldContainer.heightAnchor.constraint(equalToConstant: 32),
 
-      searchField.leadingAnchor.constraint(equalTo: searchFieldContainer.leadingAnchor, constant: 12),
+      searchIcon.leadingAnchor.constraint(
+        equalTo: searchFieldContainer.leadingAnchor,
+        constant: 16
+      ),
+      searchIcon.centerYAnchor.constraint(equalTo: searchFieldContainer.centerYAnchor),
+      searchIcon.widthAnchor.constraint(equalToConstant: 16),
+      searchIcon.heightAnchor.constraint(equalToConstant: 16),
+
+      searchField.leadingAnchor.constraint(equalTo: searchIcon.trailingAnchor, constant: 3),
       searchField.trailingAnchor.constraint(equalTo: searchFieldContainer.trailingAnchor, constant: -12),
       searchField.centerYAnchor.constraint(equalTo: searchFieldContainer.centerYAnchor),
 
@@ -172,6 +238,20 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
       searchField.isHidden = true
       searchField.stringValue = ""
     }
+  }
+
+  /// Re-lays the toolbar for the split view's collapsed primary column. With the
+  /// sidebar hidden the page title moves next to the traffic lights and the circular
+  /// sidebar toggle takes over the slot just right of them (Catalyst toolbar layout);
+  /// with the sidebar open the sidebar column owns both, so the title returns to its
+  /// 20 pt inset.
+  func setSidebarCollapsed(_ collapsed: Bool) {
+    guard collapsed != sidebarCollapsed else { return }
+    sidebarCollapsed = collapsed
+    sidebarToggleButton.isHidden = !collapsed
+    let leading = collapsed ? Self.collapsedLeading : Self.expandedLeading
+    backLeading?.constant = leading
+    titleAtLeading?.constant = leading
   }
 
   @objc

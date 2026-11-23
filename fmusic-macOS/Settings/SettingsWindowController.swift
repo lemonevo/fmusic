@@ -19,6 +19,21 @@
 import AppKit
 import fmusicKit
 
+private final class EventMonitor {
+  var handler: ((NSEvent) -> NSEvent?)?
+  private var monitor: Any?
+
+  init() {
+    monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+      self?.handler?(event) ?? event
+    }
+  }
+
+  deinit {
+    if let monitor { NSEvent.removeMonitor(monitor) }
+  }
+}
+
 /// Separate settings window (900×620 content), mirroring the Catalyst app behaviour:
 /// closing it destroys the page hierarchy so a reopen rebuilds from the persisted
 /// settings (and is still instant because the window itself is kept alive).
@@ -26,23 +41,49 @@ import fmusicKit
 final class SettingsWindowController: NSWindowController {
   static let autosaveName = "fmusic.macOS.settingsWindow"
 
+  private let escapeMonitor = EventMonitor()
+
   convenience init() {
     let contentSize = SettingsViewController.contentSize
     let window = NSWindow(
       contentRect: NSRect(origin: .zero, size: contentSize),
-      styleMask: [.titled, .closable, .miniaturizable, .resizable],
+      styleMask: [
+        .titled, .closable, .miniaturizable, .resizable, .fullSizeContentView
+      ],
       backing: .buffered,
       defer: false
     )
     window.title = L10n.tr("Settings")
+    window.titleVisibility = .hidden
+    window.titlebarAppearsTransparent = true
+    window.titlebarSeparatorStyle = .none
+    window.backgroundColor = MacTheme.contentBackgroundColor
     window.contentMinSize = contentSize
     window.minSize = window.frameRect(forContentRect: NSRect(origin: .zero, size: contentSize))
       .size
     window.isReleasedWhenClosed = false
     window.tabbingMode = .disallowed
+
+    // The Catalyst settings scene has a transparent titlebar: an empty unified toolbar
+    // gives the traffic lights the same breathing room as the main window instead of
+    // squeezing them against the top edge.
+    let toolbar = NSToolbar(identifier: "fmusic.settingsToolbar")
+    toolbar.displayMode = .iconOnly
+    window.toolbar = toolbar
+    window.toolbarStyle = .unified
     window.contentViewController = SettingsViewController()
 
     self.init(window: window)
+
+    // Esc closes the settings window now that the explicit “Back to App” row is gone.
+    // A local monitor keeps normal Escape handling (text fields, popovers) intact:
+    // only an unhandled Escape with the settings window key closes it.
+    escapeMonitor.handler = { [weak self] event in
+      guard let window = self?.window, window.isKeyWindow,
+            event.keyCode == 53 else { return nil }
+      window.performClose(nil)
+      return nil
+    }
 
     window.setFrameAutosaveName(Self.autosaveName)
     if !window.setFrameUsingName(Self.autosaveName) {

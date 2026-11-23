@@ -105,6 +105,7 @@
 		4CCD6A2D51B75625D6BC1268 /* ViewCreator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAEE3E66958E7001AFC6845F /* ViewCreator.swift */; };
 		4D89813BC050931A41252A48 /* PlayerUIHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E3375830C62A288DAF6B67 /* PlayerUIHandler.swift */; };
 		4E5F362EA6B91AA2E946115E /* SidebarItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3963B96728FD849EBCE40186 /* SidebarItem.swift */; };
+		7A1000030000000000000001 /* SidebarConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000030000000000000002 /* SidebarConfiguration.swift */; };
 		4F6E11740119B8534CB9FDDB /* DirectoryContentViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C6DBF8A74378592096C97F /* DirectoryContentViewController.swift */; };
 		5003D8FB267B3390006946BF /* LibrarySyncPopupVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5003D8FA267B3390006946BF /* LibrarySyncPopupVC.swift */; };
 		5005938928E2D4EF008C8DF6 /* CommonCollectionSectionHeader.xib in Resources */ = {isa = PBXBuildFile; fileRef = 5005938828E2D4EF008C8DF6 /* CommonCollectionSectionHeader.xib */; };
@@ -381,11 +382,18 @@
 		6B0C0DF13BF92237F47B9893 /* HomeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1E34EE290AD90B64418CF06 /* HomeViewController.swift */; };
 		6B1073D75ACCC718FED9BDA3 /* ArtworkSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EA8B52142D0388AA8FAB4DE /* ArtworkSettingsView.swift */; };
 		6B1275F80DAAAEA345DEB607 /* SettingsSidebarViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 325FB3EB834623C4F9503962 /* SettingsSidebarViewController.swift */; };
+		A1B2C3D4000000010000001 /* SidebarStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4000000020000002 /* SidebarStyle.swift */; };
 		6CC8E739A0B9B6CC9C9A0580 /* PlayerSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0EE0395BF44DDA2BFBE898E /* PlayerSettingsView.swift */; };
 		6CF0B50374C1C1795ACE8D85 /* QueueVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2EEE15BDB9D87BE2FA2520 /* QueueVC.swift */; };
 		6D423228814E2E04F8592022 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3C89FB916D86995147E887E8 /* Cocoa.framework */; };
 		6D7FDD528E7FE42B30B0CCC1 /* AppStoryboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E853797089437EB4982996C4 /* AppStoryboard.swift */; };
 		6D8308723F1D36C1A751EF6E /* GeneralSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0738C93B72B4A26E2BD6BFF6 /* GeneralSettingsViewController.swift */; };
+		7A1000020000000000000001 /* FavoriteAlbumsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000020000000000000002 /* FavoriteAlbumsViewController.swift */; };
+		7A1000020000000000000003 /* FavoriteArtistsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000020000000000000004 /* FavoriteArtistsViewController.swift */; };
+		7A1000020000000000000005 /* GenresViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000020000000000000006 /* GenresViewController.swift */; };
+		7A1000010000000000000001 /* LibrarySettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000010000000000000003 /* LibrarySettingsViewController.swift */; };
+		7A1000010000000000000002 /* StorageSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000010000000000000004 /* StorageSettingsViewController.swift */; };
+		7A1000010000000000000005 /* LyricsSettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1000010000000000000006 /* LyricsSettingsViewController.swift */; };
 		6E12CCA24EF2377A7F8D784D /* HomeEditorVC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E2C391BD84BE8636D5E8AAC /* HomeEditorVC.swift */; };
 		6E3CD9654241832DBC1B5095 /* SetFavoriteForCurrentlyPlayingSongIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BF16A84270654D9449D6DC0 /* SetFavoriteForCurrentlyPlayingSongIntent.swift */; };
 		6FD64272B228989AA60C97CE /* ID3TagEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 6C1AC5AEAACD56F62024ACB6 /* ID3TagEditor */; };
@@ -649,6 +657,12 @@
 		06A3AAA1CB7BE36C44A1BFAA /* DirectoryTableCell.xib */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = file.xib; name = DirectoryTableCell.xib; path = fmusic/Screens/View/DirectoryTableCell.xib; sourceTree = "<group>"; };
 		070B3AE6E923108FAB7DD8A3 /* NowPlayingViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NowPlayingViewController.swift; sourceTree = "<group>"; };
 		0738C93B72B4A26E2BD6BFF6 /* GeneralSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GeneralSettingsViewController.swift; sourceTree = "<group>"; };
+		7A1000020000000000000002 /* FavoriteAlbumsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../Library/Grid/FavoriteAlbumsViewController.swift; sourceTree = "<group>"; };
+		7A1000020000000000000004 /* FavoriteArtistsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../Library/Artists/FavoriteArtistsViewController.swift; sourceTree = "<group>"; };
+		7A1000020000000000000006 /* GenresViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ../Library/GenresViewController.swift; sourceTree = "<group>"; };
+		7A1000010000000000000003 /* LibrarySettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibrarySettingsViewController.swift; sourceTree = "<group>"; };
+		7A1000010000000000000004 /* StorageSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StorageSettingsViewController.swift; sourceTree = "<group>"; };
+		7A1000010000000000000006 /* LyricsSettingsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSettingsViewController.swift; sourceTree = "<group>"; };
 		09469E16CEA70DE6B57BA4B9 /* SyncVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SyncVC.swift; path = fmusic/Screens/ViewController/SyncVC.swift; sourceTree = "<group>"; };
 		0980710BD2184C353E43BFC3 /* AppIconSettingsSection.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AppIconSettingsSection.swift; path = fmusic/SwiftUI/Settings/Display/AppIcon/AppIconSettingsSection.swift; sourceTree = "<group>"; };
 		0AEEDD3F9D0EAA40260CCE17 /* PlayPausePlaybackIntent.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlayPausePlaybackIntent.swift; path = fmusic/Intents/AppIntents/PlayPausePlaybackIntent.swift; sourceTree = "<group>"; };
@@ -711,6 +725,7 @@
 		322FAA856E104E732E9D759E /* SettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SettingsView.swift; path = fmusic/SwiftUI/Settings/SettingsView.swift; sourceTree = "<group>"; };
 		32380155114E4E8C9A1A591E /* SliderView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SliderView.swift; path = "fmusic/SwiftUI/Settings/Player/iOS-SpotifyEquilizerView/SliderView.swift"; sourceTree = "<group>"; };
 		325FB3EB834623C4F9503962 /* SettingsSidebarViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSidebarViewController.swift; sourceTree = "<group>"; };
+		A1B2C3D4000000020000002 /* SidebarStyle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SidebarStyle.swift; sourceTree = "<group>"; };
 		327B5BD339E9366BFC2903F6 /* PlaylistAddLibraryVC.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlaylistAddLibraryVC.swift; path = fmusic/Screens/ViewController/PlaylistAdd/PlaylistAddLibraryVC.swift; sourceTree = "<group>"; };
 		335E19F8719750724937B664 /* PlaylistListViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlaylistListViewController.swift; sourceTree = "<group>"; };
 		33F5615A53D412F208FE6012 /* StorageSettingsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StorageSettingsView.swift; path = fmusic/SwiftUI/Settings/StorageSettingsView.swift; sourceTree = "<group>"; };
@@ -722,6 +737,7 @@
 		37F96984F806BF474452B926 /* PlayPausePlaybackAppEnum.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = PlayPausePlaybackAppEnum.swift; path = fmusic/Intents/AppEnums/PlayPausePlaybackAppEnum.swift; sourceTree = "<group>"; };
 		391C89DD2C15AECF4D597A0B /* MenuBarLyricsController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MenuBarLyricsController.swift; path = fmusic/LyricsOverlay/MenuBarLyricsController.swift; sourceTree = "<group>"; };
 		3963B96728FD849EBCE40186 /* SidebarItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SidebarItem.swift; sourceTree = "<group>"; };
+		7A1000030000000000000002 /* SidebarConfiguration.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SidebarConfiguration.swift; sourceTree = "<group>"; };
 		3B9802A375D607C6B910BB93 /* AlbumsViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AlbumsViewController.swift; sourceTree = "<group>"; };
 		3C748EA2156B4F3497DB8D79 /* LyricsSidebarViewController.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LyricsSidebarViewController.swift; sourceTree = "<group>"; };
 		3C89FB916D86995147E887E8 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.0.sdk/System/Library/Frameworks/Cocoa.framework; sourceTree = DEVELOPER_DIR; };
@@ -1370,6 +1386,12 @@
 				A46B3F7D0885BDFB94913474 /* AccountSettingsViewController.swift */,
 				D6FFEA9AEEBCE796237491A2 /* DisplaySettingsViewController.swift */,
 				0738C93B72B4A26E2BD6BFF6 /* GeneralSettingsViewController.swift */,
+				7A1000020000000000000002 /* FavoriteAlbumsViewController.swift */,
+				7A1000020000000000000004 /* FavoriteArtistsViewController.swift */,
+				7A1000020000000000000006 /* GenresViewController.swift */,
+				7A1000010000000000000003 /* LibrarySettingsViewController.swift */,
+				7A1000010000000000000004 /* StorageSettingsViewController.swift */,
+				7A1000010000000000000006 /* LyricsSettingsViewController.swift */,
 				57CE018F976D862AACA73D04 /* PlaybackSettingsViewController.swift */,
 				AA35B5977AE2E443A7D0D1F6 /* SettingsComponents.swift */,
 				591A1E272D81E429F9626144 /* SettingsPage.swift */,
@@ -1390,6 +1412,8 @@
 			isa = PBXGroup;
 			children = (
 				3963B96728FD849EBCE40186 /* SidebarItem.swift */,
+				7A1000030000000000000002 /* SidebarConfiguration.swift */,
+				A1B2C3D4000000020000002 /* SidebarStyle.swift */,
 				575B76395386F0AAB271432B /* SidebarViewController.swift */,
 			);
 			name = Sidebar;
@@ -3243,6 +3267,8 @@
 				511AD1354643D87C7C744E3E /* PlayerBarViewController.swift in Sources */,
 				7BE3E8A56172F31CE7E025CB /* SettingsWindowController.swift in Sources */,
 				4E5F362EA6B91AA2E946115E /* SidebarItem.swift in Sources */,
+				7A1000030000000000000001 /* SidebarConfiguration.swift in Sources */,
+				A1B2C3D4000000010000001 /* SidebarStyle.swift in Sources */,
 				1679739E1EC7857D9BF008CB /* SidebarViewController.swift in Sources */,
 				BE95B3015E72D624A9D09424 /* MacTheme.swift in Sources */,
 				AA8D9DA4FE2B84D64977DAF9 /* MainViewController.swift in Sources */,
@@ -3250,6 +3276,12 @@
 				BC3578341E991CBDDBA42E9D /* AccountSettingsViewController.swift in Sources */,
 				36A21EC9E13D44267B58BE75 /* DisplaySettingsViewController.swift in Sources */,
 				6D8308723F1D36C1A751EF6E /* GeneralSettingsViewController.swift in Sources */,
+				7A1000020000000000000001 /* FavoriteAlbumsViewController.swift in Sources */,
+				7A1000020000000000000003 /* FavoriteArtistsViewController.swift in Sources */,
+				7A1000020000000000000005 /* GenresViewController.swift in Sources */,
+				7A1000010000000000000001 /* LibrarySettingsViewController.swift in Sources */,
+				7A1000010000000000000002 /* StorageSettingsViewController.swift in Sources */,
+				7A1000010000000000000005 /* LyricsSettingsViewController.swift in Sources */,
 				688AF77E906D0D6B3616627A /* PlaybackSettingsViewController.swift in Sources */,
 				936EEB7C39AC268E59B5D1D7 /* SettingsComponents.swift in Sources */,
 				395959E14A556589CF5AA77D /* SettingsPage.swift in Sources */,

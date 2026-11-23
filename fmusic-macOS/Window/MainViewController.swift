@@ -49,6 +49,7 @@ final class MainViewController: NSViewController {
   private(set) var isLyricsPaneVisible = false
 
   private var didApplyInitialSplitPositions = false
+  private var sidebarCollapseObservation: NSKeyValueObservation?
 
   override func loadView() {
     let root = NSView(frame: NSRect(x: 0, y: 0, width: 1024, height: 768))
@@ -135,11 +136,6 @@ final class MainViewController: NSViewController {
     sidebarViewController.onToggleSidebar = { [weak self] in
       self?.toggleSidebar()
     }
-    sidebarViewController.onEditHome = { [weak self] in
-      guard let self else { return }
-      self.select(item: .home)
-      (self.pageStack.first as? HomeViewController)?.presentSectionEditor()
-    }
     sidebarViewController.onOpenSettings = {
       AppDelegate.sharedAppDelegate?.showSettings(nil)
     }
@@ -149,6 +145,21 @@ final class MainViewController: NSViewController {
     toolbar.onSearchChange = { [weak self] text in
       self?.currentPageDidChangeSearch(text: text)
     }
+    toolbar.onToggleSidebar = { [weak self] in
+      self?.toggleSidebar()
+    }
+    // Catalyst's toolbar owns the sidebar toggle, so collapsing the primary column
+    // moves it next to the traffic lights. Reproduce that: the sidebar's own button
+    // disappears with its column, and the content toolbar takes over the slot.
+    sidebarCollapseObservation = sidebarItem?.observe(
+      \.isCollapsed,
+      options: [.initial, .new]
+    ) { [weak self] item, _ in
+      let collapsed = item.isCollapsed
+      DispatchQueue.main.async {
+        self?.toolbar.setSidebarCollapsed(collapsed)
+      }
+    }
 
     // Dev hooks: `--songs` or `--page <sidebar-item-raw-value>` open a page directly.
     let arguments = ProcessInfo.processInfo.arguments
@@ -157,6 +168,10 @@ final class MainViewController: NSViewController {
     if let saved = UserDefaults.standard.string(forKey: "fmusic.lastSidebarItem"),
        let item = SidebarItem(rawValue: saved) {
       initialItem = item
+    }
+    if initialItem != .search, initialItem != .home,
+       !SidebarConfiguration.visibleItems().contains(initialItem) {
+      initialItem = .home
     }
     if let pageIndex = arguments.firstIndex(of: "--page"),
        pageIndex + 1 < arguments.count,
@@ -387,10 +402,11 @@ final class MainViewController: NSViewController {
     case .recentlyPlayed: controller = RecentlyPlayedViewController()
     case .search: controller = SearchViewController()
     case .favoriteSongs: controller = FavoriteSongsViewController()
+    case .favoriteAlbums: controller = FavoriteAlbumsViewController()
+    case .favoriteArtists: controller = FavoriteArtistsViewController()
     case .playlists: controller = PlaylistsViewController()
-    case .podcasts: controller = PodcastsViewController()
+    case .genres: controller = GenresViewController()
     case .directories: controller = DirectoriesViewController()
-    case .radios: controller = RadiosViewController()
     case .downloads: controller = DownloadsViewController()
     case .lyricsSearch: controller = LyricsSearchViewController()
     }
@@ -437,6 +453,9 @@ final class MainViewController: NSViewController {
       context.duration = 0.2
       sidebarItem.animator().isCollapsed.toggle()
     }
+    // Flip the toolbar in the same runloop turn as the animation starts, so the
+    // toggle/title hand-off looks like the Catalyst toolbar reconfiguring.
+    toolbar.setSidebarCollapsed(sidebarItem.isCollapsed)
     DispatchQueue.main.async { [weak self] in
       self?.layoutPlayerCapsule()
     }

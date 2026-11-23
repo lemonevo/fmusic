@@ -23,9 +23,12 @@ import fmusicKit
 @MainActor
 enum SettingsPage: Int, CaseIterable, Sendable {
   case general
-  case display
+  case lyrics
+  case displayInteraction
   case playback
   case equalizer
+  case library
+  case storage
   case account
   case support
   case developer
@@ -34,9 +37,12 @@ enum SettingsPage: Int, CaseIterable, Sendable {
   var title: String {
     switch self {
     case .general: return L10n.tr("General")
-    case .display: return L10n.tr("Display")
+    case .lyrics: return L10n.tr("Lyrics")
+    case .displayInteraction: return L10n.tr("Display")
     case .playback: return L10n.tr("Playback")
-    case .equalizer: return L10n.tr("Equalizer")
+    case .equalizer: return L10n.tr("Audio & Effects")
+    case .library: return L10n.tr("Library")
+    case .storage: return L10n.tr("Storage & Artwork")
     case .account: return L10n.tr("Account")
     case .support: return L10n.tr("Support")
     case .developer: return L10n.tr("Developer")
@@ -47,13 +53,16 @@ enum SettingsPage: Int, CaseIterable, Sendable {
   var symbolName: String {
     switch self {
     case .general: return "gearshape"
-    case .display: return "display"
+    case .lyrics: return "quote.bubble"
+    case .displayInteraction: return "display"
     case .playback: return "play.circle"
     case .equalizer: return "chart.bar"
-    case .account: return "person.crop.circle"
-    case .support: return "lifepreserver"
+    case .library: return "music.note.house"
+    case .storage: return "internaldrive"
+    case .account: return "person"
+    case .support: return "info.circle"
     case .developer: return "hammer"
-    case .about: return "info.circle"
+    case .about: return "doc"
     }
   }
 
@@ -61,9 +70,12 @@ enum SettingsPage: Int, CaseIterable, Sendable {
   func makeViewController() -> NSViewController {
     switch self {
     case .general: return GeneralSettingsViewController()
-    case .display: return DisplaySettingsViewController()
+    case .lyrics: return LyricsSettingsViewController()
+    case .displayInteraction: return DisplaySettingsViewController()
     case .playback: return PlaybackSettingsViewController()
     case .equalizer: return EqualizerSettingsViewController()
+    case .library: return LibrarySettingsViewController()
+    case .storage: return StorageSettingsViewController()
     case .account: return AccountSettingsViewController()
     case .support: return SupportSettingsViewController()
     case .developer: return DeveloperSettingsViewController()

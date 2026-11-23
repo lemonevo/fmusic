@@ -227,6 +227,75 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     } else {
       show(rows: rows)
     }
+
+    // Lyrics are stored as sidecar files, so they cannot be part of the Core Data
+    // predicate. Scan them off the main thread and append a "Lyrics" section.
+    let knownSongIDs = Set(songs.map(\.identifier))
+    Task { [weak self] in
+      await self?.searchLyrics(
+        query: trimmed,
+        accountInfo: accountInfo,
+        excluding: knownSongIDs,
+        baseRows: rows
+      )
+    }
+  }
+
+  /// Scans every song's lyric sidecar for `query`, then appends matching songs
+  /// under a "Lyrics" header (ignoring stale results once the query changed).
+  private func searchLyrics(
+    query: String,
+    accountInfo: AccountInfo,
+    excluding knownSongIDs: Set<String>,
+    baseRows: [Row]
+  ) async {
+    let library = storage.main.library
+    let account = library.getAccount(info: accountInfo)
+    let allSongs = library.getSongs(for: account)
+    var songsByID: [String: Song] = [:]
+    var candidates: [(id: String, path: URL)] = []
+    for song in allSongs {
+      let id = song.identifier
+      guard !id.isEmpty,
+            !knownSongIDs.contains(id),
+            let rel = song.lyricsRelFilePath,
+            let abs = CacheFileManager.shared.getAbsolutefmusicPath(relFilePath: rel)
+      else { continue }
+      songsByID[id] = song
+      candidates.append((id, abs))
+    }
+    guard !candidates.isEmpty else { return }
+
+    let needle = query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+    let capturedQuery = query
+    let matched: [String] = await Task.detached(priority: .userInitiated) {
+      var result: [String] = []
+      for candidate in candidates {
+        guard let data = try? Data(contentsOf: candidate.path),
+              let text = String(data: data, encoding: .utf8)
+              ?? String(data: data, encoding: .utf16)
+        else { continue }
+        let folded = text.folding(
+          options: [.caseInsensitive, .diacriticInsensitive],
+          locale: .current
+        )
+        if folded.contains(needle) {
+          result.append(candidate.id)
+          if result.count >= 50 { break }
+        }
+      }
+      return result
+    }.value
+
+    guard !matched.isEmpty,
+          query.trimmingCharacters(in: .whitespacesAndNewlines) == capturedQuery
+    else { return }
+    let matchedSongs = matched.compactMap { songsByID[$0] }
+    guard !matchedSongs.isEmpty else { return }
+    var updated = baseRows
+    updated.append(.header(L10n.tr("Lyrics")))
+    updated += matchedSongs.map(Row.song)
+    show(rows: updated)
   }
 
   private func show(rows: [Row]) {

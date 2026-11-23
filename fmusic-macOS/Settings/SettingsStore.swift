@@ -74,6 +74,14 @@ enum SettingsStore {
     )
   }
 
+  /// Catalyst-backed setting: prefer sleeping never, always, or only while charging.
+  /// AppKit has no power assertion yet, but the value is still persisted in the shared
+  /// `UserSettings` store and shown in the settings UI.
+  static var screenLockPreventionPreference: ScreenLockPreventionPreference {
+    get { user.screenLockPreventionPreference }
+    set { updateUser { $0.screenLockPreventionPreference = newValue } }
+  }
+
   /// The app reads `AppleLanguages` while launching, so a new language is only picked up on
   /// the next start. Keeping the override in the app's own defaults leaves the system
   /// language alone (mirrors the Catalyst app).

@@ -31,8 +31,8 @@ class SettingsPageViewController: NSViewController {
   private var lastAnchor: NSLayoutYAxisAnchor!
   private var wrappingLabels: [(label: NSTextField, horizontalInsets: CGFloat)] = []
 
-  private let horizontalInset: CGFloat = 40
-  private let topInset: CGFloat = 28
+  private let horizontalInset: CGFloat = 48
+  private let topInset: CGFloat = 16
   private let bottomInset: CGFloat = 32
 
   private let pageTitleText: String
@@ -136,7 +136,7 @@ class SettingsPageViewController: NSViewController {
 
   // MARK: - Layout primitives
 
-  private func append(_ view: NSView, topSpacing: CGFloat, fillWidth: Bool = true) {
+  func append(_ view: NSView, topSpacing: CGFloat, fillWidth: Bool = true) {
     view.translatesAutoresizingMaskIntoConstraints = false
     documentView.addSubview(view)
 
@@ -178,10 +178,29 @@ class SettingsPageViewController: NSViewController {
     if let header {
       append(makeGroupHeaderLabel(header), topSpacing: 24)
     }
-    append(makeCard(rows: rows), topSpacing: header == nil ? 20 : 6)
+    append(makeFlatRows(rows), topSpacing: header == nil ? 28 : 6)
     if let footer {
       append(makeFooterLabel(footer), topSpacing: 6)
     }
+  }
+
+  /// Catalyst's `SettingsList` has flat rows: no grouped cards and no separators.
+  func makeFlatRows(_ rows: [NSView]) -> NSView {
+    let container = NSView()
+    container.translatesAutoresizingMaskIntoConstraints = false
+    var previous = container.topAnchor
+    for row in rows {
+      row.translatesAutoresizingMaskIntoConstraints = false
+      container.addSubview(row)
+      NSLayoutConstraint.activate([
+        row.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+        row.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        row.topAnchor.constraint(equalTo: previous),
+      ])
+      previous = row.bottomAnchor
+    }
+    previous.constraint(equalTo: container.bottomAnchor).isActive = true
+    return container
   }
 
   private func makeCard(rows: [NSView]) -> NSView {
@@ -343,10 +362,10 @@ class SettingsPageViewController: NSViewController {
     trackWrappingLabel(label, horizontalInsets: horizontalInset * 2 + 32)
     container.addSubview(label)
     NSLayoutConstraint.activate([
-      label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
-      label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
-      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
-      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+      label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+      label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
     ])
     return container
   }

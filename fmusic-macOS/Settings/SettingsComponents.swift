@@ -92,7 +92,13 @@ final class SettingsSeparatorView: SettingsBackgroundView {
 final class SettingsRowView: NSView {
   private let titleLabel = NSTextField(labelWithString: "")
   private let subtitleLabel = NSTextField(labelWithString: "")
+  private let labelStack = NSStackView()
   let control: NSView
+  private var controlTrailing: NSLayoutConstraint?
+  private var controlCenterY: NSLayoutConstraint?
+  private var controlTop: NSLayoutConstraint?
+  private var controlBottom: NSLayoutConstraint?
+  private var controlLeading: NSLayoutConstraint?
 
   init(title: String, subtitle: String? = nil, control: NSView) {
     self.control = control
@@ -113,7 +119,8 @@ final class SettingsRowView: NSView {
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     subtitleLabel.isHidden = subtitle == nil
 
-    let labelStack = NSStackView(views: [titleLabel, subtitleLabel])
+    labelStack.addArrangedSubview(titleLabel)
+    labelStack.addArrangedSubview(subtitleLabel)
     labelStack.orientation = .vertical
     labelStack.alignment = .leading
     labelStack.spacing = 2
@@ -126,6 +133,20 @@ final class SettingsRowView: NSView {
     let minimumHeight = heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
     minimumHeight.priority = .required
 
+    let trailing = control.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16)
+    let centerY = control.centerYAnchor.constraint(equalTo: centerYAnchor)
+    let top = control.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8)
+    let bottom = control.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8)
+    let leading = control.leadingAnchor.constraint(
+      greaterThanOrEqualTo: labelStack.trailingAnchor,
+      constant: 16
+    )
+    controlTrailing = trailing
+    controlCenterY = centerY
+    controlTop = top
+    controlBottom = bottom
+    controlLeading = leading
+
     NSLayoutConstraint.activate([
       minimumHeight,
 
@@ -134,12 +155,38 @@ final class SettingsRowView: NSView {
       labelStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
       labelStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8),
 
-      control.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-      control.centerYAnchor.constraint(equalTo: centerYAnchor),
-      control.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
-      control.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8),
-      control.leadingAnchor.constraint(greaterThanOrEqualTo: labelStack.trailingAnchor, constant: 16),
+      trailing, centerY, top, bottom, leading,
     ])
+  }
+
+  /// Swaps in a freshly built control while keeping this row's position in the form.
+  func updateControl(from other: NSView) {
+    guard let replacement = (other as? SettingsRowView)?.control else { return }
+    NSLayoutConstraint.deactivate([
+      controlTrailing, controlCenterY, controlTop, controlBottom, controlLeading
+    ].compactMap { $0 })
+    control.removeFromSuperview()
+    replacement.removeFromSuperview()
+    addSubview(replacement)
+
+    let trailing = replacement.trailingAnchor.constraint(
+      equalTo: trailingAnchor, constant: -16
+    )
+    let centerY = replacement.centerYAnchor.constraint(equalTo: centerYAnchor)
+    let top = replacement.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8)
+    let bottom = replacement.bottomAnchor.constraint(
+      lessThanOrEqualTo: bottomAnchor, constant: -8
+    )
+    let leading = replacement.leadingAnchor.constraint(
+      greaterThanOrEqualTo: labelStack.trailingAnchor,
+      constant: 16
+    )
+    controlTrailing = trailing
+    controlCenterY = centerY
+    controlTop = top
+    controlBottom = bottom
+    controlLeading = leading
+    NSLayoutConstraint.activate([trailing, centerY, top, bottom, leading])
   }
 
   required init?(coder: NSCoder) {

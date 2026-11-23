@@ -40,25 +40,6 @@ final class GeneralSettingsViewController: SettingsPageViewController {
   override func buildForm() {
     let user = SettingsStore.user
 
-    // MARK: Appearance
-
-    let appearanceLabels = AppearanceMode.allCases.map { mode -> String in
-      switch mode {
-      case .unspecified: return L10n.tr("System")
-      case .light: return L10n.tr("Light")
-      case .dark: return L10n.tr("Dark")
-      }
-    }
-    let appearanceRow = makeSegmentedRow(
-      title: L10n.tr("Appearance"),
-      labels: appearanceLabels,
-      selectedIndex: user.appearanceMode.rawValue
-    ) { index in
-      guard let mode = AppearanceMode(rawValue: index) else { return }
-      SettingsStore.updateUser { $0.appearanceMode = mode }
-      SettingsStore.applyAppearance()
-    }
-
     // MARK: Language
 
     let languageOptions: [AppLanguage] = [.system, .simplifiedChinese, .english]
@@ -81,10 +62,24 @@ final class GeneralSettingsViewController: SettingsPageViewController {
 
     addSection(
       footer: L10n.tr("Language changes take effect after restarting fmusic."),
-      rows: [appearanceRow, languageRow]
+      rows: [languageRow]
     )
 
     // MARK: Offline mode
+
+    let screenLockOptions = ScreenLockPreventionPreference.allCases
+    let screenLockTitles = screenLockOptions.map(\.description)
+    let selectedScreenLock = screenLockOptions.firstIndex(
+      of: SettingsStore.screenLockPreventionPreference
+    ) ?? 0
+    let screenLockRow = makePopupRow(
+      title: L10n.tr("Prevent Screen Lock"),
+      titles: screenLockTitles,
+      selectedIndex: selectedScreenLock
+    ) { index in
+      guard index >= 0, index < screenLockOptions.count else { return }
+      SettingsStore.screenLockPreventionPreference = screenLockOptions[index]
+    }
 
     let offlineRow = makeSwitchRow(
       title: L10n.tr("Offline Mode"),
@@ -99,5 +94,6 @@ final class GeneralSettingsViewController: SettingsPageViewController {
       ),
       rows: [offlineRow]
     )
+    append(makeFlatRows([screenLockRow]), topSpacing: 32)
   }
 }

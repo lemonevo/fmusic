@@ -161,7 +161,7 @@ extension Notification.Name {
 /// Table row view with a rounded selection plate. The sidebar and library lists in the
 /// Catalyst app select with a neutral grey (measured 66,64,64 in dark mode), not with
 /// the theme accent, so the plate uses a semantic fill instead of `accentColor`.
-final class ThemedRowView: NSTableRowView {
+class ThemedRowView: NSTableRowView {
   var cornerRadius: CGFloat = 6
   var horizontalInset: CGFloat = 6
   /// Whether to tint the plate with the theme accent (used by pages that want it).
