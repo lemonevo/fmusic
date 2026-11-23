@@ -89,18 +89,26 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     scrollView.hasVerticalScroller = false
     scrollView.drawsBackground = false
     scrollView.automaticallyAdjustsContentInsets = false
-    scrollView.contentInsets = NSEdgeInsets(top: 38, left: 0, bottom: 4, right: 0)
+    // Reference gives the first row real breathing room under the 52 pt titlebar
+    // (搜索 centre ~72 pt from the window top); 52 pt of top inset reproduces that
+    // without pushing the menu into the floating 编辑 / 边栏 buttons.
+    scrollView.contentInsets = NSEdgeInsets(top: 52, left: 0, bottom: 4, right: 0)
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
-    // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface.
+    // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface. Both are
+    // independent raised controls (white fill, hairline border, soft shadow) rather
+    // than bare text/glyphs, matching the Catalyst look.
     editButton.title = L10n.tr("Edit")
     editButton.isBordered = false
     editButton.bezelStyle = .regularSquare
     editButton.font = .systemFont(ofSize: 13, weight: .medium)
     editButton.contentTintColor = .labelColor
-    editButton.wantsLayer = true
-    editButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-    editButton.layer?.cornerRadius = 15
+    styleRaisedButton(
+      editButton, cornerRadius: 16,
+      fillColor: NSColor.white.withAlphaComponent(0.92),
+      borderColor: NSColor.black.withAlphaComponent(0.10),
+      shadow: true
+    )
     editButton.target = self
     editButton.action = #selector(editPressed)
     editButton.translatesAutoresizingMaskIntoConstraints = false
@@ -113,9 +121,12 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     sidebarButton.bezelStyle = .regularSquare
     sidebarButton.imagePosition = .imageOnly
     sidebarButton.contentTintColor = .labelColor
-    sidebarButton.wantsLayer = true
-    sidebarButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-    sidebarButton.layer?.cornerRadius = 15
+    styleRaisedButton(
+      sidebarButton, cornerRadius: 16,
+      fillColor: NSColor.white.withAlphaComponent(0.92),
+      borderColor: NSColor.black.withAlphaComponent(0.10),
+      shadow: true
+    )
     sidebarButton.target = self
     sidebarButton.action = #selector(sidebarPressed)
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
@@ -126,16 +137,16 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     root.addSubview(scrollView)
     root.addSubview(footer)
     NSLayoutConstraint.activate([
-      // Matches the Catalyst titlebar: 编辑 52×36 at x≈108, 边栏 44×36 right after it,
-      // both centred on the traffic-light baseline (26 pt from the window top).
+      // 编辑 52×32 and 边栏 toggle 36×32, centred on the 52 pt titlebar (y = 26 pt) and
+      // aligned with the traffic lights. Tight 6 pt gap keeps them a coherent cluster.
       editButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 108),
       editButton.centerYAnchor.constraint(equalTo: root.topAnchor, constant: 26),
-      editButton.heightAnchor.constraint(equalToConstant: 36),
+      editButton.heightAnchor.constraint(equalToConstant: 32),
       editButton.widthAnchor.constraint(equalToConstant: 52),
-      sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 2),
+      sidebarButton.leadingAnchor.constraint(equalTo: editButton.trailingAnchor, constant: 6),
       sidebarButton.centerYAnchor.constraint(equalTo: editButton.centerYAnchor),
-      sidebarButton.widthAnchor.constraint(equalToConstant: 44),
-      sidebarButton.heightAnchor.constraint(equalToConstant: 36),
+      sidebarButton.widthAnchor.constraint(equalToConstant: 36),
+      sidebarButton.heightAnchor.constraint(equalToConstant: 32),
     ])
 
     NSLayoutConstraint.activate([
@@ -177,6 +188,31 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   }
 
   // MARK: - Footer
+
+  /// Dresses a flat `NSButton` as a raised control: white fill, hairline border and a
+  /// soft drop shadow — the standalone look the reference gives 编辑 / 边栏.
+  private func styleRaisedButton(
+    _ button: NSButton,
+    cornerRadius: CGFloat,
+    fillColor: NSColor,
+    borderColor: NSColor,
+    shadow: Bool
+  ) {
+    button.wantsLayer = true
+    guard let layer = button.layer else { return }
+    layer.backgroundColor = fillColor.cgColor
+    layer.cornerRadius = cornerRadius
+    layer.cornerCurve = .continuous
+    layer.borderWidth = 1
+    layer.borderColor = borderColor.cgColor
+    if shadow {
+      layer.shadowColor = NSColor.black.cgColor
+      layer.shadowOpacity = 0.10
+      layer.shadowRadius = 1.5
+      layer.shadowOffset = CGSize(width: 0, height: -0.5)
+      layer.masksToBounds = false
+    }
+  }
 
   // MARK: - Top bar actions
 
@@ -327,7 +363,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
     guard !self.tableView(tableView, isGroupRow: row) else { return nil }
     let rowView = ThemedRowView()
-    rowView.cornerRadius = 6
+    // Apple-Music-style fully rounded pill (height 38 pt → radius ~19).
+    rowView.cornerRadius = MacTheme.sidebarRowHeight / 2
     rowView.horizontalInset = 8
     // Sidebar uses a flat light-grey pill (#DCDCE0) rather than the translucent tint.
     rowView.solidSelectionColor = MacTheme.sidebarSelectionColor
