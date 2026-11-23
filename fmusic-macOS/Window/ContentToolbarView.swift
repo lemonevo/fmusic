@@ -52,7 +52,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.toolbarBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.toolbarBackgroundColor, for: effectiveAppearance)
 
     backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
     backButton.isBordered = false
@@ -90,7 +90,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     searchFieldContainer.layer?.cornerRadius = 10
     searchFieldContainer.layer?.cornerCurve = .continuous
     searchFieldContainer.layer?.backgroundColor =
-      MacTheme.searchFieldBackgroundColor.cgColor
+      MacTheme.cgColor(MacTheme.searchFieldBackgroundColor, for: effectiveAppearance)
     searchFieldContainer.isHidden = true
     searchFieldContainer.translatesAutoresizingMaskIntoConstraints = false
     searchFieldContainer.addSubview(searchField)
@@ -150,9 +150,9 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.toolbarBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.toolbarBackgroundColor, for: effectiveAppearance)
     searchFieldContainer.layer?.backgroundColor =
-      MacTheme.searchFieldBackgroundColor.cgColor
+      MacTheme.cgColor(MacTheme.searchFieldBackgroundColor, for: effectiveAppearance)
   }
 
   func configure(title: String, showsBack: Bool, searchPlaceholder: String?) {

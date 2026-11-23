@@ -99,7 +99,7 @@ final class ThemedBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.contentBackgroundColor, for: effectiveAppearance)
   }
 
   required init?(coder: NSCoder) {
@@ -108,7 +108,7 @@ final class ThemedBackgroundView: NSView {
 
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.contentBackgroundColor.cgColor
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.contentBackgroundColor, for: effectiveAppearance)
   }
 }
 

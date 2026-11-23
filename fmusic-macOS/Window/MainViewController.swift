@@ -55,7 +55,12 @@ final class MainViewController: NSViewController {
     root.wantsLayer = true
 
     // Sidebar | content | optional lyrics pane.
-    let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarViewController)
+    // NOTE: plain `NSSplitViewItem(viewController:)`, not `sidebarWithViewController:`.
+    // The sidebar variant wraps the column in an NSVisualEffectView (vibrancy) whose
+    // glass material downsamples everything drawn inside it — the titlebar 编辑 / 边栏
+    // controls came out blurred. We paint our own opaque sidebar colour instead, which
+    // keeps the top-bar controls crisp at native resolution.
+    let sidebarItem = NSSplitViewItem(viewController: sidebarViewController)
     sidebarItem.minimumThickness = 210
     sidebarItem.maximumThickness = 210
     sidebarItem.canCollapse = true

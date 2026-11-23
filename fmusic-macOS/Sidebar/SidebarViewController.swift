@@ -53,8 +53,8 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
   private let accountLabel = NSTextField(labelWithString: "")
-  private let editButton = NSButton()
-  private let sidebarButton = NSButton()
+  private let editButton = SidebarTitleButton()
+  private let sidebarButton = SidebarTitleButton()
   private let accountAvatar = AvatarView()
 
   private let cellIdentifier = NSUserInterfaceItemIdentifier("SidebarCell")
@@ -96,40 +96,21 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
     // Top bar: 编辑 + sidebar toggle, floating over the sidebar surface. Both are
-    // independent raised controls (white fill, hairline border, soft shadow) rather
-    // than bare text/glyphs, matching the Catalyst look.
-    editButton.title = L10n.tr("Edit")
-    editButton.isBordered = false
-    editButton.bezelStyle = .regularSquare
-    editButton.font = .systemFont(ofSize: 13, weight: .medium)
-    editButton.contentTintColor = .labelColor
-    styleRaisedButton(
-      editButton, cornerRadius: 16,
-      fillColor: NSColor.white.withAlphaComponent(0.92),
-      borderColor: NSColor.black.withAlphaComponent(0.10),
-      shadow: true
-    )
-    editButton.target = self
-    editButton.action = #selector(editPressed)
+    // independent raised controls (white pill, hairline border, soft shadow) drawn with
+    // draw(_:) so the labels stay crisp inside the titlebar's glass band.
+    editButton.content = .title(L10n.tr("Edit"))
+    editButton.onClick = { [weak self] in self?.editPressed() }
     editButton.translatesAutoresizingMaskIntoConstraints = false
+    editButton.toolTip = L10n.tr("Edit")
+    editButton.setAccessibilityRole(.button)
+    editButton.setAccessibilityLabel(L10n.tr("Edit"))
 
-    sidebarButton.image = NSImage(
-      systemSymbolName: "sidebar.left",
-      accessibilityDescription: L10n.tr("Show Sidebar")
-    )
-    sidebarButton.isBordered = false
-    sidebarButton.bezelStyle = .regularSquare
-    sidebarButton.imagePosition = .imageOnly
-    sidebarButton.contentTintColor = .labelColor
-    styleRaisedButton(
-      sidebarButton, cornerRadius: 16,
-      fillColor: NSColor.white.withAlphaComponent(0.92),
-      borderColor: NSColor.black.withAlphaComponent(0.10),
-      shadow: true
-    )
-    sidebarButton.target = self
-    sidebarButton.action = #selector(sidebarPressed)
+    sidebarButton.content = .symbol("sidebar.left")
+    sidebarButton.onClick = { [weak self] in self?.sidebarPressed() }
     sidebarButton.translatesAutoresizingMaskIntoConstraints = false
+    sidebarButton.toolTip = L10n.tr("Show Sidebar")
+    sidebarButton.setAccessibilityRole(.button)
+    sidebarButton.setAccessibilityLabel(L10n.tr("Show Sidebar"))
 
     let footer = makeAccountFooter()
     root.addSubview(editButton)
@@ -188,31 +169,6 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   }
 
   // MARK: - Footer
-
-  /// Dresses a flat `NSButton` as a raised control: white fill, hairline border and a
-  /// soft drop shadow — the standalone look the reference gives 编辑 / 边栏.
-  private func styleRaisedButton(
-    _ button: NSButton,
-    cornerRadius: CGFloat,
-    fillColor: NSColor,
-    borderColor: NSColor,
-    shadow: Bool
-  ) {
-    button.wantsLayer = true
-    guard let layer = button.layer else { return }
-    layer.backgroundColor = fillColor.cgColor
-    layer.cornerRadius = cornerRadius
-    layer.cornerCurve = .continuous
-    layer.borderWidth = 1
-    layer.borderColor = borderColor.cgColor
-    if shadow {
-      layer.shadowColor = NSColor.black.cgColor
-      layer.shadowOpacity = 0.10
-      layer.shadowRadius = 1.5
-      layer.shadowOffset = CGSize(width: 0, height: -0.5)
-      layer.masksToBounds = false
-    }
-  }
 
   // MARK: - Top bar actions
 
@@ -532,16 +488,33 @@ private final class SidebarBackgroundView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    refresh()
+    // Split-view items don't always get `viewDidChangeEffectiveAppearance`, so also
+    // repaint from the app's explicit appearance notification.
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(refresh), name: .macAppearanceChanged, object: nil
+    )
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  @objc private func refresh() {
+    let appearance = window?.effectiveAppearance ?? NSApp.effectiveAppearance
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.sidebarBackgroundColor, for: appearance)
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    refresh()
+  }
+
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.sidebarBackgroundColor.cgColor
+    refresh()
   }
 }
 
@@ -554,15 +527,126 @@ private final class ColumnSeparatorView: NSView {
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
-    layer?.backgroundColor = MacTheme.columnDividerColor.cgColor
+    refresh()
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(refresh), name: .macAppearanceChanged, object: nil
+    )
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  @objc private func refresh() {
+    let appearance = window?.effectiveAppearance ?? NSApp.effectiveAppearance
+    layer?.backgroundColor = MacTheme.cgColor(MacTheme.columnDividerColor, for: appearance)
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    refresh()
+  }
+
   override func viewDidChangeEffectiveAppearance() {
     super.viewDidChangeEffectiveAppearance()
-    layer?.backgroundColor = MacTheme.columnDividerColor.cgColor
+    refresh()
   }
 }
+
+// MARK: - SidebarTitleButton
+
+/// Raised pill button drawn with `draw(_:)` instead of a layer-backed `NSButton`.
+/// Inside the window's titlebar band macOS composites the sidebar through its glass
+/// material, which downsamples/softens layer-backed subviews (the 编辑 / 边栏 labels
+/// looked blurry). A plain, non-layer-backed `NSView` is rasterised by the window at
+/// native resolution, so it stays crisp — verified side-by-side at 2×.
+@MainActor
+final class SidebarTitleButton: NSView {
+  enum Content {
+    case title(String)
+    case symbol(String)
+  }
+
+  var content: Content = .title("") { didSet { needsDisplay = true } }
+  var onClick: (() -> Void)?
+
+  private var isPressed = false {
+    didSet { needsDisplay = true }
+  }
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    // Deliberately NOT layer-backed: the titlebar glass blurs layer-backed content.
+    wantsLayer = false
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  /// Height is fixed by constraints (32 pt); the radius follows to make a pill.
+  override func draw(_ dirtyRect: NSRect) {
+    let r = bounds.insetBy(dx: 0.5, dy: 0.5)
+    let path = NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2)
+    // Soft drop shadow drawn with the path (kept in the same non-layer pass so it
+    // doesn't force offscreen compositing).
+    NSGraphicsContext.saveGraphicsState()
+    let shadow = NSShadow()
+    shadow.shadowColor = NSColor.black.withAlphaComponent(0.12)
+    shadow.shadowBlurRadius = 2
+    shadow.shadowOffset = NSSize(width: 0, height: -1)
+    shadow.set()
+    (isPressed ? NSColor.black.withAlphaComponent(0.06) : NSColor.white).setFill()
+    path.fill()
+    NSGraphicsContext.restoreGraphicsState()
+    // Hairline border on top of the fill.
+    NSColor.separatorColor.withAlphaComponent(0.55).setStroke()
+    path.lineWidth = 1
+    path.stroke()
+
+    switch content {
+    case let .title(text):
+      let attrs: [NSAttributedString.Key: Any] = [
+        .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+        .foregroundColor: NSColor.labelColor,
+      ]
+      let s = NSAttributedString(string: text, attributes: attrs)
+      let size = s.size()
+      s.draw(at: NSPoint(
+        x: ((bounds.width - size.width) / 2).rounded(),
+        y: ((bounds.height - size.height) / 2).rounded()
+      ))
+    case let .symbol(name):
+      guard let img = NSImage(systemSymbolName: name, accessibilityDescription: nil)?
+        .withSymbolConfiguration(.init(pointSize: 15, weight: .regular))
+      else { return }
+      let sz = img.size
+      let tinted = NSImage(size: sz, flipped: false) { rect in
+        img.draw(in: rect)
+        NSColor.labelColor.set()
+        rect.fill(using: .sourceAtop)
+        return true
+      }
+      tinted.draw(in: NSRect(
+        x: ((bounds.width - sz.width) / 2).rounded(),
+        y: ((bounds.height - sz.height) / 2).rounded(),
+        width: sz.width,
+        height: sz.height
+      ))
+    }
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    isPressed = true
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    let wasPressed = isPressed
+    isPressed = false
+    let point = convert(event.locationInWindow, from: nil)
+    if wasPressed, bounds.contains(point) { onClick?() }
+  }
+}
+

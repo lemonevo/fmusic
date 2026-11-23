@@ -116,6 +116,18 @@ enum MacTheme {
 
   static var secondaryTextColor: NSColor { .secondaryLabelColor }
 
+  /// Resolves a dynamic colour against a specific appearance. Writing `cgColor` on a
+  /// dynamic (`NSColor(name:)`) colour otherwise uses the process-wide current
+  /// appearance, which is still the old one inside `viewDidChangeEffectiveAppearance`
+  /// — that made the painted sidebar/content surfaces stay light in dark mode.
+  static func cgColor(_ color: NSColor, for appearance: NSAppearance) -> CGColor {
+    var resolved: CGColor = color.cgColor
+    appearance.performAsCurrentDrawingAppearance {
+      resolved = color.cgColor
+    }
+    return resolved
+  }
+
   // MARK: - Appearance
 
   /// Applies the app-wide appearance mode from the shared settings.
