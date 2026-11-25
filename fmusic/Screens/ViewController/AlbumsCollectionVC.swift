@@ -80,7 +80,7 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
     case .artist, .name:
       sectionHeader
         .display(title: sectionTitleToIndexTitle(sectionName: sectionTitle(for: indexPath.section)))
-    case .rating, .year:
+    case .year:
       sectionHeader.display(title: sectionTitle(for: indexPath.section))
     case .duration, .newest, .recent:
       sectionHeader.display(title: nil)
@@ -94,7 +94,7 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
 
   override func indexTitles(for collectionView: UICollectionView) -> [String]? {
     switch vc.common.sortType {
-    case .artist, .duration, .name, .rating, .year:
+    case .artist, .duration, .name, .year:
       let sectionCount = numberOfSections(in: collectionView)
       var indexTitles = [String]()
       for i in 0 ... sectionCount {
@@ -120,8 +120,6 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
       if let _ = Int(indexTitle) {
         indexTitle = "#"
       }
-    case .rating:
-      indexTitle = IndexHeaderNameGenerator.sortByRating(forSectionName: sectionName)
     case .duration:
       indexTitle = IndexHeaderNameGenerator.sortByDurationAlbum(forSectionName: sectionName)
     case .year:
@@ -137,13 +135,6 @@ class AlbumsCollectionDiffableDataSource: BasicUICollectionViewDiffableDataSourc
     case .name:
       guard let album = getFirstAlbum(in: section) else { return "" }
       return album.name
-    case .rating:
-      guard let album = getFirstAlbum(in: section) else { return "" }
-      if album.rating > 0 {
-        return L10n.tr(album.rating == 1 ? "%d Star" : "%d Stars", album.rating)
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .newest, .recent:
       return ""
     case .artist:
@@ -258,7 +249,7 @@ class AlbumsCollectionVC: SingleSnapshotFetchedResultsCollectionViewController<A
     )
 
     switch common.sortType {
-    case .artist, .duration, .name, .rating, .year:
+    case .artist, .duration, .name, .year:
       collectionView.showsVerticalScrollIndicator = false
     case .newest, .recent:
       collectionView.showsVerticalScrollIndicator = true
@@ -449,7 +440,7 @@ extension AlbumsCollectionVC: UICollectionViewDelegateFlowLayout {
     -> CGSize {
     let headerTopHeight = section == 0 ? LibraryElementDetailTableHeaderView.frameHeight : 0.0
     switch common.sortType {
-    case .artist, .name, .rating, .year:
+    case .artist, .name, .year:
       return CGSize(
         width: collectionView.bounds.size.width,
         height: CommonCollectionSectionHeader.frameHeight + headerTopHeight

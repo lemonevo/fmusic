@@ -130,7 +130,6 @@ final class XCallbackManager {
     registerPlaybackActions()
     registerPlaybackOptions()
     registerOfflineMode()
-    registerRating()
     registerFavorite()
   }
 
@@ -502,67 +501,6 @@ final class XCallbackManager {
       NotificationCenter.default.post(name: .macPlaybackSettingsChanged, object: nil)
       success(nil)
     }
-  }
-
-  private func registerRating() {
-    documentation.append(ActionDoc(
-      name: "RateCurrentlyPlayingSong",
-      action: "rateCurrentlyPlayingSong",
-      description: L10n.tr("Rates the currently playing song (0 - 5)."),
-      exampleURLs: [
-        "fmusic://x-callback-url/rateCurrentlyPlayingSong?rating=5",
-        "fmusic://x-callback-url/setRating?rating=0",
-      ],
-      parameters: [
-        ParameterDoc(
-          name: "rating",
-          type: "Int",
-          isMandatory: true,
-          description: L10n.tr("Rating must be between 0 and 5"),
-          defaultIfNotGiven: nil
-        ),
-      ]
-    ))
-    let handler: ActionHandler = { [self] parameters, success, failure, _ in
-      guard let ratingRaw = parameters["rating"], let rating = Int(ratingRaw),
-            rating >= 0, rating <= 5 else {
-        fail(failure, reason: "Parameter rating not provided or not valid. Must be between 0 and 5.")
-        return
-      }
-      guard storage.settings.user.isOnlineMode else {
-        fail(failure, reason: "Rating can only be changed in Online Mode.")
-        return
-      }
-      guard let currentlyPlaying = player.currentlyPlaying else {
-        fail(failure, reason: "There is no song currently playing.")
-        return
-      }
-      guard let song = currentlyPlaying.asSong else {
-        fail(failure, reason: "Only songs can be rated.")
-        return
-      }
-      song.rating = rating
-      storage.main.saveContext()
-      Task { @MainActor in
-        if let accountInfo = song.account?.info {
-          do {
-            try await self.fmusic.getMeta(accountInfo).librarySyncer
-              .setRating(song: song, rating: rating)
-          } catch {
-            // The rating is already stored locally; the server sync failure is not fatal.
-            self.eventLogger.error(
-              topic: "X-Callback-URL",
-              statusCode: .connectionError,
-              message: "rateCurrentlyPlayingSong: \(error.localizedDescription)",
-              displayPopup: false
-            )
-          }
-        }
-        success(nil)
-      }
-    }
-    CallbackURLKit.register(action: "rateCurrentlyPlayingSong", actionHandler: handler)
-    CallbackURLKit.register(action: "setRating", actionHandler: handler)
   }
 
   private func registerFavorite() {

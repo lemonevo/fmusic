@@ -99,7 +99,6 @@ extension Directory: PlayableContainable {
   }
 
   public var playContextType: PlayerMode { .music }
-  public var isRateable: Bool { false }
   public var isFavoritable: Bool { false }
   @MainActor
   public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {

@@ -185,21 +185,6 @@ extension LibrarySyncerProxy: LibrarySyncer {
   }
 
   @MainActor
-  func setRating(song: Song, rating: Int) async throws {
-    try await activeSyncer.setRating(song: song, rating: rating)
-  }
-
-  @MainActor
-  func setRating(album: Album, rating: Int) async throws {
-    try await activeSyncer.setRating(album: album, rating: rating)
-  }
-
-  @MainActor
-  func setRating(artist: Artist, rating: Int) async throws {
-    try await activeSyncer.setRating(artist: artist, rating: rating)
-  }
-
-  @MainActor
   func setFavorite(song: Song, isFavorite: Bool) async throws {
     try await activeSyncer.setFavorite(song: song, isFavorite: isFavorite)
   }

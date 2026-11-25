@@ -199,7 +199,6 @@ extension Album: PlayableContainable {
   }
 
   public var playContextType: PlayerMode { .music }
-  public var isRateable: Bool { true }
   public var isFavoritable: Bool { true }
   @MainActor
   public func remoteToggleFavorite(syncer: LibrarySyncer) async throws {

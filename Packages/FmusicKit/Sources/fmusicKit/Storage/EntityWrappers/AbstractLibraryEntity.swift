@@ -74,15 +74,6 @@ public class AbstractLibraryEntity {
     set { if managedObject.starredDate != newValue { managedObject.starredDate = newValue } }
   }
 
-  public var rating: Int {
-    get { Int(managedObject.rating) }
-    set {
-      guard Int16.isValid(value: newValue), managedObject.rating != Int16(newValue), newValue >= 0,
-            newValue <= 5 else { return }
-      managedObject.rating = Int16(newValue)
-    }
-  }
-
   public var remoteStatus: RemoteStatus {
     get { RemoteStatus(rawValue: Int(managedObject.remoteStatus)) ?? .available }
     set {

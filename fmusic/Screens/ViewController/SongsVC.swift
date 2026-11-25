@@ -166,14 +166,8 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
 
     tableView.sectionFooterHeight = 0.0
     tableView.estimatedSectionFooterHeight = 0.0
-    switch sortType {
-    case .rating:
-      tableView.sectionHeaderHeight = CommonScreenOperations.tableSectionHeightLarge
-      tableView.estimatedSectionHeaderHeight = CommonScreenOperations.tableSectionHeightLarge
-    default:
-      tableView.sectionHeaderHeight = 0.0
-      tableView.estimatedSectionHeaderHeight = 0.0
-    }
+    tableView.sectionHeaderHeight = 0.0
+    tableView.estimatedSectionHeaderHeight = 0.0
 
     tableView.reloadData()
     updateRightBarButtonItems()
@@ -244,8 +238,6 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     switch sortType {
     case .name:
       return 0.0
-    case .rating:
-      return CommonScreenOperations.tableSectionHeightLarge
     case .addedDate:
       return 0.0
     case .duration:
@@ -263,16 +255,6 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
     switch sortType {
     case .name:
       return super.tableView(tableView, titleForHeaderInSection: section)
-    case .rating:
-      if let sectionNameInitial = super.tableView(tableView, titleForHeaderInSection: section),
-         sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
-        return L10n.tr(
-          sectionNameInitial == "1" ? "%@ Star" : "%@ Stars",
-          sectionNameInitial
-        )
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .addedDate:
       return nil
     case .duration:
@@ -393,20 +375,6 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
         )
       }
     )
-    let sortByRating = UIAction(
-      title: L10n.tr("Rating"),
-      image: sortType == .rating ? .check : nil,
-      handler: { _ in
-        self.change(sortType: .rating)
-        self.saveSortPreference(preference: .rating)
-        self.updateSearchResults(for: self.searchController)
-        self.appDelegate.notificationHandler.post(
-          name: .fetchControllerSortChanged,
-          object: nil,
-          userInfo: nil
-        )
-      }
-    )
     let sortByDuration = UIAction(
       title: L10n.tr("Duration"),
       image: sortType == .duration ? .check : nil,
@@ -454,14 +422,14 @@ class SongsVC: SingleFetchedResultsTableViewController<SongMO> {
         title: L10n.tr("Sort"),
         image: .sort,
         options: [],
-        children: [sortByName, sortByRating, sortByDuration, sortByStarredDate, sortByAddedDate]
+        children: [sortByName, sortByDuration, sortByStarredDate, sortByAddedDate]
       )
     } else {
       return UIMenu(
         title: L10n.tr("Sort"),
         image: .sort,
         options: [],
-        children: [sortByName, sortByRating, sortByDuration, sortByAddedDate]
+        children: [sortByName, sortByDuration, sortByAddedDate]
       )
     }
   }

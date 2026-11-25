@@ -130,7 +130,6 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
   private weak var externalLyricsContainer: UIView?
   private var visualizerHostingView: SwiftUIContentView?
   private var displayElement: LargeDisplayElement = .artwork
-  private var ratingView: RatingView?
 
   @IBOutlet
   weak var upperContainerView: UIView!
@@ -210,15 +209,8 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
       )
     }
 
-    setupRatingView()
     addSwipeGesturesToArtwork()
 
-    appDelegate.notificationHandler.register(
-      self,
-      selector: #selector(refreshOfflineMode),
-      name: .offlineModeChanged,
-      object: nil
-    )
     appDelegate.notificationHandler.register(
       self,
       selector: #selector(onlineLyricsDidUpdate(_:)),
@@ -231,11 +223,6 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
   }
 
   @objc
-  private func refreshOfflineMode() {
-    refreshRating()
-  }
-
-  @objc
   private func onlineLyricsDidUpdate(_ notification: Notification) {
     guard let songID = notification.userInfo?["songID"] as? String,
           rootView?.player.currentlyPlaying?.asSong?.id == songID,
@@ -243,30 +230,6 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     else { return }
     rootView?.refreshOptionButton(button: optionsButton, rootView: rootView)
     initializeLyrics()
-  }
-
-  private func setupRatingView() {
-    ratingView = RatingView()
-    ratingView!.translatesAutoresizingMaskIntoConstraints = false
-    ratingView!.delegate = self
-    ratingView!.isUserInteractionEnabled = true
-    // Add directly to self and position between artwork and details
-    addSubview(ratingView!)
-
-    // Center vertically between artwork bottom and details top using a UILayoutGuide
-    let spacerGuide = UILayoutGuide()
-    addLayoutGuide(spacerGuide)
-
-    NSLayoutConstraint.activate([
-      // Spacer fills the gap between artwork and details
-      spacerGuide.topAnchor.constraint(equalTo: artworkImage.bottomAnchor),
-      spacerGuide.bottomAnchor.constraint(equalTo: detailsContainer.topAnchor),
-      // Center rating view in the spacer
-      ratingView!.centerXAnchor.constraint(equalTo: centerXAnchor),
-      ratingView!.centerYAnchor.constraint(equalTo: spacerGuide.centerYAnchor),
-      ratingView!.heightAnchor.constraint(equalToConstant: 36),
-      ratingView!.widthAnchor.constraint(equalToConstant: 180),
-    ])
   }
 
   @objc
@@ -515,23 +478,7 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
     )
     rootView?.refreshFavoriteButton(button: favoriteButton)
     rootView?.refreshOptionButton(button: optionsButton, rootView: rootView)
-    refreshRating()
     display(element: externalLyricsContainer != nil ? LargeDisplayElement.lyrics : displayElement)
-  }
-
-  func refreshRating() {
-    guard appDelegate.storage.settings.user.isShowRating,
-          let song = rootView?.player.currentlyPlaying?.asSong else {
-      ratingView?.setRating(0, animated: false)
-      ratingView?.isHidden = true
-      return
-    }
-    // Keep rating hidden when lyrics are displayed
-    ratingView?.isHidden = (displayElement == .lyrics)
-    ratingView?.setRating(song.rating, animated: false)
-
-    // Disable rating interaction when offline (display only with reduced opacity)
-    ratingView?.isRatingEnabled = !appDelegate.storage.settings.user.isOfflineMode
   }
 
   func refreshArtwork() {
@@ -562,30 +509,5 @@ class LargeCurrentlyPlayingPlayerView: UIView, UIGestureRecognizerDelegate {
   func favoritePressed(_ sender: Any) {
     rootView?.favoritePressed()
     rootView?.refreshFavoriteButton(button: favoriteButton)
-  }
-}
-
-// MARK: RatingViewDelegate
-
-extension LargeCurrentlyPlayingPlayerView: RatingViewDelegate {
-  func ratingView(_ ratingView: RatingView, didChangeRating rating: Int) {
-    guard let song = rootView?.player.currentlyPlaying?.asSong,
-          let account = song.account
-    else { return }
-
-    // Update local rating immediately for responsive UI
-    song.rating = rating
-
-    // Sync rating to server
-    Task {
-      do {
-        try await appDelegate.getMeta(account.info).librarySyncer.setRating(
-          song: song,
-          rating: rating
-        )
-      } catch {
-        appDelegate.eventLogger.report(topic: "Song Rating", error: error)
-      }
-    }
   }
 }

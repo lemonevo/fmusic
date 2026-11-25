@@ -85,12 +85,6 @@ public struct UserSettings: Sendable, Codable {
     set { _isShowArtistDuration = newValue }
   }
 
-  private var _isShowRating: Bool = false
-  public var isShowRating: Bool {
-    get { _isShowRating }
-    set { _isShowRating = newValue }
-  }
-
   private var _isPlayerShuffleButtonEnabled: Bool = true
   public var isPlayerShuffleButtonEnabled: Bool {
     get { _isPlayerShuffleButtonEnabled }

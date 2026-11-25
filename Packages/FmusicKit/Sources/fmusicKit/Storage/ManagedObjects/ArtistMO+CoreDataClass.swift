@@ -84,24 +84,6 @@ extension ArtistMO: CoreDataIdentifyable {
     return fetchRequest
   }
 
-  static var ratingSortedFetchRequest: NSFetchRequest<ArtistMO> {
-    let fetchRequest: NSFetchRequest<ArtistMO> = ArtistMO.fetchRequest()
-    fetchRequest.sortDescriptors = [
-      NSSortDescriptor(key: #keyPath(ArtistMO.rating), ascending: false),
-      NSSortDescriptor(
-        key: Self.identifierKeyString,
-        ascending: true,
-        selector: #selector(NSString.localizedStandardCompare)
-      ),
-      NSSortDescriptor(
-        key: #keyPath(ArtistMO.id),
-        ascending: true,
-        selector: #selector(NSString.localizedStandardCompare)
-      ),
-    ]
-    return fetchRequest
-  }
-
   static var durationSortedFetchRequest: NSFetchRequest<ArtistMO> {
     let fetchRequest: NSFetchRequest<ArtistMO> = ArtistMO.fetchRequest()
     fetchRequest.sortDescriptors = [

@@ -142,7 +142,7 @@ class PlaylistAddAlbumsVC: SingleSnapshotFetchedResultsTableViewController<Album
     switch common.sortType {
     case .artist, .duration, .name, .newest, .recent:
       return 0.0
-    case .rating, .year:
+    case .year:
       return CommonScreenOperations.tableSectionHeightLarge
     }
   }

@@ -110,7 +110,6 @@ public protocol PlayableContainable {
   var playables: [AbstractPlayable] { get }
   var playContextType: PlayerMode { get }
   var account: Account? { get }
-  var isRateable: Bool { get }
   var isDownloadAvailable: Bool { get }
   @MainActor
   func getArtworkCollection(theme: ThemePreference) -> ArtworkCollection
@@ -158,7 +157,6 @@ extension PlayableContainable {
     )
   }
 
-  public var isRateable: Bool { false }
   public var isFavoritable: Bool { false }
   public var isFavorite: Bool { false }
   public var isDownloadAvailable: Bool { true }

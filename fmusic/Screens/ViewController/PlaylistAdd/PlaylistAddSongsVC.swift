@@ -181,8 +181,6 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
     switch sortType {
     case .name:
       return 0.0
-    case .rating:
-      return CommonScreenOperations.tableSectionHeightLarge
     case .addedDate:
       return 0.0
     case .duration:
@@ -200,16 +198,6 @@ class PlaylistAddSongsVC: SingleFetchedResultsTableViewController<SongMO>, Playl
     switch sortType {
     case .name:
       return super.tableView(tableView, titleForHeaderInSection: section)
-    case .rating:
-      if let sectionNameInitial = super.tableView(tableView, titleForHeaderInSection: section),
-         sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
-        return L10n.tr(
-          sectionNameInitial == "1" ? "%@ Star" : "%@ Stars",
-          sectionNameInitial
-        )
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .addedDate:
       return nil
     case .duration:

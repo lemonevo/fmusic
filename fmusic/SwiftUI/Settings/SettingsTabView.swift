@@ -210,11 +210,6 @@ private enum SettingsSearchCatalog {
       keywords: ["duration", "艺人时长"]
     ),
     .init(
-      L10n.tr("Show Star Rating"),
-      .displayAndInteraction,
-      keywords: ["rating", "stars", "评分", "星级"]
-    ),
-    .init(
       L10n.tr("Swipe Actions"),
       .displayAndInteraction,
       keywords: ["swipe", "gesture", "轻扫", "滑动"]

@@ -26,7 +26,6 @@ import Foundation
 
 public enum ArtistElementSortType: Int, Sendable, Codable {
   case name = 0
-  case rating = 1
   case newest = 2
   case duration = 3
 
@@ -36,8 +35,6 @@ public enum ArtistElementSortType: Int, Sendable, Codable {
     switch self {
     case .name:
       return .alphabet
-    case .rating:
-      return .rating
     case .newest:
       return .newestOrRecent
     case .duration:
@@ -50,7 +47,6 @@ public enum ArtistElementSortType: Int, Sendable, Codable {
 
 public enum AlbumElementSortType: Int, Sendable, Codable {
   case name = 0
-  case rating = 1
   case newest = 2
   case artist = 3
   case duration = 4
@@ -63,8 +59,6 @@ public enum AlbumElementSortType: Int, Sendable, Codable {
     switch self {
     case .name:
       return .alphabet
-    case .rating:
-      return .rating
     case .newest:
       return .newestOrRecent
     case .artist:
@@ -107,7 +101,6 @@ public enum PlaylistSortType: Int, Sendable, Codable {
 
 public enum SongElementSortType: Int, Sendable, Codable {
   case name = 0
-  case rating = 1
   case addedDate = 2
   case duration = 3
   case starredDate = 4
@@ -119,8 +112,6 @@ public enum SongElementSortType: Int, Sendable, Codable {
     switch self {
     case .name:
       return .alphabet
-    case .rating:
-      return .rating
     case .addedDate:
       return .newestOrRecent
     case .duration:
@@ -133,8 +124,6 @@ public enum SongElementSortType: Int, Sendable, Codable {
   public var hasSectionTitles: Bool {
     switch self {
     case .name:
-      return true
-    case .rating:
       return true
     case .addedDate:
       return false
@@ -490,8 +479,6 @@ public class ArtistFetchedResultsController: CachedFetchedResultsController<Arti
     switch sortType {
     case .name:
       fetchRequest = ArtistMO.alphabeticSortedFetchRequest
-    case .rating:
-      fetchRequest = ArtistMO.ratingSortedFetchRequest
     case .newest:
       // artist currently does not support recentlyAdded
       fetchRequest = ArtistMO.identifierSortedFetchRequest
@@ -678,8 +665,6 @@ public class AlbumFetchedResultsController: CachedFetchedResultsController<Album
     switch sortType {
     case .name:
       fetchRequest = AlbumMO.alphabeticSortedFetchRequest
-    case .rating:
-      fetchRequest = AlbumMO.ratingSortedFetchRequest
     case .newest:
       fetchRequest = AlbumMO.newestSortedFetchRequest
     case .recent:
@@ -741,8 +726,6 @@ public class SongsFetchedResultsController: CachedFetchedResultsController<SongM
     switch sortType {
     case .name:
       fetchRequest = SongMO.alphabeticSortedFetchRequest
-    case .rating:
-      fetchRequest = SongMO.ratingSortedFetchRequest
     case .addedDate:
       fetchRequest = SongMO.addedDateSortedFetchRequest
     case .duration:

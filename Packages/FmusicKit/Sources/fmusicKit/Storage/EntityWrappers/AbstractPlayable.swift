@@ -468,15 +468,6 @@ extension AbstractPlayable: PlayableContainable {
     try await librarySyncer.sync(song: song)
   }
 
-  public var isRateable: Bool {
-    switch derivedType {
-    case .song:
-      return true
-    case .podcastEpisode, .radio:
-      return false
-    }
-  }
-
   public var isFavoritable: Bool {
     switch derivedType {
     case .song:

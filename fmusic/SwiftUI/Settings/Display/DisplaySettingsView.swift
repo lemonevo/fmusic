@@ -142,17 +142,6 @@ struct DisplaySettingsView: View {
           L10n.tr("Display artist duration in table rows.")
         )
 
-        SettingsSection(
-          content: {
-            SettingsCheckBoxRow(
-              title: L10n.tr("Show Star Rating"),
-              isOn: $settings.isShowRating
-            )
-          },
-          footer:
-          L10n.tr("Display star rating in song cells and the currently playing view.")
-        )
-
         SettingsSection {
           NavigationLink(value: Destination.swipe) {
             Text(L10n.tr("Swipe Actions"))

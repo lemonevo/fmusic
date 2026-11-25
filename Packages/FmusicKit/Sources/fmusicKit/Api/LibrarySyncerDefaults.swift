@@ -43,18 +43,6 @@ extension LibrarySyncer {
   public func requestSimilarSongs(song: Song, count: Int) async throws -> [Song] { [] }
   public func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws {}
 
-  public func setRating(song: Song, rating: Int) async throws {
-    song.rating = rating
-  }
-
-  public func setRating(album: Album, rating: Int) async throws {
-    album.rating = rating
-  }
-
-  public func setRating(artist: Artist, rating: Int) async throws {
-    artist.rating = rating
-  }
-
   public func setFavorite(song: Song, isFavorite: Bool) async throws {
     song.isFavorite = isFavorite
     song.starredDate = isFavorite ? Date() : nil

@@ -51,13 +51,6 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
     case .name:
       guard let album = getFirstAlbum(in: section) else { return nil }
       return album.name
-    case .rating:
-      guard let album = getFirstAlbum(in: section) else { return nil }
-      if album.rating > 0 {
-        return L10n.tr(album.rating == 1 ? "%d Star" : "%d Stars", album.rating)
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .newest, .recent:
       return nil
     case .artist:
@@ -90,8 +83,6 @@ class AlbumsDiffableDataSource: BasicUITableViewDiffableDataSource {
           if let _ = Int(indexTitle) {
             indexTitle = "#"
           }
-        case .rating:
-          indexTitle = IndexHeaderNameGenerator.sortByRating(forSectionName: sectionName)
         case .duration:
           indexTitle = IndexHeaderNameGenerator.sortByDurationAlbum(forSectionName: sectionName)
         case .year:
@@ -288,7 +279,7 @@ class AlbumsVC: SingleSnapshotFetchedResultsTableViewController<AlbumMO> {
     switch common.sortType {
     case .artist, .duration, .name, .newest, .recent:
       return 0.0
-    case .rating, .year:
+    case .year:
       return CommonScreenOperations.tableSectionHeightLarge
     }
   }

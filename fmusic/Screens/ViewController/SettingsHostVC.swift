@@ -176,12 +176,6 @@ class SettingsHostVC: UIViewController {
       appDelegate.storage.settings.user.isShowArtistDuration = newValue
     }))
 
-    settings.isShowRating = appDelegate.storage.settings.user.isShowRating
-    changesAgent.append(settings.$isShowRating.sink(receiveValue: { [weak self] newValue in
-      guard let self else { return }
-      appDelegate.storage.settings.user.isShowRating = newValue
-    }))
-
     settings.isPlayerShuffleButtonEnabled = appDelegate.storage.settings.user
       .isPlayerShuffleButtonEnabled
     changesAgent

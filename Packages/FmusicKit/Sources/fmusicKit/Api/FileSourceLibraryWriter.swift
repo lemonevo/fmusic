@@ -420,13 +420,13 @@ enum FileSourceLibraryWriter {
 
   /// Removes duplicate songs in the account that can be left behind by overlapping
   /// resyncs or URL-encoding changes, keeping the richest copy (downloaded/cached,
-  /// lyrics, favorite/rating, artwork) and deleting redundant Core Data rows.
+  /// lyrics, favorite, artwork) and deleting redundant Core Data rows.
   static func deduplicateSongs(account: Account, library: LibraryStorage) {
     func rank(_ song: Song) -> (Int, Int, Int, Int, Int) {
       (
         song.isCached ? 1 : 0,
         song.lyricsRelFilePath != nil ? 1 : 0,
-        (song.isFavorite || song.rating > 0) ? 1 : 0,
+        song.isFavorite ? 1 : 0,
         song.artwork?.imagePath != nil ? 1 : 0,
         song.playCount
       )
@@ -457,9 +457,6 @@ enum FileSourceLibraryWriter {
         }
         if !primary.isFavorite, duplicate.isFavorite {
           primary.isFavorite = true
-        }
-        if primary.rating == 0, duplicate.rating > 0 {
-          primary.rating = duplicate.rating
         }
         library.deleteSong(duplicate)
       }

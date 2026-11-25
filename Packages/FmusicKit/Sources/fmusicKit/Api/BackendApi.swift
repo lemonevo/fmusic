@@ -204,12 +204,6 @@ public protocol LibrarySyncer: Sendable {
   @MainActor
   func requestPodcastEpisodeDelete(podcastEpisode: PodcastEpisode) async throws
   @MainActor
-  func setRating(song: Song, rating: Int) async throws
-  @MainActor
-  func setRating(album: Album, rating: Int) async throws
-  @MainActor
-  func setRating(artist: Artist, rating: Int) async throws
-  @MainActor
   func setFavorite(song: Song, isFavorite: Bool) async throws
   @MainActor
   func setFavorite(album: Album, isFavorite: Bool) async throws

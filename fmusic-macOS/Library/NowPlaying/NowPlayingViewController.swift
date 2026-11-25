@@ -653,23 +653,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     menu.addItem(actionItem(L10n.tr("Match Online Lyrics"), #selector(matchOnlineLyrics)))
     menu.addItem(.separator())
 
-    let rating = NSMenuItem(title: L10n.tr("Rating"), action: nil, keyEquivalent: "")
-    let ratingMenu = NSMenu()
-    for stars in 0...5 {
-      let item = NSMenuItem(
-        title: stars == 0 ? L10n.tr("None") : String(repeating: "★", count: stars),
-        action: #selector(setRating(_:)),
-        keyEquivalent: ""
-      )
-      item.target = self
-      item.tag = stars
-      item.state = song.rating == stars ? .on : .off
-      ratingMenu.addItem(item)
-    }
-    rating.submenu = ratingMenu
-    menu.addItem(rating)
-    menu.addItem(.separator())
-
     let playlistOptions = entityActions.addToPlaylistOptions(for: song)
     entityPlaylistHandlers = playlistOptions.map(\.1)
     let playlistItem = NSMenuItem(
@@ -730,11 +713,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   @objc
   private func matchOnlineLyrics() {
     entityActions.matchOnlineLyrics()
-  }
-
-  @objc
-  private func setRating(_ sender: NSMenuItem) {
-    entityActions.setRating(sender.tag)
   }
 
   @objc

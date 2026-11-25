@@ -68,12 +68,6 @@ final class PlayerEntityActions {
     storage.main.saveContext()
   }
 
-  func setRating(_ rating: Int) {
-    guard let song = currentSong else { return }
-    song.rating = rating
-    storage.main.saveContext()
-  }
-
   func canDownload(_ song: Song) -> Bool {
     guard let account = song.account,
           !storage.settings.user.isOfflineMode,

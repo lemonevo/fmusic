@@ -58,12 +58,6 @@ class ArtistDiffableDataSource: BasicUITableViewDiffableDataSource {
     switch sortType {
     case .name:
       return artist.name.prefix(1).uppercased()
-    case .rating:
-      if artist.rating > 0 {
-        return L10n.tr(artist.rating == 1 ? "%d Star" : "%d Stars", artist.rating)
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .duration:
       return artist.duration.description
     case .newest:
@@ -83,8 +77,6 @@ class ArtistDiffableDataSource: BasicUITableViewDiffableDataSource {
           if let _ = Int(indexTitle) {
             indexTitle = "#"
           }
-        case .rating:
-          indexTitle = IndexHeaderNameGenerator.sortByRating(forSectionName: sectionName)
         case .duration:
           indexTitle = IndexHeaderNameGenerator.sortByDurationArtist(forSectionName: sectionName)
         case .newest:
@@ -335,8 +327,6 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
     switch sortType {
     case .name:
       return 0.0
-    case .rating:
-      return CommonScreenOperations.tableSectionHeightLarge
     case .newest:
       return 0.0
     case .duration:
@@ -352,16 +342,6 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
     switch sortType {
     case .name:
       return super.tableView(tableView, titleForHeaderInSection: section)
-    case .rating:
-      if let sectionNameInitial = super.tableView(tableView, titleForHeaderInSection: section),
-         sectionNameInitial != SectionIndexType.noRatingIndexSymbol {
-        return L10n.tr(
-          sectionNameInitial == "1" ? "%@ Star" : "%@ Stars",
-          sectionNameInitial
-        )
-      } else {
-        return L10n.tr("Not rated")
-      }
     case .newest:
       return super.tableView(tableView, titleForHeaderInSection: section)
     case .duration:
@@ -413,19 +393,6 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
         )
       }
     )
-    let sortByRating = UIAction(
-      title: L10n.tr("Rating"),
-      image: sortType == .rating ? .check : nil,
-      handler: { _ in
-        self.change(sortType: .rating)
-        self.updateSearchResults(for: self.searchController)
-        self.appDelegate.notificationHandler.post(
-          name: .fetchControllerSortChanged,
-          object: nil,
-          userInfo: nil
-        )
-      }
-    )
     let sortByDuration = UIAction(
       title: L10n.tr("Duration"),
       image: sortType == .duration ? .check : nil,
@@ -443,7 +410,7 @@ class ArtistsVC: SingleSnapshotFetchedResultsTableViewController<ArtistMO> {
       title: L10n.tr("Sort"),
       image: .sort,
       options: [],
-      children: [sortByName, sortByRating, sortByDuration]
+      children: [sortByName, sortByDuration]
     )
   }
 

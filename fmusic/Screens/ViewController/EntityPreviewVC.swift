@@ -132,10 +132,6 @@ class EntityPreviewActionBuilder {
        appDelegate.storage.settings.user.isOnlineMode {
       ratingFavActions.append(createFavoriteMenu(libraryEntity: libraryEntity))
     }
-    if let libraryEntity = entityContainer as? AbstractLibraryEntity, entityContainer.isRateable,
-       appDelegate.storage.settings.user.isOnlineMode {
-      ratingFavActions.append(createRatingMenu(libraryEntity: libraryEntity))
-    }
     if !ratingFavActions.isEmpty {
       menuActions.append(UIMenu(options: .displayInline, children: ratingFavActions))
     }
@@ -442,93 +438,6 @@ class EntityPreviewActionBuilder {
         self.appDelegate.eventLogger.report(topic: "Toggle Favorite", error: error)
       }
       self.reloadRootView()
-    }
-  }
-
-  private func createRatingMenu(libraryEntity: AbstractLibraryEntity) -> UIMenu {
-    let rating = libraryEntity.rating == 0
-      ? L10n.tr("Not rated")
-      : L10n.tr(libraryEntity.rating > 1 ? "%d Stars" : "%d Star", libraryEntity.rating)
-    let menuIcon = libraryEntity
-      .rating == 0 ? UIImage.starEmpty : UIImage.starFill
-    let children = [
-      UIAction(title: L10n.tr("No Rating"), image: .ban) { action in self.setRating(rating: 0) },
-      UIAction(
-        title: L10n.tr("%d Star", 1),
-        image: libraryEntity.rating >= 1 ? .starFill : .starEmpty
-      ) { action in
-        self.setRating(rating: 1)
-      },
-      UIAction(
-        title: L10n.tr("%d Stars", 2),
-        image: libraryEntity.rating >= 2 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 2)
-      },
-      UIAction(
-        title: L10n.tr("%d Stars", 3),
-        image: libraryEntity.rating >= 3 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 3)
-      },
-      UIAction(
-        title: L10n.tr("%d Stars", 4),
-        image: libraryEntity.rating >= 4 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 4)
-      },
-      UIAction(
-        title: L10n.tr("%d Stars", 5),
-        image: libraryEntity.rating >= 5 ? .starFill : .starEmpty
-      ) { action in self
-        .setRating(rating: 5)
-      },
-    ]
-
-    return UIMenu(
-      title: L10n.tr("Rating: %@", rating),
-      image: menuIcon,
-      options: .displayAsPalette,
-      children: children
-    )
-  }
-
-  private func setRating(rating: Int) {
-    guard appDelegate.storage.settings.user.isOnlineMode,
-          let account = entityContainer.account else { return }
-    if let song = (entityContainer as? AbstractPlayable)?.asSong {
-      song.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          song: song,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Song Rating Sync", error: error)
-      }}
-    } else if let album = entityContainer as? Album {
-      album.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          album: album,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Album Rating Sync", error: error)
-      }}
-    } else if let artist = entityContainer as? Artist {
-      artist.rating = rating
-      appDelegate.storage.main.saveContext()
-      Task { @MainActor in do {
-        try await self.appDelegate.getMeta(account.info).librarySyncer.setRating(
-          artist: artist,
-          rating: rating
-        )
-      } catch {
-        self.appDelegate.eventLogger.report(topic: "Artist Rating Sync", error: error)
-      }}
     }
   }
 

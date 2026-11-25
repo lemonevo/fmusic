@@ -143,7 +143,6 @@ public enum L10n {
     // MARK: Sort & filter
 
     "Name": "名称",
-    "Rating": "评分",
     "Duration": "时长",
     "Year": "年份",
     "Artist": "艺人",
@@ -152,7 +151,6 @@ public enum L10n {
     "Date Added": "添加日期",
     "Last time played": "上次播放",
     "Change date": "更改日期",
-    "Not rated": "未评分",
 
     // MARK: Library screens
 
@@ -479,8 +477,6 @@ public enum L10n {
     "Display album duration in table rows.": "在列表行中显示专辑时长。",
     "Artist Duration": "艺人时长",
     "Display artist duration in table rows.": "在列表行中显示艺人时长。",
-    "Show Star Rating": "显示星级评分",
-    "Display star rating in song cells and the currently playing view.": "在歌曲单元格和正在播放视图中显示星级评分。",
     "Disable Player Shuffle Button": "禁用播放器随机按钮",
     "The player shuffle button is displayed but non-interactive.": "播放器的随机按钮仍会显示，但不可点击。",
     "Collapse Toolbar Player": "折叠工具栏播放器",
@@ -511,6 +507,7 @@ public enum L10n {
     "Cached Podcast Episodes": "已缓存播客单集",
     "Complete Cache Size": "缓存总大小",
     "Cache Size Limit": "缓存大小上限",
+    "Enter 0 or leave blank for no limit.": "输入 0 或留空表示无限制。",
     "Size": "大小",
     "Bytes": "字节",
     "Download all songs in library": "下载资料库中的所有歌曲",
@@ -588,10 +585,6 @@ public enum L10n {
     "Instant Mix": "即时混音",
     "Music Queue": "音乐队列",
     "Unmark favorite": "取消喜爱",
-    "No Rating": "无评分",
-    "%d Star": "%d 星",
-    "%d Stars": "%d 星",
-    "Rating: %@": "评分：%@",
     "Show Album": "显示专辑",
     "Show Artist": "显示艺人",
     "Show Podcast": "显示播客",
@@ -673,8 +666,6 @@ public enum L10n {
     "Sets the repeat state of the player": "设置播放器的循环模式",
     "Sets the fmusic offline mode to active/inactive": "开启或关闭 fmusic 的离线模式",
     "0 (inactive) or 1 (active)": "0（关闭）或 1（开启）",
-    "Rate the currently playing song.": "为当前播放的歌曲评分。",
-    "Rating must be between 0 and 5": "评分必须在 0 到 5 之间",
     "Mark the currently playing song as favorite.": "将当前播放的歌曲标记为喜爱。",
     "0 (no favorite) or 1 (favorite)": "0（取消喜爱）或 1（设为喜爱）",
 

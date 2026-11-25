@@ -179,7 +179,7 @@ class AlbumsCommonVCInteractions {
     fetchedResultsController?.clearResults()
     var isGroupedInAlphabeticSections = false
     switch sortType {
-    case .artist, .duration, .name, .rating, .year:
+    case .artist, .duration, .name, .year:
       isGroupedInAlphabeticSections = true
     case .newest, .recent:
       isGroupedInAlphabeticSections = false
@@ -264,7 +264,7 @@ class AlbumsCommonVCInteractions {
     var actions = [UIMenu]()
 
     switch sortType {
-    case .artist, .duration, .name, .rating, .year:
+    case .artist, .duration, .name, .year:
       actions.append(createSortButtonMenu())
     case .newest, .recent:
       break
@@ -291,20 +291,6 @@ class AlbumsCommonVCInteractions {
       handler: { _ in
         self.change(sortType: .name)
         self.appDelegate.storage.settings.user.albumsSortSetting = .name
-        self.updateSearchResultsCB?()
-        self.appDelegate.notificationHandler.post(
-          name: .fetchControllerSortChanged,
-          object: nil,
-          userInfo: nil
-        )
-      }
-    )
-    let sortByRating = UIAction(
-      title: L10n.tr("Rating"),
-      image: sortType == .rating ? .check : nil,
-      handler: { _ in
-        self.change(sortType: .rating)
-        self.appDelegate.storage.settings.user.albumsSortSetting = .rating
         self.updateSearchResultsCB?()
         self.appDelegate.notificationHandler.post(
           name: .fetchControllerSortChanged,
@@ -359,7 +345,7 @@ class AlbumsCommonVCInteractions {
       title: L10n.tr("Sort"),
       image: .sort,
       options: [],
-      children: [sortByName, sortByRating, sortByArtist, sortByDuration, sortByYear]
+      children: [sortByName, sortByArtist, sortByDuration, sortByYear]
     )
   }
 

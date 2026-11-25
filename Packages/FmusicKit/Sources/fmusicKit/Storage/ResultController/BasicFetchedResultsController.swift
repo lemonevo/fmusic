@@ -45,7 +45,6 @@ extension NSFetchedResultsController {
 
 public enum SectionIndexType: Int, Sendable {
   case alphabet = 0
-  case rating = 1
   case newestOrRecent = 2
   case durationSong = 3
   case durationAlbum = 4
@@ -54,7 +53,6 @@ public enum SectionIndexType: Int, Sendable {
   case year = 7
 
   public static let defaultValue: SectionIndexType = .alphabet
-  public static let noRatingIndexSymbol = "#"
   public static let noDurationSymbol = "#"
   public static let noYearSymbol = "#"
 }
@@ -62,19 +60,6 @@ public enum SectionIndexType: Int, Sendable {
 // MARK: - IndexHeaderNameGenerator
 
 public class IndexHeaderNameGenerator {
-  public static func sortByRating(forSectionName sectionName: String) -> String {
-    guard !sectionName.isEmpty else { return SectionIndexType.noRatingIndexSymbol }
-    let initial = String(sectionName.prefix(1))
-    switch initial {
-    case "5": return "5"
-    case "4": return "4"
-    case "3": return "3"
-    case "2": return "2"
-    case "1": return "1"
-    default: return SectionIndexType.noRatingIndexSymbol
-    }
-  }
-
   public static func sortByDurationSong(forSectionName sectionName: String) -> String {
     if let durationInSec = Int(sectionName) {
       if durationInSec == 0 {
@@ -183,8 +168,6 @@ public class CustomSectionIndexFetchedResultsController<
     switch sectionIndexType {
     case .alphabet:
       return sectionName
-    case .rating:
-      return IndexHeaderNameGenerator.sortByRating(forSectionName: sectionName)
     case .newestOrRecent:
       return nil
     case .durationSong:

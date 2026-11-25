@@ -11,22 +11,24 @@ import AppKit
 import fmusicKit
 
 @MainActor
-final class StorageSettingsViewController: SettingsPageViewController {
-  private enum LimitValue {
-    static let values: [Int] = {
-      var result = stride(from: 10, through: 100, by: 10).map { $0 * 1_000_000 }
-      result.append(contentsOf: stride(from: 125, through: 950, by: 25).map { $0 * 1_000_000 })
-      result.append(contentsOf: stride(from: 1, through: 10, by: 1).map { $0 * 1_000_000_000 })
-      return [0] + result
-    }()
+final class StorageSettingsViewController: SettingsPageViewController, NSTextFieldDelegate {
+  private enum CacheSizeUnit: Int {
+    case mb = 0
+    case gb = 1
 
-    static func title(_ value: Int) -> String {
-      value == 0 ? L10n.tr("No Limit") : Int64(value).asByteString
+    var bytesPerUnit: Double {
+      switch self {
+      case .mb: 1_000_000
+      case .gb: 1_000_000_000
+      }
     }
   }
 
+  private static let maxLimitBytes: Int = 10_000 * 1_000_000_000
+
   private var refreshTimer: Timer?
-  private var limitRow: NSView?
+  private var limitField: NSTextField?
+  private var selectedUnit: CacheSizeUnit = .gb
   private var cachedCountRow: NSView?
   private var cacheSizeRow: NSView?
   private var clearCacheButton: SettingsButton?
@@ -41,17 +43,43 @@ final class StorageSettingsViewController: SettingsPageViewController {
 
   override func buildForm() {
     let limit = SettingsStore.user.cacheLimit
-    let limitRow = makePopupRow(
-      title: L10n.tr("Cache Size Limit"),
-      titles: LimitValue.values.map(LimitValue.title),
-      selectedIndex: max(0, LimitValue.values.firstIndex(of: limit) ?? 0)
+    let (initialText, initialUnit) = Self.displayComponents(for: limit)
+    selectedUnit = initialUnit
+
+    let field = NSTextField(string: initialText)
+    field.placeholderString = L10n.tr("No Limit")
+    field.alignment = .right
+    field.bezelStyle = .roundedBezel
+    field.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    field.usesSingleLineMode = true
+    field.lineBreakMode = .byTruncatingTail
+    field.delegate = self
+    field.target = self
+    field.action = #selector(limitFieldCommitted)
+    field.translatesAutoresizingMaskIntoConstraints = false
+    field.widthAnchor.constraint(equalToConstant: 88).isActive = true
+    limitField = field
+
+    let unitControl = SettingsSegmentedControl(
+      labels: ["MB", "GB"],
+      selectedIndex: initialUnit.rawValue
     ) { [weak self] index in
-      guard index >= 0, index < LimitValue.values.count else { return }
-      SettingsStore.updateUser { $0.cacheLimit = LimitValue.values[index] }
-      self?.evictCacheIfNeeded()
-      self?.refreshStats()
+      guard let self, let unit = CacheSizeUnit(rawValue: index) else { return }
+      self.selectedUnit = unit
+      self.commitLimitInput()
     }
-    self.limitRow = limitRow
+
+    let limitControl = NSStackView(views: [field, unitControl])
+    limitControl.orientation = .horizontal
+    limitControl.alignment = .centerY
+    limitControl.spacing = 8
+    limitControl.translatesAutoresizingMaskIntoConstraints = false
+
+    let limitRow = makeRow(
+      title: L10n.tr("Cache Size Limit"),
+      subtitle: L10n.tr("Enter 0 or leave blank for no limit."),
+      control: limitControl
+    )
 
     let cachedRow = makeValueRow(title: L10n.tr("Cached Songs"), value: "0")
     let sizeRow = makeValueRow(title: L10n.tr("Complete Cache Size"), value: "")
@@ -127,8 +155,83 @@ final class StorageSettingsViewController: SettingsPageViewController {
 
   override func viewWillDisappear() {
     super.viewWillDisappear()
+    commitLimitInput()
     refreshTimer?.invalidate()
     refreshTimer = nil
+  }
+
+  @objc
+  private func limitFieldCommitted() {
+    commitLimitInput()
+  }
+
+  func controlTextDidEndEditing(_ obj: Notification) {
+    commitLimitInput()
+  }
+
+  private func commitLimitInput() {
+    guard let field = limitField else { return }
+    let raw = field.stringValue
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .replacingOccurrences(of: ",", with: "")
+    if raw.isEmpty {
+      applyCacheLimit(0)
+      return
+    }
+    guard let value = Double(raw), value.isFinite else {
+      let (text, _) = Self.displayComponents(for: SettingsStore.user.cacheLimit, preferredUnit: selectedUnit)
+      field.stringValue = text
+      return
+    }
+    if value <= 0 {
+      applyCacheLimit(0)
+      field.stringValue = ""
+      return
+    }
+    let rawBytes = (value * selectedUnit.bytesPerUnit).rounded()
+    let clampedBytes = Int(min(rawBytes, Double(Self.maxLimitBytes)))
+    applyCacheLimit(clampedBytes)
+    field.stringValue = Self.formatNumber(Double(clampedBytes) / selectedUnit.bytesPerUnit)
+  }
+
+  private func applyCacheLimit(_ bytes: Int) {
+    guard SettingsStore.user.cacheLimit != bytes else { return }
+    SettingsStore.updateUser { $0.cacheLimit = bytes }
+    evictCacheIfNeeded()
+    refreshStats()
+  }
+
+  private static func displayComponents(
+    for bytes: Int,
+    preferredUnit: CacheSizeUnit? = nil
+  )
+    -> (String, CacheSizeUnit) {
+    guard bytes > 0 else {
+      return ("", preferredUnit ?? .gb)
+    }
+    let unit: CacheSizeUnit
+    if let preferredUnit {
+      unit = preferredUnit
+    } else if bytes >= 1_000_000_000, bytes % 100_000_000 == 0 {
+      unit = .gb
+    } else {
+      unit = .mb
+    }
+    return (formatNumber(Double(bytes) / unit.bytesPerUnit), unit)
+  }
+
+  private static func formatNumber(_ value: Double) -> String {
+    if abs(value.rounded() - value) < 0.001 {
+      return String(Int(value.rounded()))
+    }
+    var text = String(format: "%.2f", value)
+    while text.contains("."), text.hasSuffix("0") {
+      text.removeLast()
+    }
+    if text.hasSuffix(".") {
+      text.removeLast()
+    }
+    return text
   }
 
   @objc
