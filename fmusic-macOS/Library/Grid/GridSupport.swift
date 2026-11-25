@@ -66,11 +66,16 @@ enum LibraryAppearance {
     FmusicKit.shared.storage.settings.accounts.activeSetting.read.artworkDisplayPreference
   }
 
-  static func artworkImage(for entity: AbstractLibraryEntity) -> PlatformImage {
+  static func artworkImage(
+    for entity: AbstractLibraryEntity,
+    maxPixelSize: Int = 384
+  )
+    -> PlatformImage {
     ArtworkImageLoader.image(
       for: entity,
       themePreference: themePreference,
-      artworkDisplayPreference: artworkDisplayPreference
+      artworkDisplayPreference: artworkDisplayPreference,
+      maxPixelSize: maxPixelSize
     )
   }
 }

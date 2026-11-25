@@ -33,11 +33,11 @@ public enum ArtworkImageLoader {
   private static let cache: NSCache<NSString, PlatformImage> = {
     let cache = NSCache<NSString, PlatformImage>()
     cache.countLimit = 300
-    cache.totalCostLimit = 64 * 1024 * 1024
+    cache.totalCostLimit = 32 * 1024 * 1024
     return cache
   }()
 
-  nonisolated private static let maxArtworkPixelSize = 1024
+  nonisolated public static let maxArtworkPixelSize = 1024
 
   /// Generated placeholder artwork from the package asset catalog (theme + entity type).
   public static func generatedImage(
@@ -109,11 +109,13 @@ public enum ArtworkImageLoader {
     for libraryEntity: AbstractLibraryEntity,
     themePreference: ThemePreference,
     artworkDisplayPreference: ArtworkDisplayPreference,
+    maxPixelSize: Int = maxArtworkPixelSize,
     useCache: Bool = true
   )
     -> PlatformImage {
     let entityImagePath = libraryEntity.imagePath(setting: artworkDisplayPreference)
-    if let entityImagePath, let loaded = image(atPath: entityImagePath, useCache: useCache) {
+    if let entityImagePath,
+       let loaded = image(atPath: entityImagePath, maxPixelSize: maxPixelSize, useCache: useCache) {
       return loaded
     }
     return generatedImage(
@@ -123,28 +125,39 @@ public enum ArtworkImageLoader {
   }
 
   /// The image for a raw artwork file path (no generated fallback).
-  public static func image(atPath path: String, useCache: Bool = true) -> PlatformImage? {
-    if useCache, let cached = cache.object(forKey: path as NSString) {
+  public static func image(
+    atPath path: String,
+    maxPixelSize: Int = maxArtworkPixelSize,
+    useCache: Bool = true
+  )
+    -> PlatformImage? {
+    let cacheKey = "\(path)#\(maxPixelSize)" as NSString
+    if useCache, let cached = cache.object(forKey: cacheKey) {
       return cached
     }
-    guard let loaded = downsampledImage(atPath: path) else { return nil }
+    guard let loaded = downsampledImage(atPath: path, maxPixelSize: maxPixelSize) else { return nil }
     if useCache {
-      cache.setObject(loaded, forKey: path as NSString, cost: decodedCost(of: loaded))
+      cache.setObject(loaded, forKey: cacheKey, cost: decodedCost(of: loaded))
     }
     return loaded
   }
 
   /// Loads an artwork file off the main thread (for image views that can update later).
-  public static func imageAsync(atPath path: String, useCache: Bool = true) async
+  public static func imageAsync(
+    atPath path: String,
+    maxPixelSize: Int = maxArtworkPixelSize,
+    useCache: Bool = true
+  ) async
     -> PlatformImage? {
-    if useCache, let cached = cache.object(forKey: path as NSString) {
+    let cacheKey = "\(path)#\(maxPixelSize)" as NSString
+    if useCache, let cached = cache.object(forKey: cacheKey) {
       return cached
     }
     guard !Task.isCancelled else { return nil }
-    let loaded = await Self.loadDownsampledImage(atPath: path)
+    let loaded = await Self.loadDownsampledImage(atPath: path, maxPixelSize: maxPixelSize)
     guard !Task.isCancelled, let loaded else { return nil }
     if useCache {
-      cache.setObject(loaded, forKey: path as NSString, cost: decodedCost(of: loaded))
+      cache.setObject(loaded, forKey: cacheKey, cost: decodedCost(of: loaded))
     }
     return loaded
   }
@@ -152,16 +165,27 @@ public enum ArtworkImageLoader {
   /// Clears the shared artwork cache (memory pressure / account switch).
   public static func clearCache() {
     cache.removeAllObjects()
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+      generatedImageCache.removeAll()
+    #endif
   }
 
   // MARK: - Decoding
 
   @concurrent
-  private static func loadDownsampledImage(atPath path: String) async -> PlatformImage? {
-    downsampledImage(atPath: path)
+  private static func loadDownsampledImage(
+    atPath path: String,
+    maxPixelSize: Int
+  ) async
+    -> PlatformImage? {
+    downsampledImage(atPath: path, maxPixelSize: maxPixelSize)
   }
 
-  nonisolated private static func downsampledImage(atPath path: String) -> PlatformImage? {
+  nonisolated private static func downsampledImage(
+    atPath path: String,
+    maxPixelSize: Int
+  )
+    -> PlatformImage? {
     let url = URL(fileURLWithPath: path)
     guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
       return nil
@@ -170,7 +194,7 @@ public enum ArtworkImageLoader {
       kCGImageSourceCreateThumbnailFromImageAlways: true,
       kCGImageSourceCreateThumbnailWithTransform: true,
       kCGImageSourceShouldCacheImmediately: true,
-      kCGImageSourceThumbnailMaxPixelSize: maxArtworkPixelSize,
+      kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
     ]
     guard let downsampled = CGImageSourceCreateThumbnailAtIndex(
       source,

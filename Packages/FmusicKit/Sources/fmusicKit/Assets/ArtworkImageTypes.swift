@@ -30,17 +30,17 @@ import SwiftUI
 /// covers are often 3000×3000 PNGs; storing them raw costs tens of MB of disk
 /// and forces a full-size decode every time a list cell displays them.
 public enum ArtworkImageEncoder {
-  public static let maxPixelSize = 1024
+  public static let maxPixelSize = 800
   /// Minimum pixel dimension and aspect ratio (min/max) for a cover to be
   /// considered a standard uniform square album cover. Most embedded MP3/FLAC
   /// covers are 300×300–600×600 (occasionally 200×200 for older files), so
   /// keeping the floor at 200px avoids unnecessary network re-fetching.
   public static let minimumStandardPixelSize: CGFloat = 200
   public static let minimumSquareAspectRatio: CGFloat = 0.92
-  private static let quality: CGFloat = 0.85
+  private static let quality: CGFloat = 0.80
   /// JPEGs below this size are already cheap to store and decode; re-encoding
   /// them would only lose quality.
-  private static let passthroughByteLimit = 512 * 1024
+  private static let passthroughByteLimit = 256 * 1024
 
   /// Returns bytes that are safe to write under the shared `.png` artwork path.
   /// ImageIO sniffing makes the extension irrelevant for decoding.

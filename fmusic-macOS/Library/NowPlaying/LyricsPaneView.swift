@@ -163,6 +163,7 @@ final class LyricsPaneView: NSView {
 
   @objc
   private func clockTick() {
+    guard player.isPlaying || loadedSongID != player.currentlyPlaying?.id else { return }
     refreshSongIfNeeded()
     renderCurrentLine(force: false)
   }

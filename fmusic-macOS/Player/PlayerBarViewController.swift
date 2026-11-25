@@ -579,7 +579,8 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       newImage = ArtworkImageLoader.image(
         for: playable,
         themePreference: setting.themePreference,
-        artworkDisplayPreference: setting.artworkDisplayPreference
+        artworkDisplayPreference: setting.artworkDisplayPreference,
+        maxPixelSize: 160
       )
     } else {
       newImage = ArtworkImageLoader.generatedImage(

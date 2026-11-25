@@ -52,7 +52,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private let columnIdentifier = NSUserInterfaceItemIdentifier("lyricsSidebarColumn")
 
   private var lyrics: StructuredLyrics?
-  private var tracker = LyricsLineTracker()
   private var loadedSongID: String?
   private var currentLine = -1
   private var lastActiveTime: TimeInterval = -1
@@ -189,6 +188,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   private func startSyncTimerIfNeeded() {
     guard isPaneVisible, syncTimer == nil, view.window != nil else { return }
+    guard player.isPlaying || scrollTargetY != nil else { return }
     let timer = Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0, repeats: true) {
       [weak self] _ in
       Task { @MainActor in self?.syncTick() }
@@ -213,7 +213,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     guard let song = player.currentlyPlaying?.asSong else {
       loadedSongID = nil
       lyrics = nil
-      tracker.setLyrics(nil)
       syllableCache = []
       renderStatus(L10n.tr("Play a song to see the lyrics here."))
       return
@@ -222,7 +221,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     guard force || loadedSongID != songID else { return }
     loadedSongID = songID
     lyrics = nil
-    tracker.setLyrics(nil)
     currentLine = -1
     syllableCache = []
     renderStatus("")
@@ -288,7 +286,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   private func apply(lyrics structuredLyrics: StructuredLyrics) {
     lyrics = structuredLyrics
-    tracker.setLyrics(structuredLyrics)
     // Same syllable tables the Catalyst cell model builds for the character fill.
     let durations = LyricsTimingMap.estimatedDurations(for: structuredLyrics.line)
     syllableCache = structuredLyrics.line.indices.map { index in
@@ -307,7 +304,6 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     statusLabel.stringValue = text
     statusLabel.isHidden = text.isEmpty
     lyrics = nil
-    tracker.setLyrics(nil)
     syllableCache = []
     currentLine = -1
     tableView.reloadData()
@@ -318,7 +314,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     // The pane is collapsed most of the time: skip all per-frame work.
     guard view.window != nil else { return }
     stepScrollSpring()
-    updateActiveLine(force: false)
+    if player.isPlaying {
+      updateActiveLine(force: false)
+    } else if scrollTargetY == nil {
+      stopSyncTimer()
+    }
   }
 
   private func updateActiveLine(force: Bool) {
@@ -482,6 +482,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     refreshVisibleRows(animated: true)
     scrollTargetY = scrollTarget(for: row)
     lastSpringTimestamp = CACurrentMediaTime()
+    startSyncTimerIfNeeded()
     player.seek(toSecond: targetSecond)
   }
 
@@ -536,14 +537,11 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
     let isActive = row == currentLine
     let syllables = syllableCache.indices.contains(row) ? syllableCache[row] : []
-    let time = player.elapsedTime + (
-      Double(lyrics.offset) + Double(storage.settings.user.lyricsOffsetMs)
-    ) / 1000.0
     cell.configure(
       line: lyrics.line[row],
       isActive: isActive,
       syllables: syllables,
-      time: time,
+      time: playbackLyricsTime(),
       rowSpacing: rowSpacing,
       inset: Self.horizontalInset,
       contentWidth: LyricsPresentation.contentWidth(
@@ -568,16 +566,23 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   func didStartPlayingFromBeginning() {
     loadLyrics(force: true)
+    startSyncTimerIfNeeded()
   }
 
   func didStartPlaying() {
     loadLyrics()
     updateActiveLine(force: true)
+    startSyncTimerIfNeeded()
   }
 
-  func didPause() {}
+  func didPause() {
+    if scrollTargetY == nil {
+      stopSyncTimer()
+    }
+  }
 
   func didStopPlaying() {
+    stopSyncTimer()
     loadLyrics(force: true)
   }
 
@@ -698,9 +703,9 @@ private final class LyricsSidebarCellView: NSTableCellView {
   /// cache them so scrolling and line changes do not re-layout/re-blur every row.
   private static let rasterCache: NSCache<NSString, NSImage> = {
     let cache = NSCache<NSString, NSImage>()
-    cache.countLimit = 400
+    cache.countLimit = 240
     // A 2x lyric raster is large; cap the total decoded pixels as well as count.
-    cache.totalCostLimit = 32 * 1024 * 1024
+    cache.totalCostLimit = 16 * 1024 * 1024
     return cache
   }()
 

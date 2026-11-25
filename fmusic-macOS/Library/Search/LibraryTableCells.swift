@@ -30,13 +30,15 @@ import fmusicKit
 enum LMLibraryArtwork {
   static func image(
     for entity: AbstractLibraryEntity,
-    setting: AccountSetting
+    setting: AccountSetting,
+    maxPixelSize: Int = 160
   )
     -> NSImage {
     ArtworkImageLoader.image(
       for: entity,
       themePreference: setting.themePreference,
-      artworkDisplayPreference: setting.artworkDisplayPreference
+      artworkDisplayPreference: setting.artworkDisplayPreference,
+      maxPixelSize: maxPixelSize
     )
   }
 
@@ -44,14 +46,16 @@ enum LMLibraryArtwork {
   /// back to the generated playlist placeholder.
   static func image(
     for playlist: Playlist,
-    setting: AccountSetting
+    setting: AccountSetting,
+    maxPixelSize: Int = 160
   )
     -> NSImage {
     if let playable = playlist.artworkItems.first?.playable {
       return ArtworkImageLoader.image(
         for: playable,
         themePreference: setting.themePreference,
-        artworkDisplayPreference: setting.artworkDisplayPreference
+        artworkDisplayPreference: setting.artworkDisplayPreference,
+        maxPixelSize: maxPixelSize
       )
     }
     return ArtworkImageLoader.generatedImage(
