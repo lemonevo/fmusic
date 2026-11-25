@@ -554,6 +554,12 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     }
   }
 
+  private var isDarkAppearance: Bool {
+    if usesTransparentBackground { return true }
+    let appearance = view.window?.effectiveAppearance ?? NSApp.effectiveAppearance
+    return appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+  }
+
   private func reconfigureRow(_ row: Int, animated: Bool = false) {
     guard let lyrics,
           lyrics.line.indices.contains(row),
@@ -568,6 +574,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     cell.configure(
       line: lyrics.line[row],
       isActive: row == currentLine,
+      isDark: isDarkAppearance,
       syllables: syllableCache.indices.contains(row) ? syllableCache[row] : [],
       time: playbackLyricsTime(),
       inset: inset,
@@ -719,6 +726,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
     cell.configure(
       line: lyrics.line[row],
       isActive: isActive,
+      isDark: isDarkAppearance,
       syllables: syllables,
       time: playbackLyricsTime(),
       inset: inset,
@@ -865,36 +873,21 @@ private final class LyricsSidebarCellView: NSTableCellView {
   private static let translationFontSize: CGFloat = 17
   private static let translationSpacing: CGFloat = 6
 
-  private static let activeBrightColor = NSColor(
-    name: "lyricsActiveBright",
-    dynamicProvider: { appearance in
-      LyricsSidebarCellView.isDark(appearance) ? .white : NSColor(white: 0.32, alpha: 1)
-    }
-  )
-  private static let activeDimColor = NSColor(
-    name: "lyricsActiveDim",
-    dynamicProvider: { appearance in
-      LyricsSidebarCellView.isDark(appearance)
-        ? NSColor.white.withAlphaComponent(0.55)
-        : NSColor(white: 0.32, alpha: 0.55)
-    }
-  )
-  private static let inactiveColor = NSColor(
-    name: "lyricsInactive",
-    dynamicProvider: { appearance in
-      LyricsSidebarCellView.isDark(appearance)
-        ? NSColor.white.withAlphaComponent(0.60)
-        : NSColor(white: 0.5, alpha: 1)
-    }
-  )
-  private static let activeTranslationColor = NSColor(
-    name: "lyricsActiveTranslation",
-    dynamicProvider: { appearance in
-      LyricsSidebarCellView.isDark(appearance)
-        ? NSColor.white.withAlphaComponent(0.72)
-        : NSColor(white: 0.34, alpha: 0.82)
-    }
-  )
+  private static func activeBrightColor(isDark: Bool) -> NSColor {
+    isDark ? NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1) : NSColor(white: 0.32, alpha: 1)
+  }
+
+  private static func activeDimColor(isDark: Bool) -> NSColor {
+    isDark ? NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.45) : NSColor(white: 0.32, alpha: 0.55)
+  }
+
+  private static func inactiveColor(isDark: Bool) -> NSColor {
+    isDark ? NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.45) : NSColor(white: 0.5, alpha: 1)
+  }
+
+  private static func activeTranslationColor(isDark: Bool) -> NSColor {
+    isDark ? NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.72) : NSColor(white: 0.34, alpha: 0.82)
+  }
 
   private static func isDark(_ appearance: NSAppearance) -> Bool {
     appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -985,6 +978,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
   func configure(
     line: LyricsLine,
     isActive: Bool,
+    isDark: Bool,
     syllables: [LyricsSyllableTiming],
     time: TimeInterval,
     inset: CGFloat,
@@ -1021,12 +1015,14 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let scale = window?.backingScaleFactor ?? 2
     let size = CGSize(width: width, height: imageHeight)
 
-    let isDark = Self.isDark(effectiveAppearance) || forcesDarkRaster
-    isDarkMode = isDark
+    let resolvedDark = isDark || forcesDarkRaster
+    isDarkMode = resolvedDark
     // Catalyst `LyricTableCell.updateBlurredImageIfNeeded`: inactive lines get a soft
     // Core Image Gaussian blur while the active line stays razor sharp.
     let blurRadius = isActive ? 0 : 1.6 * scale
-    let dimColor = isActive ? Self.activeDimColor : Self.inactiveColor
+    let dimColor = isActive
+      ? Self.activeDimColor(isDark: resolvedDark)
+      : Self.inactiveColor(isDark: resolvedDark)
     let dimImage = Self.raster(
       text: text,
       width: width,
@@ -1035,7 +1031,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       scale: scale,
       color: dimColor,
       blurRadius: blurRadius,
-      isDark: isDark
+      isDark: resolvedDark
     )
     if isActive {
       let brightImage = Self.raster(
@@ -1044,12 +1040,12 @@ private final class LyricsSidebarCellView: NSTableCellView {
         layout: layout,
         size: size,
         scale: scale,
-        color: Self.activeBrightColor,
+        color: Self.activeBrightColor(isDark: resolvedDark),
         blurRadius: 0,
-        isDark: isDark
+        isDark: resolvedDark
       )
       // Sustained-note white glow in dark mode only, padded so Gaussian blur never clips.
-      let hasLongNote = isDark && syllables.contains { $0.isWordTimed && $0.duration > 0.45 }
+      let hasLongNote = resolvedDark && syllables.contains { $0.isWordTimed && $0.duration > 0.45 }
       let pad = LyricsGlyphView.glowPadding
       let glowImage: CGImage? = hasLongNote
         ? Self.raster(
@@ -1059,8 +1055,8 @@ private final class LyricsSidebarCellView: NSTableCellView {
           size: CGSize(width: width + pad * 2, height: imageHeight + pad * 2),
           origin: CGPoint(x: pad, y: pad),
           scale: scale,
-          color: .white,
-          blurRadius: 6.5 * scale,
+          color: NSColor(srgbRed: 1, green: 1, blue: 1, alpha: 1),
+          blurRadius: 5.5 * scale,
           isDark: true
         )
         : nil
@@ -1072,7 +1068,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       ))
       glyphView.apply(
         progress: syllables.map { $0.progress(at: time) },
-        glowIntensities: isDark ? syllables.map { $0.glowIntensity(at: time) } : []
+        glowIntensities: resolvedDark ? syllables.map { $0.glowIntensity(at: time) } : []
       )
     } else {
       glyphView.setImages(dim: dimImage, bright: nil, glow: nil)
@@ -1093,7 +1089,9 @@ private final class LyricsSidebarCellView: NSTableCellView {
         string: translationText,
         attributes: [
           .font: NSFont.systemFont(ofSize: Self.translationFontSize, weight: .regular),
-          .foregroundColor: isActive ? Self.activeTranslationColor : Self.inactiveColor,
+          .foregroundColor: isActive
+            ? Self.activeTranslationColor(isDark: resolvedDark)
+            : Self.inactiveColor(isDark: resolvedDark),
           .paragraphStyle: translationParagraph,
         ]
       )
@@ -1244,7 +1242,7 @@ private final class LyricsPaneBackgroundView: NSView {
   }
 
   @objc private func refresh() {
-    let appearance = effectiveAppearance
+    let appearance = window?.effectiveAppearance ?? NSApp.effectiveAppearance
     var resolved = Self.paneColor.cgColor
     appearance.performAsCurrentDrawingAppearance {
       resolved = Self.paneColor.cgColor

@@ -159,6 +159,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
 
   func recordMatch(
     album: String,
+    artist: String? = nil,
     source: String,
     confidence: Int,
     for songID: String
@@ -167,10 +168,11 @@ final class MetadataOverrideStore: @unchecked Sendable {
     defer { lock.unlock() }
     loadIfNeeded()
     let previous = entries[songID]
+    let cleanArtist = artist?.trimmingCharacters(in: .whitespacesAndNewlines)
     entries[songID] = LibraryMetadataOverride(
       album: album,
       title: nil,
-      artist: nil,
+      artist: (cleanArtist?.isEmpty == false) ? cleanArtist : previous?.artist,
       source: source,
       confidence: confidence,
       updatedAt: Date(),
@@ -319,13 +321,20 @@ public final class MetadataBackfillService {
 
       attempted += 1
       guard let match = await OnlineLyricsService.shared.matchMetadata(for: song),
-            apply(match, to: song, account: account, library: library)
+            let resolvedArtist = apply(
+              match,
+              to: song,
+              account: account,
+              library: library,
+              replaceDirtyArtist: true
+            )
       else {
         MetadataOverrideStore.shared.recordMiss(for: songID)
         continue
       }
       MetadataOverrideStore.shared.recordMatch(
         album: match.album,
+        artist: resolvedArtist,
         source: match.source.rawValue,
         confidence: match.score,
         for: songID
@@ -339,6 +348,10 @@ public final class MetadataBackfillService {
         song.title,
         match.score
       )
+    }
+
+    if matched > 0 {
+      FileSourceLibraryWriter.mergeAlbumsByName(account: account, library: library)
     }
 
     let artworkAdded = await fillMissingArtwork(
@@ -358,6 +371,7 @@ public final class MetadataBackfillService {
       if artworkAdded > 0 {
         ArtworkImageLoader.clearCache()
       }
+      FileSourceLibraryWriter.mergeAlbumsByName(account: account, library: library)
       FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
       library.saveContext()
       NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
@@ -397,12 +411,108 @@ public final class MetadataBackfillService {
     return matched
   }
 
+  /// Force-rematches online metadata (album, artist, cover, and missing lyrics)
+  /// for a single song and merges its album with any existing album of the same name.
+  @discardableResult
+  public func rematchMetadata(for song: Song, accountInfo: AccountInfo) async -> Bool {
+    let fmusic = FmusicKit.shared
+    guard fmusic.settings.user.isOnlineMode,
+          fmusic.networkMonitor.isConnectedToNetwork
+    else { return false }
+
+    let library = fmusic.storage.main.library
+    let account = library.getAccount(info: accountInfo)
+    var changed = false
+
+    if let match = await OnlineLyricsService.shared.matchMetadata(
+      for: song,
+      ignoreExistingAlbum: true
+    ),
+      let resolvedArtist = apply(
+        match,
+        to: song,
+        account: account,
+        library: library,
+        replaceDirtyArtist: true,
+        forceReplaceArtist: true
+      ) {
+      MetadataOverrideStore.shared.recordMatch(
+        album: match.album,
+        artist: resolvedArtist,
+        source: match.source.rawValue,
+        confidence: match.score,
+        for: song.id
+      )
+      changed = true
+      if let targetAlbum = song.album {
+        for artworkURL in match.artworkURLs {
+          if await applyArtwork(
+            artworkURL,
+            to: targetAlbum,
+            account: account,
+            accountInfo: accountInfo,
+            library: library,
+            overwriteArtistArtwork: true
+          ) {
+            MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: targetAlbum.id)
+            MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
+            break
+          }
+        }
+      }
+    } else if let album = song.album, album.managedObject.name != "Unknown Album" {
+      let artworkURLs = await OnlineLyricsService.shared.matchArtworkURLs(
+        for: song,
+        expectedAlbum: album.managedObject.name
+      )
+      for artworkURL in artworkURLs {
+        if await applyArtwork(
+          artworkURL,
+          to: album,
+          account: account,
+          accountInfo: accountInfo,
+          library: library,
+          overwriteArtistArtwork: true
+        ) {
+          MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
+          MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
+          changed = true
+          break
+        }
+      }
+    }
+
+    if song.lyricsRelFilePath == nil {
+      if await OnlineLyricsService.shared.matchLyrics(for: song, force: true) {
+        changed = true
+      }
+    }
+
+    if changed {
+      ArtworkImageLoader.clearCache()
+      FileSourceLibraryWriter.mergeAlbumsByName(account: account, library: library)
+      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
+      library.saveContext()
+      NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
+    }
+    return changed
+  }
+
   /// Force-rematches the online cover for a single album, replacing any
   /// previously downloaded or embedded cover. If no online match is available
   /// and the existing cover is non-standard, normalizes the local cover instead.
   @discardableResult
   public func rematchArtwork(for album: Album, accountInfo: AccountInfo) async -> Bool {
     let fmusic = FmusicKit.shared
+    if album.managedObject.name == "Unknown Album" {
+      var anyMatched = false
+      for song in Array(album.songs.compactMap(\.asSong).prefix(20)) {
+        if await rematchMetadata(for: song, accountInfo: accountInfo) {
+          anyMatched = true
+        }
+      }
+      return anyMatched
+    }
     let candidateSongs = Array(album.songs.compactMap(\.asSong).prefix(3))
     guard !candidateSongs.isEmpty else { return false }
     let library = fmusic.storage.main.library
@@ -696,14 +806,46 @@ public final class MetadataBackfillService {
     _ match: OnlineMetadataMatch,
     to song: Song,
     account: Account,
-    library: LibraryStorage
+    library: LibraryStorage,
+    replaceDirtyArtist: Bool = false,
+    forceReplaceArtist: Bool = false
   )
-    -> Bool {
-    guard let currentAlbum = song.album,
-          let scope = Self.idScope(for: currentAlbum)
-    else { return false }
+    -> String? {
+    guard let scope = Self.idScope(for: song) else { return nil }
     let albumName = match.album.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !albumName.isEmpty else { return false }
+    guard !albumName.isEmpty else { return nil }
+
+    let oldAlbum = song.album
+    let oldArtist = song.artist
+
+    var resolvedArtistName: String?
+    let currentArtistName = oldArtist?.managedObject.name?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    let isDirtyArtist = currentArtistName.isEmpty
+      || currentArtistName == "Unknown Artist"
+      || currentArtistName == "未知艺人"
+      || currentArtistName.contains("[")
+      || currentArtistName.contains("(")
+      || currentArtistName.contains("【")
+    let candidateArtist = match.artist.trimmingCharacters(in: .whitespacesAndNewlines)
+    if !candidateArtist.isEmpty, (forceReplaceArtist || (replaceDirtyArtist && isDirtyArtist)) {
+      let artistKey = candidateArtist.lowercased()
+      let artistID = FileSourceLibraryWriter.stableID(
+        prefix: "\(scope)_artist_",
+        value: artistKey
+      )
+      let artist = library.getArtists(for: account)
+        .first { $0.id == artistID || $0.name.caseInsensitiveCompare(candidateArtist) == .orderedSame }
+        ?? {
+          let created = library.createArtist(account: account)
+          created.id = artistID
+          created.name = candidateArtist
+          created.remoteStatus = .available
+          return created
+        }()
+      song.artist = artist
+      resolvedArtistName = artist.name
+    }
 
     let albumKey = FileSourceLibraryWriter.albumKey(
       albumName: albumName,
@@ -728,14 +870,40 @@ public final class MetadataBackfillService {
       created.isSongsMetaDataSynced = true
       album = created
     }
-    if album.artist == nil { album.artist = song.artist }
+    if album.artist == nil || album.artist?.managedObject.name == "Unknown Artist" {
+      album.artist = song.artist
+    }
     song.album = album
-    return true
+    if let albumArtwork = album.artwork, albumArtwork.imagePath != nil {
+      song.artwork = albumArtwork
+    } else if oldAlbum?.managedObject.name == "Unknown Album" {
+      song.artwork = nil
+    }
+
+    if let oldAlbum, oldAlbum.managedObject.objectID != album.managedObject.objectID {
+      if oldAlbum.managedObject.name == "Unknown Album" {
+        oldAlbum.artwork = nil
+      }
+      if oldAlbum.songs.isEmpty {
+        library.deleteAlbum(album: oldAlbum)
+      }
+    }
+    if let oldArtist,
+       oldArtist.managedObject.objectID != song.artist?.managedObject.objectID,
+       oldArtist.albums.isEmpty && oldArtist.songs.isEmpty {
+      library.deleteArtist(artist: oldArtist)
+    }
+
+    return resolvedArtistName ?? song.artist?.name
   }
 
-  private static func idScope(for album: Album) -> String? {
-    if album.id.hasPrefix("webdav_album_") { return "webdav" }
-    if album.id.hasPrefix("local_album_") { return "local" }
+  private static func idScope(for song: Song) -> String? {
+    if let album = song.album {
+      if album.id.hasPrefix("webdav_album_") { return "webdav" }
+      if album.id.hasPrefix("local_album_") { return "local" }
+    }
+    if song.id.hasPrefix("webdav_song_") { return "webdav" }
+    if song.id.hasPrefix("local_song_") { return "local" }
     return nil
   }
 }

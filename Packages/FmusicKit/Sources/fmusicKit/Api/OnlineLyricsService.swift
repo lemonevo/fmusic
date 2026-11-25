@@ -181,13 +181,16 @@ public struct OnlineLyricsMatch: Sendable {
 
 // MARK: - OnlineMetadataMatch
 
-/// Album metadata from a provider that already passed the lyrics identity
-/// checks. Used only to fill an unknown album, never to replace file tags.
+/// Album & artist metadata from a provider that already passed the lyrics identity
+/// checks. Used to fill unknown/unmerged metadata or when the user explicitly
+/// requests a metadata re-match.
 public struct OnlineMetadataMatch: Sendable {
   public let album: String
+  public let artist: String
   public let source: OnlineLyricsSource
   public let score: Int
   public let artworkURL: URL?
+  public let artworkURLs: [URL]
 }
 
 // MARK: - ChosenLyrics
@@ -1595,13 +1598,25 @@ public final class OnlineLyricsService {
     return result
   }
 
-  /// Looks up an album for a song whose file tags do not provide one. The
-  /// provider candidate must pass the same title/artist/duration identity
-  /// checks used for lyrics, so a loose keyword hit cannot rename an album.
-  public func matchMetadata(for song: Song) async -> OnlineMetadataMatch? {
+  /// Looks up album & artist metadata for a song. The provider candidate must pass
+  /// the same title/artist/duration identity checks used for lyrics, so a loose
+  /// keyword hit cannot rename an album.
+  public func matchMetadata(
+    for song: Song,
+    ignoreExistingAlbum: Bool = false
+  ) async
+    -> OnlineMetadataMatch? {
     guard FmusicKit.shared.settings.user.isOnlineMode,
-          let query = makeQuery(for: song)
+          let baseQuery = makeQuery(for: song)
     else { return nil }
+    let cleanAlbum = ignoreExistingAlbum ? "" : (Self.sanitizedAlbum(baseQuery.album) ?? "")
+    let query = OnlineLyricsQuery(
+      title: baseQuery.title,
+      artist: baseQuery.artist,
+      album: cleanAlbum,
+      duration: baseQuery.duration
+    )
+    let minScore = ignoreExistingAlbum ? 70 : 75
     let scored = await searchCandidates(for: query)
     let withAlbum = scored.compactMap { entry -> (entry: ScoredCandidate, album: String)? in
       guard let album = Self.sanitizedAlbum(entry.candidate.album) else { return nil }
@@ -1611,34 +1626,41 @@ public final class OnlineLyricsService {
       if lhs.entry.score != rhs.entry.score { return lhs.entry.score < rhs.entry.score }
       return lhs.entry.candidate.source.priorityBonus <
         rhs.entry.candidate.source.priorityBonus
-    }), best.entry.score >= 85 {
+    }), best.entry.score >= minScore {
+      let urls = await artworkURLs(
+        for: best.album,
+        preferred: best.entry,
+        in: scored,
+        limit: 5
+      )
       return OnlineMetadataMatch(
         album: best.album,
+        artist: best.entry.candidate.artist.trimmingCharacters(in: .whitespacesAndNewlines),
         source: best.entry.candidate.source,
         score: best.entry.score,
-        artworkURL: await artworkURL(
-          for: best.album,
-          preferred: best.entry,
-          in: scored
-        )
+        artworkURL: urls.first,
+        artworkURLs: urls
       )
     }
 
     // QQ search omits albums; ask its single-song endpoint for the best
     // already-verified candidates that LRCLIB could not cover.
     let qqCandidates = scored
-      .filter { $0.candidate.source == .qqmusic && $0.score >= 85 }
+      .filter { $0.candidate.source == .qqmusic && $0.score >= minScore }
       .sorted { $0.score > $1.score }
     for entry in qqCandidates.prefix(3) {
       guard let qq = provider(for: .qqmusic),
             let raw = try? await qq.album(for: entry.candidate),
             let album = Self.sanitizedAlbum(raw)
       else { continue }
+      let urls = await artworkURLs(for: album, preferred: entry, in: scored, limit: 5)
       return OnlineMetadataMatch(
         album: album,
+        artist: entry.candidate.artist.trimmingCharacters(in: .whitespacesAndNewlines),
         source: .qqmusic,
         score: entry.score,
-        artworkURL: await artworkURL(for: album, preferred: entry, in: scored)
+        artworkURL: urls.first,
+        artworkURLs: urls
       )
     }
     return nil

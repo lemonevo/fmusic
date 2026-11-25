@@ -893,6 +893,7 @@ public enum L10n {
     "Translucent": "通透",
     "Adjust the transparency and depth of the app's glass surfaces.": "调整应用内玻璃表面的透明度与层次。",
     "Re-match Cover": "重新匹配封面",
+    "Re-match Metadata": "重新匹配元数据",
     "Use \"Add Account\" to add a Local Folder or another WebDAV source, and switch between sources from the sidebar footer.": "点击“添加账户”可新增“本地文件夹”或其他 WebDAV 来源，并在侧边栏底部切换账户。",
     "Adjust Lyrics Sync": "调节歌词同步",
     "Lock Position": "锁定位置",
