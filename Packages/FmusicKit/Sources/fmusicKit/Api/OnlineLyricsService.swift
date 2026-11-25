@@ -75,8 +75,17 @@ struct OnlineLyricsQuery: Sendable {
   let duration: Int
 
   var searchKeyword: String {
-    let cleanArtist = artist
+    var strippedArtist = artist
+    for pattern in ["\\([^)]*\\)", "（[^）]*）", "\\[[^\\]]*\\]", "【[^】]*】"] {
+      strippedArtist = strippedArtist.replacingOccurrences(
+        of: pattern,
+        with: " ",
+        options: .regularExpression
+      )
+    }
+    let cleanArtist = strippedArtist
       .replacingOccurrences(of: "[,，/&;；、+]+", with: " ", options: .regularExpression)
+      .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
       .trimmingCharacters(in: .whitespacesAndNewlines)
     return [title, cleanArtist]
       .filter { !$0.isEmpty }
@@ -1264,8 +1273,17 @@ enum OnlineLyricsRanker {
 
   private static func artistNames(_ raw: String) -> Set<String> {
     let separators = CharacterSet(charactersIn: ",，/&;；、+")
-    var names = [raw]
+    var stripped = raw
+    for pattern in ["\\([^)]*\\)", "（[^）]*）", "\\[[^\\]]*\\]", "【[^】]*】"] {
+      stripped = stripped.replacingOccurrences(
+        of: pattern,
+        with: " ",
+        options: .regularExpression
+      )
+    }
+    var names = [raw, stripped]
     names.append(contentsOf: raw.components(separatedBy: separators))
+    names.append(contentsOf: stripped.components(separatedBy: separators))
     for marker in [" feat. ", " feat ", " ft. ", " ft ", " with ", " vs. ", " vs "] {
       names = names.flatMap { $0.components(separatedBy: marker) }
     }
@@ -1275,7 +1293,8 @@ enum OnlineLyricsRanker {
   private static func isCompatible(_ lhs: Set<String>, _ rhs: Set<String>) -> Bool {
     for left in lhs {
       for right in rhs {
-        guard min(left.count, right.count) >= 3 else { continue }
+        let minLength = (containsNonASCII(left) || containsNonASCII(right)) ? 2 : 3
+        guard min(left.count, right.count) >= minLength else { continue }
         if left.contains(right) || right.contains(left) {
           return true
         }

@@ -41,8 +41,8 @@ final class MetadataOverrideStore: @unchecked Sendable {
   static let shared = MetadataOverrideStore()
 
   private static let missRetryInterval: TimeInterval = 7 * 24 * 60 * 60
-  /// Bump to retry covers after the lookup strategy improves.
-  private static let artworkAttemptVersion = 6
+  /// Bump to retry covers and album misses after the lookup strategy improves.
+  private static let artworkAttemptVersion = 7
   private let lock = NSLock()
   private let fileURL: URL?
   private let log = OSLog(subsystem: "fmusic", category: "MetadataOverrides")
@@ -74,6 +74,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
     defer { lock.unlock() }
     loadIfNeeded()
     guard let value = entries[songID], value.album == nil else { return false }
+    if (value.artworkAttempt ?? 0) < Self.artworkAttemptVersion { return false }
     return Date().timeIntervalSince(value.updatedAt) < Self.missRetryInterval
   }
 
@@ -193,7 +194,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
       updatedAt: Date(),
       artworkURL: nil,
       artworkMissedAt: nil,
-      artworkAttempt: nil
+      artworkAttempt: Self.artworkAttemptVersion
     )
     persist()
   }
@@ -245,6 +246,7 @@ public final class MetadataBackfillService {
   public static let shared = MetadataBackfillService()
   private let log = OSLog(subsystem: "fmusic", category: "MetadataBackfill")
   private var activeTask: Task<BackfillResult, Never>?
+  private var pendingRun: (accountInfo: AccountInfo, album: Album?, limit: Int)?
 
   private init() {}
 
@@ -258,7 +260,19 @@ public final class MetadataBackfillService {
   ) async
     -> BackfillResult {
     if let activeTask {
-      return await activeTask.value
+      // Queue one follow-up pass so newly synced songs arriving during an
+      // in-flight backfill are not skipped until the next app launch.
+      pendingRun = (accountInfo, album, limit)
+      let firstResult = await activeTask.value
+      guard let next = pendingRun, self.activeTask == nil else {
+        return firstResult
+      }
+      pendingRun = nil
+      return await backfill(
+        accountInfo: next.accountInfo,
+        album: next.album,
+        limit: next.limit
+      )
     }
     let task = Task { @MainActor [weak self] in
       guard let self else { return BackfillResult(matched: 0, attempted: 0) }
@@ -334,7 +348,13 @@ public final class MetadataBackfillService {
       limit: limit
     )
 
-    if attempted > 0 || artworkAdded > 0 {
+    let lyricsAdded = await fillMissingLyrics(
+      account: account,
+      library: library,
+      limit: min(limit, 40)
+    )
+
+    if attempted > 0 || artworkAdded > 0 || lyricsAdded > 0 {
       if artworkAdded > 0 {
         ArtworkImageLoader.clearCache()
       }
@@ -343,14 +363,38 @@ public final class MetadataBackfillService {
       NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
     }
     os_log(
-      "Metadata backfill finished: %d matched, %d attempted, %d covers",
+      "Metadata backfill finished: %d matched, %d attempted, %d covers, %d lyrics",
       log: log,
       type: .info,
       matched,
       attempted,
-      artworkAdded
+      artworkAdded,
+      lyricsAdded
     )
     return BackfillResult(matched: matched, attempted: attempted)
+  }
+
+  /// Automatically backfills online lyrics in the background for songs that
+  /// have no local/sidecar lyrics file yet (e.g. newly synced WebDAV tracks).
+  private func fillMissingLyrics(
+    account: Account,
+    library: LibraryStorage,
+    limit: Int
+  ) async
+    -> Int {
+    guard limit > 0 else { return 0 }
+    var matched = 0
+    var attempted = 0
+    let missingSongs = library.getSongs(for: account)
+      .filter { $0.lyricsRelFilePath == nil && OnlineLyricsService.shared.canMatchLyrics(for: $0) }
+    for song in missingSongs {
+      if attempted >= limit || Task.isCancelled { break }
+      attempted += 1
+      if await OnlineLyricsService.shared.matchLyrics(for: song) {
+        matched += 1
+      }
+    }
+    return matched
   }
 
   /// Force-rematches the online cover for a single album, replacing any

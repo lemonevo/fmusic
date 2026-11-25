@@ -41,7 +41,7 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
   private static let collapsedToggleLeading: CGFloat = 92
   private static let collapsedLeading: CGFloat = 136
 
-  private let backButton = NSButton()
+  private let backButton = SidebarTitleButton()
   private let titleLabel = NSTextField(labelWithString: "")
   private let searchField = NSSearchField()
   private let searchIcon = NSImageView()
@@ -69,16 +69,14 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     wantsLayer = true
     layer?.backgroundColor = MacTheme.cgColor(MacTheme.toolbarBackgroundColor, for: effectiveAppearance)
 
-    backButton.image = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: nil)
-    backButton.isBordered = false
-    backButton.bezelStyle = .regularSquare
-    backButton.imagePosition = .imageOnly
-    backButton.contentTintColor = .labelColor
-    backButton.target = self
-    backButton.action = #selector(backPressed)
-    backButton.wantsLayer = true
-    backButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
-    backButton.layer?.cornerRadius = 16
+    // Use SidebarTitleButton (plain NSControl) rather than a layer-backed NSButton:
+    // NSButton with `.regularSquare` carries asymmetric vertical alignmentRectInsets,
+    // which stretches a 32×32 Auto Layout box into a vertical oval.
+    backButton.content = .symbol("chevron.left")
+    backButton.fillColor = MacTheme.searchFieldBackgroundColor
+    backButton.setAccessibilityRole(.button)
+    backButton.setAccessibilityLabel(L10n.tr("Back"))
+    backButton.onClick = { [weak self] in self?.onBack?() }
     backButton.translatesAutoresizingMaskIntoConstraints = false
 
     // Measured from the original window: the toolbar title renders 28×14 pt of ink,
@@ -254,11 +252,6 @@ final class ContentToolbarView: NSView, NSSearchFieldDelegate {
     let leading = collapsed ? Self.collapsedLeading : Self.expandedLeading
     backLeading?.constant = leading
     titleAtLeading?.constant = leading
-  }
-
-  @objc
-  private func backPressed() {
-    onBack?()
   }
 
   /// Focuses the toolbar search field (⌘F).
