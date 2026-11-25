@@ -42,7 +42,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
 
   private static let missRetryInterval: TimeInterval = 7 * 24 * 60 * 60
   /// Bump to retry covers after the lookup strategy improves.
-  private static let artworkAttemptVersion = 3
+  private static let artworkAttemptVersion = 4
   private let lock = NSLock()
   private let fileURL: URL?
   private let log = OSLog(subsystem: "fmusic", category: "MetadataOverrides")
@@ -354,40 +354,65 @@ public final class MetadataBackfillService {
   }
 
   /// Force-rematches the online cover for a single album, replacing any
-  /// previously downloaded or embedded cover.
+  /// previously downloaded or embedded cover. If no online match is available
+  /// and the existing cover is non-standard, normalizes the local cover instead.
   @discardableResult
   public func rematchArtwork(for album: Album, accountInfo: AccountInfo) async -> Bool {
     let fmusic = FmusicKit.shared
-    guard fmusic.settings.user.isOnlineMode,
-          fmusic.networkMonitor.isConnectedToNetwork,
-          let song = album.songs.compactMap(\.asSong).first
-    else { return false }
+    guard let song = album.songs.compactMap(\.asSong).first else { return false }
     let library = fmusic.storage.main.library
     let account = library.getAccount(info: accountInfo)
-    guard let artworkURL = await OnlineLyricsService.shared.matchArtwork(
-      for: song,
-      expectedAlbum: album.managedObject.name
-    ),
-      await applyArtwork(
-        artworkURL,
-        to: album,
-        account: account,
-        accountInfo: accountInfo,
-        library: library,
-        overwriteArtistArtwork: true
-      )
-    else { return false }
-    MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
-    MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
-    ArtworkImageLoader.clearCache()
-    FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
-    library.saveContext()
-    NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
-    return true
+    let existingPath = album.artwork?.imagePath
+    let hasNonStandardLocalCover = existingPath.map { !Self.hasStandardSquareCover(atPath: $0) }
+      ?? false
+
+    if fmusic.settings.user.isOnlineMode,
+       fmusic.networkMonitor.isConnectedToNetwork,
+       let artworkURL = await OnlineLyricsService.shared.matchArtwork(
+         for: song,
+         expectedAlbum: album.managedObject.name
+       ),
+       await applyArtwork(
+         artworkURL,
+         to: album,
+         account: account,
+         accountInfo: accountInfo,
+         library: library,
+         overwriteArtistArtwork: true
+       ) {
+      MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
+      MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
+      ArtworkImageLoader.clearCache()
+      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
+      library.saveContext()
+      NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
+      return true
+    }
+
+    if hasNonStandardLocalCover,
+       let existingPath,
+       normalizeExistingArtwork(
+         atPath: existingPath,
+         for: album,
+         account: account,
+         accountInfo: accountInfo,
+         library: library,
+         overwriteArtistArtwork: true
+       ) {
+      MetadataOverrideStore.shared.recordAlbumArtwork(nil, for: album.id)
+      ArtworkImageLoader.clearCache()
+      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
+      library.saveContext()
+      NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
+      return true
+    }
+    return false
   }
 
-  /// Fetches covers for all albums that have no file or folder artwork.
-  /// Misses are cached so a coverless album is not re-searched on every sync.
+  /// Fetches covers for albums with missing or non-standard (non-square / tiny)
+  /// artwork. For non-standard covers, tries online metadata matching for a
+  /// standard square cover first, and falls back to center-cropping / scaling
+  /// the existing local cover so every album tile stays visually uniform.
   private func fillMissingArtwork(
     accountInfo: AccountInfo,
     account: Account,
@@ -406,13 +431,18 @@ public final class MetadataBackfillService {
         forAlbumID: album.id,
         songIDs: songs.map(\.id)
       )
-      guard album.artwork?.imagePath == nil || needsUpgrade else { continue }
+      let existingPath = album.artwork?.imagePath
+      let hasNonStandardCover = existingPath.map { !Self.hasStandardSquareCover(atPath: $0) }
+        ?? false
+      guard existingPath == nil || needsUpgrade || hasNonStandardCover else { continue }
+
       let shouldAttempt = needsUpgrade
         || MetadataOverrideStore.shared.shouldAttemptAlbumArtwork(for: album.id)
         || songs.contains { MetadataOverrideStore.shared.shouldAttemptArtwork(for: $0.id) }
       guard shouldAttempt else { continue }
       attempted += 1
-      guard let artworkURL = await OnlineLyricsService.shared.matchArtwork(
+
+      if let artworkURL = await OnlineLyricsService.shared.matchArtwork(
         for: song,
         expectedAlbum: album.managedObject.name
       ),
@@ -421,16 +451,32 @@ public final class MetadataBackfillService {
           to: album,
           account: account,
           accountInfo: accountInfo,
-          library: library
-        )
-      else {
-        MetadataOverrideStore.shared.recordAlbumArtwork(nil, for: album.id)
-        MetadataOverrideStore.shared.recordArtwork(nil, for: song.id)
+          library: library,
+          requireStandardSize: hasNonStandardCover
+        ) {
+        MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
+        MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
+        added += 1
         continue
       }
-      MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
-      MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
-      added += 1
+
+      if hasNonStandardCover,
+         let existingPath,
+         normalizeExistingArtwork(
+           atPath: existingPath,
+           for: album,
+           account: account,
+           accountInfo: accountInfo,
+           library: library
+         ) {
+        MetadataOverrideStore.shared.recordAlbumArtwork(nil, for: album.id)
+        MetadataOverrideStore.shared.recordArtwork(nil, for: song.id)
+        added += 1
+        continue
+      }
+
+      MetadataOverrideStore.shared.recordAlbumArtwork(nil, for: album.id)
+      MetadataOverrideStore.shared.recordArtwork(nil, for: song.id)
     }
     return added
   }
@@ -441,12 +487,61 @@ public final class MetadataBackfillService {
     account: Account,
     accountInfo: AccountInfo,
     library: LibraryStorage,
-    overwriteArtistArtwork: Bool = false
+    overwriteArtistArtwork: Bool = false,
+    requireStandardSize: Bool = false
   ) async
     -> Bool {
-    guard let data = await Self.downloadArtwork(url),
-          let encoded = Self.resizedArtwork(data)
+    guard let data = await Self.downloadArtwork(url) else { return false }
+    let size = ArtworkImageEncoder.pixelSize(from: data)
+    let isStandard = size.map(ArtworkImageEncoder.isStandardSquareCover) ?? false
+    if requireStandardSize, !isStandard {
+      return false
+    }
+    let encoded = isStandard
+      ? Self.resizedArtwork(data)
+      : ArtworkImageEncoder.normalizedSquareData(from: data)
+    guard let encoded else { return false }
+    return storeArtworkData(
+      encoded,
+      to: album,
+      account: account,
+      accountInfo: accountInfo,
+      library: library,
+      overwriteArtistArtwork: overwriteArtistArtwork
+    )
+  }
+
+  private func normalizeExistingArtwork(
+    atPath path: String,
+    for album: Album,
+    account: Account,
+    accountInfo: AccountInfo,
+    library: LibraryStorage,
+    overwriteArtistArtwork: Bool = false
+  )
+    -> Bool {
+    guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+          let normalized = ArtworkImageEncoder.normalizedSquareData(from: data)
     else { return false }
+    return storeArtworkData(
+      normalized,
+      to: album,
+      account: account,
+      accountInfo: accountInfo,
+      library: library,
+      overwriteArtistArtwork: overwriteArtistArtwork
+    )
+  }
+
+  private func storeArtworkData(
+    _ encoded: Data,
+    to album: Album,
+    account: Account,
+    accountInfo: AccountInfo,
+    library: LibraryStorage,
+    overwriteArtistArtwork: Bool = false
+  )
+    -> Bool {
     let remoteInfo = ArtworkRemoteInfo(id: album.id, type: "album")
     let artwork = library.getArtwork(for: account, remoteInfo: remoteInfo)
       ?? library.createArtwork(account: account)
@@ -477,6 +572,11 @@ public final class MetadataBackfillService {
     }
     album.songs.forEach { $0.artwork = artwork }
     return true
+  }
+
+  private static func hasStandardSquareCover(atPath path: String) -> Bool {
+    guard let size = ArtworkImageEncoder.pixelSize(atPath: path) else { return false }
+    return ArtworkImageEncoder.isStandardSquareCover(size)
   }
 
   private static func sameAlbum(_ lhs: String, _ rhs: String?) -> Bool {

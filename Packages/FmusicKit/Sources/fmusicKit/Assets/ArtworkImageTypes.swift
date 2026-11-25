@@ -31,6 +31,12 @@ import SwiftUI
 /// and forces a full-size decode every time a list cell displays them.
 public enum ArtworkImageEncoder {
   public static let maxPixelSize = 1024
+  /// Minimum pixel dimension and aspect ratio (min/max) for a cover to be
+  /// considered a standard uniform square album cover. Most embedded MP3/FLAC
+  /// covers are 300×300–600×600 (occasionally 200×200 for older files), so
+  /// keeping the floor at 200px avoids unnecessary network re-fetching.
+  public static let minimumStandardPixelSize: CGFloat = 200
+  public static let minimumSquareAspectRatio: CGFloat = 0.92
   private static let quality: CGFloat = 0.85
   /// JPEGs below this size are already cheap to store and decode; re-encoding
   /// them would only lose quality.
@@ -52,6 +58,66 @@ public enum ArtworkImageEncoder {
     return CGImageSourceGetCount(source) > 0
   }
 
+  /// Reads the oriented pixel dimensions without decoding the full bitmap.
+  public static func pixelSize(atPath path: String) -> CGSize? {
+    let url = URL(fileURLWithPath: path)
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+    return pixelSize(from: source)
+  }
+
+  /// Reads the oriented pixel dimensions from raw image bytes.
+  public static func pixelSize(from data: Data) -> CGSize? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+    return pixelSize(from: source)
+  }
+
+  /// True when the image is close to 1:1 square and at least `minimumStandardPixelSize`.
+  public static func isStandardSquareCover(_ size: CGSize) -> Bool {
+    let minSide = min(size.width, size.height)
+    let maxSide = max(size.width, size.height)
+    guard minSide >= minimumStandardPixelSize, maxSide > 0 else { return false }
+    return (minSide / maxSide) >= minimumSquareAspectRatio
+  }
+
+  /// Center-crops a non-square image to 1:1 square without upscaling so every
+  /// album tile fills uniformly with minimal CPU/memory overhead.
+  public static func normalizedSquareData(from data: Data) -> Data? {
+    guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
+      return nil
+    }
+    let options: [CFString: Any] = [
+      kCGImageSourceCreateThumbnailFromImageAlways: true,
+      kCGImageSourceCreateThumbnailWithTransform: true,
+      kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+      kCGImageSourceShouldCacheImmediately: true,
+    ]
+    guard let image = CGImageSourceCreateThumbnailAtIndex(
+      source,
+      0,
+      options as CFDictionary
+    ) else { return nil }
+
+    let width = image.width
+    let height = image.height
+    let side = min(width, height)
+    guard side > 0 else { return nil }
+
+    let finalImage: CGImage
+    if width != height {
+      let cropRect = CGRect(
+        x: (width - side) / 2,
+        y: (height - side) / 2,
+        width: side,
+        height: side
+      )
+      guard let cropped = image.cropping(to: cropRect) else { return nil }
+      finalImage = cropped
+    } else {
+      finalImage = image
+    }
+    return PlatformImages.jpegData(from: finalImage, quality: quality)
+  }
+
   public static func encodedData(from data: Data) -> Data? {
     guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
       return nil
@@ -68,6 +134,19 @@ public enum ArtworkImageEncoder {
       options as CFDictionary
     ) else { return nil }
     return PlatformImages.jpegData(from: image, quality: quality)
+  }
+
+  private static func pixelSize(from source: CGImageSource) -> CGSize? {
+    guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+          let width = properties[kCGImagePropertyPixelWidth] as? CGFloat,
+          let height = properties[kCGImagePropertyPixelHeight] as? CGFloat,
+          width > 0, height > 0
+    else { return nil }
+    let orientation = properties[kCGImagePropertyOrientation] as? UInt32 ?? 1
+    if (5 ... 8).contains(orientation) {
+      return CGSize(width: height, height: width)
+    }
+    return CGSize(width: width, height: height)
   }
 
   private static func isJPEG(_ data: Data) -> Bool {
