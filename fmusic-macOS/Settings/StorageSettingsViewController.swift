@@ -39,8 +39,7 @@ final class StorageSettingsViewController: SettingsPageViewController {
     nil
   }
 
-  override func viewDidLoad() {
-    super.viewDidLoad()
+  override func buildForm() {
     let limit = SettingsStore.user.cacheLimit
     let limitRow = makePopupRow(
       title: L10n.tr("Cache Size Limit"),
@@ -49,6 +48,7 @@ final class StorageSettingsViewController: SettingsPageViewController {
     ) { [weak self] index in
       guard index >= 0, index < LimitValue.values.count else { return }
       SettingsStore.updateUser { $0.cacheLimit = LimitValue.values[index] }
+      self?.evictCacheIfNeeded()
       self?.refreshStats()
     }
     self.limitRow = limitRow
@@ -66,11 +66,15 @@ final class StorageSettingsViewController: SettingsPageViewController {
       isOn: UserDefaults.standard.bool(
         forKey: CacheFileManager.automaticEvictionDefaultsKey
       )
-    ) { isOn in
+    ) { [weak self] isOn in
       UserDefaults.standard.set(
         isOn,
         forKey: CacheFileManager.automaticEvictionDefaultsKey
       )
+      if isOn {
+        self?.evictCacheIfNeeded()
+        self?.refreshStats()
+      }
     }
 
     let clearButton = SettingsButton(
@@ -92,6 +96,10 @@ final class StorageSettingsViewController: SettingsPageViewController {
       header: L10n.tr("Cache"),
       rows: [cachedRow, sizeRow, limitRow, autoCleanupRow, clearCacheRow]
     )
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
     refreshStats()
 
     refreshTimer = Timer.scheduledTimer(
@@ -101,6 +109,20 @@ final class StorageSettingsViewController: SettingsPageViewController {
       userInfo: nil,
       repeats: true
     )
+  }
+
+  private func evictCacheIfNeeded() {
+    guard let accountInfo = SettingsStore.activeAccount else { return }
+    let limit = SettingsStore.user.cacheLimit
+    guard limit > 0,
+          UserDefaults.standard.bool(forKey: CacheFileManager.automaticEvictionDefaultsKey)
+    else { return }
+    let plan = CacheFileManager.shared.makeCacheEvictionPlan(
+      for: accountInfo,
+      limitBytes: Int64(limit)
+    )
+    guard !plan.isEmpty else { return }
+    CacheFileManager.shared.applyCacheEvictionPlan(plan, accountInfo: accountInfo)
   }
 
   override func viewWillDisappear() {
