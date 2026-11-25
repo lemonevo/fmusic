@@ -151,9 +151,12 @@ final class DoubleClickCollectionView: NSCollectionView {
 final class AlbumTileItem: NSCollectionViewItem {
   static let reuseIdentifier = NSUserInterfaceItemIdentifier("AlbumTileItem")
 
+  private let artworkShadowContainer = NSView()
   private let artworkView = NSImageView()
   private let titleLabel = NSTextField(labelWithString: "")
   private let artistLabel = NSTextField(labelWithString: "")
+  private var trackingArea: NSTrackingArea?
+  private var isHovered = false
 
   private(set) var album: Album?
 
@@ -165,6 +168,14 @@ final class AlbumTileItem: NSCollectionViewItem {
     let root = NSView()
     root.wantsLayer = true
     self.view = root
+
+    artworkShadowContainer.wantsLayer = true
+    artworkShadowContainer.layer?.masksToBounds = false
+    artworkShadowContainer.layer?.shadowColor = NSColor.black.cgColor
+    artworkShadowContainer.layer?.shadowOpacity = 0.08
+    artworkShadowContainer.layer?.shadowRadius = 4
+    artworkShadowContainer.layer?.shadowOffset = CGSize(width: 0, height: -2)
+    artworkShadowContainer.translatesAutoresizingMaskIntoConstraints = false
 
     artworkView.translatesAutoresizingMaskIntoConstraints = false
     artworkView.imageScaling = .scaleProportionallyUpOrDown
@@ -184,17 +195,23 @@ final class AlbumTileItem: NSCollectionViewItem {
     artistLabel.maximumNumberOfLines = 1
     artistLabel.translatesAutoresizingMaskIntoConstraints = false
 
-    root.addSubview(artworkView)
+    artworkShadowContainer.addSubview(artworkView)
+    root.addSubview(artworkShadowContainer)
     root.addSubview(titleLabel)
     root.addSubview(artistLabel)
 
     NSLayoutConstraint.activate([
-      artworkView.topAnchor.constraint(equalTo: root.topAnchor),
-      artworkView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
-      artworkView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
-      artworkView.heightAnchor.constraint(equalTo: artworkView.widthAnchor),
+      artworkShadowContainer.topAnchor.constraint(equalTo: root.topAnchor),
+      artworkShadowContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      artworkShadowContainer.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      artworkShadowContainer.heightAnchor.constraint(equalTo: artworkShadowContainer.widthAnchor),
 
-      titleLabel.topAnchor.constraint(equalTo: artworkView.bottomAnchor, constant: 7),
+      artworkView.topAnchor.constraint(equalTo: artworkShadowContainer.topAnchor),
+      artworkView.leadingAnchor.constraint(equalTo: artworkShadowContainer.leadingAnchor),
+      artworkView.trailingAnchor.constraint(equalTo: artworkShadowContainer.trailingAnchor),
+      artworkView.bottomAnchor.constraint(equalTo: artworkShadowContainer.bottomAnchor),
+
+      titleLabel.topAnchor.constraint(equalTo: artworkShadowContainer.bottomAnchor, constant: 7),
       titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 1),
       titleLabel.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -1),
 
@@ -204,9 +221,65 @@ final class AlbumTileItem: NSCollectionViewItem {
     ])
   }
 
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    if let trackingArea {
+      view.removeTrackingArea(trackingArea)
+    }
+    let area = NSTrackingArea(
+      rect: .zero,
+      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    view.addTrackingArea(area)
+    trackingArea = area
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    setHovered(true)
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    setHovered(false)
+  }
+
+  private func setHovered(_ hovered: Bool) {
+    guard isHovered != hovered else { return }
+    isHovered = hovered
+    guard let layer = artworkShadowContainer.layer else { return }
+    let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    let duration: CFTimeInterval = reduceMotion ? 0 : 0.16
+    let bounds = artworkShadowContainer.bounds
+    var transform = CATransform3DIdentity
+    if hovered, !reduceMotion {
+      transform = CATransform3DTranslate(transform, bounds.midX, bounds.midY, 0)
+      transform = CATransform3DScale(transform, 1.022, 1.022, 1)
+      transform = CATransform3DTranslate(transform, -bounds.midX, -bounds.midY, 0)
+    }
+    CATransaction.begin()
+    CATransaction.setAnimationDuration(duration)
+    CATransaction.setAnimationTimingFunction(CAMediaTimingFunction(name: .easeOut))
+    layer.transform = transform
+    layer.shadowOpacity = hovered ? 0.22 : 0.08
+    layer.shadowRadius = hovered ? 10 : 4
+    layer.shadowOffset = CGSize(width: 0, height: hovered ? -4 : -2)
+    CATransaction.commit()
+  }
+
   override func prepareForReuse() {
     super.prepareForReuse()
     album = nil
+    isHovered = false
+    if let layer = artworkShadowContainer.layer {
+      CATransaction.begin()
+      CATransaction.setDisableActions(true)
+      layer.transform = CATransform3DIdentity
+      layer.shadowOpacity = 0.08
+      layer.shadowRadius = 4
+      layer.shadowOffset = CGSize(width: 0, height: -2)
+      CATransaction.commit()
+    }
     artworkView.image = nil
     titleLabel.stringValue = ""
     artistLabel.stringValue = ""

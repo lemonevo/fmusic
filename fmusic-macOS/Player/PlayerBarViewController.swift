@@ -442,8 +442,20 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     progressTrack.layer?.backgroundColor = NSColor.clear.cgColor
     progressTrack.translatesAutoresizingMaskIntoConstraints = false
     progressTrack.toolTip = L10n.tr("Seek")
+    progressTrack.durationProvider = { [weak self] in
+      self?.player.duration ?? 0
+    }
     progressTrack.onScrub = { [weak self] fraction in
       self?.seek(to: fraction)
+    }
+    progressTrack.onStep = { [weak self] deltaSeconds in
+      guard let self else { return }
+      let duration = self.player.duration
+      guard duration.isFinite, duration > 0 else { return }
+      let target = min(max(self.player.elapsedTime + deltaSeconds, 0), duration)
+      self.player.seek(toSecond: target)
+      self.progressFraction = CGFloat(target / duration)
+      self.updateProgressFill()
     }
 
     progressFill.wantsLayer = true
@@ -561,19 +573,30 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   }
 
   private func refreshArtwork() {
-    guard let playable = player.currentlyPlaying else {
-      artworkView.image = ArtworkImageLoader.generatedImage(
-        theme: storage.settings.accounts.activeSetting.read.themePreference,
+    let setting = storage.settings.accounts.activeSetting.read
+    let newImage: NSImage
+    if let playable = player.currentlyPlaying {
+      newImage = ArtworkImageLoader.image(
+        for: playable,
+        themePreference: setting.themePreference,
+        artworkDisplayPreference: setting.artworkDisplayPreference
+      )
+    } else {
+      newImage = ArtworkImageLoader.generatedImage(
+        theme: setting.themePreference,
         artworkType: .song
       )
-      return
     }
-    let setting = storage.settings.accounts.activeSetting.read
-    artworkView.image = ArtworkImageLoader.image(
-      for: playable,
-      themePreference: setting.themePreference,
-      artworkDisplayPreference: setting.artworkDisplayPreference
-    )
+    if artworkView.image !== newImage,
+       !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+       let layer = artworkView.layer {
+      let fade = CATransition()
+      fade.type = .fade
+      fade.duration = 0.22
+      fade.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      layer.add(fade, forKey: "artworkCrossfade")
+    }
+    artworkView.image = newImage
   }
 
   private func refreshPlaybackState() {
@@ -636,6 +659,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     guard let progressFillWidth else { return }
     let available = max(progressTrack.bounds.width, 0)
     progressFillWidth.constant = max(0, min(available, available * progressFraction))
+    progressTrack.currentFraction = progressFraction
   }
 
   @objc
@@ -969,9 +993,14 @@ private final class GlassSheenView: NSView {
 
 private final class SeekTrackView: NSView {
   var onScrub: ((CGFloat) -> Void)?
+  var onStep: ((TimeInterval) -> Void)?
+  var durationProvider: (() -> TimeInterval)?
+  var currentFraction: CGFloat = 0
 
   private var isHovered = false
   private var isDragging = false
+
+  override var acceptsFirstResponder: Bool { true }
 
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
@@ -979,7 +1008,7 @@ private final class SeekTrackView: NSView {
     addTrackingArea(
       NSTrackingArea(
         rect: .zero,
-        options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+        options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited, .mouseMoved],
         owner: self,
         userInfo: nil
       )
@@ -992,12 +1021,29 @@ private final class SeekTrackView: NSView {
 
   override func mouseEntered(with event: NSEvent) {
     isHovered = true
+    updateHoverTooltip(for: event)
     needsDisplay = true
+  }
+
+  override func mouseMoved(with event: NSEvent) {
+    updateHoverTooltip(for: event)
   }
 
   override func mouseExited(with event: NSEvent) {
     isHovered = false
+    toolTip = L10n.tr("Seek")
     if !isDragging { needsDisplay = true }
+  }
+
+  override func keyDown(with event: NSEvent) {
+    switch event.keyCode {
+    case 123: // Left Arrow
+      onStep?(-5)
+    case 124: // Right Arrow
+      onStep?(5)
+    default:
+      super.keyDown(with: event)
+    }
   }
 
   override func draw(_ dirtyRect: NSRect) {
@@ -1027,6 +1073,52 @@ private final class SeekTrackView: NSView {
   private func report(_ event: NSEvent) {
     guard bounds.width > 0 else { return }
     let x = convert(event.locationInWindow, from: nil).x
-    onScrub?(min(max(x / bounds.width, 0), 1))
+    let fraction = min(max(x / bounds.width, 0), 1)
+    updateHoverTooltip(for: event)
+    onScrub?(fraction)
+  }
+
+  private func updateHoverTooltip(for event: NSEvent) {
+    let duration = durationProvider?() ?? 0
+    guard bounds.width > 0, duration.isFinite, duration > 0 else {
+      toolTip = L10n.tr("Seek")
+      return
+    }
+    let x = convert(event.locationInWindow, from: nil).x
+    let fraction = min(max(x / bounds.width, 0), 1)
+    let hovered = ClockTime(timeInSeconds: Int(Double(fraction) * duration)).asShortString()
+    let total = ClockTime(timeInSeconds: Int(duration)).asShortString()
+    toolTip = "\(hovered) / \(total)"
+  }
+
+  // MARK: - Accessibility
+
+  override func isAccessibilityElement() -> Bool { true }
+
+  override func accessibilityRole() -> NSAccessibility.Role? { .slider }
+
+  override func accessibilityLabel() -> String? { L10n.tr("Seek") }
+
+  override func accessibilityMinValue() -> Any? { 0.0 }
+
+  override func accessibilityMaxValue() -> Any? {
+    let duration = durationProvider?() ?? 0
+    return duration.isFinite && duration > 0 ? duration : 0.0
+  }
+
+  override func accessibilityValue() -> Any? {
+    let duration = durationProvider?() ?? 0
+    guard duration.isFinite, duration > 0 else { return 0.0 }
+    return Double(currentFraction) * duration
+  }
+
+  override func accessibilityPerformIncrement() -> Bool {
+    onStep?(5)
+    return true
+  }
+
+  override func accessibilityPerformDecrement() -> Bool {
+    onStep?(-5)
+    return true
   }
 }

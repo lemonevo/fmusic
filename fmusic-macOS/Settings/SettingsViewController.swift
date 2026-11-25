@@ -31,6 +31,7 @@ final class SettingsViewController: NSViewController {
 
   private var currentPage: SettingsPage?
   private var currentPageViewController: NSViewController?
+  private var transitionToken = 0
 
   override func loadView() {
     let root = NSView(frame: NSRect(origin: .zero, size: Self.contentSize))
@@ -81,25 +82,23 @@ final class SettingsViewController: NSViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
     sidebarViewController.onSelectionChanged = { [weak self] page in
-      self?.show(page: page)
+      self?.show(page: page, animated: true)
     }
     sidebarViewController.select(page: .general)
-    show(page: .general)
+    show(page: .general, animated: false)
   }
 
   // MARK: - Page switching
 
-  private func show(page: SettingsPage) {
+  private func show(page: SettingsPage, animated: Bool) {
     guard currentPage != page else { return }
     currentPage = page
+    transitionToken += 1
+    let token = transitionToken
 
-    if let current = currentPageViewController {
-      current.view.removeFromSuperview()
-      current.removeFromParent()
-      currentPageViewController = nil
-    }
-
+    let outgoing = currentPageViewController
     let controller = page.makeViewController()
+    controller.view.wantsLayer = true
     controller.view.translatesAutoresizingMaskIntoConstraints = false
     contentBackground.addSubview(controller.view)
     NSLayoutConstraint.activate([
@@ -110,5 +109,41 @@ final class SettingsViewController: NSViewController {
     ])
     addChild(controller)
     currentPageViewController = controller
+
+    let shouldAnimate = animated
+      && outgoing != nil
+      && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+
+    guard shouldAnimate, let outgoing else {
+      outgoing?.view.removeFromSuperview()
+      outgoing?.removeFromParent()
+      return
+    }
+
+    outgoing.view.wantsLayer = true
+    controller.view.alphaValue = 0
+    if let layer = controller.view.layer {
+      let slide = CABasicAnimation(keyPath: "transform.translation.x")
+      slide.fromValue = 8
+      slide.toValue = 0
+      slide.duration = 0.16
+      slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      layer.add(slide, forKey: "settingsPageSlide")
+    }
+
+    NSAnimationContext.runAnimationGroup({ context in
+      context.duration = 0.16
+      context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      controller.view.animator().alphaValue = 1
+      outgoing.view.animator().alphaValue = 0
+    }, completionHandler: { [weak self] in
+      Task { @MainActor [weak self] in
+        outgoing.view.removeFromSuperview()
+        outgoing.removeFromParent()
+        if self?.transitionToken == token {
+          controller.view.alphaValue = 1
+        }
+      }
+    })
   }
 }

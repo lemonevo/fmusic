@@ -693,6 +693,40 @@ final class DesktopLyricsOverlayButton: NSButton {
   override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
+/// Root content view that tracks pointer hover via `NSTrackingArea` (zero idle
+/// polling) and relays frame changes during `NSAnimationContext` height animations.
+@MainActor
+private final class DesktopLyricsRootView: NSView {
+  var onHoverChanged: ((Bool) -> Void)?
+  var onLayout: (() -> Void)?
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(
+      NSTrackingArea(
+        rect: .zero,
+        options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+        owner: self,
+        userInfo: nil
+      )
+    )
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    onHoverChanged?(true)
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    onHoverChanged?(false)
+  }
+
+  override func layout() {
+    super.layout()
+    onLayout?()
+  }
+}
+
 // MARK: - DesktopLyricsWindowController
 
 @MainActor
@@ -703,7 +737,7 @@ final class DesktopLyricsWindowController: NSObject {
   // MARK: Window & view
 
   private let panel: DesktopLyricsWindow
-  private let rootView: NSView
+  private let rootView: DesktopLyricsRootView
   private let rootLayer: CALayer
   private var backgroundView: NSView?
   private var usesGlassMaterial = false
@@ -825,7 +859,8 @@ final class DesktopLyricsWindowController: NSObject {
 
   private var toolbarHost: NSView?
   private var toolbarButtons: [DesktopLyricsOverlayButton] = []
-  nonisolated(unsafe) private var hoverTimer: Timer?
+  nonisolated(unsafe) private var clickThroughGlobalMoveMonitor: Any?
+  nonisolated(unsafe) private var clickThroughLocalMoveMonitor: Any?
   private var isToolbarVisible = false
   private var toolbarToken = 0
   private var positionLocked = false
@@ -836,18 +871,9 @@ final class DesktopLyricsWindowController: NSObject {
 
   private var controlWindow: NSPanel?
 
-  // MARK: Height spring
+  // MARK: Height animation
 
-  private struct ActiveResize {
-    let top: CGFloat
-    let startHeight: CGFloat
-    let height: CGFloat
-    let started: CFTimeInterval
-    let duration: TimeInterval
-  }
-
-  nonisolated(unsafe) private var resizeTimer: Timer?
-  private var activeResize: ActiveResize?
+  private var resizeToken = 0
   private var isAnimatingResize = false
 
   // MARK: Lyrics-sync panel
@@ -894,13 +920,20 @@ final class DesktopLyricsWindowController: NSObject {
       backing: .buffered,
       defer: false
     )
-    let rootView = NSView(frame: .zero)
+    let rootView = DesktopLyricsRootView(frame: .zero)
     rootView.wantsLayer = true
     panel.contentView = rootView
     self.panel = panel
     self.rootView = rootView
     self.rootLayer = rootView.layer ?? CALayer()
     super.init()
+
+    rootView.onHoverChanged = { [weak self] inside in
+      self?.handleTrackingHoverChanged(inside)
+    }
+    rootView.onLayout = { [weak self] in
+      self?.layoutLayers()
+    }
 
     configureWindow()
     screenScale = Self.currentScreenScale(for: panel)
@@ -940,8 +973,12 @@ final class DesktopLyricsWindowController: NSObject {
   }
 
   deinit {
-    hoverTimer?.invalidate()
-    resizeTimer?.invalidate()
+    if let clickThroughGlobalMoveMonitor {
+      NSEvent.removeMonitor(clickThroughGlobalMoveMonitor)
+    }
+    if let clickThroughLocalMoveMonitor {
+      NSEvent.removeMonitor(clickThroughLocalMoveMonitor)
+    }
     if let offsetClickMonitor {
       NSEvent.removeMonitor(offsetClickMonitor)
     }
@@ -1393,14 +1430,14 @@ final class DesktopLyricsWindowController: NSObject {
     // Row 1 (transport): open window, previous, play/pause, next.
     // Row 2 (overlay): sync, lock, click-through, hide.
     let specs: [(String, String, Selector)] = [
-      ("arrow.up.left.and.arrow.down.right", "打开主窗口", #selector(toolbarOpenPressed)),
-      ("backward.fill", "上一首", #selector(toolbarPreviousPressed)),
-      ("pause.fill", "暂停", #selector(toolbarPlayPausePressed)),
-      ("forward.fill", "下一首", #selector(toolbarNextPressed)),
-      ("timer", "调节歌词同步", #selector(toolbarSyncPressed)),
-      ("lock.open", "锁定位置", #selector(toolbarLockPressed)),
-      ("cursorarrow.slash", "开启点击穿透", #selector(toolbarClickThroughPressed)),
-      ("xmark", "隐藏悬浮歌词", #selector(toolbarClosePressed)),
+      ("arrow.up.left.and.arrow.down.right", L10n.tr("Show Main Window"), #selector(toolbarOpenPressed)),
+      ("backward.fill", L10n.tr("Previous Track"), #selector(toolbarPreviousPressed)),
+      ("pause.fill", L10n.tr("Pause"), #selector(toolbarPlayPausePressed)),
+      ("forward.fill", L10n.tr("Next Track"), #selector(toolbarNextPressed)),
+      ("timer", L10n.tr("Adjust Lyrics Sync"), #selector(toolbarSyncPressed)),
+      ("lock.open", L10n.tr("Lock Position"), #selector(toolbarLockPressed)),
+      ("cursorarrow.slash", L10n.tr("Enable Click-Through"), #selector(toolbarClickThroughPressed)),
+      ("xmark", L10n.tr("Hide Desktop Lyrics"), #selector(toolbarClosePressed)),
     ]
     for (index, spec) in specs.enumerated() {
       let button = DesktopLyricsOverlayButton(frame: Self.toolbarButtonFrame(at: index))
@@ -1456,7 +1493,9 @@ final class DesktopLyricsWindowController: NSObject {
       to: locked ? "lock.fill" : "lock.open"
     )
     Self.setActive(locked, on: toolbarButtons[Self.lockButtonIndex])
-    toolbarButtons[Self.lockButtonIndex].toolTip = locked ? "解锁并恢复拖动" : "锁定位置"
+    toolbarButtons[Self.lockButtonIndex].toolTip = locked
+      ? L10n.tr("Unlock and Allow Dragging")
+      : L10n.tr("Lock Position")
     let through = clickThrough
     // crossing arrows (rays) = click-through on; slashed arrow = click-through off.
     changeSymbol(
@@ -1465,12 +1504,15 @@ final class DesktopLyricsWindowController: NSObject {
     )
     Self.setActive(through, on: toolbarButtons[Self.clickThroughButtonIndex])
     toolbarButtons[Self.clickThroughButtonIndex].toolTip = through
-      ? "关闭点击穿透" : "开启点击穿透"
+      ? L10n.tr("Disable Click-Through")
+      : L10n.tr("Enable Click-Through")
     changeSymbol(
       of: toolbarButtons[Self.playPauseButtonIndex],
       to: isPlaying ? "pause.fill" : "play.fill"
     )
-    toolbarButtons[Self.playPauseButtonIndex].toolTip = isPlaying ? "暂停" : "播放"
+    toolbarButtons[Self.playPauseButtonIndex].toolTip = isPlaying
+      ? L10n.tr("Pause")
+      : L10n.tr("Play")
   }
 
   /// Applies the configured glyph color (SF Symbols tint). 0 = white, 1 = black,
@@ -1610,7 +1652,8 @@ final class DesktopLyricsWindowController: NSObject {
     isToolbarVisible = false
     toolbarHost?.isHidden = true
     layoutLayers()
-    hoverTick()
+    updateHoverMonitors()
+    evaluateHoverFromPointer()
   }
 
   private func positionControlWindow() {
@@ -1628,27 +1671,57 @@ final class DesktopLyricsWindowController: NSObject {
   // MARK: - Hover tracking
 
   private func startHoverTracking() {
-    guard hoverTimer == nil else { return }
-    let timer = Timer(
-      timeInterval: 0.05,
-      target: self,
-      selector: #selector(hoverTick),
-      userInfo: nil,
-      repeats: true
-    )
-    RunLoop.main.add(timer, forMode: .common)
-    hoverTimer = timer
-    hoverTick()
+    updateHoverMonitors()
+    evaluateHoverFromPointer()
   }
 
   private func stopHoverTracking() {
-    hoverTimer?.invalidate()
-    hoverTimer = nil
+    removeClickThroughMoveMonitors()
     setToolbarVisible(false)
   }
 
-  @objc
-  private func hoverTick() {
+  /// Normal mode relies purely on `NSTrackingArea` (zero polling). Only when
+  /// click-through is enabled (`ignoresMouseEvents = true`) do we listen to
+  /// mouseMoved events so the detached control strip can appear on demand.
+  private func updateHoverMonitors() {
+    removeClickThroughMoveMonitors()
+    guard isVisible, clickThrough else { return }
+    clickThroughGlobalMoveMonitor = NSEvent.addGlobalMonitorForEvents(
+      matching: .mouseMoved
+    ) { [weak self] _ in
+      Task { @MainActor [weak self] in
+        self?.evaluateHoverFromPointer()
+      }
+    }
+    clickThroughLocalMoveMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: .mouseMoved
+    ) { [weak self] event in
+      self?.evaluateHoverFromPointer()
+      return event
+    }
+  }
+
+  private func removeClickThroughMoveMonitors() {
+    if let monitor = clickThroughGlobalMoveMonitor {
+      NSEvent.removeMonitor(monitor)
+      clickThroughGlobalMoveMonitor = nil
+    }
+    if let monitor = clickThroughLocalMoveMonitor {
+      NSEvent.removeMonitor(monitor)
+      clickThroughLocalMoveMonitor = nil
+    }
+  }
+
+  private func handleTrackingHoverChanged(_ inside: Bool) {
+    guard isVisible, !clickThrough else { return }
+    if inside {
+      setToolbarVisible(true)
+    } else {
+      evaluateHoverFromPointer()
+    }
+  }
+
+  private func evaluateHoverFromPointer() {
     guard isVisible else { return }
     let point = NSEvent.mouseLocation
     var isInside = currentFrame.contains(point)
@@ -1726,7 +1799,7 @@ final class DesktopLyricsWindowController: NSObject {
     let size = CGSize(width: 340, height: 176)
     let panel = Self.makeBorderlessPanel(size: size)
     panel.level = NSWindow.Level(rawValue: self.panel.level.rawValue + 2)
-    panel.setAccessibilityLabel("歌词同步调节")
+    panel.setAccessibilityLabel(L10n.tr("Lyrics Sync Adjustment"))
     let content = makeOffsetPanelContent(size: size)
     panel.contentView = content
     offsetPanel = panel
@@ -1784,7 +1857,7 @@ final class DesktopLyricsWindowController: NSObject {
     background.addSubview(shade)
 
     addLabel(
-      "歌词同步",
+      L10n.tr("Lyrics Sync"),
       frame: CGRect(x: 16, y: 146, width: 220, height: 18),
       size: 13,
       weight: .semibold,
@@ -1793,7 +1866,7 @@ final class DesktopLyricsWindowController: NSObject {
     )
     if let close = Self.makeToolbarButton(
       symbol: "xmark",
-      tooltip: "关闭歌词同步调节",
+      tooltip: L10n.tr("Close Lyrics Sync Adjustment"),
       target: self,
       action: #selector(closeOffsetPressed)
     ) {
@@ -1820,21 +1893,21 @@ final class DesktopLyricsWindowController: NSObject {
     offsetDetailField?.textColor = .secondaryLabelColor
 
     if let button = makeOffsetButton(
-      "延后 0.1 秒",
+      L10n.tr("Delay 0.1 s"),
       frame: CGRect(x: 16, y: 51, width: 98, height: 24),
       action: #selector(offsetLaterPressed)
     ) {
       background.addSubview(button)
     }
     if let button = makeOffsetButton(
-      "提前 0.1 秒",
+      L10n.tr("Advance 0.1 s"),
       frame: CGRect(x: 117, y: 51, width: 98, height: 24),
       action: #selector(offsetEarlyPressed)
     ) {
       background.addSubview(button)
     }
     if let button = makeOffsetButton(
-      "重置",
+      L10n.tr("Reset"),
       frame: CGRect(x: 218, y: 51, width: 106, height: 24),
       action: #selector(offsetResetPressed)
     ) {
@@ -1842,7 +1915,7 @@ final class DesktopLyricsWindowController: NSObject {
     }
 
     let caption = addLabel(
-      "此处只调整或重置单曲偏移；通用偏移请在播放器的歌词偏移菜单中调整。",
+      L10n.tr("This only adjusts or resets the per-song offset; adjust the global offset in the player's Lyrics Offset menu."),
       frame: CGRect(x: 16, y: 12, width: 308, height: 32),
       size: 11,
       weight: .regular,
@@ -1924,12 +1997,12 @@ final class DesktopLyricsWindowController: NSObject {
   }
 
   private func refreshOffsetFields(_ snapshot: OverlayOffsetSnapshot) {
-    offsetValueField?.stringValue = String(
-      format: "单曲偏移 %+.1f 秒",
+    offsetValueField?.stringValue = L10n.tr(
+      "Song Offset %+.1f s",
       Double(snapshot.songMilliseconds) / 1_000
     )
-    offsetDetailField?.stringValue = String(
-      format: "通用 %+.3f 秒 · 合计 %+.3f 秒",
+    offsetDetailField?.stringValue = L10n.tr(
+      "Global %+.3f s · Total %+.3f s",
       Double(snapshot.globalMilliseconds) / 1_000,
       Double(snapshot.totalMilliseconds) / 1_000
     )
@@ -2373,63 +2446,36 @@ final class DesktopLyricsWindowController: NSObject {
     saveFrame()
   }
 
-  /// LyricsX Next springs its native panel between one- and two-row lyric
-  /// heights instead of snapping. AppKit owns the rounded glass, so the
-  /// height is stepped here while every text layer stays anchored to the
-  /// fixed top edge.
+  /// Animates the panel height with `NSAnimationContext` while keeping the top
+  /// edge anchored. `DesktopLyricsRootView.layout()` re-anchors layers cleanly
+  /// during the animation without any 60 Hz polling timer.
   private func animateResize(from frame: CGRect, to height: CGFloat) {
-    resizeTimer?.invalidate()
-    resizeTimer = nil
     guard abs(frame.height - height) > 0.5 else {
-      activeResize = nil
       isAnimatingResize = false
       return
     }
     let delta = height - frame.height
-    activeResize = ActiveResize(
-      top: frame.maxY,
-      startHeight: frame.height,
-      height: height,
-      started: CACurrentMediaTime(),
-      duration: delta > 0 ? 0.34 : 0.48
-    )
+    var newFrame = frame
+    newFrame.origin.y = frame.maxY - height
+    newFrame.size.height = height
+    resizeToken += 1
+    let token = resizeToken
     isAnimatingResize = true
-    let timer = Timer(
-      timeInterval: 1.0 / 60.0,
-      target: self,
-      selector: #selector(resizeTick(_:)),
-      userInfo: nil,
-      repeats: true
-    )
-    RunLoop.main.add(timer, forMode: .common)
-    resizeTimer = timer
-  }
-
-  @objc
-  private func resizeTick(_ timer: Timer) {
-    guard let resize = activeResize else {
-      timer.invalidate()
-      resizeTimer = nil
-      isAnimatingResize = false
-      return
-    }
-    let progress = min(
-      1,
-      max(0, (CACurrentMediaTime() - resize.started) / resize.duration)
-    )
-    let eased = DesktopLyricsEmphasis.smoother(CGFloat(progress))
-    let height = resize.startHeight
-      + (resize.height - resize.startHeight) * eased
-    var frame = currentFrame
-    frame.origin.y = resize.top - height
-    frame.size.height = height
-    applyFrame(frame)
-    guard progress >= 1 else { return }
-    timer.invalidate()
-    resizeTimer = nil
-    activeResize = nil
-    isAnimatingResize = false
-    saveFrame()
+    NSAnimationContext.runAnimationGroup({
+      context in
+      context.duration = delta > 0 ? 0.30 : 0.42
+      context.timingFunction = CAMediaTimingFunction(
+        controlPoints: 0.25, 0.1, 0.25, 1
+      )
+      panel.animator().setFrame(newFrame, display: true)
+    }, completionHandler: { [weak self] in
+      Task { @MainActor [weak self] in
+        guard let self, self.resizeToken == token else { return }
+        self.isAnimatingResize = false
+        self.layoutLayers()
+        self.saveFrame()
+      }
+    })
   }
 
   private func layoutLayers() {

@@ -410,11 +410,36 @@ final class MainViewController: NSViewController {
     case .downloads: controller = DownloadsViewController()
     case .lyricsSearch: controller = LyricsSearchViewController()
     }
-    pageStack.forEach(removePage)
+    let previousPages = pageStack
+    let topOutgoing = previousPages.last
+    for page in previousPages.dropLast() {
+      removePage(page)
+    }
     pageStack = [controller]
     pageTitles = [item.title]
     attach(controller)
     updateToolbar(title: item.title, showsBack: false)
+
+    guard let topOutgoing,
+          view.window != nil,
+          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    else {
+      if let topOutgoing { removePage(topOutgoing) }
+      return
+    }
+    controller.view.wantsLayer = true
+    topOutgoing.view.wantsLayer = true
+    controller.view.alphaValue = 0
+    NSAnimationContext.runAnimationGroup({ context in
+      context.duration = 0.15
+      context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      controller.view.animator().alphaValue = 1
+      topOutgoing.view.animator().alphaValue = 0
+    }, completionHandler: { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.removePage(topOutgoing)
+      }
+    })
   }
 
   /// Pushes a detail page over the current one (back button appears in the toolbar).
@@ -423,17 +448,60 @@ final class MainViewController: NSViewController {
     pageTitles.append(title)
     attach(controller)
     updateToolbar(title: title, showsBack: true)
+
+    guard view.window != nil,
+          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    else { return }
+    controller.view.wantsLayer = true
+    controller.view.alphaValue = 0
+    if let layer = controller.view.layer {
+      let slide = CABasicAnimation(keyPath: "transform.translation.x")
+      slide.fromValue = 22
+      slide.toValue = 0
+      slide.duration = 0.20
+      slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      layer.add(slide, forKey: "pagePushSlide")
+    }
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.18
+      context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      controller.view.animator().alphaValue = 1
+    }
   }
 
   func pop() {
     guard pageStack.count > 1 else { return }
     let controller = pageStack.removeLast()
     pageTitles.removeLast()
-    removePage(controller)
     updateToolbar(
       title: pageTitles.last ?? "",
       showsBack: pageStack.count > 1
     )
+
+    guard view.window != nil,
+          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    else {
+      removePage(controller)
+      return
+    }
+    controller.view.wantsLayer = true
+    if let layer = controller.view.layer {
+      let slide = CABasicAnimation(keyPath: "transform.translation.x")
+      slide.fromValue = 0
+      slide.toValue = 22
+      slide.duration = 0.18
+      slide.timingFunction = CAMediaTimingFunction(name: .easeIn)
+      layer.add(slide, forKey: "pagePopSlide")
+    }
+    NSAnimationContext.runAnimationGroup({ context in
+      context.duration = 0.18
+      context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+      controller.view.animator().alphaValue = 0
+    }, completionHandler: { [weak self] in
+      Task { @MainActor [weak self] in
+        self?.removePage(controller)
+      }
+    })
   }
 
   /// Opens the home screen and its section editor (toolbar 编辑 button).

@@ -53,11 +53,17 @@ final class MainWindowController: NSWindowController {
     self.init(window: window)
 
     window.setFrameAutosaveName(Self.autosaveName)
-    if !window.setFrameUsingName(Self.autosaveName) {
+    if !window.setFrameUsingName(Self.autosaveName) || !Self.isVisibleOnAnyScreen(window.frame) {
       window.center()
     }
 
     window.contentViewController = MainViewController()
+  }
+
+  private static func isVisibleOnAnyScreen(_ frame: NSRect) -> Bool {
+    NSScreen.screens.contains { screen in
+      screen.visibleFrame.intersects(frame.insetBy(dx: 80, dy: 80))
+    }
   }
 
   var mainViewController: MainViewController? {

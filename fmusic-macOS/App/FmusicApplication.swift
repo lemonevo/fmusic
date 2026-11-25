@@ -34,11 +34,13 @@ final class FmusicApplication: NSApplication {
     guard event.charactersIgnoringModifiers == " " else { return false }
     guard event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty
     else { return false }
-    if keyWindow?.firstResponder is NSTextView {
-      return false
-    }
-    if keyWindow?.firstResponder is NSTextField {
-      return false
+    // Never steal Space from modal alerts, sheets, text inputs, or focused controls.
+    guard modalWindow == nil else { return false }
+    guard let keyWindow, keyWindow.attachedSheet == nil, !keyWindow.isSheet else { return false }
+    if let responder = keyWindow.firstResponder {
+      if responder is NSText || responder is NSControl {
+        return false
+      }
     }
     return true
   }

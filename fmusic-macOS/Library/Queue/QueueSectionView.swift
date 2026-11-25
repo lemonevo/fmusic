@@ -44,6 +44,8 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
     static let header = NSUserInterfaceItemIdentifier("queueHeader")
   }
 
+  private static let dragType = NSPasteboard.PasteboardType("lol.levo.fmusic.queueRow")
+
   private var player: PlayerFacade { FmusicKit.shared.player }
 
   // MARK: - Init
@@ -66,6 +68,8 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = true
     tableView.backgroundColor = .clear
+    tableView.registerForDraggedTypes([Self.dragType])
+    tableView.setDraggingSourceOperationMask(.move, forLocal: true)
     tableView.dataSource = self
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
@@ -212,6 +216,68 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
 
   func numberOfRows(in tableView: NSTableView) -> Int {
     rows.count
+  }
+
+  func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
+    guard row >= 0, row < rows.count, case .track = rows[row] else { return nil }
+    let item = NSPasteboardItem()
+    item.setString(String(row), forType: Self.dragType)
+    return item
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    validateDrop info: NSDraggingInfo,
+    proposedRow row: Int,
+    proposedDropOperation dropOperation: NSTableView.DropOperation
+  )
+    -> NSDragOperation {
+    guard info.draggingSource as? NSTableView === tableView,
+          dropOperation == .above,
+          targetPlayerIndex(forDropRow: row) != nil
+    else { return [] }
+    return .move
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    acceptDrop info: NSDraggingInfo,
+    row: Int,
+    dropOperation: NSTableView.DropOperation
+  )
+    -> Bool {
+    guard info.draggingSource as? NSTableView === tableView,
+          dropOperation == .above,
+          let sourceString = info.draggingPasteboard.string(forType: Self.dragType),
+          let sourceRow = Int(sourceString),
+          sourceRow >= 0, sourceRow < rows.count,
+          case .track(_, let fromIndex) = rows[sourceRow],
+          var toIndex = targetPlayerIndex(forDropRow: row)
+    else { return false }
+
+    if fromIndex.queueType == toIndex.queueType {
+      let adjusted = row > sourceRow ? toIndex.index - 1 : toIndex.index
+      guard adjusted >= 0, adjusted != fromIndex.index else { return false }
+      toIndex = PlayerIndex(queueType: toIndex.queueType, index: adjusted)
+    }
+    player.movePlayable(from: fromIndex, to: toIndex)
+    reload()
+    return true
+  }
+
+  /// Maps an `.above` table drop row to the destination `PlayerIndex` in either
+  /// the user queue or the context up-next queue.
+  private func targetPlayerIndex(forDropRow dropRow: Int) -> PlayerIndex? {
+    guard dropRow > 0, dropRow <= rows.count else { return nil }
+    if dropRow < rows.count, case .track(_, let index) = rows[dropRow] {
+      return index
+    }
+    // Dropping right above the next section header (or at the very end of the
+    // table) appends to the section immediately preceding `dropRow`.
+    if case .track(_, let previous) = rows[dropRow - 1] {
+      return PlayerIndex(queueType: previous.queueType, index: previous.index + 1)
+    }
+    return nil
   }
 
   // MARK: - NSTableViewDelegate

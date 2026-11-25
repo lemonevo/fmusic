@@ -103,7 +103,8 @@ final class SettingsWindowController: NSWindowController {
   }
 
   /// Rebuilds the page hierarchy after the window was closed (the window itself stays
-  /// alive thanks to `isReleasedWhenClosed = false`), and centers over the main window.
+  /// alive thanks to `isReleasedWhenClosed = false`), and centers over the main window
+  /// with a subtle fade + rise transition so opening Settings never feels abrupt.
   override func showWindow(_ sender: Any?) {
     guard let window else {
       super.showWindow(sender)
@@ -112,10 +113,25 @@ final class SettingsWindowController: NSWindowController {
     if window.contentViewController == nil {
       window.contentViewController = SettingsViewController()
     }
-    if !window.isVisible {
+    let wasVisible = window.isVisible
+    if !wasVisible {
       center(window)
     }
+    guard !wasVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+      window.alphaValue = 1
+      super.showWindow(sender)
+      return
+    }
+    let targetOrigin = window.frame.origin
+    window.setFrameOrigin(NSPoint(x: targetOrigin.x, y: targetOrigin.y - 10))
+    window.alphaValue = 0
     super.showWindow(sender)
+    NSAnimationContext.runAnimationGroup { context in
+      context.duration = 0.18
+      context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+      window.animator().alphaValue = 1
+      window.animator().setFrameOrigin(targetOrigin)
+    }
   }
 
   @objc
