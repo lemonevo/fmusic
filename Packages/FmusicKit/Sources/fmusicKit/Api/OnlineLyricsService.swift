@@ -73,6 +73,15 @@ struct OnlineLyricsQuery: Sendable {
   let album: String
   /// Milliseconds, 0 when unknown.
   let duration: Int
+
+  var searchKeyword: String {
+    let cleanArtist = artist
+      .replacingOccurrences(of: "[,，/&;；、+]+", with: " ", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    return [title, cleanArtist]
+      .filter { !$0.isEmpty }
+      .joined(separator: " ")
+  }
 }
 
 // MARK: - OnlineLyricsPayload
@@ -416,9 +425,7 @@ private struct NetEaseLyricsProvider: OnlineLyricsProvider {
   }
 
   func search(_ query: OnlineLyricsQuery) async throws -> [OnlineLyricsCandidate] {
-    let keyword = [query.title, query.artist]
-      .filter { !$0.isEmpty }
-      .joined(separator: " ")
+    let keyword = query.searchKeyword
     var songs = try await request(keyword: keyword)
     if songs.isEmpty, !query.artist.isEmpty {
       songs = try await request(keyword: query.title)
@@ -624,9 +631,7 @@ private struct QQMusicLyricsProvider: OnlineLyricsProvider {
   }
 
   func search(_ query: OnlineLyricsQuery) async throws -> [OnlineLyricsCandidate] {
-    let keyword = [query.title, query.artist]
-      .filter { !$0.isEmpty }
-      .joined(separator: " ")
+    let keyword = query.searchKeyword
     var items = try await request(keyword: keyword)
     if items.isEmpty, !query.artist.isEmpty {
       items = try await request(keyword: query.title)
@@ -893,9 +898,7 @@ private struct KugouLyricsProvider: OnlineLyricsProvider {
   }
 
   func search(_ query: OnlineLyricsQuery) async throws -> [OnlineLyricsCandidate] {
-    let keyword = [query.title, query.artist]
-      .filter { !$0.isEmpty }
-      .joined(separator: " ")
+    let keyword = query.searchKeyword
     var songs = try await request(keyword: keyword)
     if songs.isEmpty, !query.artist.isEmpty {
       songs = try await request(keyword: query.title)
@@ -1155,12 +1158,26 @@ enum OnlineLyricsRanker {
     if !expectedArtists.isEmpty {
       let candidateArtists = artistNames(candidate.artist)
       guard !candidateArtists.isEmpty else { return nil }
-      if !candidateArtists.isDisjoint(with: expectedArtists) {
+      let overlapCount = expectedArtists.intersection(candidateArtists).count
+      if overlapCount == expectedArtists.count {
         score += 25
+      } else if overlapCount > 0 {
+        score += 12
       } else if isCompatible(candidateArtists, expectedArtists) {
-        score += 15
+        score += 12
       } else {
         return nil
+      }
+    }
+
+    let queryAlbum = normalized(query.album)
+    let candidateAlbum = normalized(candidate.album)
+    if !queryAlbum.isEmpty, !candidateAlbum.isEmpty {
+      if queryAlbum == candidateAlbum || queryAlbum.contains(candidateAlbum)
+        || candidateAlbum.contains(queryAlbum) {
+        score += 15
+      } else {
+        score -= 10
       }
     }
 
@@ -1608,6 +1625,19 @@ public final class OnlineLyricsService {
     return nil
   }
 
+  /// Finds a high-confidence cover URL for an existing album whose files lacked
+  /// embedded or folder artwork.
+  public func matchArtwork(for song: Song, expectedAlbum: String?) async -> URL? {
+    guard FmusicKit.shared.settings.user.isOnlineMode,
+          let query = makeQuery(for: song)
+    else { return nil }
+    let scored = await searchCandidates(for: query)
+    guard let best = scored.first(where: { $0.score >= 85 && $0.candidate.source != .lrclib })
+    else { return nil }
+    let album = expectedAlbum.flatMap(Self.sanitizedAlbum) ?? ""
+    return await artworkURL(for: album, preferred: best, in: scored)
+  }
+
   /// Prefer the provider that supplied the album, then any other high-scoring
   /// candidate carrying the same album. LRCLIB has no cover, so this usually
   /// lands on NetEase, QQ or Kugou without relaxing the identity checks.
@@ -1617,24 +1647,32 @@ public final class OnlineLyricsService {
     in scored: [ScoredCandidate]
   ) async
     -> URL? {
-    var entries = [preferred]
-    entries.append(
-      contentsOf: scored.filter { entry in
-        entry.candidate.identifier != preferred.candidate.identifier ||
-          entry.candidate.source != preferred.candidate.source
+    var entries = [ScoredCandidate]()
+    if !album.isEmpty {
+      if let preferredAlbum = Self.sanitizedAlbum(preferred.candidate.album),
+         preferredAlbum.compare(album, options: .caseInsensitive) == .orderedSame {
+        entries.append(preferred)
       }
-      .filter { entry in
-        guard let candidateAlbum = Self.sanitizedAlbum(entry.candidate.album)
-        else { return false }
-        return candidateAlbum.compare(album, options: .caseInsensitive) == .orderedSame
-      }
-      .sorted { $0.score > $1.score }
-    )
-    // Compilation albums often exist only in LRCLIB; a cover from the same
-    // song's canonical release is still better than the placeholder.
+      entries.append(
+        contentsOf: scored.filter { entry in
+          entry.candidate.identifier != preferred.candidate.identifier ||
+            entry.candidate.source != preferred.candidate.source
+        }
+        .filter { entry in
+          guard let candidateAlbum = Self.sanitizedAlbum(entry.candidate.album)
+          else { return false }
+          return candidateAlbum.compare(album, options: .caseInsensitive) == .orderedSame
+        }
+        .sorted { $0.score > $1.score }
+      )
+    } else {
+      entries.append(preferred)
+    }
+    // Fallback only when title + full artist + duration corroborate (>= 90),
+    // avoiding wrong covers from loose partial-artist hits.
     entries.append(
       contentsOf: scored
-        .filter { $0.score >= 85 && $0.candidate.source != .lrclib }
+        .filter { $0.score >= 90 && $0.candidate.source != .lrclib }
         .sorted { $0.score > $1.score }
     )
     var seen = Set<String>()

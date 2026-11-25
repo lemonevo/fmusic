@@ -296,6 +296,10 @@ enum FileSourceLibraryWriter {
       artist.remoteDuration = artist.songs.reduce(0) { $0 + $1.duration }
       artist.managedObject.albumCount = Int16(clamping: artist.albums.count)
       artist.managedObject.songCount = Int16(clamping: artist.songs.count)
+      if artist.artwork?.imagePath == nil {
+        artist.artwork = artist.albums.first { $0.artwork?.imagePath != nil }?.artwork
+          ?? artist.songs.first { $0.artwork?.imagePath != nil }?.artwork
+      }
     }
 
     for genre in library.getGenres(for: account) {

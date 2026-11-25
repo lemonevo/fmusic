@@ -42,7 +42,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
 
   private static let missRetryInterval: TimeInterval = 7 * 24 * 60 * 60
   /// Bump to retry covers after the lookup strategy improves.
-  private static let artworkAttemptVersion = 2
+  private static let artworkAttemptVersion = 3
   private let lock = NSLock()
   private let fileURL: URL?
   private let log = OSLog(subsystem: "fmusic", category: "MetadataOverrides")
@@ -89,6 +89,40 @@ final class MetadataOverrideStore: @unchecked Sendable {
       return false
     }
     return true
+  }
+
+  func shouldAttemptAlbumArtwork(for albumID: String) -> Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    loadIfNeeded()
+    let key = "album:\(albumID)"
+    guard let value = entries[key] else { return true }
+    if (value.artworkAttempt ?? 0) < Self.artworkAttemptVersion { return true }
+    if value.artworkURL != nil { return true }
+    if let missed = value.artworkMissedAt,
+       Date().timeIntervalSince(missed) < Self.missRetryInterval {
+      return false
+    }
+    return true
+  }
+
+  func recordAlbumArtwork(_ url: URL?, for albumID: String) {
+    lock.lock()
+    defer { lock.unlock() }
+    loadIfNeeded()
+    let key = "album:\(albumID)"
+    entries[key] = LibraryMetadataOverride(
+      album: nil,
+      title: nil,
+      artist: nil,
+      source: "artwork",
+      confidence: url == nil ? 0 : 100,
+      updatedAt: Date(),
+      artworkURL: url?.absoluteString,
+      artworkMissedAt: url == nil ? Date() : nil,
+      artworkAttempt: Self.artworkAttemptVersion
+    )
+    persist()
   }
 
   func recordArtwork(_ url: URL?, for songID: String) {
@@ -285,10 +319,8 @@ public final class MetadataBackfillService {
       limit: limit
     )
 
-    if attempted > 0 {
-      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
-    }
     if attempted > 0 || artworkAdded > 0 {
+      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
       library.saveContext()
       NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
     }
@@ -303,9 +335,8 @@ public final class MetadataBackfillService {
     return BackfillResult(matched: matched, attempted: attempted)
   }
 
-  /// Fetches covers for albums that were created by an online match but have no
-  /// file or folder artwork. Misses are cached so a coverless album is not
-  /// re-searched on every sync.
+  /// Fetches covers for all albums that have no file or folder artwork.
+  /// Misses are cached so a coverless album is not re-searched on every sync.
   private func fillMissingArtwork(
     accountInfo: AccountInfo,
     account: Account,
@@ -317,27 +348,32 @@ public final class MetadataBackfillService {
     var attempted = 0
     for album in library.getAlbums(for: account) {
       if attempted >= limit || Task.isCancelled { break }
-      guard album.artwork?.imagePath == nil else { continue }
-      let songs = album.songs.compactMap(\.asSong)
-      guard let song = songs.first(where: {
-        MetadataOverrideStore.shared.shouldAttemptArtwork(for: $0.id)
-      })
+      guard album.artwork?.imagePath == nil,
+            album.managedObject.name != "Unknown Album"
       else { continue }
+      let songs = album.songs.compactMap(\.asSong)
+      guard let song = songs.first else { continue }
+      let shouldAttempt = MetadataOverrideStore.shared.shouldAttemptAlbumArtwork(for: album.id)
+        || songs.contains { MetadataOverrideStore.shared.shouldAttemptArtwork(for: $0.id) }
+      guard shouldAttempt else { continue }
       attempted += 1
-      guard let match = await OnlineLyricsService.shared.matchMetadata(for: song),
-            Self.sameAlbum(match.album, album.managedObject.name),
-            let artworkURL = match.artworkURL,
-            await applyArtwork(
-              artworkURL,
-              to: album,
-              account: account,
-              accountInfo: accountInfo,
-              library: library
-            )
+      guard let artworkURL = await OnlineLyricsService.shared.matchArtwork(
+        for: song,
+        expectedAlbum: album.managedObject.name
+      ),
+        await applyArtwork(
+          artworkURL,
+          to: album,
+          account: account,
+          accountInfo: accountInfo,
+          library: library
+        )
       else {
+        MetadataOverrideStore.shared.recordAlbumArtwork(nil, for: album.id)
         MetadataOverrideStore.shared.recordArtwork(nil, for: song.id)
         continue
       }
+      MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
       MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
       added += 1
     }
@@ -380,6 +416,9 @@ public final class MetadataBackfillService {
     artwork.relFilePath = relFilePath
     artwork.status = .CustomImage
     album.artwork = artwork
+    if album.artist?.artwork?.imagePath == nil {
+      album.artist?.artwork = artwork
+    }
     album.songs.forEach { $0.artwork = artwork }
     return true
   }
