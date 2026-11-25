@@ -125,6 +125,7 @@ final class ThemedBackgroundView: NSView {
 @MainActor
 final class DoubleClickCollectionView: NSCollectionView {
   var onItemDoubleClick: ((IndexPath) -> Void)?
+  var onItemContextMenu: ((IndexPath) -> NSMenu?)?
 
   override func mouseDown(with event: NSEvent) {
     super.mouseDown(with: event)
@@ -133,6 +134,13 @@ final class DoubleClickCollectionView: NSCollectionView {
     if let indexPath = indexPathForItem(at: point) {
       onItemDoubleClick(indexPath)
     }
+  }
+
+  override func menu(for event: NSEvent) -> NSMenu? {
+    guard let onItemContextMenu else { return super.menu(for: event) }
+    let point = convert(event.locationInWindow, from: nil)
+    guard let indexPath = indexPathForItem(at: point) else { return super.menu(for: event) }
+    return onItemContextMenu(indexPath) ?? super.menu(for: event)
   }
 }
 
@@ -449,6 +457,9 @@ class AlbumGridPageViewController: NSViewController, ContentSearchable {
     collectionView.onItemDoubleClick = { [weak self] indexPath in
       self?.playItem(at: indexPath)
     }
+    collectionView.onItemContextMenu = { [weak self] indexPath in
+      self?.makeContextMenu(for: indexPath)
+    }
     collectionView.translatesAutoresizingMaskIntoConstraints = false
     NSLayoutConstraint.activate([
       collectionView.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
@@ -529,6 +540,45 @@ class AlbumGridPageViewController: NSViewController, ContentSearchable {
   func playItem(at indexPath: IndexPath) {
     guard indexPath.item >= 0, indexPath.item < albums.count else { return }
     LibraryPlayback.play(album: albums[indexPath.item])
+  }
+
+  private func makeContextMenu(for indexPath: IndexPath) -> NSMenu? {
+    guard indexPath.item >= 0, indexPath.item < albums.count else { return nil }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(contextPlayAlbum(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = indexPath.item
+    menu.addItem(playItem)
+
+    let rematchItem = NSMenuItem(
+      title: L10n.tr("Re-match Cover"),
+      action: #selector(contextRematchAlbumCover(_:)),
+      keyEquivalent: ""
+    )
+    rematchItem.target = self
+    rematchItem.tag = indexPath.item
+    menu.addItem(rematchItem)
+    return menu
+  }
+
+  @objc
+  private func contextPlayAlbum(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < albums.count else { return }
+    LibraryPlayback.play(album: albums[sender.tag])
+  }
+
+  @objc
+  private func contextRematchAlbumCover(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < albums.count,
+          let accountInfo = storage.settings.accounts.active else { return }
+    let album = albums[sender.tag]
+    Task { @MainActor in
+      await MetadataBackfillService.shared.rematchArtwork(for: album, accountInfo: accountInfo)
+    }
   }
 }
 

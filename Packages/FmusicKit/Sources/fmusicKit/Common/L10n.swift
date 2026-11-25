@@ -885,5 +885,6 @@ public enum L10n {
     "Standard": "标准",
     "Translucent": "通透",
     "Adjust the transparency and depth of the app's glass surfaces.": "调整应用内玻璃表面的透明度与层次。",
+    "Re-match Cover": "重新匹配封面",
   ]
 }

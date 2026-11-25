@@ -218,6 +218,16 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    if songs[row].album != nil {
+      let rematchItem = NSMenuItem(
+        title: L10n.tr("Re-match Cover"),
+        action: #selector(menuRematchCover(_:)),
+        keyEquivalent: ""
+      )
+      rematchItem.target = self
+      rematchItem.tag = row
+      menu.addItem(rematchItem)
+    }
     return menu
   }
 
@@ -240,6 +250,16 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
   private func menuQueueSong(_ sender: NSMenuItem) {
     guard sender.tag >= 0, sender.tag < songs.count else { return }
     FmusicKit.shared.player.insertUserQueue(playables: [songs[sender.tag]])
+  }
+
+  @objc
+  private func menuRematchCover(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < songs.count,
+          let album = songs[sender.tag].album,
+          let accountInfo = storage.settings.accounts.active else { return }
+    Task { @MainActor in
+      await MetadataBackfillService.shared.rematchArtwork(for: album, accountInfo: accountInfo)
+    }
   }
 
   // MARK: - NSTableViewDataSource
