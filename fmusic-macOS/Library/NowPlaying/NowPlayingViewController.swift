@@ -937,126 +937,408 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
 // MARK: - PlayerBlurredArtworkBackground
 
-/// The Catalyst popup paints the artwork (blurred) behind a vertical gradient of
-/// its dominant colours. This view reproduces that with a blurred artwork image
-/// plus a dark gradient so the foreground stays legible.
+/// Apple Music style dynamic ambient background derived from the current album cover:
+/// extracts a 4-color quadrant palette (chroma-weighted so covers don't average into
+/// muddy grey/brown), blends a saturation-boosted blurred artwork wash with four
+/// slowly drifting radial color orbs, and crossfades smoothly between tracks.
 @MainActor
 private final class PlayerBlurredArtworkBackground: NSView {
-  private let imageView = NSImageView()
-  private let gradientView = NSView()
-  private let gradientLayer = CAGradientLayer()
+  private struct Palette {
+    let baseTop: NSColor
+    let baseBottom: NSColor
+    /// Four vibrant quadrant colors driving the drifting ambient orbs.
+    let orbs: [NSColor]
+  }
+
+  private let baseGradientLayer = CAGradientLayer()
+  private let artworkLayer = CALayer()
+  private let orbContainerLayer = CALayer()
+  private let orbLayers: [CAGradientLayer] = (0 ..< 4).map { _ in
+    let orb = CAGradientLayer()
+    orb.type = .radial
+    orb.startPoint = CGPoint(x: 0.5, y: 0.5)
+    orb.endPoint = CGPoint(x: 1.0, y: 1.0)
+    orb.locations = [0.0, 0.45, 1.0]
+    return orb
+  }
+  private let scrimLayer = CAGradientLayer()
+
   private static let ciContext = CIContext(options: [.cacheIntermediates: false])
   private var currentArtwork: NSImage?
+  private var hasAppliedInitialPalette = false
+  private var isAnimatingOrbs = false
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
+    layer?.masksToBounds = true
     layer?.backgroundColor = NSColor.black.cgColor
 
-    imageView.imageScaling = .scaleAxesIndependently
-    imageView.wantsLayer = true
-    imageView.translatesAutoresizingMaskIntoConstraints = false
-    // The image view's intrinsic size is the artwork's pixel size (1000×1000 for the
-    // generated covers). Pinned to every edge it would make the page's fitting size —
-    // and therefore the main window — 1000 pt. Let the background shrink freely.
-    imageView.setContentCompressionResistancePriority(.init(1), for: .horizontal)
-    imageView.setContentCompressionResistancePriority(.init(1), for: .vertical)
-    imageView.setContentHuggingPriority(.init(1), for: .horizontal)
-    imageView.setContentHuggingPriority(.init(1), for: .vertical)
-    addSubview(imageView)
+    baseGradientLayer.startPoint = CGPoint(x: 0.0, y: 1.0)
+    baseGradientLayer.endPoint = CGPoint(x: 1.0, y: 0.0)
+    layer?.addSublayer(baseGradientLayer)
 
-    gradientView.wantsLayer = true
-    gradientView.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(gradientView)
-    gradientLayer.startPoint = CGPoint(x: 0.5, y: 1)
-    gradientLayer.endPoint = CGPoint(x: 0.5, y: 0)
-    gradientLayer.colors = [
-      NSColor.black.withAlphaComponent(0.55).cgColor,
-      NSColor.black.withAlphaComponent(0.85).cgColor,
+    artworkLayer.contentsGravity = .resizeAspectFill
+    artworkLayer.opacity = 0.48
+    layer?.addSublayer(artworkLayer)
+
+    orbContainerLayer.masksToBounds = true
+    for orb in orbLayers {
+      orbContainerLayer.addSublayer(orb)
+    }
+    layer?.addSublayer(orbContainerLayer)
+
+    // Subtle dark vignette/scrim so white lyrics and controls always stay legible
+    // even on bright yellow or white album covers.
+    scrimLayer.startPoint = CGPoint(x: 0.5, y: 1.0)
+    scrimLayer.endPoint = CGPoint(x: 0.5, y: 0.0)
+    scrimLayer.colors = [
+      NSColor.black.withAlphaComponent(0.22).cgColor,
+      NSColor.black.withAlphaComponent(0.14).cgColor,
+      NSColor.black.withAlphaComponent(0.36).cgColor,
     ]
-    gradientView.layer?.addSublayer(gradientLayer)
-
-    NSLayoutConstraint.activate([
-      imageView.topAnchor.constraint(equalTo: topAnchor),
-      imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-      imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-      imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
-      gradientView.topAnchor.constraint(equalTo: topAnchor),
-      gradientView.leadingAnchor.constraint(equalTo: leadingAnchor),
-      gradientView.trailingAnchor.constraint(equalTo: trailingAnchor),
-      gradientView.bottomAnchor.constraint(equalTo: bottomAnchor),
-    ])
+    scrimLayer.locations = [0.0, 0.45, 1.0]
+    layer?.addSublayer(scrimLayer)
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window != nil {
+      startOrbAnimationsIfNeeded()
+    } else {
+      stopOrbAnimations()
+    }
+  }
+
   override func layout() {
     super.layout()
+    let b = bounds
+    guard b.width > 0, b.height > 0 else { return }
+
     CATransaction.begin()
     CATransaction.setDisableActions(true)
-    gradientLayer.frame = gradientView.bounds
+    baseGradientLayer.frame = b
+    // Oversize the blurred artwork slightly so edges never show during scaling.
+    artworkLayer.frame = b.insetBy(dx: -b.width * 0.08, dy: -b.height * 0.08)
+    orbContainerLayer.frame = b
+    scrimLayer.frame = b
+
+    let orbSize = max(b.width, b.height) * 0.92
+    let anchors: [CGPoint] = [
+      CGPoint(x: b.width * 0.20, y: b.height * 0.78),
+      CGPoint(x: b.width * 0.80, y: b.height * 0.72),
+      CGPoint(x: b.width * 0.25, y: b.height * 0.24),
+      CGPoint(x: b.width * 0.78, y: b.height * 0.22),
+    ]
+    for (index, orb) in orbLayers.enumerated() {
+      orb.bounds = CGRect(x: 0, y: 0, width: orbSize, height: orbSize)
+      orb.position = anchors[index]
+    }
     CATransaction.commit()
+
+    if window != nil {
+      stopOrbAnimations()
+      startOrbAnimationsIfNeeded()
+    }
   }
 
   func apply(artwork: NSImage?, accent: NSColor) {
-    guard artwork !== currentArtwork else { return }
+    guard artwork !== currentArtwork || !hasAppliedInitialPalette else { return }
+    let shouldAnimate = hasAppliedInitialPalette
+      && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     currentArtwork = artwork
-    imageView.image = Self.blurred(artwork, context: Self.ciContext)
-    // Catalyst uses the artwork's dominant colours for the gradient; take the
-    // average colour and darken it towards the bottom.
-    let base = Self.averageColor(of: artwork) ?? accent
-    let dark = base.blended(withFraction: 0.55, of: .black) ?? base
-    let deeper = base.blended(withFraction: 0.82, of: .black) ?? base
-    gradientLayer.colors = [
-      deeper.withAlphaComponent(0.92).cgColor,
-      dark.withAlphaComponent(0.55).cgColor,
+    hasAppliedInitialPalette = true
+
+    let palette = Self.extractPalette(from: artwork, fallback: accent)
+    let blurredCG = Self.blurredCGImage(artwork, context: Self.ciContext)
+
+    if shouldAnimate, let rootLayer = layer {
+      let transition = CATransition()
+      transition.type = .fade
+      transition.duration = 0.85
+      transition.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      rootLayer.add(transition, forKey: "albumBackgroundCrossfade")
+    }
+
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    artworkLayer.contents = blurredCG
+    baseGradientLayer.colors = [
+      palette.baseTop.cgColor,
+      palette.baseBottom.cgColor,
     ]
+    for (index, orb) in orbLayers.enumerated() {
+      let color = palette.orbs[index % palette.orbs.count]
+      orb.colors = [
+        color.withAlphaComponent(0.76).cgColor,
+        color.withAlphaComponent(0.30).cgColor,
+        color.withAlphaComponent(0.0).cgColor,
+      ]
+    }
+    CATransaction.commit()
+
+    startOrbAnimationsIfNeeded()
   }
 
-  private static func averageColor(of image: NSImage?) -> NSColor? {
-    guard let image,
-          let tiff = image.tiffRepresentation,
-          let bitmap = NSBitmapImageRep(data: tiff),
-          let cgImage = bitmap.cgImage
-    else { return nil }
-    let input = CIImage(cgImage: cgImage)
-    guard let filter = CIFilter(name: "CIAreaAverage") else { return nil }
-    filter.setValue(input, forKey: kCIInputImageKey)
-    filter.setValue(CIVector(cgRect: input.extent), forKey: kCIInputExtentKey)
-    guard let output = filter.outputImage else { return nil }
-    let context = Self.ciContext
-    var pixel = [UInt8](repeating: 0, count: 4)
-    context.render(
-      output,
-      toBitmap: &pixel,
-      rowBytes: 4,
-      bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
-      format: .RGBA8,
-      colorSpace: nil
-    )
-    return NSColor(
-      srgbRed: CGFloat(pixel[0]) / 255,
-      green: CGFloat(pixel[1]) / 255,
-      blue: CGFloat(pixel[2]) / 255,
-      alpha: 1
-    )
+  private func startOrbAnimationsIfNeeded() {
+    guard !isAnimatingOrbs,
+          window != nil,
+          bounds.width > 0,
+          bounds.height > 0,
+          !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    else { return }
+    isAnimatingOrbs = true
+
+    let w = bounds.width
+    let h = bounds.height
+    let paths: [[CGPoint]] = [
+      [
+        CGPoint(x: w * 0.18, y: h * 0.80),
+        CGPoint(x: w * 0.42, y: h * 0.62),
+        CGPoint(x: w * 0.24, y: h * 0.48),
+        CGPoint(x: w * 0.18, y: h * 0.80),
+      ],
+      [
+        CGPoint(x: w * 0.82, y: h * 0.74),
+        CGPoint(x: w * 0.62, y: h * 0.86),
+        CGPoint(x: w * 0.74, y: h * 0.50),
+        CGPoint(x: w * 0.82, y: h * 0.74),
+      ],
+      [
+        CGPoint(x: w * 0.24, y: h * 0.22),
+        CGPoint(x: w * 0.48, y: h * 0.34),
+        CGPoint(x: w * 0.16, y: h * 0.42),
+        CGPoint(x: w * 0.24, y: h * 0.22),
+      ],
+      [
+        CGPoint(x: w * 0.78, y: h * 0.22),
+        CGPoint(x: w * 0.54, y: h * 0.18),
+        CGPoint(x: w * 0.84, y: h * 0.46),
+        CGPoint(x: w * 0.78, y: h * 0.22),
+      ],
+    ]
+    let durations: [CFTimeInterval] = [20, 24, 22, 26]
+    let scales: [(CGFloat, CGFloat)] = [(0.92, 1.14), (1.08, 0.90), (0.94, 1.12), (1.10, 0.92)]
+
+    for (index, orb) in orbLayers.enumerated() {
+      let drift = CAKeyframeAnimation(keyPath: "position")
+      drift.values = paths[index].map { NSValue(point: $0) }
+      drift.duration = durations[index]
+      drift.repeatCount = .infinity
+      drift.calculationMode = .cubicPaced
+      drift.isRemovedOnCompletion = false
+      orb.add(drift, forKey: "ambientDrift")
+
+      let breathe = CABasicAnimation(keyPath: "transform.scale")
+      breathe.fromValue = scales[index].0
+      breathe.toValue = scales[index].1
+      breathe.duration = durations[index] * 0.6
+      breathe.autoreverses = true
+      breathe.repeatCount = .infinity
+      breathe.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+      breathe.isRemovedOnCompletion = false
+      orb.add(breathe, forKey: "ambientBreathe")
+    }
   }
 
-  private static func blurred(_ image: NSImage?, context: CIContext) -> NSImage? {
+  private func stopOrbAnimations() {
+    guard isAnimatingOrbs else { return }
+    isAnimatingOrbs = false
+    for orb in orbLayers {
+      orb.removeAnimation(forKey: "ambientDrift")
+      orb.removeAnimation(forKey: "ambientBreathe")
+    }
+  }
+
+  // MARK: - Palette extraction & blur
+
+  private static func extractPalette(from image: NSImage?, fallback: NSColor) -> Palette {
+    let fallbackColors = Self.paletteFromSingleColor(fallback)
     guard let image,
           let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
-    else { return image }
-    let ciImage = CIImage(cgImage: cgImage)
-    guard let filter = CIFilter(name: "CIGaussianBlur") else { return image }
-    filter.setValue(ciImage, forKey: kCIInputImageKey)
-    filter.setValue(60, forKey: kCIInputRadiusKey)
-    guard let output = filter.outputImage else { return image }
-    let cropped = output.cropped(to: ciImage.extent)
-    guard let rendered = context.createCGImage(cropped, from: ciImage.extent) else {
-      return image
+    else { return fallbackColors }
+
+    let grid = 16
+    var pixels = [UInt8](repeating: 0, count: grid * grid * 4)
+    let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+    guard let context = CGContext(
+      data: &pixels,
+      width: grid,
+      height: grid,
+      bitsPerComponent: 8,
+      bytesPerRow: grid * 4,
+      space: colorSpace,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return fallbackColors }
+
+    context.interpolationQuality = .medium
+    context.draw(cgImage, in: CGRect(x: 0, y: 0, width: grid, height: grid))
+
+    // Extract a chroma-weighted representative color from each of the 4 quadrants
+    // so multi-toned covers produce distinct, vibrant hues rather than muddy grey.
+    let half = grid / 2
+    let quadrants: [(Range<Int>, Range<Int>)] = [
+      (0 ..< half, 0 ..< half),
+      (half ..< grid, 0 ..< half),
+      (0 ..< half, half ..< grid),
+      (half ..< grid, half ..< grid),
+    ]
+
+    var rawQuadrants = [NSColor]()
+    var maxChroma: CGFloat = 0
+    for (xRange, yRange) in quadrants {
+      var sumR: CGFloat = 0
+      var sumG: CGFloat = 0
+      var sumB: CGFloat = 0
+      var totalWeight: CGFloat = 0
+      for y in yRange {
+        for x in xRange {
+          let offset = (y * grid + x) * 4
+          let r = CGFloat(pixels[offset]) / 255
+          let g = CGFloat(pixels[offset + 1]) / 255
+          let b = CGFloat(pixels[offset + 2]) / 255
+          let hi = max(r, g, b)
+          let lo = min(r, g, b)
+          let chroma = hi - lo
+          maxChroma = max(maxChroma, chroma)
+          // Favor colorful, mid-tone pixels over pure black/white borders.
+          let lumPenalty: CGFloat = (hi < 0.08 || lo > 0.92) ? 0.15 : 1.0
+          let weight = (0.18 + chroma * chroma * 4.5) * lumPenalty
+          sumR += r * weight
+          sumG += g * weight
+          sumB += b * weight
+          totalWeight += weight
+        }
+      }
+      if totalWeight > 0 {
+        rawQuadrants.append(
+          NSColor(
+            srgbRed: sumR / totalWeight,
+            green: sumG / totalWeight,
+            blue: sumB / totalWeight,
+            alpha: 1
+          )
+        )
+      }
     }
-    return NSImage(cgImage: rendered, size: image.size)
+
+    guard rawQuadrants.count == 4 else { return fallbackColors }
+    let isMonochrome = maxChroma < 0.08
+
+    let orbs = rawQuadrants.map { color -> NSColor in
+      Self.tunedColor(
+        color,
+        isMonochrome: isMonochrome,
+        saturationBoost: 1.42,
+        minSaturation: 0.38,
+        minBrightness: 0.34,
+        maxBrightness: 0.62
+      )
+    }
+    let baseTop = Self.tunedColor(
+      rawQuadrants[0],
+      isMonochrome: isMonochrome,
+      saturationBoost: 1.25,
+      minSaturation: 0.30,
+      minBrightness: 0.12,
+      maxBrightness: 0.24
+    )
+    let baseBottom = Self.tunedColor(
+      rawQuadrants[3],
+      isMonochrome: isMonochrome,
+      saturationBoost: 1.25,
+      minSaturation: 0.30,
+      minBrightness: 0.08,
+      maxBrightness: 0.18
+    )
+    return Palette(baseTop: baseTop, baseBottom: baseBottom, orbs: orbs)
+  }
+
+  private static func tunedColor(
+    _ color: NSColor,
+    isMonochrome: Bool,
+    saturationBoost: CGFloat,
+    minSaturation: CGFloat,
+    minBrightness: CGFloat,
+    maxBrightness: CGFloat
+  )
+    -> NSColor {
+    let srgb = color.usingColorSpace(.sRGB) ?? color
+    var h: CGFloat = 0
+    var s: CGFloat = 0
+    var b: CGFloat = 0
+    var a: CGFloat = 1
+    srgb.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+    let targetS = isMonochrome
+      ? min(s, 0.08)
+      : min(max(s * saturationBoost, minSaturation), 0.92)
+    let targetB = min(max(b * 0.85, minBrightness), maxBrightness)
+    return NSColor(hue: h, saturation: targetS, brightness: targetB, alpha: 1)
+  }
+
+  private static func paletteFromSingleColor(_ color: NSColor) -> Palette {
+    let baseTop = Self.tunedColor(
+      color,
+      isMonochrome: false,
+      saturationBoost: 1.1,
+      minSaturation: 0.28,
+      minBrightness: 0.12,
+      maxBrightness: 0.22
+    )
+    let baseBottom = Self.tunedColor(
+      color,
+      isMonochrome: false,
+      saturationBoost: 1.1,
+      minSaturation: 0.28,
+      minBrightness: 0.07,
+      maxBrightness: 0.15
+    )
+    let orb = Self.tunedColor(
+      color,
+      isMonochrome: false,
+      saturationBoost: 1.3,
+      minSaturation: 0.36,
+      minBrightness: 0.32,
+      maxBrightness: 0.56
+    )
+    return Palette(baseTop: baseTop, baseBottom: baseBottom, orbs: [orb, orb, baseTop, orb])
+  }
+
+  private static func blurredCGImage(_ image: NSImage?, context: CIContext) -> CGImage? {
+    guard let image,
+          let cgImage = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
+    else { return nil }
+    let ciImage = CIImage(cgImage: cgImage)
+    let extent = ciImage.extent
+    guard extent.width > 0, extent.height > 0 else { return nil }
+
+    // Downscale before heavy Gaussian blur so large covers stay fast and smooth.
+    let targetSide: CGFloat = 240
+    let scale = min(1, targetSide / max(extent.width, extent.height))
+    let scaled = scale < 1
+      ? ciImage.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+      : ciImage
+    let scaledExtent = scaled.extent
+
+    let saturated: CIImage
+    if let colorControls = CIFilter(name: "CIColorControls") {
+      colorControls.setValue(scaled, forKey: kCIInputImageKey)
+      colorControls.setValue(1.45, forKey: kCIInputSaturationKey)
+      colorControls.setValue(1.05, forKey: kCIInputContrastKey)
+      saturated = colorControls.outputImage ?? scaled
+    } else {
+      saturated = scaled
+    }
+
+    let blurred = saturated
+      .clampedToExtent()
+      .applyingFilter("CIGaussianBlur", parameters: [kCIInputRadiusKey: 28])
+      .cropped(to: scaledExtent)
+
+    return context.createCGImage(blurred, from: scaledExtent)
   }
 }
