@@ -418,10 +418,10 @@ private struct NetEaseLyricsProvider: OnlineLyricsProvider {
     else { return nil }
     guard let data = try? await OnlineLyricsHTTP.data(from: url, referer: Self.referer),
           let response = try? JSONDecoder().decode(AlbumDetailResponse.self, from: data),
-          let raw = response.album?.picUrl,
-          let artworkURL = URL(string: raw)
+          let raw = response.album?.picUrl
     else { return nil }
-    return artworkURL
+    let secure = raw.hasPrefix("http://") ? "https://" + raw.dropFirst(7) : raw
+    return URL(string: secure)
   }
 
   func search(_ query: OnlineLyricsQuery) async throws -> [OnlineLyricsCandidate] {
@@ -1628,9 +1628,15 @@ public final class OnlineLyricsService {
   /// Finds a high-confidence cover URL for an existing album whose files lacked
   /// embedded or folder artwork.
   public func matchArtwork(for song: Song, expectedAlbum: String?) async -> URL? {
+    await matchArtworkURLs(for: song, expectedAlbum: expectedAlbum).first
+  }
+
+  /// Finds ranked high-confidence cover URLs across providers so the caller can
+  /// fall back if the top provider's CDN fails to download or returns a bad image.
+  public func matchArtworkURLs(for song: Song, expectedAlbum: String?) async -> [URL] {
     guard FmusicKit.shared.settings.user.isOnlineMode,
           let baseQuery = makeQuery(for: song)
-    else { return nil }
+    else { return [] }
     // Strip placeholder/downloader album tags (e.g. "NetMusic") so they never
     // penalize legitimate online matches.
     let cleanAlbum = Self.sanitizedAlbum(baseQuery.album) ?? ""
@@ -1641,22 +1647,36 @@ public final class OnlineLyricsService {
       duration: baseQuery.duration
     )
     let scored = await searchCandidates(for: query)
-    guard let best = scored.first(where: { $0.score >= 75 && $0.candidate.source != .lrclib })
-    else { return nil }
+    // Candidates returned by OnlineLyricsRanker already passed strict title, artist,
+    // and duration gates; 62 allows verified compilation or partial-artist hits whose
+    // local album tag differs from the provider's official album name (-10 penalty).
+    guard let best = scored.first(where: { $0.score >= 62 && $0.candidate.source != .lrclib })
+    else { return [] }
     let album = expectedAlbum.flatMap(Self.sanitizedAlbum) ?? ""
-    return await artworkURL(for: album, preferred: best, in: scored)
+    return await artworkURLs(for: album, preferred: best, in: scored, limit: 5)
   }
 
   /// Prefer the provider that supplied the album, then any other high-scoring
   /// candidate carrying a matching album. LRCLIB has no cover, so this lands on
   /// NetEase, QQ or Kugou while still falling back to verified title+artist+duration
-  /// hits when album wording differs slightly (e.g. 电视剧原声带 vs 电视原声带).
+  /// hits when album wording differs slightly (e.g. 电视剧原声带 vs 电视原声带)
+  /// or the local file comes from a compilation album.
   private func artworkURL(
     for album: String,
     preferred: ScoredCandidate,
     in scored: [ScoredCandidate]
   ) async
     -> URL? {
+    await artworkURLs(for: album, preferred: preferred, in: scored, limit: 1).first
+  }
+
+  private func artworkURLs(
+    for album: String,
+    preferred: ScoredCandidate,
+    in scored: [ScoredCandidate],
+    limit: Int
+  ) async
+    -> [URL] {
     func albumsMatch(_ lhs: String, _ rhs: String) -> Bool {
       if lhs.compare(rhs, options: .caseInsensitive) == .orderedSame { return true }
       let normL = Self.searchKey(lhs).filter { !$0.isWhitespace }
@@ -1686,24 +1706,28 @@ public final class OnlineLyricsService {
     } else {
       entries.append(preferred)
     }
-    // Fallback to verified title + artist + duration hits (>= 75), which already
+    // Fallback to verified title + artist + duration hits (>= 62), which already
     // passed OnlineLyricsRanker's strict title/artist/duration gates.
     entries.append(
       contentsOf: scored
-        .filter { $0.score >= 75 && $0.candidate.source != .lrclib }
+        .filter { $0.score >= 62 && $0.candidate.source != .lrclib }
         .sorted { $0.score > $1.score }
     )
-    var seen = Set<String>()
-    for entry in entries.prefix(10) {
+    var seenCandidates = Set<String>()
+    var seenURLs = Set<String>()
+    var urls = [URL]()
+    for entry in entries.prefix(12) {
       let key = "\(entry.candidate.source.rawValue)|\(entry.candidate.identifier)"
-      guard seen.insert(key).inserted,
+      guard seenCandidates.insert(key).inserted,
             let provider = provider(for: entry.candidate.source)
       else { continue }
-      if let url = await provider.artworkURL(for: entry.candidate) {
-        return url
+      if let url = await provider.artworkURL(for: entry.candidate),
+         seenURLs.insert(url.absoluteString).inserted {
+        urls.append(url)
+        if urls.count >= limit { break }
       }
     }
-    return nil
+    return urls
   }
 
   /// LRCLIB carries user-contributed metadata; a few entries embed Swift's

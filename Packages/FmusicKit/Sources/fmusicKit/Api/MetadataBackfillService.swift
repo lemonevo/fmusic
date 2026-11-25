@@ -42,7 +42,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
 
   private static let missRetryInterval: TimeInterval = 7 * 24 * 60 * 60
   /// Bump to retry covers after the lookup strategy improves.
-  private static let artworkAttemptVersion = 5
+  private static let artworkAttemptVersion = 6
   private let lock = NSLock()
   private let fileURL: URL?
   private let log = OSLog(subsystem: "fmusic", category: "MetadataOverrides")
@@ -359,7 +359,8 @@ public final class MetadataBackfillService {
   @discardableResult
   public func rematchArtwork(for album: Album, accountInfo: AccountInfo) async -> Bool {
     let fmusic = FmusicKit.shared
-    guard let song = album.songs.compactMap(\.asSong).first else { return false }
+    let candidateSongs = Array(album.songs.compactMap(\.asSong).prefix(3))
+    guard !candidateSongs.isEmpty else { return false }
     let library = fmusic.storage.main.library
     let account = library.getAccount(info: accountInfo)
     let existingPath = album.artwork?.imagePath
@@ -367,26 +368,31 @@ public final class MetadataBackfillService {
       ?? false
 
     if fmusic.settings.user.isOnlineMode,
-       fmusic.networkMonitor.isConnectedToNetwork,
-       let artworkURL = await OnlineLyricsService.shared.matchArtwork(
-         for: song,
-         expectedAlbum: album.managedObject.name
-       ),
-       await applyArtwork(
-         artworkURL,
-         to: album,
-         account: account,
-         accountInfo: accountInfo,
-         library: library,
-         overwriteArtistArtwork: true
-       ) {
-      MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
-      MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
-      ArtworkImageLoader.clearCache()
-      FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
-      library.saveContext()
-      NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
-      return true
+       fmusic.networkMonitor.isConnectedToNetwork {
+      for candidateSong in candidateSongs {
+        let artworkURLs = await OnlineLyricsService.shared.matchArtworkURLs(
+          for: candidateSong,
+          expectedAlbum: album.managedObject.name
+        )
+        for artworkURL in artworkURLs {
+          if await applyArtwork(
+            artworkURL,
+            to: album,
+            account: account,
+            accountInfo: accountInfo,
+            library: library,
+            overwriteArtistArtwork: true
+          ) {
+            MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
+            MetadataOverrideStore.shared.recordArtwork(artworkURL, for: candidateSong.id)
+            ArtworkImageLoader.clearCache()
+            FileSourceLibraryWriter.updateDenormalizedValues(account: account, library: library)
+            library.saveContext()
+            NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
+            return true
+          }
+        }
+      }
     }
 
     if hasNonStandardLocalCover,
@@ -447,20 +453,33 @@ public final class MetadataBackfillService {
       guard shouldAttempt else { continue }
       attempted += 1
 
-      if let artworkURL = await OnlineLyricsService.shared.matchArtwork(
-        for: song,
-        expectedAlbum: album.managedObject.name
-      ),
-        await applyArtwork(
-          artworkURL,
-          to: album,
-          account: account,
-          accountInfo: accountInfo,
-          library: library,
-          requireStandardSize: hasNonStandardCover
-        ) {
-        MetadataOverrideStore.shared.recordAlbumArtwork(artworkURL, for: album.id)
-        MetadataOverrideStore.shared.recordArtwork(artworkURL, for: song.id)
+      var matchedURL: URL?
+      var matchedSong = song
+      for candidateSong in songs.prefix(3) {
+        let artworkURLs = await OnlineLyricsService.shared.matchArtworkURLs(
+          for: candidateSong,
+          expectedAlbum: album.managedObject.name
+        )
+        for artworkURL in artworkURLs {
+          if await applyArtwork(
+            artworkURL,
+            to: album,
+            account: account,
+            accountInfo: accountInfo,
+            library: library,
+            requireStandardSize: hasNonStandardCover
+          ) {
+            matchedURL = artworkURL
+            matchedSong = candidateSong
+            break
+          }
+        }
+        if matchedURL != nil { break }
+      }
+
+      if let matchedURL {
+        MetadataOverrideStore.shared.recordAlbumArtwork(matchedURL, for: album.id)
+        MetadataOverrideStore.shared.recordArtwork(matchedURL, for: matchedSong.id)
         added += 1
         continue
       }
@@ -592,9 +611,21 @@ public final class MetadataBackfillService {
   }
 
   private static func downloadArtwork(_ url: URL) async -> Data? {
-    guard url.scheme == "https" else { return nil }
-    var request = URLRequest(url: url)
+    guard let scheme = url.scheme?.lowercased(), scheme == "https" || scheme == "http" else {
+      return nil
+    }
+    var secureURL = url
+    if scheme == "http", var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+      components.scheme = "https"
+      secureURL = components.url ?? url
+    }
+    var request = URLRequest(url: secureURL)
     request.timeoutInterval = 12
+    request.setValue("image/*", forHTTPHeaderField: "Accept")
+    request.setValue(
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+      forHTTPHeaderField: "User-Agent"
+    )
     guard let (data, response) = try? await artworkSession.data(for: request),
           let http = response as? HTTPURLResponse,
           (200 ..< 300).contains(http.statusCode),

@@ -771,22 +771,31 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
 // MARK: - LyricsGlyphView
 
-/// Two stacked glyph rasters: the dim line plus the bright line clipped by a
-/// `LyricsSyllableMaskLayer`. The playback clock only moves the mask widths, so the
-/// fill sweeps through each character with a soft gradient edge (Catalyst `LyricTableCell`).
+/// Stacked glyph rasters: an optional dark-mode sustained-note glow layer (padded so
+/// Gaussian blur never clips), the dim line, and the bright line clipped by a
+/// `LyricsSyllableMaskLayer`. The playback clock only updates mask widths and glow
+/// opacities (Catalyst `LyricTableCell` + LyricsX-Next sustained-note highlight).
 @MainActor
 private final class LyricsGlyphView: NSView {
+  static let glowPadding: CGFloat = 14
+
+  private let glowLayer = CALayer()
   private let dimLayer = CALayer()
   private let brightLayer = CALayer()
   let syllableMask = LyricsSyllableMaskLayer()
+  let glowMask = LyricsGlowMaskLayer()
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
     layer?.masksToBounds = false
+    glowLayer.contentsGravity = .resize
+    glowLayer.mask = glowMask
+    glowLayer.isHidden = true
     dimLayer.contentsGravity = .resize
     brightLayer.contentsGravity = .resize
     brightLayer.mask = syllableMask
+    layer?.addSublayer(glowLayer)
     layer?.addSublayer(dimLayer)
     layer?.addSublayer(brightLayer)
   }
@@ -799,27 +808,45 @@ private final class LyricsGlyphView: NSView {
     super.layout()
     CATransaction.begin()
     CATransaction.setDisableActions(true)
+    let pad = Self.glowPadding
+    let paddedBounds = bounds.insetBy(dx: -pad, dy: -pad)
+    glowLayer.frame = paddedBounds
+    glowMask.setFrameWithoutAnimation(CGRect(origin: .zero, size: paddedBounds.size))
     dimLayer.frame = bounds
     brightLayer.frame = bounds
     syllableMask.setFrameWithoutAnimation(CGRect(origin: .zero, size: bounds.size))
     let scale = window?.backingScaleFactor ?? 2
+    glowLayer.contentsScale = scale
     dimLayer.contentsScale = scale
     brightLayer.contentsScale = scale
     CATransaction.commit()
   }
 
-  func setImages(dim: CGImage?, bright: CGImage?) {
+  func setImages(dim: CGImage?, bright: CGImage?, glow: CGImage?) {
     dimLayer.contents = dim
     brightLayer.contents = bright
     brightLayer.isHidden = bright == nil
+    glowLayer.contents = glow
+    glowLayer.isHidden = glow == nil
+    if glow == nil {
+      glowMask.reset()
+    }
   }
 
   func updateMask(rects: [[CGRect]]) {
     syllableMask.update(rects: rects)
+    let pad = Self.glowPadding
+    let paddedRects = rects.map { syllableRects in
+      syllableRects.map { $0.offsetBy(dx: pad, dy: pad) }
+    }
+    glowMask.update(rects: paddedRects)
   }
 
-  func apply(progress: [CGFloat]) {
+  func apply(progress: [CGFloat], glowIntensities: [CGFloat]) {
     syllableMask.apply(progress: progress)
+    if !glowLayer.isHidden {
+      glowMask.apply(intensities: glowIntensities)
+    }
   }
 }
 
@@ -890,6 +917,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
   private var glyphHeightConstraint: NSLayoutConstraint?
   private var translationTopConstraint: NSLayoutConstraint?
   private var isActiveLine = false
+  private var isDarkMode = false
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
@@ -948,7 +976,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
 
   override func prepareForReuse() {
     super.prepareForReuse()
-    glyphView.setImages(dim: nil, bright: nil)
+    glyphView.setImages(dim: nil, bright: nil, glow: nil)
     translationLabel.stringValue = ""
     contentContainer.layer?.removeAllAnimations()
     contentContainer.layer?.transform = CATransform3DIdentity
@@ -994,6 +1022,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
     let size = CGSize(width: width, height: imageHeight)
 
     let isDark = Self.isDark(effectiveAppearance) || forcesDarkRaster
+    isDarkMode = isDark
     // Catalyst `LyricTableCell.updateBlurredImageIfNeeded`: inactive lines get a soft
     // Core Image Gaussian blur while the active line stays razor sharp.
     let blurRadius = isActive ? 0 : 1.6 * scale
@@ -1019,15 +1048,34 @@ private final class LyricsSidebarCellView: NSTableCellView {
         blurRadius: 0,
         isDark: isDark
       )
-      glyphView.setImages(dim: dimImage, bright: brightImage)
+      // Sustained-note white glow in dark mode only, padded so Gaussian blur never clips.
+      let hasLongNote = isDark && syllables.contains { $0.isWordTimed && $0.duration > 0.45 }
+      let pad = LyricsGlyphView.glowPadding
+      let glowImage: CGImage? = hasLongNote
+        ? Self.raster(
+          text: text,
+          width: width,
+          layout: layout,
+          size: CGSize(width: width + pad * 2, height: imageHeight + pad * 2),
+          origin: CGPoint(x: pad, y: pad),
+          scale: scale,
+          color: .white,
+          blurRadius: 6.5 * scale,
+          isDark: true
+        )
+        : nil
+      glyphView.setImages(dim: dimImage, bright: brightImage, glow: glowImage)
       glyphView.updateMask(rects: Self.maskRects(
         layout: layout,
         syllables: syllables,
         height: imageHeight
       ))
-      glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+      glyphView.apply(
+        progress: syllables.map { $0.progress(at: time) },
+        glowIntensities: isDark ? syllables.map { $0.glowIntensity(at: time) } : []
+      )
     } else {
-      glyphView.setImages(dim: dimImage, bright: nil)
+      glyphView.setImages(dim: dimImage, bright: nil, glow: nil)
       glyphView.updateMask(rects: [])
     }
 
@@ -1080,10 +1128,13 @@ private final class LyricsSidebarCellView: NSTableCellView {
     }
   }
 
-  /// Called at display rate: only the syllable mask widths change.
+  /// Called at display rate: only the syllable mask widths and dark-mode glow opacities change.
   func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
     guard isActiveLine else { return }
-    glyphView.apply(progress: syllables.map { $0.progress(at: time) })
+    glyphView.apply(
+      progress: syllables.map { $0.progress(at: time) },
+      glowIntensities: isDarkMode ? syllables.map { $0.glowIntensity(at: time) } : []
+    )
   }
 
   private static func raster(
@@ -1091,13 +1142,14 @@ private final class LyricsSidebarCellView: NSTableCellView {
     width: CGFloat,
     layout: LyricsTextLayout,
     size: CGSize,
+    origin: CGPoint = .zero,
     scale: CGFloat,
     color: NSColor,
     blurRadius: CGFloat,
     isDark: Bool
   )
     -> CGImage? {
-    let key = "v2|\(isDark)|\(width)|\(scale)|\(blurRadius)|\(color.description)|\(text)" as NSString
+    let key = "v3|\(isDark)|\(width)|\(size.width)x\(size.height)|\(scale)|\(blurRadius)|\(color.description)|\(text)" as NSString
     if let cached = rasterCache.object(forKey: key),
        let cgImage = cached.cgImage(forProposedRect: nil, context: nil, hints: nil) {
       return cgImage
@@ -1106,6 +1158,7 @@ private final class LyricsSidebarCellView: NSTableCellView {
       layout: layout,
       size: size,
       scale: scale,
+      origin: origin,
       foregroundColor: color
     )
     else { return nil }
