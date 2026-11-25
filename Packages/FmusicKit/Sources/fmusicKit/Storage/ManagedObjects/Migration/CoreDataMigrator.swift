@@ -7,11 +7,30 @@
 //
 import CoreData
 
+// MARK: - CoreDataMigrationError
+
+enum CoreDataMigrationError: LocalizedError {
+  case unknownStoreVersion(URL)
+  case migrationStepFailed(source: String, destination: String, underlying: Error)
+  case walCheckpointFailed(Error)
+
+  var errorDescription: String? {
+    switch self {
+    case .unknownStoreVersion(let url):
+      return "Unknown Core Data store version at \(url.path)."
+    case .migrationStepFailed(let source, let destination, let underlying):
+      return "Failed to migrate database from \(source) to \(destination): \(underlying.localizedDescription)"
+    case .walCheckpointFailed(let underlying):
+      return "Failed to checkpoint database WAL: \(underlying.localizedDescription)"
+    }
+  }
+}
+
 // MARK: - CoreDataMigratorProtocol
 
 protocol CoreDataMigratorProtocol {
   func requiresMigration(at storeURL: URL, toVersion version: CoreDataMigrationVersion) -> Bool
-  func migrateStore(at storeURL: URL, toVersion version: CoreDataMigrationVersion)
+  func migrateStore(at storeURL: URL, toVersion version: CoreDataMigrationVersion) throws
 }
 
 // MARK: - CoreDataMigrator
@@ -45,11 +64,11 @@ class CoreDataMigrator: CoreDataMigratorProtocol {
 
   // MARK: - Migration
 
-  func migrateStore(at storeURL: URL, toVersion version: CoreDataMigrationVersion) {
-    forceWALCheckpointingForStore(at: storeURL)
+  func migrateStore(at storeURL: URL, toVersion version: CoreDataMigrationVersion) throws {
+    try forceWALCheckpointingForStore(at: storeURL)
 
     var currentURL = storeURL
-    let migrationSteps = migrationStepsForStore(at: storeURL, toVersion: version)
+    let migrationSteps = try migrationStepsForStore(at: storeURL, toVersion: version)
 
     for migrationStep in migrationSteps {
       let manager = NSMigrationManager(
@@ -70,8 +89,13 @@ class CoreDataMigrator: CoreDataMigratorProtocol {
           destinationOptions: nil
         )
       } catch {
-        fatalError(
-          "failed attempting to migrate from \(migrationStep.sourceModel) to \(migrationStep.destinationModel), error: \(error)"
+        if currentURL != storeURL {
+          NSPersistentStoreCoordinator.destroyStore(at: currentURL)
+        }
+        throw CoreDataMigrationError.migrationStepFailed(
+          source: String(describing: migrationStep.sourceModel.versionIdentifiers),
+          destination: String(describing: migrationStep.destinationModel.versionIdentifiers),
+          underlying: error
         )
       }
 
@@ -93,12 +117,12 @@ class CoreDataMigrator: CoreDataMigratorProtocol {
   private func migrationStepsForStore(
     at storeURL: URL,
     toVersion destinationVersion: CoreDataMigrationVersion
-  )
+  ) throws
     -> [CoreDataMigrationStep] {
     guard let metadata = NSPersistentStoreCoordinator.metadata(at: storeURL),
           let sourceVersion = CoreDataMigrationVersion.compatibleVersionForStoreMetadata(metadata)
     else {
-      fatalError("unknown store version at URL \(storeURL)")
+      throw CoreDataMigrationError.unknownStoreVersion(storeURL)
     }
 
     return migrationSteps(
@@ -130,7 +154,7 @@ class CoreDataMigrator: CoreDataMigratorProtocol {
 
   // MARK: - WAL
 
-  func forceWALCheckpointingForStore(at storeURL: URL) {
+  func forceWALCheckpointingForStore(at storeURL: URL) throws {
     guard let metadata = NSPersistentStoreCoordinator.metadata(at: storeURL),
           let currentModel = NSManagedObjectModel.compatibleModelForStoreMetadata(metadata) else {
       return
@@ -144,7 +168,7 @@ class CoreDataMigrator: CoreDataMigratorProtocol {
       let store = persistentStoreCoordinator.addPersistentStore(at: storeURL, options: options)
       try persistentStoreCoordinator.remove(store)
     } catch {
-      fatalError("failed to force WAL checkpointing, error: \(error)")
+      throw CoreDataMigrationError.walCheckpointFailed(error)
     }
   }
 }

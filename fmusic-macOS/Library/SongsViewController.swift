@@ -25,17 +25,29 @@ import fmusicKit
 
 /// Flat song list backed by `NSTableView` with one flexible custom row cell.
 @MainActor
-final class SongsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
-  private let tableView = SongsTableView()
+final class SongsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate,
+  ContentSearchable {
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Songs"))
   private let countLabel = NSTextField(labelWithString: "")
 
+  private var allSongs: [Song] = []
   private var songs: [Song] = []
+  private var filterText = ""
   private var reloadGeneration = 0
   private var storage: PersistentStorage { FmusicKit.shared.storage }
   private let cellIdentifier = NSUserInterfaceItemIdentifier("songListCell")
   private let columnIdentifier = NSUserInterfaceItemIdentifier("songListColumn")
+
+  var contentSearchPlaceholder: String? {
+    L10n.tr("Search in \"%@\"", L10n.tr("Songs"))
+  }
+
+  func contentSearchDidChange(text: String) {
+    filterText = text
+    applyFilter()
+  }
 
   override func loadView() {
     let root = ThemedBackgroundView()
@@ -129,9 +141,8 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
     reloadGeneration += 1
     let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
-      songs = []
-      tableView.reloadData()
-      countLabel.stringValue = ""
+      allSongs = []
+      applyFilter()
       return
     }
     let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
@@ -146,14 +157,28 @@ final class SongsViewController: NSViewController, NSTableViewDataSource, NSTabl
       guard generation == self.reloadGeneration,
             self.storage.settings.accounts.active == accountInfo else { return }
       let context = self.storage.main.context
-      self.songs = (objectIDs ?? [])
+      self.allSongs = (objectIDs ?? [])
         .compactMap { context.object(with: $0) as? SongMO }
         .compactMap { Song(managedObject: $0) }
-      self.tableView.reloadData()
-      self.countLabel.stringValue = self.songs.isEmpty
-        ? ""
-        : String(format: "%d", self.songs.count)
+      self.applyFilter()
     }
+  }
+
+  private func applyFilter() {
+    let query = filterText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if query.isEmpty {
+      songs = allSongs
+    } else {
+      songs = allSongs.filter { song in
+        song.title.localizedCaseInsensitiveContains(query)
+          || song.creatorName.localizedCaseInsensitiveContains(query)
+          || (song.album?.name.localizedCaseInsensitiveContains(query) ?? false)
+      }
+    }
+    tableView.reloadData()
+    countLabel.stringValue = songs.isEmpty
+      ? ""
+      : String(format: "%d", songs.count)
   }
 
   private var librarySetting: AccountSetting {
@@ -351,29 +376,5 @@ final class SongListCellView: NSTableCellView {
     menuButton.target = target
     menuButton.action = menuAction
     menuButton.tag = row
-  }
-}
-
-// MARK: - SongsTableView
-
-/// Table view that plays the selection with Return and offers a right-click menu.
-private final class SongsTableView: NSTableView {
-  var onReturn: (() -> Void)?
-  var onContextMenu: ((Int) -> NSMenu?)?
-
-  override func keyDown(with event: NSEvent) {
-    if event.keyCode == 36 || event.keyCode == 76, selectedRow >= 0 {
-      onReturn?()
-      return
-    }
-    super.keyDown(with: event)
-  }
-
-  override func menu(for event: NSEvent) -> NSMenu? {
-    let point = convert(event.locationInWindow, from: nil)
-    let row = self.row(at: point)
-    guard row >= 0 else { return nil }
-    selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false)
-    return onContextMenu?(row)
   }
 }

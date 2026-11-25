@@ -94,6 +94,10 @@ enum AppIconManager {
     }
 
     UserDefaults.standard.set(option.id, forKey: userDefaultsKey)
+    NotificationCenter.default.post(
+      name: Notification.Name("fmusic.mac.appIconChanged"),
+      object: nil
+    )
   }
 
   // MARK: - Private

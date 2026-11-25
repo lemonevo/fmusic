@@ -37,7 +37,7 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     case playlist(Playlist)
   }
 
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let emptyIconView = NSImageView()
   private let emptyLabel = NSTextField(labelWithString: "")
@@ -77,11 +77,18 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     tableView.headerView = nil
     tableView.rowHeight = 56
     tableView.backgroundColor = .clear
-    tableView.selectionHighlightStyle = .none
+    tableView.selectionHighlightStyle = .regular
     tableView.dataSource = self
     tableView.delegate = self
     tableView.target = self
     tableView.doubleAction = #selector(rowDoubleClicked)
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      self.openRow(at: self.tableView.selectedRow)
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
 
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
@@ -430,6 +437,99 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     case .playlist:
       return
     }
+  }
+
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard rows.indices.contains(row) else { return nil }
+    switch rows[row] {
+    case .header, .history, .playlist:
+      return nil
+    case .artist:
+      let menu = NSMenu()
+      let openItem = NSMenuItem(
+        title: L10n.tr("Show Artist"),
+        action: #selector(menuOpenRow(_:)),
+        keyEquivalent: ""
+      )
+      openItem.target = self
+      openItem.tag = row
+      menu.addItem(openItem)
+      let playItem = NSMenuItem(
+        title: L10n.tr("Play"),
+        action: #selector(menuPlayRow(_:)),
+        keyEquivalent: ""
+      )
+      playItem.target = self
+      playItem.tag = row
+      menu.addItem(playItem)
+      return menu
+    case .album:
+      let menu = NSMenu()
+      let openItem = NSMenuItem(
+        title: L10n.tr("Show Album"),
+        action: #selector(menuOpenRow(_:)),
+        keyEquivalent: ""
+      )
+      openItem.target = self
+      openItem.tag = row
+      menu.addItem(openItem)
+      let playItem = NSMenuItem(
+        title: L10n.tr("Play"),
+        action: #selector(menuPlayRow(_:)),
+        keyEquivalent: ""
+      )
+      playItem.target = self
+      playItem.tag = row
+      menu.addItem(playItem)
+      return menu
+    case .song:
+      let menu = NSMenu()
+      let playItem = NSMenuItem(
+        title: L10n.tr("Play"),
+        action: #selector(menuPlayRow(_:)),
+        keyEquivalent: ""
+      )
+      playItem.target = self
+      playItem.tag = row
+      menu.addItem(playItem)
+      let queueItem = NSMenuItem(
+        title: L10n.tr("Add to Queue"),
+        action: #selector(menuQueueRow(_:)),
+        keyEquivalent: ""
+      )
+      queueItem.target = self
+      queueItem.tag = row
+      menu.addItem(queueItem)
+      return menu
+    }
+  }
+
+  @objc
+  private func menuOpenRow(_ sender: NSMenuItem) {
+    openRow(at: sender.tag)
+  }
+
+  @objc
+  private func menuPlayRow(_ sender: NSMenuItem) {
+    guard rows.indices.contains(sender.tag) else { return }
+    switch rows[sender.tag] {
+    case .artist(let artist):
+      LibraryPlayback.play(artist: artist)
+    case .album(let album):
+      LibraryPlayback.play(album: album)
+    case .song(let song):
+      player.play(context: PlayContext(name: L10n.tr("Songs"), playables: [song]))
+    default:
+      break
+    }
+  }
+
+  @objc
+  private func menuQueueRow(_ sender: NSMenuItem) {
+    guard rows.indices.contains(sender.tag), case .song(let song) = rows[sender.tag] else {
+      return
+    }
+    player.insertUserQueue(playables: [song])
   }
 
   // MARK: - Table

@@ -32,7 +32,7 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
     case track(AbstractPlayable, PlayerIndex)
   }
 
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let placeholderLabel = NSTextField(wrappingLabelWithString: "")
 
@@ -64,11 +64,22 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
     tableView.headerView = nil
     tableView.style = .fullWidth
     tableView.selectionHighlightStyle = .regular
+    tableView.allowsMultipleSelection = true
     tableView.backgroundColor = .clear
     tableView.dataSource = self
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      self.play(row: self.tableView.selectedRow)
+    }
+    tableView.onDelete = { [weak self] in
+      self?.removeSelectedRows()
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
 
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
@@ -140,10 +151,61 @@ final class QueueSectionView: NSView, NSTableViewDataSource, NSTableViewDelegate
   @objc
   private func handleDoubleClick() {
     let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
+    play(row: row)
+  }
+
+  private func play(row: Int) {
     guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
       return
     }
     player.play(playerIndex: playerIndex)
+  }
+
+  private func removeSelectedRows() {
+    let selected = tableView.selectedRowIndexes
+    guard !selected.isEmpty else { return }
+    let indices = selected.sorted(by: >).compactMap { row -> PlayerIndex? in
+      guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
+        return nil
+      }
+      return playerIndex
+    }
+    guard !indices.isEmpty else { return }
+    for playerIndex in indices {
+      player.removePlayable(at: playerIndex)
+    }
+    reload()
+  }
+
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < rows.count, case .track = rows[row] else { return nil }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlayRow(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    let removeItem = NSMenuItem(
+      title: L10n.tr("Remove"),
+      action: #selector(menuRemoveSelected),
+      keyEquivalent: ""
+    )
+    removeItem.target = self
+    menu.addItem(removeItem)
+    return menu
+  }
+
+  @objc
+  private func menuPlayRow(_ sender: NSMenuItem) {
+    play(row: sender.tag)
+  }
+
+  @objc
+  private func menuRemoveSelected() {
+    removeSelectedRows()
   }
 
   // MARK: - NSTableViewDataSource

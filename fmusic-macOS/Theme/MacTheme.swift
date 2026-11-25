@@ -50,8 +50,8 @@ enum MacTheme {
     FmusicKit.shared.storage.settings.accounts.activeSetting.read.themePreference.asColor
   }
 
-  /// Two-column light layout requested for the main window:
-  ///  - sidebar: cool light grey #ECECEE
+  /// Two-column layout:
+  ///  - sidebar & lyrics inspector: warm light grey #EAE9E8
   ///  - content page + toolbar: pure white #FFFFFF
   ///  - 1 pt hairline divider between the columns: #E1E1E4
   /// Dark mode keeps the earlier Catalyst-derived tones.
@@ -60,7 +60,7 @@ enum MacTheme {
       let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
       return isDark
         ? NSColor(srgbRed: 0x26 / 255, green: 0x25 / 255, blue: 0x24 / 255, alpha: 1)
-        : NSColor(srgbRed: 0xEC / 255, green: 0xEC / 255, blue: 0xEE / 255, alpha: 1)
+        : NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
     }
   }
 

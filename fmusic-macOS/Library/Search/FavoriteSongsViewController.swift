@@ -30,7 +30,7 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Favorite Songs"))
   private let countLabel = NSTextField(labelWithString: "")
   private let emptyLabel = NSTextField(wrappingLabelWithString: "")
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
 
   private var songs: [Song] = []
@@ -150,7 +150,7 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     tableView.rowHeight = MacTheme.songRowHeight
     tableView.style = .fullWidth
     tableView.selectionHighlightStyle = .regular
-    tableView.allowsMultipleSelection = false
+    tableView.allowsMultipleSelection = true
     tableView.allowsEmptySelection = true
     tableView.usesAlternatingRowBackgroundColors = false
     tableView.backgroundColor = .clear
@@ -159,6 +159,13 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      self.play(row: self.tableView.selectedRow)
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
   }
 
   // MARK: - Data
@@ -216,6 +223,39 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
       index: row,
       playables: songs
     ))
+  }
+
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < songs.count else { return nil }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlaySong(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    let queueItem = NSMenuItem(
+      title: L10n.tr("Add to Queue"),
+      action: #selector(menuQueueSong(_:)),
+      keyEquivalent: ""
+    )
+    queueItem.target = self
+    queueItem.tag = row
+    menu.addItem(queueItem)
+    return menu
+  }
+
+  @objc
+  private func menuPlaySong(_ sender: NSMenuItem) {
+    play(row: sender.tag)
+  }
+
+  @objc
+  private func menuQueueSong(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < songs.count else { return }
+    FmusicKit.shared.player.insertUserQueue(playables: [songs[sender.tag]])
   }
 
   // MARK: - NSTableViewDataSource

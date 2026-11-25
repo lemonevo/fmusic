@@ -89,6 +89,11 @@ enum LibraryPlayback {
     guard !artist.playables.isEmpty else { return }
     FmusicKit.shared.player.play(context: PlayContext(containable: artist))
   }
+
+  static func play(playlist: Playlist) {
+    guard !playlist.playables.isEmpty else { return }
+    FmusicKit.shared.player.play(context: PlayContext(containable: playlist))
+  }
 }
 
 // MARK: - ThemedBackgroundView
@@ -283,7 +288,7 @@ final class AlbumSectionHeaderView: NSView, NSCollectionViewElement {
 ///
 /// Subclasses only describe the page: title, empty message and how the albums are loaded.
 @MainActor
-class AlbumGridPageViewController: NSViewController {
+class AlbumGridPageViewController: NSViewController, ContentSearchable {
   // MARK: - Subclass hooks
 
   /// Large title shown above the grid.
@@ -309,10 +314,21 @@ class AlbumGridPageViewController: NSViewController {
   private let subtitleLabel = NSTextField(labelWithString: "")
   private let emptyLabel = NSTextField(labelWithString: "")
 
+  private var allAlbums: [Album] = []
   private(set) var albums: [Album] = []
+  private var filterText = ""
   private var lastLayoutWidth: CGFloat = 0
   private var reloadGeneration = 0
   private var storage: PersistentStorage { FmusicKit.shared.storage }
+
+  var contentSearchPlaceholder: String? {
+    L10n.tr("Search in \"%@\"", pageTitle)
+  }
+
+  func contentSearchDidChange(text: String) {
+    filterText = text
+    applyFilter()
+  }
 
   // MARK: - Lifecycle
 
@@ -449,11 +465,8 @@ class AlbumGridPageViewController: NSViewController {
     reloadGeneration += 1
     let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
-      albums = []
-      collectionView.reloadData()
-      subtitleLabel.stringValue = ""
-      emptyLabel.stringValue = emptyMessage
-      emptyLabel.isHidden = false
+      allAlbums = []
+      applyFilter()
       return
     }
     let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
@@ -469,16 +482,29 @@ class AlbumGridPageViewController: NSViewController {
       guard generation == self.reloadGeneration,
             self.storage.settings.accounts.active == accountInfo else { return }
       let context = self.storage.main.context
-      self.albums = (objectIDs ?? [])
+      self.allAlbums = (objectIDs ?? [])
         .compactMap { context.object(with: $0) as? AlbumMO }
         .compactMap { Album(managedObject: $0) }
-      self.collectionView.reloadData()
-      self.subtitleLabel.stringValue = self.albums.isEmpty
-        ? ""
-        : LibraryCountText.albums(self.albums.count)
-      self.emptyLabel.stringValue = self.emptyMessage
-      self.emptyLabel.isHidden = !self.albums.isEmpty
+      self.applyFilter()
     }
+  }
+
+  private func applyFilter() {
+    let query = filterText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if query.isEmpty {
+      albums = allAlbums
+    } else {
+      albums = allAlbums.filter { album in
+        album.name.localizedCaseInsensitiveContains(query)
+          || (album.artist?.name.localizedCaseInsensitiveContains(query) ?? false)
+      }
+    }
+    collectionView.reloadData()
+    subtitleLabel.stringValue = albums.isEmpty
+      ? ""
+      : LibraryCountText.albums(albums.count)
+    emptyLabel.stringValue = emptyMessage
+    emptyLabel.isHidden = !albums.isEmpty
   }
 
   @objc

@@ -84,7 +84,7 @@ public final class APIDataResponse: Sendable {
 
 // MARK: - LyricsList
 
-public struct LyricsList {
+public struct LyricsList: Sendable {
   public var lyrics = [StructuredLyrics]()
 
   public func getFirstSyncedLyricsOrUnsyncedAsDefault() -> StructuredLyrics? {
@@ -97,7 +97,7 @@ public struct LyricsList {
 
 // MARK: - StructuredLyrics
 
-public struct StructuredLyrics {
+public struct StructuredLyrics: Sendable {
   /// required
   public var lang =
     "" // The lyrics language (ideally ISO 639). If the language is unknown (e.g. lrc file), the server must return und (ISO standard) or xxx (common value for taggers)
@@ -114,7 +114,7 @@ public struct StructuredLyrics {
 
 // MARK: - LyricWord
 
-public struct LyricWord {
+public struct LyricWord: Sendable {
   public var start: Int // Absolute start time, in milliseconds
   public var duration: Int // Duration, in milliseconds
   public var value = ""
@@ -130,7 +130,7 @@ public struct LyricWord {
 
 // MARK: - LyricsLine
 
-public struct LyricsLine {
+public struct LyricsLine: Sendable {
   public var start: Int? // The start time of the lyrics, relative to the start time of the track, in milliseconds. If this is not part of synced lyrics, start must be omitted
   public var value = "" // The actual text of this line
   public var translation: String? // Translation of this line when the source provides one

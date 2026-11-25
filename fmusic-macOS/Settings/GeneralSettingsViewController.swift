@@ -55,9 +55,12 @@ final class GeneralSettingsViewController: SettingsPageViewController {
       title: L10n.tr("Language"),
       titles: languageTitles,
       selectedIndex: selectedLanguage
-    ) { index in
+    ) { [weak self] index in
       guard index >= 0, index < languageOptions.count else { return }
-      SettingsStore.setAppLanguage(languageOptions[index])
+      let chosen = languageOptions[index]
+      guard SettingsStore.user.appLanguage != chosen else { return }
+      SettingsStore.setAppLanguage(chosen)
+      self?.promptRestartForLanguageChange()
     }
 
     addSection(
@@ -95,5 +98,33 @@ final class GeneralSettingsViewController: SettingsPageViewController {
       rows: [offlineRow]
     )
     append(makeFlatRows([screenLockRow]), topSpacing: 32)
+  }
+
+  private func promptRestartForLanguageChange() {
+    let alert = NSAlert()
+    alert.messageText = L10n.tr("Language")
+    alert.informativeText = L10n.tr("Restart fmusic to apply the new language.")
+    alert.addButton(withTitle: L10n.tr("Restart Now"))
+    alert.addButton(withTitle: L10n.tr("Later"))
+
+    let handle: (NSApplication.ModalResponse) -> Void = { response in
+      guard response == .alertFirstButtonReturn else { return }
+      let config = NSWorkspace.OpenConfiguration()
+      config.createsNewApplicationInstance = true
+      NSWorkspace.shared.openApplication(
+        at: Bundle.main.bundleURL,
+        configuration: config
+      ) { _, _ in
+        DispatchQueue.main.async {
+          NSApp.terminate(nil)
+        }
+      }
+    }
+
+    if let window = view.window {
+      alert.beginSheetModal(for: window, completionHandler: handle)
+    } else {
+      handle(alert.runModal())
+    }
   }
 }

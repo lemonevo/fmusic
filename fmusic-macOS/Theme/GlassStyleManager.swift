@@ -63,47 +63,47 @@ enum GlassStyleManager {
     case .soft:
       return GlassStyleConfiguration(
         material: .regular,
-        glassAlpha: 0.97,
+        glassAlpha: 1.0,
         borderAlpha: 0.20,
-        sheenTopAlpha: 0.24,
-        sheenMidAlpha: 0.08,
+        sheenTopAlpha: 0.34,
+        sheenMidAlpha: 0.10,
         shadowOpacity: 0.12,
         shadowRadius: 15,
         shadowOffset: CGSize(width: 0, height: -5),
-        buttonFillAlpha: 0.99,
+        buttonFillAlpha: 0.96,
         buttonBorderAlpha: 0.05,
         buttonShadowOpacity: 0.08,
-        desktopLyricsOpacityScale: 1.04
+        desktopLyricsOpacityScale: 1.15
       )
     case .standard:
       return GlassStyleConfiguration(
         material: .regular,
         glassAlpha: 1.0,
         borderAlpha: 0.30,
-        sheenTopAlpha: 0.42,
-        sheenMidAlpha: 0.10,
+        sheenTopAlpha: 0.24,
+        sheenMidAlpha: 0.06,
         shadowOpacity: 0.18,
         shadowRadius: 18,
         shadowOffset: CGSize(width: 0, height: -6),
-        buttonFillAlpha: 0.95,
-        buttonBorderAlpha: 0.05,
+        buttonFillAlpha: 0.90,
+        buttonBorderAlpha: 0.06,
         buttonShadowOpacity: 0.10,
         desktopLyricsOpacityScale: 1.0
       )
     case .translucent:
       return GlassStyleConfiguration(
         material: .clear,
-        glassAlpha: 0.86,
-        borderAlpha: 0.46,
-        sheenTopAlpha: 0.58,
-        sheenMidAlpha: 0.14,
-        shadowOpacity: 0.22,
-        shadowRadius: 22,
-        shadowOffset: CGSize(width: 0, height: -7),
-        buttonFillAlpha: 0.85,
-        buttonBorderAlpha: 0.09,
-        buttonShadowOpacity: 0.14,
-        desktopLyricsOpacityScale: 0.90
+        glassAlpha: 1.0,
+        borderAlpha: 0.42,
+        sheenTopAlpha: 0.12,
+        sheenMidAlpha: 0.02,
+        shadowOpacity: 0.20,
+        shadowRadius: 20,
+        shadowOffset: CGSize(width: 0, height: -6),
+        buttonFillAlpha: 0.68,
+        buttonBorderAlpha: 0.10,
+        buttonShadowOpacity: 0.12,
+        desktopLyricsOpacityScale: 0.72
       )
     }
   }

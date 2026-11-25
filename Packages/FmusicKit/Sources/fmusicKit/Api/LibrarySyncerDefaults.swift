@@ -71,11 +71,13 @@ extension LibrarySyncer {
   }
 
   public func parseLyrics(relFilePath: URL) async throws -> LyricsList {
-    let fileManager = CacheFileManager.shared
-    guard let absoluteFilePath = fileManager.getAbsolutefmusicPath(relFilePath: relFilePath),
-          let data = try? Data(contentsOf: absoluteFilePath)
-    else { return LyricsList() }
-    return LyricsTextParser.parse(data: data)
+    await Task.detached(priority: .userInitiated) {
+      let fileManager = CacheFileManager.shared
+      guard let absoluteFilePath = fileManager.getAbsolutefmusicPath(relFilePath: relFilePath),
+            let data = try? Data(contentsOf: absoluteFilePath)
+      else { return LyricsList() }
+      return LyricsTextParser.parse(data: data)
+    }.value
   }
 }
 

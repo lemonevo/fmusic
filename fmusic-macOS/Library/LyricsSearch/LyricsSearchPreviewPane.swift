@@ -107,13 +107,23 @@ final class LyricsSearchPreviewPane: NSView {
     addSubview(applyButton)
 
     NSLayoutConstraint.activate([
+      applyButton.topAnchor.constraint(equalTo: topAnchor, constant: 2),
+      applyButton.trailingAnchor.constraint(equalTo: trailingAnchor),
+      applyButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 110),
+
       titleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 2),
       titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
-      titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
+      titleLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: applyButton.leadingAnchor,
+        constant: -12
+      ),
 
       metaLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 3),
       metaLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
-      metaLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
+      metaLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: applyButton.leadingAnchor,
+        constant: -12
+      ),
 
       formatLabel.topAnchor.constraint(equalTo: metaLabel.bottomAnchor, constant: 2),
       formatLabel.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -122,6 +132,7 @@ final class LyricsSearchPreviewPane: NSView {
       scrollView.topAnchor.constraint(equalTo: formatLabel.bottomAnchor, constant: 10),
       scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
       scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
       statusLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
       statusLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
@@ -129,11 +140,6 @@ final class LyricsSearchPreviewPane: NSView {
 
       spinner.centerXAnchor.constraint(equalTo: statusLabel.centerXAnchor),
       spinner.bottomAnchor.constraint(equalTo: statusLabel.topAnchor, constant: -8),
-
-      scrollView.bottomAnchor.constraint(equalTo: applyButton.topAnchor, constant: -10),
-      applyButton.trailingAnchor.constraint(equalTo: trailingAnchor),
-      applyButton.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -2),
-      applyButton.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
     ])
 
     showPlaceholder()

@@ -18,6 +18,7 @@
 
 import AppKit
 import fmusicKit
+import os.log
 import UniformTypeIdentifiers
 
 /// Pure-AppKit application delegate. Owns the library window, the settings window and the
@@ -63,6 +64,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     AppIconManager.applySavedIcon()
     NSApp.mainMenu = MainMenuBuilder.build()
 
+    ensurePersistentStoreReady()
     bootstrapCore()
 
     // Register `fmusic://x-callback-url/...` actions before the window appears so a URL that
@@ -177,6 +179,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   // MARK: - Bootstrap
+
+  private func ensurePersistentStoreReady() {
+    while true {
+      do {
+        try fmusic.preparePersistentStore()
+        return
+      } catch {
+        os_log(
+          "Persistent store failed to load: %{public}@",
+          log: fmusic.log,
+          type: .error,
+          error.localizedDescription
+        )
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = L10n.tr("Unable to Open Music Library")
+        alert.informativeText = L10n.tr(
+          "fmusic could not load or migrate its library database.\n\n%@",
+          error.localizedDescription
+        )
+        alert.addButton(withTitle: L10n.tr("Quit"))
+        alert.addButton(withTitle: L10n.tr("Open Data Folder"))
+        alert.addButton(withTitle: L10n.tr("Rebuild Library"))
+
+        switch alert.runModal() {
+        case .alertSecondButtonReturn:
+          NSWorkspace.shared.open(CoreDataPersistentManager.storeDirectoryURL)
+        case .alertThirdButtonReturn:
+          let confirm = NSAlert()
+          confirm.alertStyle = .warning
+          confirm.messageText = L10n.tr("Rebuild Library")
+          confirm.informativeText = L10n.tr(
+            "Rebuilding moves the existing database files to a backup folder and starts with an empty library. Your original music files are not touched."
+          )
+          confirm.addButton(withTitle: L10n.tr("Rebuild Library"))
+          confirm.addButton(withTitle: L10n.tr("Cancel"))
+          if confirm.runModal() == .alertFirstButtonReturn {
+            do {
+              try fmusic.backupAndResetPersistentStore()
+            } catch let resetError {
+              let errAlert = NSAlert()
+              errAlert.alertStyle = .critical
+              errAlert.messageText = L10n.tr("Unable to Open Music Library")
+              errAlert.informativeText = resetError.localizedDescription
+              errAlert.addButton(withTitle: L10n.tr("OK"))
+              errAlert.runModal()
+            }
+          }
+        default:
+          NSApp.terminate(nil)
+          return
+        }
+      }
+    }
+  }
 
   @objc
   private func lyricsSettingsChanged() {

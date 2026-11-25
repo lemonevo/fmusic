@@ -166,11 +166,33 @@ protocol CoreDataManagable {
   var context: NSManagedObjectContext { get }
 }
 
+// MARK: - PersistentStorageError
+
+public enum PersistentStorageError: LocalizedError {
+  case missingManagedObjectModel
+  case missingStoreURL
+  case loadFailed(Error)
+
+  public var errorDescription: String? {
+    switch self {
+    case .missingManagedObjectModel:
+      return "Core Data managed object model could not be loaded from resources."
+    case .missingStoreURL:
+      return "Core Data persistent store URL could not be configured."
+    case .loadFailed(let error):
+      return error.localizedDescription
+    }
+  }
+}
+
 // MARK: - CoreDataPersistentManager
 
 public class CoreDataPersistentManager: CoreDataManagable {
   nonisolated(unsafe) public static let managedObjectModel: NSManagedObjectModel =
-    .mergedModel(from: [FmusicKitResources.bundle])!
+    .mergedModel(from: [FmusicKitResources.bundle]) ?? NSManagedObjectModel()
+
+  private static let hasMergedModel: Bool =
+    NSManagedObjectModel.mergedModel(from: [FmusicKitResources.bundle]) != nil
 
   /// Directory that holds the library database. Kept identical for the iOS/iPad and
   /// macOS apps so both native front-ends read the same user library.
@@ -188,13 +210,21 @@ public class CoreDataPersistentManager: CoreDataManagable {
     storeDirectoryURL.appendingPathComponent("fmusic.sqlite")
   }
 
-  lazy var persistentContainer: NSPersistentContainer = {
-    /*
-     The persistent container for the application. This implementation
-     creates and returns a container, having loaded the store for the
-     application to it. This property is optional since there are legitimate
-     error conditions that could cause the creation of the store to fail.
-     */
+  public private(set) var storeLoadError: Error?
+  private var _persistentContainer: NSPersistentContainer?
+
+  /// Prepares and loads the persistent store, throwing on model, migration, or SQLite
+  /// errors instead of crashing so the UI can present recovery options.
+  public func prepareStore() throws {
+    if _persistentContainer != nil, storeLoadError == nil {
+      return
+    }
+    guard Self.hasMergedModel else {
+      let error = PersistentStorageError.missingManagedObjectModel
+      storeLoadError = error
+      throw error
+    }
+
     let container = NSPersistentContainer(
       name: "fmusic",
       managedObjectModel: Self.managedObjectModel
@@ -205,40 +235,98 @@ public class CoreDataPersistentManager: CoreDataManagable {
     description?.type = NSSQLiteStoreType
     // The default URL depends on the host bundle; pin it so the macOS and iOS apps
     // always open the same user library.
-    try? FileManager.default.createDirectory(
+    try FileManager.default.createDirectory(
       at: Self.storeDirectoryURL,
       withIntermediateDirectories: true
     )
     description?.url = Self.storeURL
 
     guard let storeURL = container.persistentStoreDescriptions.first?.url else {
-      fatalError("persistentContainer was not set up properly")
+      let error = PersistentStorageError.missingStoreURL
+      storeLoadError = error
+      throw error
     }
 
-    let migrator = CoreDataMigrator()
-    if migrator.requiresMigration(at: storeURL, toVersion: CoreDataMigrationVersion.current) {
-      migrator.migrateStore(at: storeURL, toVersion: CoreDataMigrationVersion.current)
-    }
-
-    container.loadPersistentStores(completionHandler: { storeDescription, error in
-      if let error = error as NSError? {
-        // Replace this implementation with code to handle the error appropriately.
-        // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-
-        /*
-         Typical reasons for an error here include:
-         * The parent directory does not exist, cannot be created, or disallows writing.
-         * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-         * The device is out of space.
-         * The store could not be migrated to the current model version.
-         Check the error message to determine what the actual problem was.
-         */
-        fatalError("Unresolved error \(error), \(error.userInfo)")
+    do {
+      let migrator = CoreDataMigrator()
+      if migrator.requiresMigration(at: storeURL, toVersion: CoreDataMigrationVersion.current) {
+        try migrator.migrateStore(at: storeURL, toVersion: CoreDataMigrationVersion.current)
       }
-    })
 
-    return container
-  }()
+      var loadError: Error?
+      container.loadPersistentStores { _, error in
+        if let error {
+          loadError = error
+        }
+      }
+      if let loadError {
+        throw PersistentStorageError.loadFailed(loadError)
+      }
+
+      _persistentContainer = container
+      storeLoadError = nil
+    } catch {
+      storeLoadError = error
+      throw error
+    }
+  }
+
+  /// Moves the current SQLite store files into a timestamped backup folder under
+  /// `storeDirectoryURL/CorruptedBackups` so a fresh library can be created without
+  /// permanently destroying the user's database files.
+  public func backupAndResetStore() throws {
+    let fileManager = FileManager.default
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime]
+    let stamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
+    let backupDir = Self.storeDirectoryURL
+      .appendingPathComponent("CorruptedBackups", isDirectory: true)
+      .appendingPathComponent(stamp, isDirectory: true)
+
+    let storeFiles = [
+      Self.storeURL,
+      URL(fileURLWithPath: Self.storeURL.path + "-wal"),
+      URL(fileURLWithPath: Self.storeURL.path + "-shm"),
+    ]
+
+    var didCreateBackupDir = false
+    for fileURL in storeFiles where fileManager.fileExists(atPath: fileURL.path) {
+      if !didCreateBackupDir {
+        try fileManager.createDirectory(at: backupDir, withIntermediateDirectories: true)
+        didCreateBackupDir = true
+      }
+      let destination = backupDir.appendingPathComponent(fileURL.lastPathComponent)
+      try fileManager.moveItem(at: fileURL, to: destination)
+    }
+
+    _persistentContainer = nil
+    storeLoadError = nil
+  }
+
+  var persistentContainer: NSPersistentContainer {
+    if let existing = _persistentContainer {
+      return existing
+    }
+    do {
+      try prepareStore()
+      if let prepared = _persistentContainer {
+        return prepared
+      }
+    } catch {
+      storeLoadError = error
+    }
+    // Non-fatal fallback in-memory container when disk store could not be opened.
+    let fallback = NSPersistentContainer(
+      name: "fmusic",
+      managedObjectModel: Self.managedObjectModel
+    )
+    let memoryDesc = NSPersistentStoreDescription()
+    memoryDesc.type = NSInMemoryStoreType
+    fallback.persistentStoreDescriptions = [memoryDesc]
+    fallback.loadPersistentStores { _, _ in }
+    _persistentContainer = fallback
+    return fallback
+  }
 
   @MainActor
   lazy var context: NSManagedObjectContext = {

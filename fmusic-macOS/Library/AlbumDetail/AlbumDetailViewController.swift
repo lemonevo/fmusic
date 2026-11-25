@@ -33,7 +33,7 @@ final class AlbumDetailViewController: NSViewController, ContentSearchable,
   private let infoLabel = NSTextField(labelWithString: "")
   private let playButton = NSButton()
   private let shuffleButton = NSButton()
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let headerView = NSView()
 
@@ -205,11 +205,17 @@ final class AlbumDetailViewController: NSViewController, ContentSearchable,
     tableView.rowHeight = 40
     tableView.intercellSpacing = NSSize(width: 0, height: 0)
     tableView.selectionHighlightStyle = .regular
-    tableView.allowsMultipleSelection = false
+    tableView.allowsMultipleSelection = true
     tableView.dataSource = self
     tableView.delegate = self
     tableView.target = self
     tableView.doubleAction = #selector(playRow)
+    tableView.onReturn = { [weak self] in
+      self?.playRow()
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
     tableView.translatesAutoresizingMaskIntoConstraints = false
 
     addColumn(Column.number, width: 48, title: "")
@@ -299,12 +305,8 @@ final class AlbumDetailViewController: NSViewController, ContentSearchable,
     )
   }
 
-  @objc
-  private func rowMenuPressed(_ sender: NSButton) {
-    let row = sender.tag
-    guard row >= 0, row < filteredPlayables.count else { return }
-    let playable = filteredPlayables[row]
-
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < filteredPlayables.count else { return nil }
     let menu = NSMenu()
     let play = NSMenuItem(
       title: L10n.tr("Play"),
@@ -322,12 +324,17 @@ final class AlbumDetailViewController: NSViewController, ContentSearchable,
     queue.target = self
     queue.tag = row
     menu.addItem(queue)
+    return menu
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    guard let menu = makeMenu(for: sender.tag) else { return }
     menu.popUp(
       positioning: nil,
       at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),
       in: sender
     )
-    _ = playable
   }
 
   @objc

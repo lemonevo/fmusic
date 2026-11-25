@@ -83,6 +83,14 @@ public class FmusicKit {
     CoreDataPersistentManager()
   }()
 
+  public func preparePersistentStore() throws {
+    try coreDataManager.prepareStore()
+  }
+
+  public func backupAndResetPersistentStore() throws {
+    try coreDataManager.backupAndResetStore()
+  }
+
   public lazy var storage = {
     PersistentStorage(coreDataManager: coreDataManager)
   }()

@@ -56,6 +56,7 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
   private var loadedSongID: String?
   private var currentLine = -1
   private var lastActiveTime: TimeInterval = -1
+  private var seekHoldUntil: CFTimeInterval = 0
   private var syllableCache = [[LyricsSyllableTiming]]()
 
   nonisolated(unsafe) private var syncTimer: Timer?
@@ -322,6 +323,9 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 
   private func updateActiveLine(force: Bool) {
     guard let lyrics, !lyrics.line.isEmpty else { return }
+    if !force, CACurrentMediaTime() < seekHoldUntil {
+      return
+    }
     let time = player.elapsedTime
     guard force || abs(time - lastActiveTime) > 0.02 else { return }
     lastActiveTime = time
@@ -468,9 +472,17 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
           lyrics.line.indices.contains(row),
           let start = lyrics.line[row].start
     else { return }
-    player.seek(toSecond: Double(start) / 1000.0)
+    let offsetSeconds = (
+      Double(lyrics.offset) + Double(storage.settings.user.lyricsOffsetMs)
+    ) / 1000.0
+    let targetSecond = max(0, Double(start) / 1000.0 - offsetSeconds)
+    seekHoldUntil = CACurrentMediaTime() + 0.45
+    lastActiveTime = targetSecond
     currentLine = row
-    updateActiveLine(force: true)
+    refreshVisibleRows(animated: true)
+    scrollTargetY = scrollTarget(for: row)
+    lastSpringTimestamp = CACurrentMediaTime()
+    player.seek(toSecond: targetSecond)
   }
 
   // MARK: - NSTableViewDataSource
@@ -981,10 +993,11 @@ private final class LyricsPaneBackgroundView: NSView {
 
   static var paneColor: NSColor {
     NSColor(name: nil) { appearance in
-      if appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua {
-        return MacTheme.sidebarBackgroundColor.usingColorSpace(.sRGB) ?? .black
+      var resolved = MacTheme.sidebarBackgroundColor
+      appearance.performAsCurrentDrawingAppearance {
+        resolved = MacTheme.sidebarBackgroundColor.usingColorSpace(.sRGB) ?? MacTheme.sidebarBackgroundColor
       }
-      return NSColor(srgbRed: 234 / 255, green: 233 / 255, blue: 232 / 255, alpha: 1)
+      return resolved
     }
   }
 

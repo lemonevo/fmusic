@@ -25,17 +25,29 @@ import fmusicKit
 /// Double-click (or the context menu) starts playback of the whole artist. The list
 /// respects the global `artistsFilterSetting` (all / album artists / favourites).
 @MainActor
-class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate,
+  ContentSearchable {
   var pageTitle: String { L10n.tr("Artists") }
   var forceFavoritesOnly: Bool { false }
   private lazy var titleLabel = NSTextField(labelWithString: pageTitle)
   private let subtitleLabel = NSTextField(labelWithString: "")
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let emptyLabel = NSTextField(labelWithString: "")
 
+  private var allArtists: [Artist] = []
   private var artists: [Artist] = []
+  private var filterText = ""
   private var reloadGeneration = 0
+
+  var contentSearchPlaceholder: String? {
+    L10n.tr("Search in \"%@\"", pageTitle)
+  }
+
+  func contentSearchDidChange(text: String) {
+    filterText = text
+    applyFilter()
+  }
 
   private let columnIdentifier = NSUserInterfaceItemIdentifier("artistColumn")
   private let cellIdentifier = NSUserInterfaceItemIdentifier("artistCell")
@@ -143,17 +155,35 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
-    tableView.menu = makeContextMenu()
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      let row = self.tableView.selectedRow
+      guard row >= 0, row < self.artists.count else { return }
+      MainViewController.current?.openArtist(self.artists[row])
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeContextMenu(for: row)
+    }
   }
 
-  private func makeContextMenu() -> NSMenu {
+  private func makeContextMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < artists.count else { return nil }
     let menu = NSMenu()
+    let openItem = NSMenuItem(
+      title: L10n.tr("Show Artist"),
+      action: #selector(openContextRow(_:)),
+      keyEquivalent: ""
+    )
+    openItem.target = self
+    openItem.tag = row
+    menu.addItem(openItem)
     let play = NSMenuItem(
       title: L10n.tr("Play"),
-      action: #selector(playSelectedRow),
+      action: #selector(playContextRow(_:)),
       keyEquivalent: ""
     )
     play.target = self
+    play.tag = row
     menu.addItem(play)
     return menu
   }
@@ -166,11 +196,8 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
     reloadGeneration += 1
     let generation = reloadGeneration
     guard let accountInfo = storage.settings.accounts.active else {
-      artists = []
-      tableView.reloadData()
-      subtitleLabel.stringValue = ""
-      emptyLabel.stringValue = emptyMessage
-      emptyLabel.isHidden = false
+      allArtists = []
+      applyFilter()
       return
     }
     let accountID = storage.main.library.getAccount(info: accountInfo).managedObject.objectID
@@ -196,16 +223,26 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
       guard generation == self.reloadGeneration,
             storage.settings.accounts.active == accountInfo else { return }
       let context = storage.main.context
-      self.artists = (objectIDs ?? [])
+      self.allArtists = (objectIDs ?? [])
         .compactMap { context.object(with: $0) as? ArtistMO }
         .compactMap { Artist(managedObject: $0) }
-      self.tableView.reloadData()
-      self.subtitleLabel.stringValue = self.artists.isEmpty
-        ? ""
-        : LibraryCountText.artists(self.artists.count)
-      self.emptyLabel.stringValue = self.emptyMessage
-      self.emptyLabel.isHidden = !self.artists.isEmpty
+      self.applyFilter()
     }
+  }
+
+  private func applyFilter() {
+    let query = filterText.trimmingCharacters(in: .whitespacesAndNewlines)
+    if query.isEmpty {
+      artists = allArtists
+    } else {
+      artists = allArtists.filter { $0.name.localizedCaseInsensitiveContains(query) }
+    }
+    tableView.reloadData()
+    subtitleLabel.stringValue = artists.isEmpty
+      ? ""
+      : LibraryCountText.artists(artists.count)
+    emptyLabel.stringValue = emptyMessage
+    emptyLabel.isHidden = !artists.isEmpty
   }
 
   @objc
@@ -228,6 +265,17 @@ class ArtistsViewController: NSViewController, NSTableViewDataSource, NSTableVie
   @objc
   private func playSelectedRow() {
     play(row: tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow)
+  }
+
+  @objc
+  private func openContextRow(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < artists.count else { return }
+    MainViewController.current?.openArtist(artists[sender.tag])
+  }
+
+  @objc
+  private func playContextRow(_ sender: NSMenuItem) {
+    play(row: sender.tag)
   }
 
   private func play(row: Int) {

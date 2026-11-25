@@ -21,7 +21,12 @@ import Foundation
 /// In-code localization. The English text is the key; when the system prefers a Chinese
 /// language the Chinese table is used, otherwise the key is returned unchanged.
 public enum L10n {
-  public static let isChinese: Bool = Locale.preferredLanguages.first?.hasPrefix("zh") ?? false
+  public static let isChinese: Bool = {
+    if let override = UserDefaults.standard.stringArray(forKey: "AppleLanguages")?.first {
+      return override.hasPrefix("zh")
+    }
+    return Locale.preferredLanguages.first?.hasPrefix("zh") ?? false
+  }()
 
   /// Localizes `key` and optionally formats it with `arguments` (printf style).
   public static func tr(_ key: String, _ arguments: CVarArg...) -> String {
@@ -65,6 +70,10 @@ public enum L10n {
     "The audio file could not be read: %@": "无法读取音频文件：%@",
     "Back to App": "返回应用",
     "Unknown": "未知",
+    "Unable to Open Music Library": "无法打开音乐资料库",
+    "fmusic could not load or migrate its library database.\n\n%@": "fmusic 无法加载或迁移资料库数据库。\n\n%@",
+    "Rebuild Library": "重建资料库",
+    "Rebuilding moves the existing database files to a backup folder and starts with an empty library. Your original music files are not touched.": "重建会将现有数据库文件移动到备份文件夹，并创建一个空资料库。你的原始音乐文件不会被删除。",
 
     "Artists": "艺人",
     "Album": "专辑",
@@ -369,6 +378,8 @@ public enum L10n {
     "Simplified Chinese": "简体中文",
     "Language changes take effect after restarting fmusic.": "更改语言后需要重新启动 fmusic 才能生效。",
     "Restart fmusic to apply the new language.": "重新启动 fmusic 后新语言才会生效。",
+    "Restart Now": "立即重启",
+    "Later": "稍后",
     "Version": "版本",
     "Build Number": "构建版本",
     "Offline Mode": "离线模式",

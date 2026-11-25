@@ -313,7 +313,10 @@ final class LyricsSearchViewController: NSViewController, NSTableViewDataSource,
 
       resultsContainer.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
       resultsContainer.topAnchor.constraint(equalTo: statusLabel.bottomAnchor, constant: 10),
-      resultsContainer.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -14),
+      resultsContainer.bottomAnchor.constraint(
+        equalTo: root.bottomAnchor,
+        constant: -(MacTheme.playerBarHeight + 24)
+      ),
       resultsWidth,
       resultsContainer.widthAnchor.constraint(greaterThanOrEqualToConstant: 320),
 

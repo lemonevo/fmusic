@@ -31,7 +31,7 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Playlists"))
   private let countLabel = NSTextField(labelWithString: "")
   private let emptyLabel = NSTextField(wrappingLabelWithString: "")
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
 
   private var playlists: [Playlist] = []
@@ -143,6 +143,29 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      let row = self.tableView.selectedRow
+      guard row >= 0, row < self.playlists.count else { return }
+      self.onSelect?(self.playlists[row])
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
+  }
+
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < playlists.count else { return nil }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlayPlaylist(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    return menu
   }
 
   private var librarySetting: AccountSetting {
@@ -188,6 +211,12 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
     let row = tableView.clickedRow >= 0 ? tableView.clickedRow : tableView.selectedRow
     guard row >= 0, row < playlists.count else { return }
     onSelect?(playlists[row])
+  }
+
+  @objc
+  private func menuPlayPlaylist(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playlists.count else { return }
+    LibraryPlayback.play(playlist: playlists[sender.tag])
   }
 
   // MARK: - NSTableViewDataSource

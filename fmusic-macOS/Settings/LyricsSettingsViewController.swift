@@ -111,5 +111,18 @@ final class LyricsSettingsViewController: SettingsPageViewController {
       footer: L10n.tr("Lock the desktop lyrics in place and let mouse clicks pass through."),
       rows: [lockRow]
     )
+
+    let menuBarLyricsRow = makeSwitchRow(
+      title: L10n.tr("Menu Bar Lyrics"),
+      isOn: user.isMenuBarLyricsEnabled
+    ) { isOn in
+      SettingsStore.updateUser { $0.isMenuBarLyricsEnabled = isOn }
+    }
+    addSection(
+      footer: L10n.tr(
+        "Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area."
+      ),
+      rows: [menuBarLyricsRow]
+    )
   }
 }

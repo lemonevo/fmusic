@@ -21,6 +21,9 @@
 
 import Foundation
 import MediaPlayer
+#if canImport(AppKit) && !targetEnvironment(macCatalyst)
+  import AppKit
+#endif
 
 // MARK: - NowPlayingInfoCenterHandler
 
@@ -71,6 +74,14 @@ public class NowPlayingInfoCenterHandler {
         object: getPlayableDownloaderCB(accountInfo)
       )
     }
+    #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+      NotificationCenter.default.addObserver(
+        self,
+        selector: #selector(appIconDidChange),
+        name: Notification.Name("fmusic.mac.appIconChanged"),
+        object: nil
+      )
+    #endif
   }
 
   private func updateNowPlayingInfo(playable: AbstractPlayable) {
@@ -87,10 +98,24 @@ public class NowPlayingInfoCenterHandler {
             .artworkDisplayPreference,
           useCache: true
         )
+      #elseif canImport(AppKit)
+        let setting = storage.settings.accounts.getSetting(accountInfo).read
+        if let imagePath = playable.imagePath(setting: setting.artworkDisplayPreference),
+           let loaded = ArtworkImageLoader.image(atPath: imagePath, useCache: true) {
+          artworkImage = loaded
+        } else if let appIcon = NSApp?.applicationIconImage, appIcon.size.width > 0 {
+          artworkImage = appIcon
+        }
       #endif
       if let artwork = playable.artwork {
         getArtworkDownloaderCB(accountInfo).download(object: artwork)
       }
+    } else {
+      #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+        if let appIcon = NSApp?.applicationIconImage, appIcon.size.width > 0 {
+          artworkImage = appIcon
+        }
+      #endif
     }
 
     let concurrentSafeArtworkImage = artworkImage
@@ -158,6 +183,14 @@ public class NowPlayingInfoCenterHandler {
       }
     }
   }
+
+  #if canImport(AppKit) && !targetEnvironment(macCatalyst)
+    @objc
+    private func appIconDidChange() {
+      guard let curPlayable = musicPlayer.currentlyPlaying else { return }
+      updateNowPlayingInfo(playable: curPlayable)
+    }
+  #endif
 }
 
 // MARK: MusicPlayable

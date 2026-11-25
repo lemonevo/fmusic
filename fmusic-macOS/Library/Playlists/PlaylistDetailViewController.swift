@@ -35,7 +35,7 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
   private let playButton = NSButton()
   private let shuffleButton = NSButton()
   private let emptyLabel = NSTextField(wrappingLabelWithString: "")
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let headerView = NSView()
 
@@ -222,13 +222,20 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     tableView.style = .plain
     tableView.backgroundColor = .clear
     tableView.selectionHighlightStyle = .regular
-    tableView.allowsMultipleSelection = false
+    tableView.allowsMultipleSelection = true
     tableView.allowsEmptySelection = true
     tableView.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
     tableView.dataSource = self
     tableView.delegate = self
     tableView.doubleAction = #selector(handleDoubleClick)
     tableView.target = self
+    tableView.onReturn = { [weak self] in
+      guard let self else { return }
+      self.play(row: self.tableView.selectedRow)
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
   }
 
   private var librarySetting: AccountSetting {
@@ -311,10 +318,8 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     ))
   }
 
-  @objc
-  private func rowMenuPressed(_ sender: NSButton) {
-    let row = sender.tag
-    guard row >= 0, row < playables.count else { return }
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < playables.count else { return nil }
     let menu = NSMenu()
     let playItem = NSMenuItem(
       title: L10n.tr("Play"),
@@ -332,6 +337,12 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    return menu
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    guard let menu = makeMenu(for: sender.tag) else { return }
     menu.popUp(
       positioning: nil,
       at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),

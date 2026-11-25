@@ -42,6 +42,14 @@ class SettingsBackgroundView: NSView {
     didSet { needsDisplay = true }
   }
 
+  var borderColor: NSColor? {
+    didSet { needsDisplay = true }
+  }
+
+  var borderWidth: CGFloat = 0 {
+    didSet { needsDisplay = true }
+  }
+
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
@@ -55,11 +63,15 @@ class SettingsBackgroundView: NSView {
 
   override func updateLayer() {
     var cgColor = backgroundColor.cgColor
+    var resolvedBorder: CGColor?
     effectiveAppearance.performAsCurrentDrawingAppearance {
       cgColor = backgroundColor.cgColor
+      resolvedBorder = borderColor?.cgColor
     }
     layer?.backgroundColor = cgColor
     layer?.cornerRadius = cornerRadius
+    layer?.borderColor = resolvedBorder
+    layer?.borderWidth = resolvedBorder != nil ? borderWidth : 0
   }
 
   override func viewDidChangeEffectiveAppearance() {

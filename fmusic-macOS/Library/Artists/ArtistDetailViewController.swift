@@ -32,7 +32,7 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
   private let infoLabel = NSTextField(labelWithString: "")
   private let playButton = NSButton()
   private let shuffleButton = NSButton()
-  private let tableView = NSTableView()
+  private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
   private let headerView = NSView()
 
@@ -201,6 +201,12 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
     tableView.delegate = self
     tableView.target = self
     tableView.doubleAction = #selector(doubleClickedRow)
+    tableView.onReturn = { [weak self] in
+      self?.doubleClickedRow()
+    }
+    tableView.onContextMenu = { [weak self] row in
+      self?.makeMenu(for: row)
+    }
     tableView.translatesAutoresizingMaskIntoConstraints = false
 
     // Section headers are rendered as grouped rows so the table stays simple.
@@ -297,13 +303,11 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
     }
   }
 
-  @objc
-  private func rowMenuPressed(_ sender: NSButton) {
-    let row = sender.tag
-    guard row >= 0, row < rows.count else { return }
+  private func makeMenu(for row: Int) -> NSMenu? {
+    guard row >= 0, row < rows.count else { return nil }
     let menu = NSMenu()
     switch rows[row] {
-    case let .album(album):
+    case .album:
       let open = NSMenuItem(
         title: L10n.tr("Show Album"),
         action: #selector(menuOpenAlbum(_:)),
@@ -320,8 +324,7 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
       play.target = self
       play.tag = row
       menu.addItem(play)
-      _ = album
-    case let .song(song, _):
+    case .song:
       let play = NSMenuItem(
         title: L10n.tr("Play"),
         action: #selector(menuPlaySong(_:)),
@@ -338,8 +341,13 @@ final class ArtistDetailViewController: NSViewController, ContentSearchable,
       queue.target = self
       queue.tag = row
       menu.addItem(queue)
-      _ = song
     }
+    return menu
+  }
+
+  @objc
+  private func rowMenuPressed(_ sender: NSButton) {
+    guard let menu = makeMenu(for: sender.tag) else { return }
     menu.popUp(
       positioning: nil,
       at: NSPoint(x: sender.bounds.midX, y: sender.bounds.minY - 4),

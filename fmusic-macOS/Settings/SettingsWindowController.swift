@@ -88,13 +88,7 @@ final class SettingsWindowController: NSWindowController {
       return nil
     }
 
-    window.setFrameAutosaveName(Self.autosaveName)
-    if !window.setFrameUsingName(Self.autosaveName) {
-      center(window)
-    } else if window.screen == nil {
-      // The saved frame no longer maps to a connected display.
-      center(window)
-    }
+    center(window)
 
     NotificationCenter.default.addObserver(
       self,
@@ -109,10 +103,17 @@ final class SettingsWindowController: NSWindowController {
   }
 
   /// Rebuilds the page hierarchy after the window was closed (the window itself stays
-  /// alive thanks to `isReleasedWhenClosed = false`).
+  /// alive thanks to `isReleasedWhenClosed = false`), and centers over the main window.
   override func showWindow(_ sender: Any?) {
-    if window?.contentViewController == nil {
-      window?.contentViewController = SettingsViewController()
+    guard let window else {
+      super.showWindow(sender)
+      return
+    }
+    if window.contentViewController == nil {
+      window.contentViewController = SettingsViewController()
+    }
+    if !window.isVisible {
+      center(window)
     }
     super.showWindow(sender)
   }
@@ -131,10 +132,14 @@ final class SettingsWindowController: NSWindowController {
       return
     }
     let mainFrame = mainWindow.frame
-    let origin = NSPoint(
+    var origin = NSPoint(
       x: mainFrame.midX - window.frame.width / 2,
       y: mainFrame.midY - window.frame.height / 2
     )
+    if let visible = (mainWindow.screen ?? NSScreen.main)?.visibleFrame {
+      origin.x = min(max(origin.x, visible.minX), max(visible.minX, visible.maxX - window.frame.width))
+      origin.y = min(max(origin.y, visible.minY), max(visible.minY, visible.maxY - window.frame.height))
+    }
     window.setFrameOrigin(origin)
   }
 }
