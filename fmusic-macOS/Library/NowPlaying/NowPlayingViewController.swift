@@ -33,9 +33,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private let backgroundView = PlayerBlurredArtworkBackground()
 
-  private let closePill = NSView()
-  private let closeButton = NSButton()
-  private let volumePill = NSView()
+  private var closePill: NSView?
+  private let closeButton = GlassPillButton()
+  private var volumePill: NSView?
   private let volumeIcon = NSImageView()
   private let volumeSlider = NSSlider()
 
@@ -56,9 +56,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let nextButton = NSButton()
   private let repeatButton = NSButton()
 
-  private let bottomPill = NSView()
-  private let queueButton = NSButton()
-  private let moreButton = NSButton()
+  private var bottomPill: NSView?
+  private let queueButton = GlassPillButton()
+  private let moreButton = GlassPillButton()
 
   private let lyricsController: LyricsSidebarViewController = {
     let controller = LyricsSidebarViewController()
@@ -173,48 +173,66 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   // MARK: - Build
 
-  private func configureGlassPill(_ pill: NSView, cornerRadius: CGFloat = 16) {
-    pill.wantsLayer = true
-    pill.layer?.cornerRadius = cornerRadius
-    pill.layer?.masksToBounds = true
-    pill.translatesAutoresizingMaskIntoConstraints = false
-    let glassView: NSView
+  /// Creates a native macOS 26 `NSGlassEffectView` capsule (unclipped so the system's
+  /// Liquid Glass specular refraction rim and floating shadow render intact) with its
+  /// subviews hosted inside `contentView`. Falls back to vibrancy on older macOS.
+  private func makeGlassPill(cornerRadius: CGFloat = 18) -> (pill: NSView, content: NSView) {
     if #available(macOS 26.0, *) {
       let glass = NSGlassEffectView()
       glass.style = .regular
       glass.cornerRadius = cornerRadius
-      glassView = glass
+      glass.translatesAutoresizingMaskIntoConstraints = false
+      let content = NSView()
+      content.autoresizingMask = [.width, .height]
+      glass.contentView = content
+      return (glass, content)
     } else {
+      let container = NSView()
+      container.wantsLayer = true
+      container.layer?.masksToBounds = false
+      container.layer?.shadowColor = NSColor.black.cgColor
+      container.layer?.shadowOpacity = 0.28
+      container.layer?.shadowRadius = 10
+      container.layer?.shadowOffset = CGSize(width: 0, height: -2)
+      container.translatesAutoresizingMaskIntoConstraints = false
+
       let effect = NSVisualEffectView()
       effect.material = .popover
       effect.blendingMode = .withinWindow
       effect.state = .active
-      glassView = effect
-      pill.layer?.borderWidth = 0.5
-      pill.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
+      effect.wantsLayer = true
+      effect.layer?.cornerRadius = cornerRadius
+      effect.layer?.masksToBounds = true
+      effect.layer?.borderWidth = 0.75
+      effect.layer?.borderColor = NSColor.white.withAlphaComponent(0.28).cgColor
+      effect.translatesAutoresizingMaskIntoConstraints = false
+      container.addSubview(effect)
+      NSLayoutConstraint.activate([
+        effect.topAnchor.constraint(equalTo: container.topAnchor),
+        effect.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+        effect.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        effect.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+      ])
+      return (container, effect)
     }
-    glassView.translatesAutoresizingMaskIntoConstraints = false
-    pill.addSubview(glassView)
-    NSLayoutConstraint.activate([
-      glassView.topAnchor.constraint(equalTo: pill.topAnchor),
-      glassView.leadingAnchor.constraint(equalTo: pill.leadingAnchor),
-      glassView.trailingAnchor.constraint(equalTo: pill.trailingAnchor),
-      glassView.bottomAnchor.constraint(equalTo: pill.bottomAnchor),
-    ])
   }
 
   private func buildChrome(in root: NSView) {
-    configureGlassPill(closePill, cornerRadius: 16)
-    configureRound(closeButton, symbol: "xmark", action: #selector(closePressed), size: 13)
-    closeButton.contentTintColor = .white
-    closePill.addSubview(closeButton)
+    let pillHeight: CGFloat = 36
+    let pillRadius: CGFloat = pillHeight / 2
 
-    configureGlassPill(volumePill, cornerRadius: 16)
+    let (closeGlass, closeContent) = makeGlassPill(cornerRadius: pillRadius)
+    closePill = closeGlass
+    configurePillButton(closeButton, symbol: "xmark", action: #selector(closePressed), size: 14, weight: .semibold)
+    closeContent.addSubview(closeButton)
+
+    let (volumeGlass, volumeContent) = makeGlassPill(cornerRadius: pillRadius)
+    volumePill = volumeGlass
 
     volumeIcon.image = NSImage(
       systemSymbolName: "speaker.wave.2.fill",
       accessibilityDescription: nil
-    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+    )?.withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .medium))
     volumeIcon.contentTintColor = .white
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
 
@@ -227,35 +245,35 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     volumeSlider.action = #selector(volumeChanged)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
 
-    for item in [closePill, volumePill] {
-      root.addSubview(item)
-    }
-    volumePill.addSubview(volumeSlider)
-    volumePill.addSubview(volumeIcon)
+    volumeContent.addSubview(volumeSlider)
+    volumeContent.addSubview(volumeIcon)
+
+    root.addSubview(closeGlass)
+    root.addSubview(volumeGlass)
 
     NSLayoutConstraint.activate([
-      // Sit beside the traffic lights on the same horizontal baseline as the volume pill.
-      closePill.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 86),
-      closePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
-      closePill.widthAnchor.constraint(equalToConstant: 36),
-      closePill.heightAnchor.constraint(equalToConstant: 32),
-      closeButton.topAnchor.constraint(equalTo: closePill.topAnchor),
-      closeButton.bottomAnchor.constraint(equalTo: closePill.bottomAnchor),
-      closeButton.leadingAnchor.constraint(equalTo: closePill.leadingAnchor),
-      closeButton.trailingAnchor.constraint(equalTo: closePill.trailingAnchor),
+      // Aligned beside the traffic lights on the same horizontal baseline as Apple Music's volume pill.
+      closeGlass.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 82),
+      closeGlass.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+      closeGlass.widthAnchor.constraint(equalToConstant: pillHeight),
+      closeGlass.heightAnchor.constraint(equalToConstant: pillHeight),
+      closeButton.centerXAnchor.constraint(equalTo: closeContent.centerXAnchor),
+      closeButton.centerYAnchor.constraint(equalTo: closeContent.centerYAnchor),
+      closeButton.widthAnchor.constraint(equalToConstant: 30),
+      closeButton.heightAnchor.constraint(equalToConstant: 30),
 
-      volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
-      volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
-      volumePill.widthAnchor.constraint(equalToConstant: 200),
-      volumePill.heightAnchor.constraint(equalToConstant: 32),
+      volumeGlass.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+      volumeGlass.topAnchor.constraint(equalTo: root.topAnchor, constant: 12),
+      volumeGlass.widthAnchor.constraint(equalToConstant: 204),
+      volumeGlass.heightAnchor.constraint(equalToConstant: pillHeight),
 
-      volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
+      volumeSlider.leadingAnchor.constraint(equalTo: volumeContent.leadingAnchor, constant: 14),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
-      volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
+      volumeSlider.centerYAnchor.constraint(equalTo: volumeContent.centerYAnchor),
       volumeSlider.heightAnchor.constraint(equalToConstant: 22),
 
-      volumeIcon.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor, constant: -12),
-      volumeIcon.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
+      volumeIcon.trailingAnchor.constraint(equalTo: volumeContent.trailingAnchor, constant: -14),
+      volumeIcon.centerYAnchor.constraint(equalTo: volumeContent.centerYAnchor),
     ])
   }
 
@@ -399,32 +417,50 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func buildBottomCluster(in root: NSView) {
-    configureGlassPill(bottomPill, cornerRadius: 16)
-    configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 14)
-    configureRound(moreButton, symbol: "ellipsis", action: #selector(showPlayerOptionsMenu), size: 14)
-    queueButton.contentTintColor = .white
-    moreButton.contentTintColor = .white
+    let pillHeight: CGFloat = 36
+    let (bottomGlass, bottomContent) = makeGlassPill(cornerRadius: pillHeight / 2)
+    bottomPill = bottomGlass
+    configurePillButton(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 15)
+    configurePillButton(moreButton, symbol: "ellipsis", action: #selector(showPlayerOptionsMenu), size: 15)
 
-    bottomPill.addSubview(queueButton)
-    bottomPill.addSubview(moreButton)
-    root.addSubview(bottomPill)
+    bottomContent.addSubview(queueButton)
+    bottomContent.addSubview(moreButton)
+    root.addSubview(bottomGlass)
 
     NSLayoutConstraint.activate([
-      bottomPill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
-      bottomPill.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20),
-      bottomPill.heightAnchor.constraint(equalToConstant: 32),
+      bottomGlass.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+      bottomGlass.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
+      bottomGlass.heightAnchor.constraint(equalToConstant: pillHeight),
 
-      queueButton.leadingAnchor.constraint(equalTo: bottomPill.leadingAnchor, constant: 6),
-      queueButton.centerYAnchor.constraint(equalTo: bottomPill.centerYAnchor),
-      queueButton.widthAnchor.constraint(equalToConstant: 30),
-      queueButton.heightAnchor.constraint(equalToConstant: 26),
+      queueButton.leadingAnchor.constraint(equalTo: bottomContent.leadingAnchor, constant: 4),
+      queueButton.centerYAnchor.constraint(equalTo: bottomContent.centerYAnchor),
+      queueButton.widthAnchor.constraint(equalToConstant: 32),
+      queueButton.heightAnchor.constraint(equalToConstant: 28),
 
       moreButton.leadingAnchor.constraint(equalTo: queueButton.trailingAnchor, constant: 2),
-      moreButton.trailingAnchor.constraint(equalTo: bottomPill.trailingAnchor, constant: -6),
-      moreButton.centerYAnchor.constraint(equalTo: bottomPill.centerYAnchor),
-      moreButton.widthAnchor.constraint(equalToConstant: 30),
-      moreButton.heightAnchor.constraint(equalToConstant: 26),
+      moreButton.trailingAnchor.constraint(equalTo: bottomContent.trailingAnchor, constant: -4),
+      moreButton.centerYAnchor.constraint(equalTo: bottomContent.centerYAnchor),
+      moreButton.widthAnchor.constraint(equalToConstant: 32),
+      moreButton.heightAnchor.constraint(equalToConstant: 28),
     ])
+  }
+
+  private func configurePillButton(
+    _ button: GlassPillButton,
+    symbol: String,
+    action: Selector,
+    size: CGFloat,
+    weight: NSFont.Weight = .medium
+  ) {
+    button.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: size, weight: weight))
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.imagePosition = .imageOnly
+    button.contentTintColor = .white
+    button.target = self
+    button.action = action
+    button.translatesAutoresizingMaskIntoConstraints = false
   }
 
   private func configureGlyphButton(_ button: NSButton, symbol: String, action: Selector) {
@@ -907,6 +943,63 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   func didRepeatChange() { refreshModeState() }
 
   func didPlaybackRateChange() {}
+}
+
+// MARK: - GlassPillButton
+
+/// Borderless icon button hosted inside a Liquid Glass pill, with a soft circular
+/// hover and press highlight matching Apple Music's toolbar pills.
+@MainActor
+private final class GlassPillButton: NSButton {
+  private var isHovered = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.masksToBounds = true
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    layer?.cornerRadius = min(bounds.width, bounds.height) / 2
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(NSTrackingArea(
+      rect: .zero,
+      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      owner: self,
+      userInfo: nil
+    ))
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    updateFill()
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    updateFill()
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    layer?.backgroundColor = NSColor.white.withAlphaComponent(0.28).cgColor
+    super.mouseDown(with: event)
+    updateFill()
+  }
+
+  private func updateFill() {
+    layer?.backgroundColor = isHovered
+      ? NSColor.white.withAlphaComponent(0.16).cgColor
+      : NSColor.clear.cgColor
+  }
 }
 
 // MARK: - PlayerBlurredArtworkBackground

@@ -443,18 +443,22 @@ final class LyricsSyllableMaskLayer: CALayer {
 
 // MARK: - LyricsGlowMaskLayer
 
-/// Reveals a soft glow raster only behind sustained-note syllables whose
-/// `glowIntensity(at:)` is above zero. Updating only `opacity` keeps 60 fps
-/// rendering completely free of per-frame Core Image blur work.
+/// Reveals a soft, feathered glow raster only behind sustained-note syllables whose
+/// `glowIntensity(at:)` is above zero. Uses a radial gradient mask per syllable so
+/// the glow hugs the individual glyph smoothly without hard rectangular clipping or
+/// bleeding into neighboring characters.
 final class LyricsGlowMaskLayer: CALayer {
   private struct Entry {
     let syllableIndex: Int
-    let layer: CALayer
+    let layer: CAGradientLayer
   }
 
   private var entries = [Entry]()
   private var syllableRects = [[CGRect]]()
-  private static let haloPadding: CGFloat = 10
+  private static let haloPadding: CGFloat = 6
+  private static let white = CGColor(gray: 1, alpha: 1)
+  private static let midWhite = CGColor(gray: 1, alpha: 0.75)
+  private static let clear = CGColor(gray: 1, alpha: 0)
 
   override init() {
     super.init()
@@ -487,9 +491,12 @@ final class LyricsGlowMaskLayer: CALayer {
     entries.forEach { $0.layer.removeFromSuperlayer() }
     entries = rects.enumerated().flatMap { syllableIndex, syllableRectangles in
       syllableRectangles.map { rect in
-        let layer = CALayer()
-        layer.backgroundColor = CGColor(gray: 1, alpha: 1)
-        layer.cornerRadius = 6
+        let layer = CAGradientLayer()
+        layer.type = .radial
+        layer.startPoint = CGPoint(x: 0.5, y: 0.5)
+        layer.endPoint = CGPoint(x: 1.0, y: 1.0)
+        layer.colors = [Self.white, Self.midWhite, Self.clear]
+        layer.locations = [0.0, 0.55, 1.0]
         layer.frame = rect.insetBy(dx: -Self.haloPadding, dy: -Self.haloPadding)
         layer.opacity = 0
         layer.isHidden = true
@@ -510,7 +517,8 @@ final class LyricsGlowMaskLayer: CALayer {
         entry.layer.opacity = 0
       } else {
         entry.layer.isHidden = false
-        entry.layer.opacity = Float(min(max(value, 0), 1))
+        // Cap opacity so the glow stays a crisp luminance around the glyph strokes.
+        entry.layer.opacity = Float(min(max(value, 0), 1) * 0.72)
       }
     }
     CATransaction.commit()
