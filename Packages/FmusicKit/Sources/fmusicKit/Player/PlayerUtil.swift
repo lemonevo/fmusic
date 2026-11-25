@@ -216,8 +216,8 @@ public enum PlayerQueueType: Int, CaseIterable {
 // MARK: - PlayerIndex
 
 public struct PlayerIndex: Equatable {
-  let queueType: PlayerQueueType
-  let index: Int
+  public let queueType: PlayerQueueType
+  public let index: Int
 
   public init(queueType: PlayerQueueType, index: Int) {
     self.queueType = queueType
