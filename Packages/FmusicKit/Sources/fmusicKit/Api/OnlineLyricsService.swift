@@ -1782,6 +1782,7 @@ public final class OnlineLyricsService {
         break
       }
     }
+    value = FileSourceLibraryWriter.strippedReleaseSuffix(value)
     guard !value.isEmpty else { return nil }
     if value.hasPrefix("Optional(") || value.hasPrefix("Some(") { return nil }
     switch value.lowercased() {

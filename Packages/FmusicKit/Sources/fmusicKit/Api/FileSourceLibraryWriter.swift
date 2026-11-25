@@ -112,9 +112,18 @@ enum FileSourceLibraryWriter {
       let album: Album
       if let existing = albumsByID[metadata.albumID] {
         album = existing
-        // The album identity is derived from the tag or folder path, so its name is stable too.
+        // Prefer the cleaner album display name when tracks differ only by
+        // trailing release suffixes such as `[EP]` or `[Single]`.
         if album.name != metadata.albumName {
-          album.name = metadata.albumName
+          let existingClean = strippedReleaseSuffix(album.name)
+          let incomingClean = strippedReleaseSuffix(metadata.albumName)
+          if existingClean.lowercased() == incomingClean.lowercased() {
+            if !incomingClean.isEmpty, album.name != incomingClean {
+              album.name = incomingClean
+            }
+          } else {
+            album.name = metadata.albumName
+          }
         }
       } else {
         let created = library.createAlbum(account: account)
@@ -320,18 +329,37 @@ enum FileSourceLibraryWriter {
     }
   }
 
+  /// Strips trailing release-type qualifiers such as `[EP]`, `(EP)`, `- EP`,
+  /// `[Single]`, `(Single)`, `- Single`, `[单曲]`, `（EP）`, `【EP】` when a
+  /// non-empty base album name remains.
+  static func strippedReleaseSuffix(_ name: String) -> String {
+    let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return trimmed }
+    let pattern = #"(?i)(?:\s*(?:[\[\(（【]\s*(?:ep|single|单曲|單曲|mini\s*album)\s*[\]\)）】]|[-–—]\s*(?:ep|single|单曲|單曲)))\s*$"#
+    var current = trimmed
+    while let range = current.range(of: pattern, options: .regularExpression) {
+      let candidate = String(current[..<range.lowerBound])
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !candidate.isEmpty else { break }
+      current = candidate
+    }
+    return current
+  }
+
   /// Normalizes an album name for merging across multiple artists/compilations.
   /// Returns `nil` for blank or placeholder names so untagged tracks stay grouped by folder.
   static func normalizedAlbumName(_ name: String?) -> String? {
     guard let name else { return nil }
-    let collapsed = name
+    let stripped = strippedReleaseSuffix(name)
+    let collapsed = stripped
       .trimmingCharacters(in: .whitespacesAndNewlines)
       .split(whereSeparator: \.isWhitespace)
       .joined(separator: " ")
       .lowercased()
     guard !collapsed.isEmpty,
           collapsed != "unknown album",
-          collapsed != "未知专辑"
+          collapsed != "未知专辑",
+          collapsed != "未知專輯"
     else { return nil }
     return collapsed
   }
@@ -346,8 +374,8 @@ enum FileSourceLibraryWriter {
   }
 
   /// Merges existing albums in the account that share the same normalized album name
-  /// (e.g. legacy albums previously split by per-track artist), keeping the best
-  /// artwork/metadata and deleting the now-empty duplicates.
+  /// (e.g. legacy albums previously split by per-track artist or `[EP]`/`[Single]`
+  /// suffixes), keeping the best artwork/metadata and deleting the now-empty duplicates.
   static func mergeAlbumsByName(account: Account, library: LibraryStorage) {
     var groups = [String: [Album]]()
     for album in library.getAlbums(for: account) {
@@ -364,6 +392,10 @@ enum FileSourceLibraryWriter {
         return lhs.id < rhs.id
       }
       guard let primary = sorted.first else { continue }
+      let cleanName = strippedReleaseSuffix(primary.name)
+      if !cleanName.isEmpty, cleanName != primary.name {
+        primary.name = cleanName
+      }
       for duplicate in sorted.dropFirst() {
         if primary.artwork?.imagePath == nil, let dupArtwork = duplicate.artwork,
            dupArtwork.imagePath != nil {
