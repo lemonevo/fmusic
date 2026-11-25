@@ -65,6 +65,7 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     configureTableView()
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
     scrollView.drawsBackground = false
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
@@ -110,6 +111,32 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     reloadSongs()
   }
 
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    fitColumnsToAvailableWidth()
+  }
+
+  private func fitColumnsToAvailableWidth() {
+    let width = scrollView.contentView.bounds.width
+    guard width > 0, tableView.tableColumns.count == 5 else { return }
+    let columns = tableView.tableColumns
+    // The full-width table style adds outer padding as well as intercell spacing.
+    let padding = tableView.rect(ofColumn: columns.count - 1).maxX
+      - columns.reduce(CGFloat.zero) { $0 + $1.width }
+    let extra = max(0, width - padding - columns.reduce(CGFloat.zero) { $0 + $1.minWidth })
+    let scale = view.window?.backingScaleFactor ?? 1
+    let weights: [CGFloat] = [0, 0.5, 0.22, 0.28, 0]
+    let widths = zip(columns, weights).map { column, weight in
+      column.minWidth + floor(extra * weight * scale) / scale
+    }
+    for (column, targetWidth) in zip(columns, widths) where abs(column.width - targetWidth) > 0.5 {
+      column.width = targetWidth
+    }
+    if abs(tableView.frame.width - width) > 0.5 {
+      tableView.setFrameSize(NSSize(width: width, height: tableView.frame.height))
+    }
+  }
+
   deinit {
     NotificationCenter.default.removeObserver(self)
   }
@@ -122,27 +149,29 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     artworkColumn.width = 46
     artworkColumn.minWidth = 46
     artworkColumn.maxWidth = 46
+    artworkColumn.resizingMask = []
 
     let titleColumn = NSTableColumn(identifier: Column.title)
     titleColumn.title = L10n.tr("Songs")
-    titleColumn.width = 300
-    titleColumn.minWidth = 160
+    titleColumn.width = 280
+    titleColumn.minWidth = 120
 
     let artistColumn = NSTableColumn(identifier: Column.artist)
     artistColumn.title = L10n.tr("Artist")
     artistColumn.width = 160
-    artistColumn.minWidth = 120
+    artistColumn.minWidth = 80
 
     let albumColumn = NSTableColumn(identifier: Column.album)
     albumColumn.title = L10n.tr("Album")
     albumColumn.width = 200
-    albumColumn.minWidth = 120
+    albumColumn.minWidth = 100
 
     let durationColumn = NSTableColumn(identifier: Column.duration)
     durationColumn.title = L10n.tr("Duration")
     durationColumn.width = 60
-    durationColumn.minWidth = 56
-    durationColumn.maxWidth = 80
+    durationColumn.minWidth = 60
+    durationColumn.maxWidth = 60
+    durationColumn.resizingMask = []
 
     [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn]
       .forEach(tableView.addTableColumn)
@@ -152,6 +181,11 @@ final class FavoriteSongsViewController: NSViewController, NSTableViewDataSource
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = true
     tableView.allowsEmptySelection = true
+    // Fit to the clip view explicitly: NSTableView otherwise keeps its wider
+    // document frame when the lyrics split item shrinks the content column.
+    tableView.columnAutoresizingStyle = .noColumnAutoresizing
+    tableView.intercellSpacing = NSSize(width: 8, height: 0)
+    tableView.autoresizingMask = [.width]
     tableView.usesAlternatingRowBackgroundColors = false
     tableView.backgroundColor = .clear
     tableView.gridStyleMask = []

@@ -184,6 +184,11 @@ private enum SettingsSearchCatalog {
       keywords: ["clean", "evict", "自动清理缓存"]
     ),
     .init(
+      L10n.tr("Clear All Cache"),
+      .storage,
+      keywords: ["clear", "clean", "delete", "cache", "清理全部缓存", "清空缓存", "删除缓存"]
+    ),
+    .init(
       L10n.tr("Download all songs in library"),
       .storage,
       keywords: ["download all", "全部下载"]
@@ -222,11 +227,6 @@ private enum SettingsSearchCatalog {
 final class SettingsSidebarViewController: NSViewController {
   var onSelectionChanged: ((SettingsPage) -> Void)?
 
-  private struct Section {
-    let title: String
-    let pages: [SettingsPage]
-  }
-
   private enum Row {
     case header(String)
     case page(SettingsPage)
@@ -234,23 +234,19 @@ final class SettingsSidebarViewController: NSViewController {
     case spacer
   }
 
-  private static let standaloneSections: [Section] = [
-    Section(title: L10n.tr("Settings"), pages: [.general, .account]),
-    Section(title: L10n.tr("Playback"), pages: [.playback, .equalizer]),
-    Section(title: L10n.tr("Appearance"), pages: [.lyrics, .displayInteraction]),
-    Section(title: L10n.tr("Library"), pages: [.library, .storage]),
+  /// Flat, logical settings list without redundant section headers.
+  private static let orderedPages: [SettingsPage] = [
+    .general,
+    .displayInteraction,
+    .playback,
+    .equalizer,
+    .lyrics,
+    .library,
+    .storage,
+    .account,
   ]
 
-  /// Flattened table rows: header, pages, then a compact gap before the next group.
-  private static let rows: [Row] = {
-    var result: [Row] = []
-    for (index, section) in standaloneSections.enumerated() {
-      result.append(.header(section.title))
-      result.append(contentsOf: section.pages.map(Row.page))
-      if index < standaloneSections.count - 1 { result.append(.spacer) }
-    }
-    return result
-  }()
+  private static let rows: [Row] = orderedPages.map(Row.page)
 
   private let tableView = NSTableView()
   private let scrollView = NSScrollView()
@@ -343,7 +339,7 @@ final class SettingsSidebarViewController: NSViewController {
     searchContainer.addSubview(searchField)
     searchContainer.addSubview(clearButton)
     searchContainer.backgroundColor = Self.searchFieldBackgroundColor
-    searchContainer.cornerRadius = 7
+    searchContainer.cornerRadius = 14
     updateSearchContainerAppearance()
     searchContainer.translatesAutoresizingMaskIntoConstraints = false
 

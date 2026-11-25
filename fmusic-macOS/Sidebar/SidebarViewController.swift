@@ -349,8 +349,6 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
     guard !self.tableView(tableView, isGroupRow: row) else { return nil }
     let rowView = SidebarRowView()
-    // Apple-Music-style fully rounded pill (38 pt row → 19 pt radius).
-    rowView.cornerRadius = SidebarStyle.rowHeight / 2
     rowView.needsDisplay = true
     return rowView
   }

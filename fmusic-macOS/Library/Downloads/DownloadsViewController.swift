@@ -259,6 +259,15 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    let revealItem = NSMenuItem(
+      title: L10n.tr("Show in Finder"),
+      action: #selector(menuShowInFinder(_:)),
+      keyEquivalent: ""
+    )
+    revealItem.target = self
+    revealItem.tag = row
+    revealItem.isEnabled = downloadedFileURL(for: songs[row]) != nil
+    menu.addItem(revealItem)
     menu.addItem(.separator())
     let selectedIDs = selectedSongIDs
     let removeItem = NSMenuItem(
@@ -342,6 +351,24 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
   private func menuQueueSong(_ sender: NSMenuItem) {
     guard sender.tag >= 0, sender.tag < songs.count else { return }
     FmusicKit.shared.player.insertUserQueue(playables: [songs[sender.tag]])
+  }
+
+  @objc
+  private func menuShowInFinder(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < songs.count else { return }
+    guard let fileURL = downloadedFileURL(for: songs[sender.tag]) else { return }
+    if FileManager.default.fileExists(atPath: fileURL.path) {
+      NSWorkspace.shared.activateFileViewerSelecting([fileURL])
+    } else {
+      NSWorkspace.shared.open(fileURL.deletingLastPathComponent())
+    }
+  }
+
+  private func downloadedFileURL(for song: Song) -> URL? {
+    guard let relFilePath = song.relFilePath,
+          let absURL = CacheFileManager.shared.getAbsolutefmusicPath(relFilePath: relFilePath)
+    else { return nil }
+    return absURL.resolvingSymlinksInPath()
   }
 
   private var selectedSongIDs: [NSManagedObjectID] {

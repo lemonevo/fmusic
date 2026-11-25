@@ -29,6 +29,7 @@ final class StorageSettingsViewController: SettingsPageViewController {
   private var limitRow: NSView?
   private var cachedCountRow: NSView?
   private var cacheSizeRow: NSView?
+  private var clearCacheButton: SettingsButton?
 
   init() {
     super.init(title: L10n.tr("Storage & Artwork"))
@@ -72,9 +73,24 @@ final class StorageSettingsViewController: SettingsPageViewController {
       )
     }
 
+    let clearButton = SettingsButton(
+      title: L10n.tr("Clear All Cache"),
+      isEnabled: false
+    ) { [weak self] in
+      self?.confirmClearAllCache()
+    }
+    clearCacheButton = clearButton
+    let clearCacheRow = makeRow(
+      title: L10n.tr("Clear All Cache"),
+      subtitle: L10n.tr(
+        "This will delete all cached songs for this account from this Mac. Your original music files on the server or source folder are not touched."
+      ),
+      control: clearButton
+    )
+
     addSection(
       header: L10n.tr("Cache"),
-      rows: [cachedRow, sizeRow, limitRow, autoCleanupRow]
+      rows: [cachedRow, sizeRow, limitRow, autoCleanupRow, clearCacheRow]
     )
     refreshStats()
 
@@ -95,7 +111,10 @@ final class StorageSettingsViewController: SettingsPageViewController {
 
   @objc
   private func refreshStats() {
-    guard let accountInfo = SettingsStore.activeAccount else { return }
+    guard let accountInfo = SettingsStore.activeAccount else {
+      clearCacheButton?.isEnabled = false
+      return
+    }
     let library = SettingsStore.storage.main.library
     let account = library.getAccount(info: accountInfo)
     let cached = library.getCachedSongCount(for: account)
@@ -108,5 +127,44 @@ final class StorageSettingsViewController: SettingsPageViewController {
     }
     update(cachedCountRow, title: L10n.tr("Cached Songs"), value: "\(cached)")
     update(cacheSizeRow, title: L10n.tr("Complete Cache Size"), value: size)
+    clearCacheButton?.isEnabled = cached > 0 || bytes > 0
+  }
+
+  private func confirmClearAllCache() {
+    guard let accountInfo = SettingsStore.activeAccount else { return }
+    let alert = NSAlert()
+    alert.alertStyle = .warning
+    alert.messageText = L10n.tr("Clear All Cache")
+    alert.informativeText = L10n.tr(
+      "This will delete all cached songs for this account from this Mac. Your original music files on the server or source folder are not touched."
+    )
+    let confirmButton = alert.addButton(withTitle: L10n.tr("Clear All Cache"))
+    confirmButton.hasDestructiveAction = true
+    alert.addButton(withTitle: L10n.tr("Cancel"))
+
+    let performClear = { [weak self] in
+      SettingsStore.player.stop()
+      let library = SettingsStore.storage.main.library
+      let account = library.getAccount(info: accountInfo)
+      let meta = FmusicKit.shared.getMeta(accountInfo)
+      meta.playableDownloadManager.stop()
+      library.deletePlayableCachePaths(for: account)
+      library.saveContext()
+      CacheFileManager.shared.deletePlayableCache(accountInfo: accountInfo)
+      meta.playableDownloadManager.start()
+      NotificationCenter.default.post(name: .librarySongsSynced, object: nil)
+      self?.refreshStats()
+    }
+
+    if let window = view.window {
+      alert.beginSheetModal(for: window) { response in
+        guard response == .alertFirstButtonReturn else { return }
+        Task { @MainActor in
+          performClear()
+        }
+      }
+    } else if alert.runModal() == .alertFirstButtonReturn {
+      performClear()
+    }
   }
 }

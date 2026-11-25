@@ -517,6 +517,8 @@ public enum L10n {
     "This will add all uncached songs in your library to the download queue. This may use a lot of data and storage. Continue?": "这会将资料库中所有未缓存的歌曲加入下载队列，可能消耗较多流量和存储空间。要继续吗？",
     "Delete downloaded songs": "删除已下载的歌曲",
     "Delete Cache": "删除缓存",
+    "Clear All Cache": "清理全部缓存",
+    "This will delete all cached songs for this account from this Mac. Your original music files on the server or source folder are not touched.": "这将删除此账户保存在本机的所有已缓存歌曲；服务器或源文件夹中的原始音乐文件不会被删除。",
     "Are you sure you want to delete this account’s downloaded songs?": "确定要删除此账户已下载的歌曲吗？",
     "Cache": "缓存",
 
@@ -570,6 +572,7 @@ public enum L10n {
     "Remove from Cache": "从缓存中移除",
     "Remove Download": "移除下载",
     "Remove Downloads": "移除下载",
+    "Show in Finder": "在访达中显示",
     "Remove downloaded files from this Mac. The songs remain in your library.": "移除此 Mac 上的下载文件，歌曲仍保留在资料库中。",
     "Unable to Remove Downloads": "无法移除下载",
     "Add to Playlist": "添加到播放列表",
