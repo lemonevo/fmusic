@@ -42,7 +42,7 @@ final class MetadataOverrideStore: @unchecked Sendable {
 
   private static let missRetryInterval: TimeInterval = 7 * 24 * 60 * 60
   /// Bump to retry covers after the lookup strategy improves.
-  private static let artworkAttemptVersion = 4
+  private static let artworkAttemptVersion = 5
   private let lock = NSLock()
   private let fileURL: URL?
   private let log = OSLog(subsystem: "fmusic", category: "MetadataOverrides")
@@ -254,7 +254,7 @@ public final class MetadataBackfillService {
   public func backfill(
     accountInfo: AccountInfo,
     album: Album? = nil,
-    limit: Int = 60
+    limit: Int = 200
   ) async
     -> BackfillResult {
     if let activeTask {
@@ -432,6 +432,11 @@ public final class MetadataBackfillService {
         songIDs: songs.map(\.id)
       )
       let existingPath = album.artwork?.imagePath
+      if existingPath != nil, let albumArtwork = album.artwork {
+        for s in songs where s.artwork?.imagePath == nil {
+          s.artwork = albumArtwork
+        }
+      }
       let hasNonStandardCover = existingPath.map { !Self.hasStandardSquareCover(atPath: $0) }
         ?? false
       guard existingPath == nil || needsUpgrade || hasNonStandardCover else { continue }

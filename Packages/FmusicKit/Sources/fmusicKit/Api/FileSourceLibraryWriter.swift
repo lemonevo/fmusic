@@ -284,6 +284,11 @@ enum FileSourceLibraryWriter {
     for album in albums {
       album.remoteDuration = album.songs.reduce(0) { $0 + $1.duration }
       album.managedObject.songCount = Int16(clamping: album.songs.count)
+      if let albumArtwork = album.artwork, albumArtwork.imagePath != nil {
+        for song in album.songs where song.artwork?.imagePath == nil {
+          song.artwork = albumArtwork
+        }
+      }
     }
 
     let sortedAlbums = albums.sorted { lhs, rhs in
@@ -360,14 +365,15 @@ enum FileSourceLibraryWriter {
       }
       guard let primary = sorted.first else { continue }
       for duplicate in sorted.dropFirst() {
+        if primary.artwork?.imagePath == nil, let dupArtwork = duplicate.artwork,
+           dupArtwork.imagePath != nil {
+          primary.artwork = dupArtwork
+        }
         for song in duplicate.songs.compactMap(\.asSong) {
           song.album = primary
-          if song.artwork == nil, let primaryArtwork = primary.artwork {
+          if song.artwork?.imagePath == nil, let primaryArtwork = primary.artwork {
             song.artwork = primaryArtwork
           }
-        }
-        if primary.artwork == nil, let dupArtwork = duplicate.artwork {
-          primary.artwork = dupArtwork
         }
         if primary.year == 0, duplicate.year > 0 {
           primary.year = duplicate.year

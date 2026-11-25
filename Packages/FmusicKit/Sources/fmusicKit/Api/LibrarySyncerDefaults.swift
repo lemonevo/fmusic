@@ -208,7 +208,8 @@ enum YRCFileParser {
       words.append(LyricWord(start: wordStart, duration: duration, value: wordText))
     }
 
-    let value = words.map(\.value).joined()
+    let spacedWords = LyricsWordSpacing.insertPauseSpaces(into: words)
+    let value = spacedWords.map(\.value).joined()
     guard !value.trimmingCharacters(in: .whitespaces).isEmpty,
           !LyricsCreditFilter.isCreditLine(value)
     else { return nil }
@@ -217,8 +218,45 @@ enum YRCFileParser {
     line.start = start
     line.value = value
     line.translation = translation
-    line.words = words
+    line.words = spacedWords
     return line
+  }
+}
+
+// MARK: - LyricsWordSpacing
+
+/// Inserts a natural space between timed words separated by a vocal pause
+/// (e.g. phrase breaks in CJK lyrics) when the source omits spaces.
+private enum LyricsWordSpacing {
+  private static let pauseGapThresholdMs = 260
+  private static let noSpaceBefore: Set<Character> = [
+    ",", "，", ".", "。", "!", "！", "?", "？", "、", ":", "：", ";", "；",
+    ")", "）", "]", "】", "》", "」", "』", "\"", "”", "'", "’", "~", "～",
+  ]
+  private static let noSpaceAfter: Set<Character> = [
+    "(", "（", "[", "【", "《", "「", "『", "“", "‘",
+  ]
+
+  static func insertPauseSpaces(into words: [LyricWord]) -> [LyricWord] {
+    guard words.count > 1 else { return words }
+    var result = words
+    for index in 0 ..< (result.count - 1) {
+      let current = result[index]
+      let next = result[index + 1]
+      guard !current.value.isEmpty, !next.value.isEmpty else { continue }
+      guard let lastChar = current.value.last, let firstChar = next.value.first else { continue }
+      if lastChar.isWhitespace || firstChar.isWhitespace { continue }
+      if noSpaceAfter.contains(lastChar) || noSpaceBefore.contains(firstChar) { continue }
+      let gapMs = next.start - (current.start + current.duration)
+      if gapMs >= pauseGapThresholdMs {
+        result[index] = LyricWord(
+          start: current.start,
+          duration: current.duration,
+          value: current.value + " "
+        )
+      }
+    }
+    return result
   }
 }
 
@@ -470,7 +508,8 @@ enum QRCFileParser {
       )
     }
 
-    let value = words.map(\.value).joined()
+    let spacedWords = LyricsWordSpacing.insertPauseSpaces(into: words)
+    let value = spacedWords.map(\.value).joined()
     guard !value.trimmingCharacters(in: .whitespaces).isEmpty,
           !LyricsCreditFilter.isCreditLine(value)
     else { return nil }
@@ -479,7 +518,7 @@ enum QRCFileParser {
     line.start = start
     line.value = value
     line.translation = translation
-    line.words = words
+    line.words = spacedWords
     return line
   }
 }
@@ -578,7 +617,8 @@ enum KRCFileParser {
       words.append(LyricWord(start: wordStart, duration: duration, value: value))
     }
 
-    let value = words.map(\.value).joined()
+    let spacedWords = LyricsWordSpacing.insertPauseSpaces(into: words)
+    let value = spacedWords.map(\.value).joined()
     guard !value.trimmingCharacters(in: .whitespaces).isEmpty,
           !LyricsCreditFilter.isCreditLine(value)
     else { return nil }
@@ -587,7 +627,7 @@ enum KRCFileParser {
     line.start = start
     line.value = value
     line.translation = translation
-    line.words = words
+    line.words = spacedWords
     return line
   }
 }

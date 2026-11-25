@@ -54,10 +54,31 @@ struct LyricsSyllableTiming: Equatable {
     self.isWordTimed = isWordTimed
   }
 
+  var duration: TimeInterval { max(0, end - start) }
+
   func progress(at seconds: TimeInterval) -> CGFloat {
     let duration = end - start
     guard duration > 0.001 else { return seconds >= end ? 1 : 0 }
     return CGFloat(min(max((seconds - start) / duration, 0), 1))
+  }
+
+  /// Sustained-note glow intensity (0...1), inspired by LyricsX-Next:
+  /// activates above ~0.45 s, clearly visible around 1.0 s, peaks at ~1.6 s,
+  /// with a smooth attack and gentle release after the note ends.
+  func glowIntensity(at seconds: TimeInterval) -> CGFloat {
+    guard isWordTimed else { return 0 }
+    let dur = duration
+    guard dur > 0.45 else { return 0 }
+    let durationFactor = CGFloat(min(max((dur - 0.45) / (1.60 - 0.45), 0), 1))
+    let p = progress(at: seconds)
+    guard p > 0.001 else { return 0 }
+    if seconds <= end {
+      let attack = min(p / 0.25, 1)
+      return durationFactor * attack
+    } else {
+      let decay = CGFloat(max(0, 1 - (seconds - end) / 0.30))
+      return durationFactor * decay
+    }
   }
 }
 
@@ -416,6 +437,92 @@ final class LyricsSyllableMaskLayer: CALayer {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     entries.forEach { $0.layer.isHidden = true }
+    CATransaction.commit()
+  }
+}
+
+// MARK: - LyricsGlowMaskLayer
+
+/// Reveals a soft glow raster only behind sustained-note syllables whose
+/// `glowIntensity(at:)` is above zero. Updating only `opacity` keeps 60 fps
+/// rendering completely free of per-frame Core Image blur work.
+final class LyricsGlowMaskLayer: CALayer {
+  private struct Entry {
+    let syllableIndex: Int
+    let layer: CALayer
+  }
+
+  private var entries = [Entry]()
+  private var syllableRects = [[CGRect]]()
+  private static let haloPadding: CGFloat = 10
+
+  override init() {
+    super.init()
+    masksToBounds = false
+    isOpaque = false
+  }
+
+  override init(layer: Any) {
+    super.init(layer: layer)
+    if let other = layer as? LyricsGlowMaskLayer {
+      self.syllableRects = other.syllableRects
+    }
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+
+  func setFrameWithoutAnimation(_ newFrame: CGRect) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    frame = newFrame
+    CATransaction.commit()
+  }
+
+  func update(rects: [[CGRect]]) {
+    guard rects != syllableRects else { return }
+    syllableRects = rects
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    entries.forEach { $0.layer.removeFromSuperlayer() }
+    entries = rects.enumerated().flatMap { syllableIndex, syllableRectangles in
+      syllableRectangles.map { rect in
+        let layer = CALayer()
+        layer.backgroundColor = CGColor(gray: 1, alpha: 1)
+        layer.cornerRadius = 6
+        layer.frame = rect.insetBy(dx: -Self.haloPadding, dy: -Self.haloPadding)
+        layer.opacity = 0
+        layer.isHidden = true
+        addSublayer(layer)
+        return Entry(syllableIndex: syllableIndex, layer: layer)
+      }
+    }
+    CATransaction.commit()
+  }
+
+  func apply(intensities: [CGFloat]) {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    for entry in entries {
+      let value = entry.syllableIndex < intensities.count ? intensities[entry.syllableIndex] : 0
+      if value <= 0.005 {
+        entry.layer.isHidden = true
+        entry.layer.opacity = 0
+      } else {
+        entry.layer.isHidden = false
+        entry.layer.opacity = Float(min(max(value, 0), 1))
+      }
+    }
+    CATransaction.commit()
+  }
+
+  func reset() {
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    for entry in entries {
+      entry.layer.isHidden = true
+      entry.layer.opacity = 0
+    }
     CATransaction.commit()
   }
 }

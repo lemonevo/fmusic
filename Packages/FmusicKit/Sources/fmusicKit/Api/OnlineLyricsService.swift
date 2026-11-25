@@ -1629,28 +1629,46 @@ public final class OnlineLyricsService {
   /// embedded or folder artwork.
   public func matchArtwork(for song: Song, expectedAlbum: String?) async -> URL? {
     guard FmusicKit.shared.settings.user.isOnlineMode,
-          let query = makeQuery(for: song)
+          let baseQuery = makeQuery(for: song)
     else { return nil }
+    // Strip placeholder/downloader album tags (e.g. "NetMusic") so they never
+    // penalize legitimate online matches.
+    let cleanAlbum = Self.sanitizedAlbum(baseQuery.album) ?? ""
+    let query = OnlineLyricsQuery(
+      title: baseQuery.title,
+      artist: baseQuery.artist,
+      album: cleanAlbum,
+      duration: baseQuery.duration
+    )
     let scored = await searchCandidates(for: query)
-    guard let best = scored.first(where: { $0.score >= 85 && $0.candidate.source != .lrclib })
+    guard let best = scored.first(where: { $0.score >= 75 && $0.candidate.source != .lrclib })
     else { return nil }
     let album = expectedAlbum.flatMap(Self.sanitizedAlbum) ?? ""
     return await artworkURL(for: album, preferred: best, in: scored)
   }
 
   /// Prefer the provider that supplied the album, then any other high-scoring
-  /// candidate carrying the same album. LRCLIB has no cover, so this usually
-  /// lands on NetEase, QQ or Kugou without relaxing the identity checks.
+  /// candidate carrying a matching album. LRCLIB has no cover, so this lands on
+  /// NetEase, QQ or Kugou while still falling back to verified title+artist+duration
+  /// hits when album wording differs slightly (e.g. 电视剧原声带 vs 电视原声带).
   private func artworkURL(
     for album: String,
     preferred: ScoredCandidate,
     in scored: [ScoredCandidate]
   ) async
     -> URL? {
+    func albumsMatch(_ lhs: String, _ rhs: String) -> Bool {
+      if lhs.compare(rhs, options: .caseInsensitive) == .orderedSame { return true }
+      let normL = Self.searchKey(lhs).filter { !$0.isWhitespace }
+      let normR = Self.searchKey(rhs).filter { !$0.isWhitespace }
+      guard !normL.isEmpty, !normR.isEmpty else { return false }
+      return normL == normR || normL.contains(normR) || normR.contains(normL)
+    }
+
     var entries = [ScoredCandidate]()
     if !album.isEmpty {
       if let preferredAlbum = Self.sanitizedAlbum(preferred.candidate.album),
-         preferredAlbum.compare(album, options: .caseInsensitive) == .orderedSame {
+         albumsMatch(preferredAlbum, album) {
         entries.append(preferred)
       }
       entries.append(
@@ -1661,18 +1679,18 @@ public final class OnlineLyricsService {
         .filter { entry in
           guard let candidateAlbum = Self.sanitizedAlbum(entry.candidate.album)
           else { return false }
-          return candidateAlbum.compare(album, options: .caseInsensitive) == .orderedSame
+          return albumsMatch(candidateAlbum, album)
         }
         .sorted { $0.score > $1.score }
       )
     } else {
       entries.append(preferred)
     }
-    // Fallback only when title + full artist + duration corroborate (>= 90),
-    // avoiding wrong covers from loose partial-artist hits.
+    // Fallback to verified title + artist + duration hits (>= 75), which already
+    // passed OnlineLyricsRanker's strict title/artist/duration gates.
     entries.append(
       contentsOf: scored
-        .filter { $0.score >= 90 && $0.candidate.source != .lrclib }
+        .filter { $0.score >= 75 && $0.candidate.source != .lrclib }
         .sorted { $0.score > $1.score }
     )
     var seen = Set<String>()
@@ -1702,7 +1720,8 @@ public final class OnlineLyricsService {
     guard !value.isEmpty else { return nil }
     if value.hasPrefix("Optional(") || value.hasPrefix("Some(") { return nil }
     switch value.lowercased() {
-    case "未知专辑", "未知專輯", "n/a", "nil", "none", "null", "unknown album":
+    case "未知专辑", "未知專輯", "n/a", "nil", "none", "null", "unknown album",
+         "netmusic", "netease", "qqmusic", "kugou", "kuwo", "single", "单曲":
       return nil
     default:
       return value
