@@ -41,6 +41,31 @@ final class AccountSettingsViewController: SettingsPageViewController {
     nil
   }
 
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(accountDidChange),
+      name: .accountActiveChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(accountDidChange),
+      name: .accountDeleted,
+      object: nil
+    )
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  @objc
+  private func accountDidChange() {
+    reloadForm()
+  }
+
   override func buildForm() {
     let storage = SettingsStore.storage
     let accountInfo = storage.settings.accounts.active
@@ -48,17 +73,42 @@ final class AccountSettingsViewController: SettingsPageViewController {
 
     guard let credentials else {
       addSection(rows: [makeTextRow(L10n.tr("You aren't logged in yet."))])
+      addButton(title: L10n.tr("Add Account")) {
+        LoginWindowController.presentLogin()
+      }
       return
     }
 
-    let usernameRow = makeValueRow(title: L10n.tr("Username"), value: credentials.username)
-    let serverRow = makeValueRow(title: L10n.tr("URL"), value: credentials.displayServerUrl)
-    let apiRow = makeValueRow(
-      title: L10n.tr("Backend API"),
-      value: L10n.tr(credentials.backendApi.description)
+    var rows: [NSView] = []
+    if credentials.backendApi == .localFolder {
+      let folderPath = credentials.localFolderPath ?? credentials.displayServerUrl
+      rows.append(makeValueRow(title: L10n.tr("Local Folder"), value: folderPath))
+    } else {
+      rows.append(makeValueRow(title: L10n.tr("Username"), value: credentials.username))
+      rows.append(makeValueRow(title: L10n.tr("URL"), value: credentials.displayServerUrl))
+    }
+    rows.append(
+      makeValueRow(
+        title: L10n.tr("Backend API"),
+        value: L10n.tr(credentials.backendApi.description)
+      )
     )
-    addSection(header: L10n.tr("Account"), rows: [usernameRow, serverRow, apiRow])
+    addSection(
+      header: L10n.tr("Account"),
+      rows: rows,
+      footer: L10n.tr(
+        "Use \"Add Account\" to add a Local Folder or another WebDAV source, and switch between sources from the sidebar footer."
+      )
+    )
 
+    if credentials.backendApi == .localFolder {
+      addButton(title: L10n.tr("Choose Folder…")) { [weak self] in
+        self?.chooseLocalFolder(accountInfo: accountInfo, credentials: credentials)
+      }
+    }
+    addButton(title: L10n.tr("Add Account")) {
+      LoginWindowController.presentLogin()
+    }
     // Deliberately placed after the information rows: resyncing keeps the account and the
     // downloaded files, logging out removes them, so Logout is the last (destructive) action.
     addButton(title: L10n.tr("Resync Library")) { [weak self] in
@@ -66,6 +116,40 @@ final class AccountSettingsViewController: SettingsPageViewController {
     }
     addButton(title: L10n.tr("Logout")) { [weak self] in
       self?.confirmLogout()
+    }
+  }
+
+  private func chooseLocalFolder(accountInfo: AccountInfo, credentials: LoginCredentials) {
+    let panel = NSOpenPanel()
+    panel.canChooseDirectories = true
+    panel.canChooseFiles = false
+    panel.allowsMultipleSelection = false
+    panel.prompt = L10n.tr("Select")
+    if let currentPath = credentials.localFolderPath {
+      panel.directoryURL = URL(fileURLWithPath: currentPath, isDirectory: true)
+    }
+
+    let handler: (NSApplication.ModalResponse) -> Void = { [weak self] response in
+      guard response == .OK, let url = panel.url else { return }
+      do {
+        let bookmark = try LocalFolderAccess.createBookmark(for: url)
+        var updated = credentials
+        updated.localFolderBookmark = bookmark
+        updated.localFolderPath = url.path
+        SettingsStore.storage.settings.accounts.updateSetting(accountInfo) { setting in
+          setting.loginCredentials = updated
+        }
+        self?.reloadForm()
+        self?.startResync(accountInfo: accountInfo)
+      } catch {
+        self?.presentResyncError(error)
+      }
+    }
+
+    if let window = view.window {
+      panel.beginSheetModal(for: window, completionHandler: handler)
+    } else {
+      handler(panel.runModal())
     }
   }
 
