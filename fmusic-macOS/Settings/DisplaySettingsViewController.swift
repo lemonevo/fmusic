@@ -64,7 +64,7 @@ final class DisplaySettingsViewController: SettingsPageViewController {
         GlassStyleManager.setMode(mode)
       }
     )
-    addSection(rows: [appearanceRow, glassRow])
+    addSection(header: L10n.tr("Appearance"), rows: [appearanceRow, glassRow])
 
     let themeControl = SettingsThemeColorControl(
       selected: accountSetting.themePreference
@@ -88,11 +88,21 @@ final class DisplaySettingsViewController: SettingsPageViewController {
     }
     artworkPopup.isEnabled = hasActiveAccount
     let artworkRow = makeRow(title: L10n.tr("Artwork Display"), control: artworkPopup)
-    addSection(rows: [themeRow, artworkRow])
+    addSection(header: L10n.tr("Theme & Artwork"), rows: [themeRow, artworkRow])
 
     let appIconPicker = AppIconPickerView(selectedID: AppIconManager.selectedIconID) { iconID in
       AppIconManager.apply(iconID: iconID)
     }
-    addSection(header: L10n.tr("App Icon"), rows: [appIconPicker])
+    let iconContainer = NSView()
+    iconContainer.translatesAutoresizingMaskIntoConstraints = false
+    appIconPicker.translatesAutoresizingMaskIntoConstraints = false
+    iconContainer.addSubview(appIconPicker)
+    NSLayoutConstraint.activate([
+      appIconPicker.topAnchor.constraint(equalTo: iconContainer.topAnchor, constant: 12),
+      appIconPicker.leadingAnchor.constraint(equalTo: iconContainer.leadingAnchor, constant: 16),
+      appIconPicker.trailingAnchor.constraint(equalTo: iconContainer.trailingAnchor, constant: -16),
+      appIconPicker.bottomAnchor.constraint(equalTo: iconContainer.bottomAnchor, constant: -12),
+    ])
+    addSection(header: L10n.tr("App Icon"), rows: [iconContainer])
   }
 }

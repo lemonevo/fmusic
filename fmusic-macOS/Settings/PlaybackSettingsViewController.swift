@@ -33,7 +33,7 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
   override func buildForm() {
     let user = SettingsStore.user
 
-    // MARK: Volume (applies and persists immediately)
+    // MARK: Audio & transitions
 
     let volumeRow = makeSliderRow(
       title: L10n.tr("Volume"),
@@ -44,9 +44,6 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
     ) { value in
       SettingsStore.player.volume = Float(value)
     }
-    addSection(rows: [volumeRow])
-
-    // MARK: Crossfade
 
     let crossfadeValues = [0, 3, 5, 8]
     let crossfadeTitles = crossfadeValues.map { seconds in
@@ -55,6 +52,7 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
     let crossfadeIndex = crossfadeValues.firstIndex(of: user.crossfadeSeconds) ?? 0
     let crossfadeRow = makePopupRow(
       title: L10n.tr("Crossfade"),
+      subtitle: L10n.tr("Crossfade Footer"),
       titles: crossfadeTitles,
       selectedIndex: crossfadeIndex
     ) { index in
@@ -63,17 +61,68 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
       SettingsStore.updateUser { $0.crossfadeSeconds = seconds }
       SettingsStore.player.updateCrossfadeDuration(seconds: seconds)
     }
-    addSection(rows: [crossfadeRow])
 
-    // MARK: Lyrics offset
+    let replayGainRow = makeSwitchRow(
+      title: L10n.tr("Enable ReplayGain"),
+      subtitle: L10n.tr(
+        "Automatically normalize track volume based on replay gain information for consistent loudness."
+      ),
+      isOn: user.isReplayGainEnabled
+    ) { isOn in
+      SettingsStore.updateUser { $0.isReplayGainEnabled = isOn }
+      SettingsStore.player.updateReplayGainEnabled(isEnabled: isOn)
+    }
+    addSection(
+      header: L10n.tr("Audio"),
+      rows: [volumeRow, crossfadeRow, replayGainRow]
+    )
+
+    // MARK: Playback behaviour
+
+    let resumeRow = makeSwitchRow(
+      title: L10n.tr("Song Playback Resume"),
+      subtitle: L10n.tr(
+        "Keeps track of song progress so playback continues from the previously saved position."
+      ),
+      isOn: user.isPlayerSongPlaybackResumeEnabled
+    ) { isOn in
+      SettingsStore.updateUser { $0.isPlayerSongPlaybackResumeEnabled = isOn }
+    }
+
+    let manualPlaybackRow = makeSwitchRow(
+      title: L10n.tr("Manual Playback"),
+      subtitle: L10n.tr("Enable to start playback only when the Play button is pressed."),
+      isOn: user.isPlaybackStartOnlyOnPlay
+    ) { isOn in
+      SettingsStore.updateUser { $0.isPlaybackStartOnlyOnPlay = isOn }
+    }
+
+    let autoplayRow = makeSwitchRow(
+      title: L10n.tr("Autoplay After End"),
+      subtitle: L10n.tr(
+        "When the queue ends, automatically continue playback using Instant Mix to find similar songs."
+      ),
+      isOn: user.isAutoplayEnabled
+    ) { isOn in
+      SettingsStore.updateUser { $0.isAutoplayEnabled = isOn }
+    }
+    addSection(
+      header: L10n.tr("Playback Behavior"),
+      rows: [resumeRow, manualPlaybackRow, autoplayRow]
+    )
+
+    // MARK: Lyrics sync
 
     let lyricsOffsetRow = makeSliderRow(
       title: L10n.tr("Lyrics Offset"),
+      subtitle: L10n.tr(
+        "Positive values show the lyrics earlier, negative values later. 0 ms keeps the lyrics in sync."
+      ),
       value: Double(user.lyricsOffsetMs),
       range: -500 ... 500,
       step: 50,
-      sliderWidth: 200,
-      valueWidth: 120,
+      sliderWidth: 180,
+      valueWidth: 100,
       valueFormatter: { value in
         Self.lyricsOffsetDescription(Int(value.rounded()))
       }
@@ -91,67 +140,7 @@ final class PlaybackSettingsViewController: SettingsPageViewController {
         userInfo: nil
       )
     }
-    addSection(
-      footer: L10n.tr(
-        "Positive values show the lyrics earlier, negative values later. 0 ms keeps the lyrics in sync."
-      ),
-      rows: [lyricsOffsetRow]
-    )
-
-    // MARK: ReplayGain
-
-    let replayGainRow = makeSwitchRow(
-      title: L10n.tr("Enable ReplayGain"),
-      isOn: user.isReplayGainEnabled
-    ) { isOn in
-      SettingsStore.updateUser { $0.isReplayGainEnabled = isOn }
-      SettingsStore.player.updateReplayGainEnabled(isEnabled: isOn)
-    }
-    addSection(
-      footer: L10n.tr(
-        "Automatically normalize track volume based on replay gain information for consistent loudness."
-      ),
-      rows: [replayGainRow]
-    )
-
-    // MARK: Playback behaviour
-
-    let resumeRow = makeSwitchRow(
-      title: L10n.tr("Song Playback Resume"),
-      isOn: user.isPlayerSongPlaybackResumeEnabled
-    ) { isOn in
-      SettingsStore.updateUser { $0.isPlayerSongPlaybackResumeEnabled = isOn }
-    }
-    addSection(
-      footer: L10n.tr(
-        "Keeps track of song progress so playback continues from the previously saved position."
-      ),
-      rows: [resumeRow]
-    )
-
-    let manualPlaybackRow = makeSwitchRow(
-      title: L10n.tr("Manual Playback"),
-      isOn: user.isPlaybackStartOnlyOnPlay
-    ) { isOn in
-      SettingsStore.updateUser { $0.isPlaybackStartOnlyOnPlay = isOn }
-    }
-    addSection(
-      footer: L10n.tr("Enable to start playback only when the Play button is pressed."),
-      rows: [manualPlaybackRow]
-    )
-
-    let autoplayRow = makeSwitchRow(
-      title: L10n.tr("Autoplay After End"),
-      isOn: user.isAutoplayEnabled
-    ) { isOn in
-      SettingsStore.updateUser { $0.isAutoplayEnabled = isOn }
-    }
-    addSection(
-      footer: L10n.tr(
-        "When the queue ends, automatically continue playback using Instant Mix to find similar songs."
-      ),
-      rows: [autoplayRow]
-    )
+    addSection(header: L10n.tr("Lyrics Sync"), rows: [lyricsOffsetRow])
   }
 
   /// Mirrors the wording used by the lyrics page and the desktop lyrics offset controls.

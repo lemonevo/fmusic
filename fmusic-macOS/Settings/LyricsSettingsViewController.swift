@@ -24,29 +24,32 @@ final class LyricsSettingsViewController: SettingsPageViewController {
 
     let smoothScrollingRow = makeSwitchRow(
       title: L10n.tr("Lyrics Smooth Scrolling"),
+      subtitle: L10n.tr(
+        "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
+      ),
       isOn: user.isLyricsSmoothScrolling
     ) { isOn in
       SettingsStore.updateUser { $0.isLyricsSmoothScrolling = isOn }
     }
-    addSection(
-      footer: L10n.tr(
-        "Lyrics are smoothly scrolled to next line. Deactivating will result in jumping from line to line."
-      ),
-      rows: [smoothScrollingRow]
-    )
+    addSection(header: L10n.tr("Lyrics"), rows: [smoothScrollingRow])
 
     let desktopLyricsRow = makeSwitchRow(
       title: L10n.tr("Desktop Lyrics"),
+      subtitle: L10n.tr(
+        "Show the current lyric line in a floating window above all other windows. Drag it to move it."
+      ),
       isOn: user.isDesktopLyricsEnabled
     ) { isOn in
       SettingsStore.updateUser { $0.isDesktopLyricsEnabled = isOn }
     }
-    addSection(
-      footer: L10n.tr(
-        "Show the current lyric line in a floating window above all other windows. Drag it to move it."
-      ),
-      rows: [desktopLyricsRow]
-    )
+
+    let lockRow = makeSwitchRow(
+      title: L10n.tr("Lock Desktop Lyrics"),
+      subtitle: L10n.tr("Lock the desktop lyrics in place and let mouse clicks pass through."),
+      isOn: user.isDesktopLyricsLocked
+    ) { isOn in
+      SettingsStore.updateUser { $0.isDesktopLyricsLocked = isOn }
+    }
 
     let fontSizes = DesktopLyricsFontSize.allCases
     let fontSizeRow = makePopupRow(
@@ -70,6 +73,7 @@ final class LyricsSettingsViewController: SettingsPageViewController {
 
     let opacityRow = makeSliderRow(
       title: L10n.tr("Background Opacity"),
+      subtitle: L10n.tr("At 0% the background is fully transparent and only the lyrics remain."),
       value: Double(user.desktopLyricsBackgroundOpacity),
       range: 0 ... 100,
       step: 1,
@@ -96,33 +100,27 @@ final class LyricsSettingsViewController: SettingsPageViewController {
       SettingsStore.updateUser { $0.isDesktopLyricsAlwaysOnTop = isOn }
     }
     addSection(
-      header: L10n.tr("Options"),
-      footer: L10n.tr("At 0% the background is fully transparent and only the lyrics remain."),
-      rows: [fontSizeRow, alignmentRow, opacityRow, nextLineRow, alwaysOnTopRow]
-    )
-
-    let lockRow = makeSwitchRow(
-      title: L10n.tr("Lock Desktop Lyrics"),
-      isOn: user.isDesktopLyricsLocked
-    ) { isOn in
-      SettingsStore.updateUser { $0.isDesktopLyricsLocked = isOn }
-    }
-    addSection(
-      footer: L10n.tr("Lock the desktop lyrics in place and let mouse clicks pass through."),
-      rows: [lockRow]
+      header: L10n.tr("Desktop Lyrics"),
+      rows: [
+        desktopLyricsRow,
+        lockRow,
+        fontSizeRow,
+        alignmentRow,
+        opacityRow,
+        nextLineRow,
+        alwaysOnTopRow,
+      ]
     )
 
     let menuBarLyricsRow = makeSwitchRow(
       title: L10n.tr("Menu Bar Lyrics"),
+      subtitle: L10n.tr(
+        "Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area."
+      ),
       isOn: user.isMenuBarLyricsEnabled
     ) { isOn in
       SettingsStore.updateUser { $0.isMenuBarLyricsEnabled = isOn }
     }
-    addSection(
-      footer: L10n.tr(
-        "Show the current lyric line in the menu bar. When the menu bar is full, macOS keeps the item in the overflow area."
-      ),
-      rows: [menuBarLyricsRow]
-    )
+    addSection(header: L10n.tr("Menu Bar Lyrics"), rows: [menuBarLyricsRow])
   }
 }

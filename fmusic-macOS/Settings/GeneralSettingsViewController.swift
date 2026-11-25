@@ -53,6 +53,7 @@ final class GeneralSettingsViewController: SettingsPageViewController {
     let selectedLanguage = languageOptions.firstIndex(of: user.appLanguage) ?? 0
     let languageRow = makePopupRow(
       title: L10n.tr("Language"),
+      subtitle: L10n.tr("Language changes take effect after restarting fmusic."),
       titles: languageTitles,
       selectedIndex: selectedLanguage
     ) { [weak self] index in
@@ -63,12 +64,20 @@ final class GeneralSettingsViewController: SettingsPageViewController {
       self?.promptRestartForLanguageChange()
     }
 
-    addSection(
-      footer: L10n.tr("Language changes take effect after restarting fmusic."),
-      rows: [languageRow]
-    )
+    addSection(header: L10n.tr("Language"), rows: [languageRow])
 
-    // MARK: Offline mode
+    // MARK: Network & system
+
+    let offlineRow = makeSwitchRow(
+      title: L10n.tr("Offline Mode"),
+      subtitle: L10n.tr(
+        "Songs and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
+      ),
+      isOn: user.isOfflineMode
+    ) { isOn in
+      SettingsStore.updateUser { $0.isOfflineMode = isOn }
+      SettingsStore.notifyOfflineModeChanged()
+    }
 
     let screenLockOptions = ScreenLockPreventionPreference.allCases
     let screenLockTitles = screenLockOptions.map(\.description)
@@ -84,20 +93,10 @@ final class GeneralSettingsViewController: SettingsPageViewController {
       SettingsStore.screenLockPreventionPreference = screenLockOptions[index]
     }
 
-    let offlineRow = makeSwitchRow(
-      title: L10n.tr("Offline Mode"),
-      isOn: user.isOfflineMode
-    ) { isOn in
-      SettingsStore.updateUser { $0.isOfflineMode = isOn }
-      SettingsStore.notifyOfflineModeChanged()
-    }
     addSection(
-      footer: L10n.tr(
-        "Songs and artworks won’t download offline. Searches are limited to the device, and playlists won’t sync with the server."
-      ),
-      rows: [offlineRow]
+      header: L10n.tr("Network & System"),
+      rows: [offlineRow, screenLockRow]
     )
-    append(makeFlatRows([screenLockRow]), topSpacing: 32)
   }
 
   private func promptRestartForLanguageChange() {

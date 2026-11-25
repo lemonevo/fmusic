@@ -103,7 +103,7 @@ final class SettingsSeparatorView: SettingsBackgroundView {
 @MainActor
 final class SettingsRowView: NSView {
   private let titleLabel = NSTextField(labelWithString: "")
-  private let subtitleLabel = NSTextField(labelWithString: "")
+  private let subtitleLabel = NSTextField(wrappingLabelWithString: "")
   private let labelStack = NSStackView()
   let control: NSView
   private var controlTrailing: NSLayoutConstraint?
@@ -127,28 +127,31 @@ final class SettingsRowView: NSView {
     subtitleLabel.stringValue = subtitle ?? ""
     subtitleLabel.font = MacTheme.secondaryFont
     subtitleLabel.textColor = .secondaryLabelColor
-    subtitleLabel.lineBreakMode = .byTruncatingTail
+    subtitleLabel.lineBreakMode = .byWordWrapping
+    subtitleLabel.maximumNumberOfLines = 0
     subtitleLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-    subtitleLabel.isHidden = subtitle == nil
+    subtitleLabel.isHidden = (subtitle?.isEmpty ?? true)
 
     labelStack.addArrangedSubview(titleLabel)
     labelStack.addArrangedSubview(subtitleLabel)
     labelStack.orientation = .vertical
     labelStack.alignment = .leading
-    labelStack.spacing = 2
+    labelStack.spacing = 3
     labelStack.translatesAutoresizingMaskIntoConstraints = false
 
     control.translatesAutoresizingMaskIntoConstraints = false
+    control.setContentHuggingPriority(.required, for: .horizontal)
+    control.setContentCompressionResistancePriority(.required, for: .horizontal)
     addSubview(labelStack)
     addSubview(control)
 
-    let minimumHeight = heightAnchor.constraint(greaterThanOrEqualToConstant: 44)
+    let minimumHeight = heightAnchor.constraint(greaterThanOrEqualToConstant: 46)
     minimumHeight.priority = .required
 
     let trailing = control.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16)
     let centerY = control.centerYAnchor.constraint(equalTo: centerYAnchor)
-    let top = control.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8)
-    let bottom = control.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8)
+    let top = control.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 10)
+    let bottom = control.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -10)
     let leading = control.leadingAnchor.constraint(
       greaterThanOrEqualTo: labelStack.trailingAnchor,
       constant: 16
@@ -164,8 +167,8 @@ final class SettingsRowView: NSView {
 
       labelStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
       labelStack.centerYAnchor.constraint(equalTo: centerYAnchor),
-      labelStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 8),
-      labelStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -8),
+      labelStack.topAnchor.constraint(greaterThanOrEqualTo: topAnchor, constant: 10),
+      labelStack.bottomAnchor.constraint(lessThanOrEqualTo: bottomAnchor, constant: -10),
 
       trailing, centerY, top, bottom, leading,
     ])

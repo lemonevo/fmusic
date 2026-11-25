@@ -901,5 +901,9 @@ public enum L10n {
     "This only adjusts or resets the per-song offset; adjust the global offset in the player's Lyrics Offset menu.": "此处只调整或重置单曲偏移；通用偏移请在播放器的歌词偏移菜单中调整。",
     "Song Offset %+.1f s": "单曲偏移 %+.1f 秒",
     "Global %+.3f s · Total %+.3f s": "通用 %+.3f 秒 · 合计 %+.3f 秒",
+    "Network & System": "网络与系统",
+    "Audio": "音频",
+    "Playback Behavior": "播放行为",
+    "Theme & Artwork": "主题与封面",
   ]
 }

@@ -174,17 +174,30 @@ class SettingsPageViewController: NSViewController {
   // MARK: - Sections
 
   /// Appends a grouped card with the given rows plus optional header and footer text.
+  /// Headers, footers and row labels share the same 16 pt horizontal guideline.
   func addSection(header: String? = nil, footer: String? = nil, rows: [NSView]) {
     if let header {
-      append(makeGroupHeaderLabel(header), topSpacing: 24)
+      appendIndented(makeGroupHeaderLabel(header), topSpacing: 22)
     }
-    append(makeFlatRows(rows), topSpacing: header == nil ? 28 : 6)
+    append(makeCard(rows: rows), topSpacing: header == nil ? 20 : 8)
     if let footer {
-      append(makeFooterLabel(footer), topSpacing: 6)
+      appendIndented(makeFooterLabel(footer), topSpacing: 7)
     }
   }
 
-  /// Catalyst's `SettingsList` has flat rows: no grouped cards and no separators.
+  private func appendIndented(_ view: NSView, topSpacing: CGFloat) {
+    let inset = horizontalInset + 16
+    view.translatesAutoresizingMaskIntoConstraints = false
+    documentView.addSubview(view)
+    NSLayoutConstraint.activate([
+      view.leadingAnchor.constraint(equalTo: documentView.leadingAnchor, constant: inset),
+      view.trailingAnchor.constraint(equalTo: documentView.trailingAnchor, constant: -inset),
+      view.topAnchor.constraint(equalTo: lastAnchor, constant: topSpacing),
+    ])
+    lastAnchor = view.bottomAnchor
+  }
+
+  /// Flat container kept for custom callers that manage their own chrome.
   func makeFlatRows(_ rows: [NSView]) -> NSView {
     let container = NSView()
     container.translatesAutoresizingMaskIntoConstraints = false
@@ -203,9 +216,29 @@ class SettingsPageViewController: NSViewController {
     return container
   }
 
+  private static var cardBackgroundColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.055)
+        : NSColor.black.withAlphaComponent(0.025)
+    }
+  }
+
+  private static var cardBorderColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.09)
+        : NSColor.black.withAlphaComponent(0.07)
+    }
+  }
+
   private func makeCard(rows: [NSView]) -> NSView {
     let card = SettingsBackgroundView()
-    card.backgroundColor = .controlBackgroundColor
+    card.backgroundColor = Self.cardBackgroundColor
+    card.borderColor = Self.cardBorderColor
+    card.borderWidth = 0.5
     card.cornerRadius = 10
     card.translatesAutoresizingMaskIntoConstraints = false
 
@@ -223,7 +256,7 @@ class SettingsPageViewController: NSViewController {
         card.addSubview(separator)
         NSLayoutConstraint.activate([
           separator.leadingAnchor.constraint(equalTo: card.leadingAnchor, constant: 16),
-          separator.trailingAnchor.constraint(equalTo: card.trailingAnchor),
+          separator.trailingAnchor.constraint(equalTo: card.trailingAnchor, constant: -16),
           separator.topAnchor.constraint(equalTo: row.bottomAnchor),
         ])
         previousAnchor = separator.bottomAnchor
@@ -237,7 +270,7 @@ class SettingsPageViewController: NSViewController {
 
   private func makeGroupHeaderLabel(_ text: String) -> NSTextField {
     let label = NSTextField(labelWithString: text)
-    label.font = .systemFont(ofSize: 11, weight: .semibold)
+    label.font = .systemFont(ofSize: 12, weight: .semibold)
     label.textColor = .secondaryLabelColor
     label.lineBreakMode = .byTruncatingTail
     return label
@@ -248,7 +281,7 @@ class SettingsPageViewController: NSViewController {
     label.font = MacTheme.secondaryFont
     label.textColor = .secondaryLabelColor
     label.maximumNumberOfLines = 0
-    trackWrappingLabel(label, horizontalInsets: horizontalInset * 2)
+    trackWrappingLabel(label, horizontalInsets: (horizontalInset + 16) * 2)
     return label
   }
 
@@ -283,6 +316,7 @@ class SettingsPageViewController: NSViewController {
 
   func makePopupRow(
     title: String,
+    subtitle: String? = nil,
     titles: [String],
     selectedIndex: Int,
     handler: @escaping (Int) -> Void
@@ -290,6 +324,7 @@ class SettingsPageViewController: NSViewController {
     -> NSView {
     SettingsRowView(
       title: title,
+      subtitle: subtitle,
       control: SettingsPopUpButton(
         titles: titles,
         selectedIndex: selectedIndex,
@@ -300,6 +335,7 @@ class SettingsPageViewController: NSViewController {
 
   func makeSegmentedRow(
     title: String,
+    subtitle: String? = nil,
     labels: [String],
     selectedIndex: Int,
     handler: @escaping (Int) -> Void
@@ -307,6 +343,7 @@ class SettingsPageViewController: NSViewController {
     -> NSView {
     SettingsRowView(
       title: title,
+      subtitle: subtitle,
       control: SettingsSegmentedControl(
         labels: labels,
         selectedIndex: selectedIndex,
@@ -317,6 +354,7 @@ class SettingsPageViewController: NSViewController {
 
   func makeSliderRow(
     title: String,
+    subtitle: String? = nil,
     value: Double,
     range: ClosedRange<Double>,
     step: Double = 0,
@@ -335,7 +373,7 @@ class SettingsPageViewController: NSViewController {
       valueFormatter: valueFormatter,
       handler: handler
     )
-    return SettingsRowView(title: title, control: slider)
+    return SettingsRowView(title: title, subtitle: subtitle, control: slider)
   }
 
   func makeValueRow(title: String, value: String) -> NSView {
@@ -359,20 +397,20 @@ class SettingsPageViewController: NSViewController {
     label.textColor = .labelColor
     label.maximumNumberOfLines = 0
     label.translatesAutoresizingMaskIntoConstraints = false
-    trackWrappingLabel(label, horizontalInsets: horizontalInset * 2 + 32)
+    trackWrappingLabel(label, horizontalInsets: (horizontalInset + 16) * 2)
     container.addSubview(label)
     NSLayoutConstraint.activate([
-      label.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-      label.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
-      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+      label.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+      label.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+      label.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
+      label.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
     ])
     return container
   }
 
-  /// Appends a footnote-style secondary label (no card).
+  /// Appends a footnote-style secondary label (aligned with card row titles).
   func addFootnote(_ text: String) {
-    append(makeFooterLabel(text), topSpacing: 8)
+    appendIndented(makeFooterLabel(text), topSpacing: 8)
   }
 
   /// Appends a standalone rounded push button (leading aligned, intrinsic width).
