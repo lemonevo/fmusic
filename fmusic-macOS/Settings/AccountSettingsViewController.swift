@@ -71,7 +71,9 @@ final class AccountSettingsViewController: SettingsPageViewController {
     let accountInfo = storage.settings.accounts.active
     let credentials = storage.settings.accounts.getSetting(accountInfo).read.loginCredentials
 
-    guard let credentials else {
+    guard let credentials,
+          let accountInfo = SettingsStore.activeAccount
+    else {
       addSection(rows: [makeTextRow(L10n.tr("You aren't logged in yet."))])
       addButton(title: L10n.tr("Add Account")) {
         LoginWindowController.presentLogin()
@@ -80,7 +82,7 @@ final class AccountSettingsViewController: SettingsPageViewController {
     }
 
     var rows: [NSView] = []
-    if credentials.backendApi == .localFolder {
+    if credentials.backendApi == .local {
       let folderPath = credentials.localFolderPath ?? credentials.displayServerUrl
       rows.append(makeValueRow(title: L10n.tr("Local Folder"), value: folderPath))
     } else {
@@ -95,13 +97,13 @@ final class AccountSettingsViewController: SettingsPageViewController {
     )
     addSection(
       header: L10n.tr("Account"),
-      rows: rows,
       footer: L10n.tr(
         "Use \"Add Account\" to add a Local Folder or another WebDAV source, and switch between sources from the sidebar footer."
-      )
+      ),
+      rows: rows
     )
 
-    if credentials.backendApi == .localFolder {
+    if credentials.backendApi == .local {
       addButton(title: L10n.tr("Choose Folder…")) { [weak self] in
         self?.chooseLocalFolder(accountInfo: accountInfo, credentials: credentials)
       }
