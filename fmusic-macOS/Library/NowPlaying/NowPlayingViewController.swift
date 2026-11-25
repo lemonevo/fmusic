@@ -56,9 +56,9 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let nextButton = NSButton()
   private let repeatButton = NSButton()
 
-  private var bottomPill: NSView?
-  private let queueButton = GlassPillButton()
+  private var morePill: NSView?
   private let moreButton = GlassPillButton()
+  private let modeTogglePill = NowPlayingModeTogglePill()
 
   private let lyricsController: LyricsSidebarViewController = {
     let controller = LyricsSidebarViewController()
@@ -66,6 +66,8 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     controller.compactRows = true
     return controller
   }()
+  private let inlineQueueView = NowPlayingQueuePaneView()
+  private var isShowingQueue = false
 
   private var artworkWidthConstraint: NSLayoutConstraint?
   private var artworkHeightConstraint: NSLayoutConstraint?
@@ -145,7 +147,10 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   override func viewDidAppear() {
     super.viewDidAppear()
-    lyricsController.setPaneVisible(true)
+    lyricsController.setPaneVisible(!isShowingQueue)
+    if isShowingQueue {
+      inlineQueueView.reload()
+    }
   }
 
   override func viewDidDisappear() {
@@ -219,10 +224,10 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       closeGlass.topAnchor.constraint(equalTo: root.topAnchor, constant: 10),
       closeGlass.widthAnchor.constraint(equalToConstant: 42),
       closeGlass.heightAnchor.constraint(equalToConstant: pillHeight),
-      closeButton.centerXAnchor.constraint(equalTo: closeContent.centerXAnchor),
-      closeButton.centerYAnchor.constraint(equalTo: closeContent.centerYAnchor),
-      closeButton.widthAnchor.constraint(equalToConstant: 32),
-      closeButton.heightAnchor.constraint(equalToConstant: 28),
+      closeButton.topAnchor.constraint(equalTo: closeContent.topAnchor),
+      closeButton.bottomAnchor.constraint(equalTo: closeContent.bottomAnchor),
+      closeButton.leadingAnchor.constraint(equalTo: closeContent.leadingAnchor),
+      closeButton.trailingAnchor.constraint(equalTo: closeContent.trailingAnchor),
 
       volumeGlass.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
       volumeGlass.topAnchor.constraint(equalTo: root.topAnchor, constant: 10),
@@ -367,6 +372,11 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     let lyricsView = lyricsController.view
     lyricsView.translatesAutoresizingMaskIntoConstraints = false
     root.addSubview(lyricsView)
+
+    inlineQueueView.translatesAutoresizingMaskIntoConstraints = false
+    inlineQueueView.isHidden = true
+    root.addSubview(inlineQueueView)
+
     NSLayoutConstraint.activate([
       lyricsView.leadingAnchor.constraint(
         equalTo: artworkView.trailingAnchor,
@@ -375,35 +385,48 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
       lyricsView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
       lyricsView.topAnchor.constraint(equalTo: root.topAnchor, constant: 64),
       lyricsView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -56),
+
+      inlineQueueView.leadingAnchor.constraint(
+        equalTo: artworkView.trailingAnchor,
+        constant: lyricsGap
+      ),
+      inlineQueueView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -56),
+      inlineQueueView.topAnchor.constraint(equalTo: root.topAnchor, constant: 72),
+      inlineQueueView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -66),
     ])
   }
 
   private func buildBottomCluster(in root: NSView) {
-    let pillHeight: CGFloat = 34
-    let (bottomGlass, bottomContent) = makeGlassPill(cornerRadius: pillHeight / 2)
-    bottomPill = bottomGlass
-    configurePillButton(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 15)
+    let pillHeight: CGFloat = 36
+    let (moreGlass, moreContent) = makeGlassPill(cornerRadius: pillHeight / 2)
+    morePill = moreGlass
     configurePillButton(moreButton, symbol: "ellipsis", action: #selector(showPlayerOptionsMenu), size: 15)
+    moreContent.addSubview(moreButton)
 
-    bottomContent.addSubview(queueButton)
-    bottomContent.addSubview(moreButton)
-    root.addSubview(bottomGlass)
+    modeTogglePill.translatesAutoresizingMaskIntoConstraints = false
+    modeTogglePill.onSelectQueue = { [weak self] showQueue in
+      self?.setQueueVisible(showQueue, animated: true)
+    }
+    modeTogglePill.setQueueSelected(isShowingQueue, animated: false)
+
+    root.addSubview(moreGlass)
+    root.addSubview(modeTogglePill)
 
     NSLayoutConstraint.activate([
-      bottomGlass.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
-      bottomGlass.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
-      bottomGlass.heightAnchor.constraint(equalToConstant: pillHeight),
+      modeTogglePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -20),
+      modeTogglePill.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -18),
+      modeTogglePill.widthAnchor.constraint(equalToConstant: 74),
+      modeTogglePill.heightAnchor.constraint(equalToConstant: pillHeight),
 
-      queueButton.leadingAnchor.constraint(equalTo: bottomContent.leadingAnchor, constant: 5),
-      queueButton.centerYAnchor.constraint(equalTo: bottomContent.centerYAnchor),
-      queueButton.widthAnchor.constraint(equalToConstant: 34),
-      queueButton.heightAnchor.constraint(equalToConstant: 28),
+      moreGlass.trailingAnchor.constraint(equalTo: modeTogglePill.leadingAnchor, constant: -10),
+      moreGlass.centerYAnchor.constraint(equalTo: modeTogglePill.centerYAnchor),
+      moreGlass.widthAnchor.constraint(equalToConstant: pillHeight),
+      moreGlass.heightAnchor.constraint(equalToConstant: pillHeight),
 
-      moreButton.leadingAnchor.constraint(equalTo: queueButton.trailingAnchor, constant: 2),
-      moreButton.trailingAnchor.constraint(equalTo: bottomContent.trailingAnchor, constant: -5),
-      moreButton.centerYAnchor.constraint(equalTo: bottomContent.centerYAnchor),
-      moreButton.widthAnchor.constraint(equalToConstant: 34),
-      moreButton.heightAnchor.constraint(equalToConstant: 28),
+      moreButton.topAnchor.constraint(equalTo: moreContent.topAnchor),
+      moreButton.bottomAnchor.constraint(equalTo: moreContent.bottomAnchor),
+      moreButton.leadingAnchor.constraint(equalTo: moreContent.leadingAnchor),
+      moreButton.trailingAnchor.constraint(equalTo: moreContent.trailingAnchor),
     ])
   }
 
@@ -875,9 +898,41 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     alert.runModal()
   }
 
-  @objc
-  private func showQueue() {
-    PlayerPageWindowController.presentQueue()
+  private func setQueueVisible(_ visible: Bool, animated: Bool) {
+    guard isShowingQueue != visible else { return }
+    isShowingQueue = visible
+    modeTogglePill.setQueueSelected(visible, animated: animated)
+    lyricsController.setPaneVisible(!visible)
+    if visible {
+      inlineQueueView.reload()
+    }
+    let lyricsView = lyricsController.view
+    if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      if visible {
+        inlineQueueView.alphaValue = 0
+        inlineQueueView.isHidden = false
+      } else {
+        lyricsView.alphaValue = 0
+        lyricsView.isHidden = false
+      }
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = 0.2
+        context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        inlineQueueView.animator().alphaValue = visible ? 1 : 0
+        lyricsView.animator().alphaValue = visible ? 0 : 1
+      } completionHandler: { [weak self] in
+        Task { @MainActor in
+          guard let self else { return }
+          self.inlineQueueView.isHidden = !self.isShowingQueue
+          self.lyricsController.view.isHidden = self.isShowingQueue
+          self.inlineQueueView.alphaValue = 1
+          self.lyricsController.view.alphaValue = 1
+        }
+      }
+    } else {
+      inlineQueueView.isHidden = !visible
+      lyricsView.isHidden = visible
+    }
   }
 
   // MARK: - MusicPlayable
@@ -1035,10 +1090,14 @@ private final class LiquidGlassCapsuleView: NSView {
 // MARK: - GlassPillButton
 
 /// Borderless icon button hosted inside a Liquid Glass pill, with a soft circular
-/// hover and press highlight matching Apple Music's toolbar pills.
+/// hover/press highlight and an Apple Music style bright white active disc state.
 @MainActor
 private final class GlassPillButton: NSButton {
   private var isHovered = false
+
+  var isActivePill = false {
+    didSet { updateFill() }
+  }
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
@@ -1077,15 +1136,682 @@ private final class GlassPillButton: NSButton {
   }
 
   override func mouseDown(with event: NSEvent) {
-    layer?.backgroundColor = NSColor.white.withAlphaComponent(0.28).cgColor
+    layer?.backgroundColor = isActivePill
+      ? NSColor.white.withAlphaComponent(0.82).cgColor
+      : NSColor.white.withAlphaComponent(0.28).cgColor
     super.mouseDown(with: event)
     updateFill()
   }
 
   private func updateFill() {
-    layer?.backgroundColor = isHovered
-      ? NSColor.white.withAlphaComponent(0.16).cgColor
-      : NSColor.clear.cgColor
+    if isActivePill {
+      layer?.backgroundColor = NSColor.white.withAlphaComponent(0.92).cgColor
+      contentTintColor = NSColor(srgbRed: 0.14, green: 0.14, blue: 0.15, alpha: 1)
+    } else {
+      layer?.backgroundColor = isHovered
+        ? NSColor.white.withAlphaComponent(0.16).cgColor
+        : NSColor.clear.cgColor
+      contentTintColor = .white
+    }
+  }
+}
+
+// MARK: - NowPlayingModeTogglePill
+
+/// Apple Music macOS 26 Tahoe style bottom-right Liquid Glass sliding switcher
+/// between Lyrics (`quote.bubble`) and Queue (`list.bullet`), with a bright
+/// circular sliding thumb that springs and stretches smoothly across segments.
+@MainActor
+private final class NowPlayingModeTogglePill: NSView {
+  var onSelectQueue: ((Bool) -> Void)?
+
+  private let capsule = LiquidGlassCapsuleView(cornerRadius: 18)
+  private let thumbHostView = NSView()
+  private let thumbLayer = CALayer()
+  private let lyricsButton = SegmentToggleButton()
+  private let queueButton = SegmentToggleButton()
+
+  private(set) var isQueueSelected = false
+
+  private let thumbInset: CGFloat = 3
+  private let thumbDiameter: CGFloat = 30
+  private let activeIconTint = NSColor(srgbRed: 0.24, green: 0.24, blue: 0.26, alpha: 1)
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    buildUI()
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  private func buildUI() {
+    capsule.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(capsule)
+
+    let content = capsule.contentContainer
+    content.wantsLayer = true
+
+    thumbHostView.wantsLayer = true
+    thumbHostView.translatesAutoresizingMaskIntoConstraints = false
+    content.addSubview(thumbHostView)
+
+    thumbLayer.backgroundColor = NSColor(white: 0.94, alpha: 0.92).cgColor
+    thumbLayer.cornerRadius = thumbDiameter / 2
+    thumbLayer.borderWidth = 0.5
+    thumbLayer.borderColor = NSColor.white.withAlphaComponent(0.60).cgColor
+    thumbLayer.shadowColor = NSColor.black.cgColor
+    thumbLayer.shadowOpacity = 0.16
+    thumbLayer.shadowRadius = 4
+    thumbLayer.shadowOffset = CGSize(width: 0, height: -1)
+    thumbHostView.layer?.addSublayer(thumbLayer)
+
+    configureButton(lyricsButton, action: #selector(lyricsPressed))
+    configureButton(queueButton, action: #selector(queuePressed))
+
+    content.addSubview(lyricsButton)
+    content.addSubview(queueButton)
+
+    NSLayoutConstraint.activate([
+      capsule.topAnchor.constraint(equalTo: topAnchor),
+      capsule.leadingAnchor.constraint(equalTo: leadingAnchor),
+      capsule.trailingAnchor.constraint(equalTo: trailingAnchor),
+      capsule.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+      thumbHostView.topAnchor.constraint(equalTo: content.topAnchor),
+      thumbHostView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+      thumbHostView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+      thumbHostView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+
+      lyricsButton.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: thumbInset),
+      lyricsButton.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+      lyricsButton.widthAnchor.constraint(equalToConstant: thumbDiameter),
+      lyricsButton.heightAnchor.constraint(equalToConstant: thumbDiameter),
+
+      queueButton.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -thumbInset),
+      queueButton.centerYAnchor.constraint(equalTo: content.centerYAnchor),
+      queueButton.widthAnchor.constraint(equalToConstant: thumbDiameter),
+      queueButton.heightAnchor.constraint(equalToConstant: thumbDiameter),
+    ])
+
+    applyIconStates()
+  }
+
+  private func configureButton(_ button: SegmentToggleButton, action: Selector) {
+    button.isBordered = false
+    button.bezelStyle = .regularSquare
+    button.imagePosition = .imageOnly
+    button.target = self
+    button.action = action
+    button.translatesAutoresizingMaskIntoConstraints = false
+  }
+
+  override func layout() {
+    super.layout()
+    let b = thumbHostView.bounds
+    guard b.width > 0, b.height > 0 else { return }
+    let diameter = min(thumbDiameter, b.height - thumbInset * 2)
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    thumbLayer.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
+    thumbLayer.cornerRadius = diameter / 2
+    if thumbLayer.animation(forKey: "thumbSlide") == nil {
+      thumbLayer.position = CGPoint(x: thumbCenterX(for: isQueueSelected, in: b), y: b.midY)
+    }
+    CATransaction.commit()
+  }
+
+  func setQueueSelected(_ selected: Bool, animated: Bool) {
+    let changed = isQueueSelected != selected
+    isQueueSelected = selected
+    applyIconStates()
+
+    let b = thumbHostView.bounds
+    guard b.width > 0, b.height > 0 else { return }
+    let targetX = thumbCenterX(for: selected, in: b)
+    let targetPos = CGPoint(x: targetX, y: b.midY)
+    let startX = thumbLayer.presentation()?.position.x ?? thumbLayer.position.x
+
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
+    thumbLayer.position = targetPos
+    CATransaction.commit()
+
+    guard changed, animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+      return
+    }
+
+    let slide = CASpringAnimation(keyPath: "position.x")
+    slide.fromValue = startX
+    slide.toValue = targetX
+    slide.stiffness = 380
+    slide.damping = 28
+    slide.mass = 1.0
+    slide.initialVelocity = 0
+    slide.duration = slide.settlingDuration
+    thumbLayer.add(slide, forKey: "thumbSlide")
+
+    let stretchX = CAKeyframeAnimation(keyPath: "transform.scale.x")
+    stretchX.values = [1.0, 1.18, 1.0]
+    stretchX.keyTimes = [0.0, 0.42, 1.0]
+    stretchX.timingFunctions = [
+      CAMediaTimingFunction(name: .easeOut),
+      CAMediaTimingFunction(name: .easeInEaseOut),
+    ]
+    stretchX.duration = 0.28
+    thumbLayer.add(stretchX, forKey: "thumbStretchX")
+
+    let squashY = CAKeyframeAnimation(keyPath: "transform.scale.y")
+    squashY.values = [1.0, 0.94, 1.0]
+    squashY.keyTimes = [0.0, 0.42, 1.0]
+    squashY.timingFunctions = [
+      CAMediaTimingFunction(name: .easeOut),
+      CAMediaTimingFunction(name: .easeInEaseOut),
+    ]
+    squashY.duration = 0.28
+    thumbLayer.add(squashY, forKey: "thumbSquashY")
+  }
+
+  private func thumbCenterX(for queueSelected: Bool, in bounds: CGRect) -> CGFloat {
+    let radius = min(thumbDiameter, bounds.height - thumbInset * 2) / 2
+    return queueSelected ? (bounds.width - thumbInset - radius) : (thumbInset + radius)
+  }
+
+  private func applyIconStates() {
+    let lyricsSymbol = isQueueSelected ? "quote.bubble" : "quote.bubble.fill"
+    let lyricsWeight: NSFont.Weight = isQueueSelected ? .medium : .semibold
+    lyricsButton.image = NSImage(systemSymbolName: lyricsSymbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: lyricsWeight))
+    lyricsButton.contentTintColor = isQueueSelected ? .white : activeIconTint
+    lyricsButton.isSegmentSelected = !isQueueSelected
+
+    queueButton.image = NSImage(systemSymbolName: "list.bullet", accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .semibold))
+    queueButton.contentTintColor = isQueueSelected ? activeIconTint : .white
+    queueButton.isSegmentSelected = isQueueSelected
+  }
+
+  @objc
+  private func lyricsPressed() {
+    guard isQueueSelected else { return }
+    onSelectQueue?(false)
+  }
+
+  @objc
+  private func queuePressed() {
+    guard !isQueueSelected else { return }
+    onSelectQueue?(true)
+  }
+}
+
+@MainActor
+private final class SegmentToggleButton: NSButton {
+  private var isHovered = false
+
+  var isSegmentSelected = false {
+    didSet { updateHighlight() }
+  }
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.masksToBounds = true
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func layout() {
+    super.layout()
+    layer?.cornerRadius = min(bounds.width, bounds.height) / 2
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(NSTrackingArea(
+      rect: .zero,
+      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      owner: self,
+      userInfo: nil
+    ))
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    updateHighlight()
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    updateHighlight()
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    if !isSegmentSelected {
+      layer?.backgroundColor = NSColor.white.withAlphaComponent(0.24).cgColor
+    }
+    super.mouseDown(with: event)
+    updateHighlight()
+  }
+
+  private func updateHighlight() {
+    if isSegmentSelected {
+      layer?.backgroundColor = NSColor.clear.cgColor
+    } else {
+      layer?.backgroundColor = isHovered
+        ? NSColor.white.withAlphaComponent(0.14).cgColor
+        : NSColor.clear.cgColor
+    }
+  }
+}
+
+// MARK: - NowPlayingQueuePaneView
+
+/// Inline right-hand Queue pane inside the fullscreen Now Playing view, styled
+/// after Apple Music's fullscreen Up Next / History column.
+@MainActor
+private final class NowPlayingQueuePaneView: NSView, NSTableViewDataSource,
+  NSTableViewDelegate, MusicPlayable {
+  private enum Row {
+    case sectionHeader(String)
+    case track(AbstractPlayable, PlayerIndex)
+  }
+
+  private let headerTitleLabel = NSTextField(labelWithString: L10n.tr("Next in Queue"))
+  private let clearButton = NSButton()
+  private let headerDivider = NSView()
+  private let scrollView = NSScrollView()
+  private let tableView = NSTableView()
+  private let emptyLabel = NSTextField(labelWithString: L10n.tr("No items in queue"))
+
+  private var rows: [Row] = []
+  private var hasRegisteredNotifier = false
+
+  private let trackCellID = NSUserInterfaceItemIdentifier("npQueueTrackCell")
+  private let headerCellID = NSUserInterfaceItemIdentifier("npQueueHeaderCell")
+  private let columnID = NSUserInterfaceItemIdentifier("npQueueColumn")
+
+  private var player: PlayerFacade { FmusicKit.shared.player }
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    buildUI()
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  private func buildUI() {
+    wantsLayer = true
+
+    headerTitleLabel.font = .systemFont(ofSize: 16, weight: .bold)
+    headerTitleLabel.textColor = .white
+    headerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    clearButton.title = L10n.tr("Clear")
+    clearButton.isBordered = false
+    clearButton.font = .systemFont(ofSize: 13, weight: .medium)
+    clearButton.contentTintColor = MacTheme.accentColor
+    clearButton.target = self
+    clearButton.action = #selector(clearQueuePressed)
+    clearButton.translatesAutoresizingMaskIntoConstraints = false
+
+    headerDivider.wantsLayer = true
+    headerDivider.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.14).cgColor
+    headerDivider.translatesAutoresizingMaskIntoConstraints = false
+
+    let column = NSTableColumn(identifier: columnID)
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+    tableView.headerView = nil
+    tableView.backgroundColor = .clear
+    tableView.style = .plain
+    tableView.selectionHighlightStyle = .none
+    tableView.intercellSpacing = .zero
+    tableView.focusRingType = .none
+    tableView.dataSource = self
+    tableView.delegate = self
+    tableView.target = self
+    tableView.action = #selector(rowClicked)
+    tableView.doubleAction = #selector(rowClicked)
+
+    scrollView.documentView = tableView
+    scrollView.drawsBackground = false
+    scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
+    scrollView.scrollerStyle = .overlay
+    scrollView.translatesAutoresizingMaskIntoConstraints = false
+
+    emptyLabel.font = .systemFont(ofSize: 14, weight: .medium)
+    emptyLabel.textColor = NSColor.white.withAlphaComponent(0.55)
+    emptyLabel.alignment = .center
+    emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    addSubview(headerTitleLabel)
+    addSubview(clearButton)
+    addSubview(headerDivider)
+    addSubview(scrollView)
+    addSubview(emptyLabel)
+
+    NSLayoutConstraint.activate([
+      headerTitleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+      headerTitleLabel.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+
+      clearButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+      clearButton.centerYAnchor.constraint(equalTo: headerTitleLabel.centerYAnchor),
+
+      headerDivider.leadingAnchor.constraint(equalTo: leadingAnchor),
+      headerDivider.trailingAnchor.constraint(equalTo: trailingAnchor),
+      headerDivider.topAnchor.constraint(equalTo: headerTitleLabel.bottomAnchor, constant: 10),
+      headerDivider.heightAnchor.constraint(equalToConstant: 1),
+
+      scrollView.topAnchor.constraint(equalTo: headerDivider.bottomAnchor, constant: 4),
+      scrollView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      scrollView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+      emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+      emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
+    ])
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window != nil {
+      if !hasRegisteredNotifier {
+        hasRegisteredNotifier = true
+        player.addNotifier(notifier: self)
+      }
+      reload()
+    }
+  }
+
+  func reload() {
+    clearButton.contentTintColor = MacTheme.accentColor
+    var newRows: [Row] = []
+
+    let userQueue = player.getAllUserQueueItems()
+    let nextQueue = player.getAllNextQueueItems()
+    let prevQueue = player.getAllPrevQueueItems()
+
+    if !userQueue.isEmpty {
+      for (index, playable) in userQueue.enumerated() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .user, index: index)))
+      }
+    }
+    if !nextQueue.isEmpty {
+      if !userQueue.isEmpty {
+        newRows.append(.sectionHeader(L10n.tr("Next from: %@", player.contextName)))
+      }
+      for (index, playable) in nextQueue.enumerated() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .next, index: index)))
+      }
+    }
+    if !prevQueue.isEmpty {
+      if !newRows.isEmpty {
+        newRows.append(.sectionHeader(L10n.tr("Previous")))
+      }
+      for (index, playable) in prevQueue.enumerated().reversed() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .prev, index: index)))
+      }
+    }
+
+    let hasUpNext = !userQueue.isEmpty || !nextQueue.isEmpty
+    headerTitleLabel.stringValue = hasUpNext
+      ? L10n.tr("Next in Queue")
+      : (prevQueue.isEmpty ? L10n.tr("Next in Queue") : L10n.tr("Previous"))
+    clearButton.isHidden = !hasUpNext
+
+    rows = newRows
+    tableView.reloadData()
+    emptyLabel.isHidden = !rows.isEmpty
+    scrollView.isHidden = rows.isEmpty
+  }
+
+  @objc
+  private func clearQueuePressed() {
+    player.clearUserQueue()
+    player.clearContextQueue()
+    reload()
+  }
+
+  @objc
+  private func rowClicked() {
+    let row = tableView.clickedRow
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
+      return
+    }
+    player.play(playerIndex: playerIndex)
+  }
+
+  private func showRowMenu(for row: Int, relativeTo anchor: NSView) {
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
+      return
+    }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(title: L10n.tr("Play"), action: #selector(menuPlayRow(_:)), keyEquivalent: "")
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    if playerIndex.queueType != .prev {
+      let removeItem = NSMenuItem(title: L10n.tr("Remove"), action: #selector(menuRemoveRow(_:)), keyEquivalent: "")
+      removeItem.target = self
+      removeItem.tag = row
+      menu.addItem(removeItem)
+    }
+    menu.popUp(positioning: nil, at: NSPoint(x: anchor.bounds.midX, y: anchor.bounds.minY - 4), in: anchor)
+  }
+
+  @objc
+  private func menuPlayRow(_ sender: NSMenuItem) {
+    let row = sender.tag
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else { return }
+    player.play(playerIndex: playerIndex)
+  }
+
+  @objc
+  private func menuRemoveRow(_ sender: NSMenuItem) {
+    let row = sender.tag
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else { return }
+    player.removePlayable(at: playerIndex)
+    reload()
+  }
+
+  // MARK: - NSTableViewDataSource & Delegate
+
+  func numberOfRows(in tableView: NSTableView) -> Int {
+    rows.count
+  }
+
+  func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    guard row < rows.count else { return 56 }
+    if case .sectionHeader = rows[row] { return 34 }
+    return 56
+  }
+
+  func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+    guard row < rows.count else { return nil }
+    switch rows[row] {
+    case .sectionHeader(let title):
+      let cell = tableView.makeView(withIdentifier: headerCellID, owner: self) as? NSTableCellView
+        ?? {
+          let view = NSTableCellView()
+          let label = NSTextField(labelWithString: "")
+          label.font = .systemFont(ofSize: 13, weight: .semibold)
+          label.textColor = NSColor.white.withAlphaComponent(0.70)
+          label.translatesAutoresizingMaskIntoConstraints = false
+          view.addSubview(label)
+          view.textField = label
+          NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 4),
+            label.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -4),
+          ])
+          return view
+        }()
+      cell.identifier = headerCellID
+      cell.textField?.stringValue = title
+      return cell
+
+    case .track(let playable, _):
+      let cell = tableView.makeView(withIdentifier: trackCellID, owner: self) as? NowPlayingQueueRowView
+        ?? NowPlayingQueueRowView()
+      cell.identifier = trackCellID
+      let setting = storage.settings.accounts.activeSetting.read
+      let artwork = ArtworkImageLoader.image(
+        for: playable,
+        themePreference: setting.themePreference,
+        artworkDisplayPreference: setting.artworkDisplayPreference,
+        maxPixelSize: 120
+      )
+      let albumName = playable.asSong?.album?.name ?? ""
+      let subtitle = albumName.isEmpty
+        ? playable.creatorName
+        : "\(playable.creatorName) — \(albumName)"
+      cell.configure(artwork: artwork, title: playable.title, subtitle: subtitle)
+      cell.onMore = { [weak self] anchor in
+        self?.showRowMenu(for: row, relativeTo: anchor)
+      }
+      return cell
+    }
+  }
+
+  // MARK: - MusicPlayable
+
+  func didStartPlayingFromBeginning() { reload() }
+  func didStartPlaying() { reload() }
+  func didPause() {}
+  func didStopPlaying() { reload() }
+  func didElapsedTimeChange() {}
+  func didLyricsTimeChange(time: CMTime) {}
+  func didPlaylistChange() { reload() }
+  func didArtworkChange() { reload() }
+  func didNowPlayingInfoChange() { reload() }
+  func didShuffleChange() { reload() }
+  func didRepeatChange() {}
+  func didPlaybackRateChange() {}
+}
+
+// MARK: - NowPlayingQueueRowView
+
+@MainActor
+private final class NowPlayingQueueRowView: NSTableCellView {
+  var onMore: ((NSView) -> Void)?
+
+  private let artworkView = NSImageView()
+  private let titleLabel = NSTextField(labelWithString: "")
+  private let subtitleLabel = NSTextField(labelWithString: "")
+  private let moreButton = NSButton()
+  private let divider = NSView()
+  private var isHovered = false
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.cornerRadius = 8
+
+    artworkView.imageScaling = .scaleProportionallyUpOrDown
+    artworkView.wantsLayer = true
+    artworkView.layer?.cornerRadius = 6
+    artworkView.layer?.masksToBounds = true
+    artworkView.translatesAutoresizingMaskIntoConstraints = false
+
+    titleLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+    titleLabel.textColor = .white
+    titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    subtitleLabel.font = .systemFont(ofSize: 12, weight: .regular)
+    subtitleLabel.textColor = NSColor.white.withAlphaComponent(0.62)
+    subtitleLabel.lineBreakMode = .byTruncatingTail
+    subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    moreButton.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 13, weight: .medium))
+    moreButton.isBordered = false
+    moreButton.bezelStyle = .regularSquare
+    moreButton.imagePosition = .imageOnly
+    moreButton.contentTintColor = NSColor.white.withAlphaComponent(0.65)
+    moreButton.target = self
+    moreButton.action = #selector(morePressed)
+    moreButton.translatesAutoresizingMaskIntoConstraints = false
+
+    divider.wantsLayer = true
+    divider.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.10).cgColor
+    divider.translatesAutoresizingMaskIntoConstraints = false
+
+    addSubview(artworkView)
+    addSubview(titleLabel)
+    addSubview(subtitleLabel)
+    addSubview(moreButton)
+    addSubview(divider)
+
+    NSLayoutConstraint.activate([
+      artworkView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+      artworkView.centerYAnchor.constraint(equalTo: centerYAnchor),
+      artworkView.widthAnchor.constraint(equalToConstant: 40),
+      artworkView.heightAnchor.constraint(equalToConstant: 40),
+
+      titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 12),
+      titleLabel.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -8),
+      titleLabel.bottomAnchor.constraint(equalTo: centerYAnchor, constant: -1),
+
+      subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+      subtitleLabel.topAnchor.constraint(equalTo: centerYAnchor, constant: 2),
+
+      moreButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -6),
+      moreButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      moreButton.widthAnchor.constraint(equalToConstant: 26),
+      moreButton.heightAnchor.constraint(equalToConstant: 26),
+
+      divider.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      divider.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -4),
+      divider.bottomAnchor.constraint(equalTo: bottomAnchor),
+      divider.heightAnchor.constraint(equalToConstant: 0.5),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  func configure(artwork: NSImage?, title: String, subtitle: String) {
+    artworkView.image = artwork
+    titleLabel.stringValue = title
+    subtitleLabel.stringValue = subtitle
+  }
+
+  @objc
+  private func morePressed() {
+    onMore?(moreButton)
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(NSTrackingArea(
+      rect: .zero,
+      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      owner: self,
+      userInfo: nil
+    ))
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
+    moreButton.contentTintColor = .white
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    layer?.backgroundColor = NSColor.clear.cgColor
+    moreButton.contentTintColor = NSColor.white.withAlphaComponent(0.65)
   }
 }
 
