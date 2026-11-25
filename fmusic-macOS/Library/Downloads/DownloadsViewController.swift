@@ -29,12 +29,14 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
   NSTableViewDelegate {
   private let titleLabel = NSTextField(labelWithString: L10n.tr("Downloads"))
   private let countLabel = NSTextField(labelWithString: "")
+  private let removeDownloadsButton = NSButton()
   private let emptyLabel = NSTextField(wrappingLabelWithString: "")
   private let tableView = InteractiveTableView()
   private let scrollView = NSScrollView()
 
   private var songs: [Song] = []
   private var reloadGeneration = 0
+  private var isRemovingDownloads = false
 
   private enum Column {
     static let artwork = NSUserInterfaceItemIdentifier("downloadArtwork")
@@ -56,6 +58,18 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     countLabel.textColor = MacTheme.secondaryTextColor
     countLabel.translatesAutoresizingMaskIntoConstraints = false
 
+    removeDownloadsButton.title = L10n.tr("Remove Download")
+    removeDownloadsButton.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
+    removeDownloadsButton.imagePosition = .imageLeading
+    removeDownloadsButton.bezelStyle = .rounded
+    removeDownloadsButton.target = self
+    removeDownloadsButton.action = #selector(removeSelectedDownloads)
+    removeDownloadsButton.toolTip = L10n.tr(
+      "Remove downloaded files from this Mac. The songs remain in your library."
+    )
+    removeDownloadsButton.isEnabled = false
+    removeDownloadsButton.translatesAutoresizingMaskIntoConstraints = false
+
     emptyLabel.font = .systemFont(ofSize: MacTheme.bodyFontSize)
     emptyLabel.textColor = MacTheme.secondaryTextColor
     emptyLabel.alignment = .center
@@ -64,20 +78,31 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     configureTableView()
     scrollView.documentView = tableView
     scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
     scrollView.drawsBackground = false
     scrollView.translatesAutoresizingMaskIntoConstraints = false
 
     root.addSubview(titleLabel)
     root.addSubview(countLabel)
+    root.addSubview(removeDownloadsButton)
     root.addSubview(scrollView)
     root.addSubview(emptyLabel)
 
     NSLayoutConstraint.activate([
       titleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 24),
       titleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 20),
+      titleLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: removeDownloadsButton.leadingAnchor, constant: -16
+      ),
 
       countLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
       countLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 4),
+      countLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: removeDownloadsButton.leadingAnchor, constant: -16
+      ),
+
+      removeDownloadsButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+      removeDownloadsButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
 
       scrollView.topAnchor.constraint(equalTo: countLabel.bottomAnchor, constant: 12),
       scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
@@ -121,6 +146,32 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     reloadSongs()
   }
 
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    fitColumnsToAvailableWidth()
+  }
+
+  private func fitColumnsToAvailableWidth() {
+    let width = scrollView.contentView.bounds.width
+    guard width > 0, tableView.tableColumns.count == 5 else { return }
+    let columns = tableView.tableColumns
+    // The full-width table style adds outer padding as well as intercell spacing.
+    let padding = tableView.rect(ofColumn: columns.count - 1).maxX
+      - columns.reduce(CGFloat.zero) { $0 + $1.width }
+    let extra = max(0, width - padding - columns.reduce(CGFloat.zero) { $0 + $1.minWidth })
+    let scale = view.window?.backingScaleFactor ?? 1
+    let weights: [CGFloat] = [0, 0.5, 0.22, 0.28, 0]
+    let widths = zip(columns, weights).map { column, weight in
+      column.minWidth + floor(extra * weight * scale) / scale
+    }
+    for (column, targetWidth) in zip(columns, widths) where abs(column.width - targetWidth) > 0.5 {
+      column.width = targetWidth
+    }
+    if abs(tableView.frame.width - width) > 0.5 {
+      tableView.setFrameSize(NSSize(width: width, height: tableView.frame.height))
+    }
+  }
+
   deinit {
     NotificationCenter.default.removeObserver(self)
   }
@@ -133,27 +184,29 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     artworkColumn.width = 46
     artworkColumn.minWidth = 46
     artworkColumn.maxWidth = 46
+    artworkColumn.resizingMask = []
 
     let titleColumn = NSTableColumn(identifier: Column.title)
     titleColumn.title = L10n.tr("Title")
     titleColumn.width = 280
-    titleColumn.minWidth = 160
+    titleColumn.minWidth = 120
 
     let artistColumn = NSTableColumn(identifier: Column.artist)
     artistColumn.title = L10n.tr("Artist")
     artistColumn.width = 160
-    artistColumn.minWidth = 120
+    artistColumn.minWidth = 80
 
     let albumColumn = NSTableColumn(identifier: Column.album)
     albumColumn.title = L10n.tr("Album")
     albumColumn.width = 200
-    albumColumn.minWidth = 120
+    albumColumn.minWidth = 100
 
     let durationColumn = NSTableColumn(identifier: Column.duration)
     durationColumn.title = L10n.tr("Duration")
     durationColumn.width = 60
-    durationColumn.minWidth = 56
-    durationColumn.maxWidth = 80
+    durationColumn.minWidth = 60
+    durationColumn.maxWidth = 60
+    durationColumn.resizingMask = []
 
     [artworkColumn, titleColumn, artistColumn, albumColumn, durationColumn]
       .forEach(tableView.addTableColumn)
@@ -163,6 +216,11 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     tableView.selectionHighlightStyle = .regular
     tableView.allowsMultipleSelection = true
     tableView.allowsEmptySelection = true
+    // Fit to the clip view explicitly: NSTableView otherwise keeps its wider
+    // document frame when the lyrics split item shrinks the content column.
+    tableView.columnAutoresizingStyle = .noColumnAutoresizing
+    tableView.intercellSpacing = NSSize(width: 8, height: 0)
+    tableView.autoresizingMask = [.width]
     tableView.usesAlternatingRowBackgroundColors = false
     tableView.backgroundColor = .clear
     tableView.gridStyleMask = []
@@ -176,6 +234,9 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     }
     tableView.onContextMenu = { [weak self] row in
       self?.makeMenu(for: row)
+    }
+    tableView.onDelete = { [weak self] in
+      self?.removeSelectedDownloads()
     }
   }
 
@@ -198,6 +259,16 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    menu.addItem(.separator())
+    let selectedIDs = selectedSongIDs
+    let removeItem = NSMenuItem(
+      title: L10n.tr(selectedIDs.count > 1 ? "Remove Downloads" : "Remove Download"),
+      action: #selector(menuRemoveDownloads(_:)),
+      keyEquivalent: ""
+    )
+    removeItem.target = self
+    removeItem.representedObject = selectedIDs
+    menu.addItem(removeItem)
     return menu
   }
 
@@ -215,6 +286,7 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     guard let accountInfo = storage.settings.accounts.active else {
       songs = []
       tableView.reloadData()
+      updateRemoveDownloadsButton()
       countLabel.stringValue = ""
       emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Downloads"))
       emptyLabel.isHidden = false
@@ -243,6 +315,7 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
         ? ""
         : infoParts.joined(separator: " · ")
       self.tableView.reloadData()
+      self.updateRemoveDownloadsButton()
       self.emptyLabel.stringValue = L10n.tr("No %@", L10n.tr("Downloads"))
       self.emptyLabel.isHidden = !self.songs.isEmpty
     }
@@ -271,6 +344,64 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
     FmusicKit.shared.player.insertUserQueue(playables: [songs[sender.tag]])
   }
 
+  private var selectedSongIDs: [NSManagedObjectID] {
+    tableView.selectedRowIndexes.compactMap { row in
+      songs.indices.contains(row) ? songs[row].managedObject.objectID : nil
+    }
+  }
+
+  private func updateRemoveDownloadsButton() {
+    let count = selectedSongIDs.count
+    removeDownloadsButton.title = L10n.tr(count > 1 ? "Remove Downloads" : "Remove Download")
+    removeDownloadsButton.isEnabled = count > 0 && !isRemovingDownloads
+  }
+
+  @objc
+  private func removeSelectedDownloads() {
+    removeDownloads(with: selectedSongIDs)
+  }
+
+  @objc
+  private func menuRemoveDownloads(_ sender: NSMenuItem) {
+    guard let ids = sender.representedObject as? [NSManagedObjectID] else { return }
+    removeDownloads(with: ids)
+  }
+
+  private func removeDownloads(with ids: [NSManagedObjectID]) {
+    guard !ids.isEmpty, !isRemovingDownloads else { return }
+    isRemovingDownloads = true
+    updateRemoveDownloadsButton()
+    let storage = FmusicKit.shared.storage
+    Task { [weak self] in
+      guard let self else { return }
+      defer {
+        self.isRemovingDownloads = false
+        self.updateRemoveDownloadsButton()
+        self.reloadSongs()
+      }
+      do {
+        try await storage.async.performAndGet { companion in
+          for id in ids {
+            guard let song = try companion.context.existingObject(with: id) as? SongMO else {
+              continue
+            }
+            companion.library.deleteCache(ofPlayable: Song(managedObject: song))
+          }
+        }
+      } catch {
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("Unable to Remove Downloads")
+        alert.informativeText = error.localizedDescription
+        alert.addButton(withTitle: L10n.tr("OK"))
+        if let window = self.view.window {
+          await alert.beginSheetModal(for: window)
+        } else {
+          alert.runModal()
+        }
+      }
+    }
+  }
+
   private func play(row: Int) {
     guard row >= 0, row < songs.count else { return }
     FmusicKit.shared.player.play(context: PlayContext(
@@ -287,6 +418,10 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
   }
 
   // MARK: - NSTableViewDelegate
+
+  func tableViewSelectionDidChange(_ notification: Notification) {
+    updateRemoveDownloadsButton()
+  }
 
   func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
     let rowView = ThemedRowView()
@@ -363,6 +498,7 @@ final class DownloadsViewController: NSViewController, NSTableViewDataSource,
       LMTextCellView ?? LMTextCellView()
     cell.identifier = identifier
     cell.configure(text: text, font: font, color: color, alignment: alignment)
+    cell.toolTip = text
     return cell
   }
 }

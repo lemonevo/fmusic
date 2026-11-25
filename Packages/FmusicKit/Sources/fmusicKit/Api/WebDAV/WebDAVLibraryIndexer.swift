@@ -406,10 +406,9 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     } else {
       albumKey = "path:\(entry.directoryPath)"
     }
-    let mimeType = MimeFileConverter.convertToValidMimeTypeWhenNeccessary(
-      mimeType: entry.contentType
-        ?? MimeFileConverter.getMIMEType(filenameExtension: extensionName)
-        ?? "application/octet-stream"
+    let mimeType = MimeFileConverter.resolveMimeType(
+      remoteContentType: entry.contentType,
+      filenameExtension: extensionName
     )
     let bitrate = duration > 0 ? (entry.size * 8) / duration : 0
 

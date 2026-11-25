@@ -114,6 +114,17 @@ enum MacTheme {
     }
   }
 
+  /// Pill fill for the sidebar titlebar buttons (编辑 / sidebar toggle):
+  /// crisp white in light mode, elevated dark grey in dark mode.
+  static var sidebarButtonFillColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor(srgbRed: 0x38 / 255, green: 0x37 / 255, blue: 0x36 / 255, alpha: 1)
+        : .white
+    }
+  }
+
   static var secondaryTextColor: NSColor { .secondaryLabelColor }
 
   /// Resolves a dynamic colour against a specific appearance. Writing `cgColor` on a

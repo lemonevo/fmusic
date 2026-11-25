@@ -30,7 +30,9 @@ public class MimeFileConverter {
 
   static let mimeTypes = [
     "ogg": "audio/ogg",
+    "oga": "audio/ogg",
     "ogx": "application/ogg",
+    "opus": "audio/opus",
     "flac": "audio/x-flac", // the case "audio/flac" is already covered by UTType
   ]
 
@@ -51,6 +53,29 @@ public class MimeFileConverter {
   static func convertToValidMimeTypeWhenNeccessary(mimeType: String) -> String {
     let mimeTypeLowerCased = mimeType.lowercased()
     return Self.conversionNeededMimeTypes[mimeTypeLowerCased] ?? mimeTypeLowerCased
+  }
+
+  /// Resolves a usable audio MIME type, ignoring generic binary fallbacks such as
+  /// `application/octet-stream` (frequently returned by WebDAV servers) in favor of
+  /// inferring the type from the file extension.
+  static func resolveMimeType(
+    remoteContentType: String?,
+    filenameExtension: String?
+  ) -> String {
+    let normalizedRemote = remoteContentType?
+      .split(separator: ";").first
+      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
+    let usableRemote = normalizedRemote.flatMap { type -> String? in
+      guard !type.isEmpty,
+            type != mimeTypeUnknown,
+            type != "binary/octet-stream"
+      else { return nil }
+      return type
+    }
+    let resolved = usableRemote
+      ?? getMIMEType(filenameExtension: filenameExtension)
+      ?? mimeTypeUnknown
+    return convertToValidMimeTypeWhenNeccessary(mimeType: resolved)
   }
 
   static func isMimeTypePlayableOniOS(mimeType: String) -> Bool {

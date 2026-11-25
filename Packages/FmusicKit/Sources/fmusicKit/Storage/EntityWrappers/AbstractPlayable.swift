@@ -248,6 +248,23 @@ public class AbstractPlayable: AbstractLibraryEntity, Downloadable {
   public var fileContentType: String? {
     let type = isCached ? (contentTypeTranscoded != nil ? contentTypeTranscoded : contentType)
       : contentType
+    if let type {
+      let normalized = type.split(separator: ";").first
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() } ?? ""
+      if normalized.isEmpty ||
+        normalized == MimeFileConverter.mimeTypeUnknown ||
+        normalized == "binary/octet-stream" {
+        if let url, !url.isEmpty {
+          let ext = (url as NSString).pathExtension
+          if !ext.isEmpty {
+            return MimeFileConverter.resolveMimeType(
+              remoteContentType: nil,
+              filenameExtension: ext
+            )
+          }
+        }
+      }
+    }
     return type
   }
 

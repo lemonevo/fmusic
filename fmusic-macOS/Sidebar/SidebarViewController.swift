@@ -760,9 +760,10 @@ final class SidebarTitleButton: NSControl {
   }
 
   var content: Content = .title("") { didSet { needsDisplay = true } }
-  /// Pill fill. The sidebar's grey surface takes the default white; the content
-  /// toolbar uses the search-field grey so the button stays visible on white.
-  var fillColor: NSColor = .white { didSet { needsDisplay = true } }
+  /// Pill fill. The sidebar's surface uses `MacTheme.sidebarButtonFillColor`; the content
+  /// toolbar uses `MacTheme.searchFieldBackgroundColor` so the button stays visible on light
+  /// and dark surfaces alike.
+  var fillColor: NSColor = MacTheme.sidebarButtonFillColor { didSet { needsDisplay = true } }
   var onClick: (() -> Void)?
 
   private var isPressed = false {
@@ -779,8 +780,14 @@ final class SidebarTitleButton: NSControl {
     action = #selector(press)
     NotificationCenter.default.addObserver(
       self,
-      selector: #selector(glassStyleChanged),
+      selector: #selector(appearanceOrStyleChanged),
       name: .macGlassStyleChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appearanceOrStyleChanged),
+      name: .macAppearanceChanged,
       object: nil
     )
   }
@@ -795,32 +802,62 @@ final class SidebarTitleButton: NSControl {
     onClick?()
   }
 
-  @objc private func glassStyleChanged() {
+  @objc private func appearanceOrStyleChanged() {
+    needsDisplay = true
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    needsDisplay = true
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
     needsDisplay = true
   }
 
   /// Height is fixed by constraints (32 pt); the radius follows to make a pill.
   override func draw(_ dirtyRect: NSRect) {
     let style = GlassStyleManager.configuration
+    let appearance = window?.effectiveAppearance ?? effectiveAppearance
+    let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    var resolvedFill = fillColor
+    appearance.performAsCurrentDrawingAppearance {
+      resolvedFill = fillColor.usingColorSpace(.sRGB) ?? fillColor
+    }
+
     let r = bounds.insetBy(dx: 0.5, dy: 0.5)
     let path = NSBezierPath(roundedRect: r, xRadius: r.height / 2, yRadius: r.height / 2)
-    // The reference buttons have NO hard outline — a white pill that fades into the
-    // surface via a soft, barely-there shadow. A soft outer glow plus a faint inner
-    // rim gives the same weightless "floating" edge instead of a visible stroke.
+    // The reference buttons have NO hard outline — a pill that fades into the
+    // surface via a soft shadow and faint inner rim.
     NSGraphicsContext.saveGraphicsState()
     let shadow = NSShadow()
-    shadow.shadowColor = NSColor.black.withAlphaComponent(style.buttonShadowOpacity)
+    shadow.shadowColor = NSColor.black.withAlphaComponent(
+      isDark ? min(style.buttonShadowOpacity * 2.5, 0.35) : style.buttonShadowOpacity
+    )
     shadow.shadowBlurRadius = 3
     shadow.shadowOffset = NSSize(width: 0, height: -0.5)
     shadow.set()
-    (isPressed
-      ? NSColor.black.withAlphaComponent(0.05)
-      : fillColor.withAlphaComponent(style.buttonFillAlpha)).setFill()
+    let activeFill: NSColor
+    if isPressed {
+      activeFill = isDark
+        ? NSColor.white.withAlphaComponent(0.18)
+        : NSColor.black.withAlphaComponent(0.06)
+    } else {
+      // Multiply alpha rather than replacing it, so already-translucent dynamic colors
+      // (like `searchFieldBackgroundColor` in dark mode) stay subtle instead of jumping to 0.90.
+      activeFill = resolvedFill.withAlphaComponent(
+        resolvedFill.alphaComponent * style.buttonFillAlpha
+      )
+    }
+    activeFill.setFill()
     path.fill()
     NSGraphicsContext.restoreGraphicsState()
-    // Very faint inner rim (≈4% black) so the pill reads on both light and dark,
-    // far softer than a separator-coloured 1 pt line.
-    NSColor.black.withAlphaComponent(style.buttonBorderAlpha).setStroke()
+
+    let rimColor = isDark
+      ? NSColor.white.withAlphaComponent(min(style.buttonBorderAlpha * 2.0, 0.16))
+      : NSColor.black.withAlphaComponent(style.buttonBorderAlpha)
+    rimColor.setStroke()
     path.lineWidth = 0.5
     path.stroke()
 
