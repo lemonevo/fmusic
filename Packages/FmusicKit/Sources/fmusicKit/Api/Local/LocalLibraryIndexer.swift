@@ -258,7 +258,24 @@ final class LocalLibraryIndexer: LibrarySyncer {
     return storage.main.library.getSimilarSongs(for: account, to: song, count: count)
   }
 
+  private static var activeIndexTasks = [AccountInfo: Task<(), Error>]()
+
   func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
+    if let existingTask = Self.activeIndexTasks[accountInfo] {
+      try await existingTask.value
+      return
+    }
+    let accountInfo = accountInfo
+    let indexTask = Task { [weak self] in
+      guard let self else { return }
+      try await performIndexing(statusNotifyier: statusNotifyier)
+    }
+    Self.activeIndexTasks[accountInfo] = indexTask
+    defer { Self.activeIndexTasks.removeValue(forKey: accountInfo) }
+    try await indexTask.value
+  }
+
+  private func performIndexing(statusNotifyier: SyncCallbacks?) async throws {
     guard let credentials else { throw LocalFolderError.noFolderSelected }
     let folderURL = try LocalFolderAccess.shared.activate(credentials: credentials)
     // Directory enumeration hits the filesystem for every entry; keep it off the
@@ -326,6 +343,10 @@ final class LocalLibraryIndexer: LibrarySyncer {
         )
       }
       FileSourceLibraryWriter.mergeAlbumsByName(
+        account: account,
+        library: asyncCompanion.library
+      )
+      FileSourceLibraryWriter.deduplicateSongs(
         account: account,
         library: asyncCompanion.library
       )

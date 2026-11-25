@@ -80,19 +80,22 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     self.credentials = credentials
   }
 
-  private var activeIndexTask: Task<(), Error>?
+  /// Account-scoped single-flight map so `LibraryResyncService.resetMeta` creating a
+  /// new indexer instance cannot launch a second overlapping WebDAV sync for the same account.
+  private static var activeIndexTasks = [AccountInfo: Task<(), Error>]()
 
   func syncInitial(statusNotifyier: SyncCallbacks?) async throws {
-    if let activeIndexTask {
-      try await activeIndexTask.value
+    if let existingTask = Self.activeIndexTasks[accountInfo] {
+      try await existingTask.value
       return
     }
+    let accountInfo = accountInfo
     let indexTask = Task { [weak self] in
       guard let self else { return }
       try await performIndexing(statusNotifyier: statusNotifyier)
     }
-    activeIndexTask = indexTask
-    defer { activeIndexTask = nil }
+    Self.activeIndexTasks[accountInfo] = indexTask
+    defer { Self.activeIndexTasks.removeValue(forKey: accountInfo) }
     try await indexTask.value
   }
 
@@ -238,6 +241,10 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
         )
       }
       FileSourceLibraryWriter.mergeAlbumsByName(
+        account: account,
+        library: asyncCompanion.library
+      )
+      FileSourceLibraryWriter.deduplicateSongs(
         account: account,
         library: asyncCompanion.library
       )

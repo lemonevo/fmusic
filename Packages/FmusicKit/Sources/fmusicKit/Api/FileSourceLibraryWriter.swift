@@ -386,6 +386,90 @@ enum FileSourceLibraryWriter {
     }
   }
 
+  /// Removes duplicate songs in the account that can be left behind by overlapping
+  /// resyncs or URL-encoding changes, keeping the richest copy (downloaded/cached,
+  /// lyrics, favorite/rating, artwork) and deleting redundant Core Data rows.
+  static func deduplicateSongs(account: Account, library: LibraryStorage) {
+    func rank(_ song: Song) -> (Int, Int, Int, Int, Int) {
+      (
+        song.isCached ? 1 : 0,
+        song.lyricsRelFilePath != nil ? 1 : 0,
+        (song.isFavorite || song.rating > 0) ? 1 : 0,
+        song.artwork?.imagePath != nil ? 1 : 0,
+        song.playCount
+      )
+    }
+
+    func normalizedURL(_ url: String?) -> String? {
+      guard let url, !url.isEmpty else { return nil }
+      let decoded = url.removingPercentEncoding ?? url
+      return decoded.trimmingCharacters(in: CharacterSet(charactersIn: "/")).lowercased()
+    }
+
+    func pruneGroup(_ group: [Song]) {
+      guard group.count > 1 else { return }
+      let sorted = group.sorted { lhs, rhs in
+        let rL = rank(lhs)
+        let rR = rank(rhs)
+        if rL != rR { return rL > rR }
+        return lhs.managedObject.objectID.uriRepresentation().absoluteString <
+          rhs.managedObject.objectID.uriRepresentation().absoluteString
+      }
+      guard let primary = sorted.first else { return }
+      for duplicate in sorted.dropFirst() {
+        if primary.lyricsRelFilePath == nil, let lyricsPath = duplicate.lyricsRelFilePath {
+          primary.lyricsRelFilePath = lyricsPath
+        }
+        if primary.artwork?.imagePath == nil, let art = duplicate.artwork, art.imagePath != nil {
+          primary.artwork = art
+        }
+        if !primary.isFavorite, duplicate.isFavorite {
+          primary.isFavorite = true
+        }
+        if primary.rating == 0, duplicate.rating > 0 {
+          primary.rating = duplicate.rating
+        }
+        library.deleteSong(duplicate)
+      }
+    }
+
+    // Pass 1: exact duplicate song IDs.
+    var byID = [String: [Song]]()
+    for song in library.getSongs(for: account) where !song.id.isEmpty {
+      byID[song.id, default: []].append(song)
+    }
+    for group in byID.values where group.count > 1 {
+      pruneGroup(group)
+    }
+
+    // Pass 2: duplicate normalized remote/local paths.
+    var byURL = [String: [Song]]()
+    for song in library.getSongs(for: account) {
+      guard let key = normalizedURL(song.url) else { continue }
+      byURL[key, default: []].append(song)
+    }
+    for group in byURL.values where group.count > 1 {
+      pruneGroup(group)
+    }
+
+    // Pass 3: duplicate identical tracks inside the same album (same title, artist,
+    // duration, and positive file size).
+    var byAlbumFingerprint = [String: [Song]]()
+    for song in library.getSongs(for: account) {
+      guard let albumID = song.album?.id, song.size > 0 else { continue }
+      let titleKey = song.title.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+      let artistKey = (song.artist?.name ?? "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+        .lowercased()
+      let dur = song.duration > 0 ? song.duration : song.remoteDuration
+      let fingerprint = "\(albumID)|\(titleKey)|\(artistKey)|\(dur)|\(song.size)"
+      byAlbumFingerprint[fingerprint, default: []].append(song)
+    }
+    for group in byAlbumFingerprint.values where group.count > 1 {
+      pruneGroup(group)
+    }
+  }
+
   static func stableID(prefix: String, value: String) -> String {
     let digest = SHA256.hash(data: Data(value.utf8))
     let hex = digest.prefix(10).map { String(format: "%02x", $0) }.joined()
