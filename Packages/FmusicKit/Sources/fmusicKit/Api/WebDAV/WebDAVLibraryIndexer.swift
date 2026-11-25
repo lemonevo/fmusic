@@ -237,6 +237,10 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
           cacheFileManager: cacheFileManager
         )
       }
+      FileSourceLibraryWriter.mergeAlbumsByName(
+        account: account,
+        library: asyncCompanion.library
+      )
       FileSourceLibraryWriter.updateDenormalizedValues(
         account: account,
         library: asyncCompanion.library
@@ -396,16 +400,10 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
       : (entry.directoryPath as NSString).lastPathComponent
     let albumTag = LyricMetadataTags.firstNonEmpty(flacTags?.album, mp3Tags?.album)
     let albumName = albumTag ?? lyricTags?.album ?? directoryName
-    let albumKey: String
-    if let albumTag {
-      let albumArtist = LyricMetadataTags
-        .firstNonEmpty(flacTags?.albumArtist, mp3Tags?.albumArtist) ?? artistName
-      albumKey = "tag:\(albumArtist.lowercased())\u{1F}\(albumTag.lowercased())"
-    } else if let lyricAlbum = lyricTags?.album {
-      albumKey = "tag:\(artistName.lowercased())\u{1F}\(lyricAlbum.lowercased())"
-    } else {
-      albumKey = "path:\(entry.directoryPath)"
-    }
+    let albumKey = FileSourceLibraryWriter.albumKey(
+      albumName: albumTag ?? lyricTags?.album,
+      fallbackDirectoryPath: entry.directoryPath
+    )
     let mimeType = MimeFileConverter.resolveMimeType(
       remoteContentType: entry.contentType,
       filenameExtension: extensionName

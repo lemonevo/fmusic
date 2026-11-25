@@ -94,6 +94,16 @@ enum MacTheme {
     }
   }
 
+  /// Subtle hover highlight for sidebar rows (softer than `sidebarSelectionColor`).
+  static var sidebarHoverColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.05)
+        : NSColor.black.withAlphaComponent(0.045)
+    }
+  }
+
   /// 1 pt divider between the sidebar and the content column (#E1E1E4 light).
   static var columnDividerColor: NSColor {
     NSColor(name: nil) { appearance in

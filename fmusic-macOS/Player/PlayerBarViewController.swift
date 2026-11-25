@@ -745,11 +745,26 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func showMoreMenu() {
     guard let song = player.currentlyPlaying?.asSong else { return }
 
-    var entries: [PlayerMoreMenuPanel.Entry] = [
+    let playlistOptions = entityActions.addToPlaylistOptions(for: song)
+    let playlistEntry: PlayerMoreMenuPanel.Entry = playlistOptions.isEmpty
+      ? .item(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", enabled: false) {}
+      : .submenu(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", options: playlistOptions)
+
+    let entries: [PlayerMoreMenuPanel.Entry] = [
+      // Group 1: Song actions
+      .item(
+        song.isFavorite ? L10n.tr("Unmark favorite") : L10n.tr("Favorite"),
+        symbol: song.isFavorite ? "heart.fill" : "heart",
+        iconTint: song.isFavorite ? MacTheme.accentColor : nil
+      ) { [weak self] in
+        self?.entityActions.toggleFavorite()
+      },
+      playlistEntry,
       .item(L10n.tr("Instant Mix"), symbol: "sparkles") { [weak self] in
         self?.entityActions.instantMix()
       },
       .separator,
+      // Group 2: Navigation
       .item(
         L10n.tr("Show Album"),
         symbol: "square.stack",
@@ -764,50 +779,32 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       ) { [weak self] in
         self?.entityActions.showArtist()
       },
-      .item(L10n.tr("Desktop Lyrics"), symbol: "text.bubble") { [weak self] in
+      .separator,
+      // Group 3: Lyrics
+      .item(
+        L10n.tr("Desktop Lyrics"),
+        symbol: "text.bubble",
+        isChecked: storage.settings.user.isDesktopLyricsEnabled
+      ) { [weak self] in
         self?.entityActions.toggleDesktopLyrics()
       },
       .item(L10n.tr("Match Online Lyrics"), symbol: "magnifyingglass") { [weak self] in
         self?.entityActions.matchOnlineLyrics()
       },
       .separator,
+      // Group 4: File & sharing
       .item(
-        song.isFavorite ? L10n.tr("Unmark favorite") : L10n.tr("Favorite"),
-        symbol: "heart"
+        L10n.tr("Download"),
+        symbol: "arrow.down.circle",
+        enabled: entityActions.canDownload(song)
       ) { [weak self] in
-        self?.entityActions.toggleFavorite()
+        self?.entityActions.download(song)
       },
-      .rating(song.rating) { [weak self] rating in
-        self?.entityActions.setRating(rating)
+      .item(L10n.tr("Share"), symbol: "square.and.arrow.up") { [weak self] in
+        guard let self else { return }
+        self.entityActions.share(song, relativeTo: self.moreButton)
       },
-      .separator,
     ]
-
-    let playlistOptions = entityActions.addToPlaylistOptions(for: song)
-    if playlistOptions.isEmpty {
-      entries.append(.item(
-        L10n.tr("Add to Playlist"),
-        symbol: "text.badge.plus",
-        enabled: false
-      ) {})
-    } else {
-      entries.append(.submenu(
-        L10n.tr("Add to Playlist"),
-        symbol: "text.badge.plus",
-        options: playlistOptions
-      ))
-    }
-    entries.append(.item(
-      L10n.tr("Download"),
-      symbol: "arrow.down.circle",
-      enabled: entityActions.canDownload(song)
-    ) { [weak self] in
-      self?.entityActions.download(song)
-    })
-    entries.append(.item(L10n.tr("Share"), symbol: "square.and.arrow.up") { [weak self] in
-      guard let self else { return }
-      self.entityActions.share(song, relativeTo: self.moreButton)
-    })
 
     let panel = PlayerMoreMenuPanel()
     playerMoreMenuPanel = panel

@@ -18,9 +18,8 @@
 
 import AppKit
 
-/// Custom glass menu used by the player capsule's “more” button. It mirrors the
-/// Catalyst entity menu (grouped actions, inline rating) and is anchored above the
-/// button, never below it.
+/// Custom glass menu used by the player capsule's “more” button, anchored above the
+/// button with grouped actions, subtle hairlines, and native hover/checkmark feedback.
 @MainActor
 final class PlayerMoreMenuPanel: NSObject {
   struct Entry {
@@ -28,43 +27,55 @@ final class PlayerMoreMenuPanel: NSObject {
       case item
       case separator
       case submenu
-      case rating
     }
 
     var kind: Kind
     var title: String = ""
     var symbol: String?
+    var iconTint: NSColor?
+    var isChecked: Bool = false
     var enabled: Bool = true
     var handler: (() -> Void)?
     var options: [(String, () -> Void)] = []
-    var rating: Int = 0
-    var onRate: ((Int) -> Void)?
 
     static func item(
       _ title: String,
       symbol: String? = nil,
+      iconTint: NSColor? = nil,
+      isChecked: Bool = false,
       enabled: Bool = true,
       handler: @escaping () -> Void
     ) -> Entry {
-      Entry(kind: .item, title: title, symbol: symbol, enabled: enabled, handler: handler)
+      Entry(
+        kind: .item,
+        title: title,
+        symbol: symbol,
+        iconTint: iconTint,
+        isChecked: isChecked,
+        enabled: enabled,
+        handler: handler
+      )
     }
 
     static func submenu(
       _ title: String,
       symbol: String? = nil,
+      enabled: Bool = true,
       options: [(String, () -> Void)]
     ) -> Entry {
-      Entry(kind: .submenu, title: title, symbol: symbol, options: options)
-    }
-
-    static func rating(_ rating: Int, onRate: @escaping (Int) -> Void) -> Entry {
-      Entry(kind: .rating, rating: rating, onRate: onRate)
+      Entry(
+        kind: .submenu,
+        title: title,
+        symbol: symbol,
+        enabled: enabled,
+        options: options
+      )
     }
 
     static var separator: Entry { Entry(kind: .separator) }
   }
 
-  private static let menuWidth: CGFloat = 224
+  private static let menuWidth: CGFloat = 232
   /// Transparent margin reserved for the glass-shadow layer; keeps the system
   /// window shadow from overriding the shared glass style.
   private static let shadowInset: CGFloat = 22
@@ -120,14 +131,14 @@ final class PlayerMoreMenuPanel: NSObject {
       background.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -inset),
 
       stack.topAnchor.constraint(equalTo: background.topAnchor, constant: 8),
-      stack.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 8),
-      stack.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -8),
+      stack.leadingAnchor.constraint(equalTo: background.leadingAnchor, constant: 6),
+      stack.trailingAnchor.constraint(equalTo: background.trailingAnchor, constant: -6),
       stack.bottomAnchor.constraint(equalTo: background.bottomAnchor, constant: -8),
     ])
     content.frame = NSRect(x: 0, y: 0, width: Self.panelWidth, height: 200)
     panel.contentView = content
     content.layoutSubtreeIfNeeded()
-    let contentHeight = max(120, stack.fittingSize.height + 16)
+    let contentHeight = max(100, stack.fittingSize.height + 16)
     let panelHeight = contentHeight + inset * 2
     panel.setContentSize(NSSize(width: Self.panelWidth, height: panelHeight))
     content.frame = NSRect(x: 0, y: 0, width: Self.panelWidth, height: panelHeight)
@@ -153,59 +164,36 @@ final class PlayerMoreMenuPanel: NSObject {
     let stack = NSStackView()
     stack.orientation = .vertical
     stack.alignment = .width
-    stack.spacing = 0
+    stack.spacing = 2
     stack.translatesAutoresizingMaskIntoConstraints = false
 
     for entry in entries {
       switch entry.kind {
       case .separator:
-        stack.addArrangedSubview(makeSeparator())
-      case .rating:
-        let row = PlayerMenuRatingView(rating: entry.rating) { [weak self] rating in
-          guard let self else { return }
-          self.close()
-          entry.onRate?(rating)
-        }
-        stack.addArrangedSubview(row)
-        row.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        stack.addArrangedSubview(PlayerMenuSeparatorView())
       case .item, .submenu:
+        let isSubmenu = entry.kind == .submenu
         let row = PlayerMenuRowView(
           title: entry.title,
           symbol: entry.symbol,
+          iconTint: entry.iconTint,
+          isChecked: entry.isChecked,
+          showsSubmenuChevron: isSubmenu,
           enabled: entry.enabled
         ) { [weak self] rowView in
           guard let self else { return }
-          switch entry.kind {
-          case .submenu:
+          if isSubmenu {
             self.showSubmenu(entry.options, from: rowView)
-          default:
+          } else {
             self.close()
             entry.handler?()
           }
         }
         stack.addArrangedSubview(row)
-        row.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        row.heightAnchor.constraint(equalToConstant: 32).isActive = true
       }
     }
     return stack
-  }
-
-  private func makeSeparator() -> NSView {
-    let container = NSView()
-    container.translatesAutoresizingMaskIntoConstraints = false
-    container.heightAnchor.constraint(equalToConstant: 7).isActive = true
-    let line = NSView()
-    line.wantsLayer = true
-    line.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.6).cgColor
-    line.translatesAutoresizingMaskIntoConstraints = false
-    container.addSubview(line)
-    NSLayoutConstraint.activate([
-      line.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 8),
-      line.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -8),
-      line.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-      line.heightAnchor.constraint(equalToConstant: 1),
-    ])
-    return container
   }
 
   private func showSubmenu(_ options: [(String, () -> Void)], from row: NSView) {
@@ -224,7 +212,7 @@ final class PlayerMoreMenuPanel: NSObject {
     }
     menu.popUp(
       positioning: nil,
-      at: NSPoint(x: row.bounds.maxX - 8, y: row.bounds.midY),
+      at: NSPoint(x: row.bounds.maxX - 4, y: row.bounds.midY),
       in: row
     )
   }
@@ -296,7 +284,7 @@ private final class GlassMenuShadowView: NSView {
 
   private func apply(_ style: GlassStyleConfiguration) {
     layer?.shadowColor = NSColor.black.cgColor
-    layer?.shadowOpacity = Float(style.shadowOpacity)
+    layer?.shadowOpacity = Float(min(style.shadowOpacity * 1.4, 0.36))
     layer?.shadowRadius = style.shadowRadius
     layer?.shadowOffset = style.shadowOffset
   }
@@ -319,7 +307,6 @@ private final class GlassMenuShadowView: NSView {
 @MainActor
 private final class GlassMenuBackgroundView: NSView {
   private let sheen = CAGradientLayer()
-  private let highlight = NSView()
   private weak var effectView: NSView?
 
   override init(frame frameRect: NSRect) {
@@ -360,18 +347,6 @@ private final class GlassMenuBackgroundView: NSView {
     sheen.endPoint = CGPoint(x: 0.5, y: 0)
     layer?.addSublayer(sheen)
 
-    highlight.wantsLayer = true
-    highlight.layer?.borderWidth = 0.5
-    highlight.layer?.cornerRadius = 13.5
-    highlight.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(highlight)
-    NSLayoutConstraint.activate([
-      highlight.topAnchor.constraint(equalTo: topAnchor, constant: 0.5),
-      highlight.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 0.5),
-      highlight.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -0.5),
-      highlight.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -0.5),
-    ])
-
     apply(style: GlassStyleManager.configuration)
     NotificationCenter.default.addObserver(
       self,
@@ -388,21 +363,28 @@ private final class GlassMenuBackgroundView: NSView {
   deinit { NotificationCenter.default.removeObserver(self) }
 
   private func apply(style: GlassStyleConfiguration) {
-    layer?.borderColor = NSColor.white.withAlphaComponent(style.borderAlpha).cgColor
-    highlight.layer?.borderColor =
-      NSColor.white.withAlphaComponent(style.borderAlpha * 0.55).cgColor
+    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    layer?.borderColor = isDark
+      ? NSColor.white.withAlphaComponent(min(style.borderAlpha * 0.55, 0.16)).cgColor
+      : NSColor.black.withAlphaComponent(0.10).cgColor
     effectView?.alphaValue = style.glassAlpha
     if #available(macOS 26.0, *), let glass = effectView as? NSGlassEffectView {
       glass.style = style.material == .clear ? .clear : .regular
     }
+    let sheenScale: CGFloat = isDark ? 0.35 : 0.75
     sheen.colors = [
-      NSColor.white.withAlphaComponent(style.sheenTopAlpha).cgColor,
-      NSColor.white.withAlphaComponent(style.sheenMidAlpha).cgColor,
+      NSColor.white.withAlphaComponent(style.sheenTopAlpha * sheenScale).cgColor,
+      NSColor.white.withAlphaComponent(style.sheenMidAlpha * sheenScale).cgColor,
       NSColor.clear.cgColor,
     ]
   }
 
   @objc private func glassStyleChanged() {
+    apply(style: GlassStyleManager.configuration)
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
     apply(style: GlassStyleManager.configuration)
   }
 
@@ -417,52 +399,135 @@ private final class GlassMenuBackgroundView: NSView {
   override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
+// MARK: - Separator
+
+@MainActor
+private final class PlayerMenuSeparatorView: NSView {
+  private let line = NSView()
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    translatesAutoresizingMaskIntoConstraints = false
+    heightAnchor.constraint(equalToConstant: 9).isActive = true
+
+    line.wantsLayer = true
+    line.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(line)
+    NSLayoutConstraint.activate([
+      line.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
+      line.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      line.centerYAnchor.constraint(equalTo: centerYAnchor),
+      line.heightAnchor.constraint(equalToConstant: 0.5),
+    ])
+    updateColor()
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    updateColor()
+  }
+
+  private func updateColor() {
+    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    line.layer?.backgroundColor = (
+      isDark ? NSColor.white.withAlphaComponent(0.11) : NSColor.black.withAlphaComponent(0.09)
+    ).cgColor
+  }
+}
+
 // MARK: - Row views
 
 @MainActor
 private final class PlayerMenuRowView: NSView {
   private let iconView = NSImageView()
   private let label = NSTextField(labelWithString: "")
+  private let trailingAccessory = NSImageView()
   private let handler: ((NSView) -> Void)?
+  private let customIconTint: NSColor?
+  private let isEnabled: Bool
   private var isHovered = false
 
-  init(title: String, symbol: String?, enabled: Bool, handler: @escaping (NSView) -> Void) {
+  init(
+    title: String,
+    symbol: String?,
+    iconTint: NSColor?,
+    isChecked: Bool,
+    showsSubmenuChevron: Bool,
+    enabled: Bool,
+    handler: @escaping (NSView) -> Void
+  ) {
     self.handler = handler
+    self.customIconTint = iconTint
+    self.isEnabled = enabled
     super.init(frame: .zero)
     wantsLayer = true
-    layer?.cornerRadius = 6
+    layer?.cornerRadius = 8
     layer?.cornerCurve = .continuous
     alphaValue = enabled ? 1 : 0.38
 
     iconView.image = symbol.flatMap {
       NSImage(systemSymbolName: $0, accessibilityDescription: nil)?
-        .withSymbolConfiguration(.init(pointSize: 13, weight: .medium))
+        .withSymbolConfiguration(.init(pointSize: 13.5, weight: .regular))
     }
-    iconView.contentTintColor = .labelColor
+    iconView.contentTintColor = customIconTint ?? .secondaryLabelColor
     iconView.imageScaling = .scaleProportionallyDown
     iconView.translatesAutoresizingMaskIntoConstraints = false
 
     label.stringValue = title
-    label.font = .systemFont(ofSize: 13)
+    label.font = .systemFont(ofSize: 13, weight: .regular)
     label.textColor = .labelColor
     label.lineBreakMode = .byTruncatingTail
     label.translatesAutoresizingMaskIntoConstraints = false
 
+    trailingAccessory.imageScaling = .scaleProportionallyDown
+    trailingAccessory.translatesAutoresizingMaskIntoConstraints = false
+    if isChecked {
+      trailingAccessory.image = NSImage(
+        systemSymbolName: "checkmark",
+        accessibilityDescription: nil
+      )?.withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
+      trailingAccessory.contentTintColor = MacTheme.accentColor
+      trailingAccessory.isHidden = false
+    } else if showsSubmenuChevron {
+      trailingAccessory.image = NSImage(
+        systemSymbolName: "chevron.right",
+        accessibilityDescription: nil
+      )?.withSymbolConfiguration(.init(pointSize: 10, weight: .semibold))
+      trailingAccessory.contentTintColor = .tertiaryLabelColor
+      trailingAccessory.isHidden = false
+    } else {
+      trailingAccessory.isHidden = true
+    }
+
     addSubview(iconView)
     addSubview(label)
+    addSubview(trailingAccessory)
     NSLayoutConstraint.activate([
       iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
       iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
       iconView.widthAnchor.constraint(equalToConstant: 16),
       iconView.heightAnchor.constraint(equalToConstant: 16),
 
+      trailingAccessory.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      trailingAccessory.centerYAnchor.constraint(equalTo: centerYAnchor),
+      trailingAccessory.widthAnchor.constraint(equalToConstant: 14),
+      trailingAccessory.heightAnchor.constraint(equalToConstant: 14),
+
       label.leadingAnchor.constraint(
         equalTo: symbol == nil ? leadingAnchor : iconView.trailingAnchor,
-        constant: symbol == nil ? 10 : 8
+        constant: symbol == nil ? 10 : 10
       ),
-      label.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -10),
+      label.trailingAnchor.constraint(
+        lessThanOrEqualTo: trailingAccessory.isHidden ? trailingAnchor : trailingAccessory.leadingAnchor,
+        constant: trailingAccessory.isHidden ? -10 : -6
+      ),
       label.centerYAnchor.constraint(equalTo: centerYAnchor),
     ])
+
     let tracking = NSTrackingArea(
       rect: .zero,
       options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
@@ -470,106 +535,44 @@ private final class PlayerMenuRowView: NSView {
       userInfo: nil
     )
     addTrackingArea(tracking)
-    self.isEnabled = enabled
   }
 
   required init?(coder: NSCoder) {
     nil
   }
 
-  private var isEnabled = true
-
   override func mouseEntered(with event: NSEvent) {
+    guard isEnabled else { return }
     isHovered = true
-    updateBackground()
+    updateAppearance()
   }
 
   override func mouseExited(with event: NSEvent) {
     isHovered = false
-    updateBackground()
+    updateAppearance()
   }
 
-  private func updateBackground() {
-    layer?.backgroundColor = isHovered
-      ? NSColor.labelColor.withAlphaComponent(0.08).cgColor
-      : NSColor.clear.cgColor
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    updateAppearance()
+  }
+
+  private func updateAppearance() {
+    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    if isHovered && isEnabled {
+      layer?.backgroundColor = (
+        isDark ? NSColor.white.withAlphaComponent(0.09) : NSColor.black.withAlphaComponent(0.06)
+      ).cgColor
+      iconView.contentTintColor = customIconTint ?? .labelColor
+    } else {
+      layer?.backgroundColor = NSColor.clear.cgColor
+      iconView.contentTintColor = customIconTint ?? .secondaryLabelColor
+    }
   }
 
   override func mouseUp(with event: NSEvent) {
     guard isEnabled,
           bounds.contains(convert(event.locationInWindow, from: nil)) else { return }
     handler?(self)
-  }
-}
-
-@MainActor
-private final class PlayerMenuRatingView: NSView {
-  private let onRate: (Int) -> Void
-
-  init(rating: Int, onRate: @escaping (Int) -> Void) {
-    self.onRate = onRate
-    super.init(frame: .zero)
-    let stack = NSStackView()
-    stack.orientation = .horizontal
-    stack.alignment = .centerY
-    stack.spacing = 3
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(stack)
-    NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 10),
-      stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-      stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -10),
-    ])
-
-    let clear = RatingButton(symbol: "nosign", tag: 0) { [weak self] in
-      self?.onRate(0)
-    }
-    stack.addArrangedSubview(clear)
-    for stars in 1...5 {
-      let button = RatingButton(
-        symbol: stars <= rating ? "star.fill" : "star",
-        tag: stars
-      ) { [weak self] in
-        self?.onRate(stars)
-      }
-      button.contentTintColor = stars <= rating ? MacTheme.accentColor : .labelColor
-      stack.addArrangedSubview(button)
-    }
-  }
-
-  required init?(coder: NSCoder) {
-    nil
-  }
-}
-
-@MainActor
-private final class RatingButton: NSButton {
-  private let onPress: () -> Void
-
-  init(symbol: String, tag: Int, onPress: @escaping () -> Void) {
-    self.onPress = onPress
-    super.init(frame: .zero)
-    self.tag = tag
-    isBordered = false
-    bezelStyle = .regularSquare
-    imagePosition = .imageOnly
-    image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
-      .withSymbolConfiguration(.init(pointSize: 11, weight: .regular))
-    contentTintColor = .labelColor
-    target = self
-    action = #selector(pressed)
-    translatesAutoresizingMaskIntoConstraints = false
-    NSLayoutConstraint.activate([
-      widthAnchor.constraint(equalToConstant: 16),
-      heightAnchor.constraint(equalToConstant: 16),
-    ])
-  }
-
-  required init?(coder: NSCoder) {
-    nil
-  }
-
-  @objc private func pressed() {
-    onPress()
   }
 }

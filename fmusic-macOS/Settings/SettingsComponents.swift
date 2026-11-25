@@ -576,3 +576,313 @@ final class SettingsThemeSwatchButton: NSButton {
     needsDisplay = true
   }
 }
+
+// MARK: - SettingsAppearancePickerControl
+
+/// Visual macOS-style appearance picker with Auto / Light / Dark preview cards.
+@MainActor
+final class SettingsAppearancePickerControl: NSView {
+  private let handler: (AppearanceMode) -> Void
+  private var cards: [SettingsAppearanceCardButton] = []
+
+  init(selected: AppearanceMode, handler: @escaping (AppearanceMode) -> Void) {
+    self.handler = handler
+    super.init(frame: .zero)
+    translatesAutoresizingMaskIntoConstraints = false
+
+    let stack = NSStackView()
+    stack.orientation = .horizontal
+    stack.alignment = .top
+    stack.spacing = 14
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(stack)
+    NSLayoutConstraint.activate([
+      stack.topAnchor.constraint(equalTo: topAnchor, constant: 4),
+      stack.leadingAnchor.constraint(equalTo: leadingAnchor),
+      stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+      stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
+    ])
+
+    let orderedModes: [AppearanceMode] = [.unspecified, .light, .dark]
+    for mode in orderedModes {
+      let card = SettingsAppearanceCardButton(mode: mode)
+      card.setSelected(mode == selected)
+      card.onSelect = { [weak self] chosen in
+        self?.select(chosen)
+        self?.handler(chosen)
+      }
+      cards.append(card)
+      stack.addArrangedSubview(card)
+    }
+
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(themeColorChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  deinit { NotificationCenter.default.removeObserver(self) }
+
+  func select(_ mode: AppearanceMode) {
+    for card in cards {
+      card.setSelected(card.mode == mode)
+    }
+  }
+
+  @objc private func themeColorChanged() {
+    for card in cards {
+      card.refreshAccent()
+    }
+  }
+}
+
+// MARK: - SettingsAppearanceCardButton
+
+@MainActor
+private final class SettingsAppearanceCardButton: NSControl {
+  let mode: AppearanceMode
+  var onSelect: ((AppearanceMode) -> Void)?
+
+  private var isSelected = false
+  private var isHovered = false
+  private var trackingArea: NSTrackingArea?
+
+  private let previewWidth: CGFloat = 72
+  private let previewHeight: CGFloat = 46
+
+  init(mode: AppearanceMode) {
+    self.mode = mode
+    super.init(frame: .zero)
+    translatesAutoresizingMaskIntoConstraints = false
+    wantsLayer = false
+    target = self
+    action = #selector(clicked)
+    setAccessibilityRole(.radioButton)
+    setAccessibilityLabel(title)
+    NSLayoutConstraint.activate([
+      widthAnchor.constraint(equalToConstant: previewWidth + 4),
+      heightAnchor.constraint(equalToConstant: previewHeight + 24),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  private var title: String {
+    switch mode {
+    case .unspecified: return L10n.tr("Automatic")
+    case .light: return L10n.tr("Light")
+    case .dark: return L10n.tr("Dark")
+    }
+  }
+
+  func setSelected(_ selected: Bool) {
+    isSelected = selected
+    setAccessibilityValue(selected ? 1 : 0)
+    needsDisplay = true
+  }
+
+  func refreshAccent() {
+    needsDisplay = true
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let trackingArea {
+      removeTrackingArea(trackingArea)
+    }
+    let area = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(area)
+    trackingArea = area
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    isHovered = true
+    needsDisplay = true
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    isHovered = false
+    needsDisplay = true
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    sendAction(action, to: target)
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    needsDisplay = true
+  }
+
+  @objc private func clicked() {
+    onSelect?(mode)
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    let previewRect = NSRect(
+      x: 2,
+      y: bounds.height - previewHeight - 2,
+      width: previewWidth,
+      height: previewHeight
+    )
+    let cornerRadius: CGFloat = 8
+    let clipPath = NSBezierPath(
+      roundedRect: previewRect,
+      xRadius: cornerRadius,
+      yRadius: cornerRadius
+    )
+
+    NSGraphicsContext.saveGraphicsState()
+    clipPath.addClip()
+    switch mode {
+    case .light:
+      drawScene(in: previewRect, isDark: false)
+    case .dark:
+      drawScene(in: previewRect, isDark: true)
+    case .unspecified:
+      let leftHalf = NSRect(
+        x: previewRect.minX,
+        y: previewRect.minY,
+        width: previewRect.width / 2,
+        height: previewRect.height
+      )
+      let rightHalf = NSRect(
+        x: previewRect.midX,
+        y: previewRect.minY,
+        width: previewRect.width / 2,
+        height: previewRect.height
+      )
+      NSGraphicsContext.saveGraphicsState()
+      NSBezierPath(rect: leftHalf).addClip()
+      drawScene(in: previewRect, isDark: false)
+      NSGraphicsContext.restoreGraphicsState()
+
+      NSGraphicsContext.saveGraphicsState()
+      NSBezierPath(rect: rightHalf).addClip()
+      drawScene(in: previewRect, isDark: true)
+      NSGraphicsContext.restoreGraphicsState()
+    }
+    NSGraphicsContext.restoreGraphicsState()
+
+    // Border / selection ring
+    if isSelected {
+      let ringRect = previewRect.insetBy(dx: -0.75, dy: -0.75)
+      let ringPath = NSBezierPath(
+        roundedRect: ringRect,
+        xRadius: cornerRadius + 0.75,
+        yRadius: cornerRadius + 0.75
+      )
+      MacTheme.accentColor.setStroke()
+      ringPath.lineWidth = 2.5
+      ringPath.stroke()
+    } else {
+      let borderPath = NSBezierPath(
+        roundedRect: previewRect.insetBy(dx: 0.5, dy: 0.5),
+        xRadius: cornerRadius - 0.5,
+        yRadius: cornerRadius - 0.5
+      )
+      NSColor.labelColor.withAlphaComponent(isHovered ? 0.32 : 0.16).setStroke()
+      borderPath.lineWidth = 1
+      borderPath.stroke()
+    }
+
+    // Label below thumbnail
+    let textColor: NSColor = isSelected ? .labelColor : .secondaryLabelColor
+    let font = NSFont.systemFont(ofSize: 12, weight: isSelected ? .medium : .regular)
+    let attrs: [NSAttributedString.Key: Any] = [
+      .font: font,
+      .foregroundColor: textColor,
+    ]
+    let attributed = NSAttributedString(string: title, attributes: attrs)
+    let textSize = attributed.size()
+    attributed.draw(at: NSPoint(
+      x: ((bounds.width - textSize.width) / 2).rounded(),
+      y: 2
+    ))
+  }
+
+  /// Draws a miniature macOS desktop + floating window scene for light or dark mode.
+  private func drawScene(in rect: NSRect, isDark: Bool) {
+    // Wallpaper gradient
+    let colors: [NSColor] = isDark
+      ? [
+          NSColor(srgbRed: 0.34, green: 0.25, blue: 0.62, alpha: 1),
+          NSColor(srgbRed: 0.11, green: 0.24, blue: 0.52, alpha: 1),
+          NSColor(srgbRed: 0.05, green: 0.12, blue: 0.28, alpha: 1),
+        ]
+      : [
+          NSColor(srgbRed: 0.85, green: 0.92, blue: 1.0, alpha: 1),
+          NSColor(srgbRed: 0.45, green: 0.68, blue: 0.98, alpha: 1),
+          NSColor(srgbRed: 0.26, green: 0.51, blue: 0.94, alpha: 1),
+        ]
+    let gradient = NSGradient(colors: colors)
+    gradient?.draw(in: rect, angle: -35)
+
+    // Subtle top menu bar
+    let menuBar = NSRect(x: rect.minX, y: rect.maxY - 7, width: rect.width, height: 7)
+    (isDark ? NSColor.black.withAlphaComponent(0.32) : NSColor.white.withAlphaComponent(0.62))
+      .setFill()
+    menuBar.fill()
+
+    // Tiny Apple-like dot in menu bar
+    let dotRect = NSRect(x: rect.minX + 5, y: rect.maxY - 5, width: 3, height: 3)
+    (isDark ? NSColor.white.withAlphaComponent(0.75) : NSColor.white).setFill()
+    NSBezierPath(ovalIn: dotRect).fill()
+
+    // Upper-left background window / widget card
+    let bgCard = NSRect(x: rect.minX + 4, y: rect.maxY - 23, width: 38, height: 14)
+    let bgCardPath = NSBezierPath(roundedRect: bgCard, xRadius: 3.5, yRadius: 3.5)
+    (isDark
+      ? NSColor(srgbRed: 0.12, green: 0.16, blue: 0.28, alpha: 0.85)
+      : NSColor.white.withAlphaComponent(0.75)).setFill()
+    bgCardPath.fill()
+
+    let pillBar = NSRect(x: bgCard.minX + 4, y: bgCard.midY - 3, width: 26, height: 6)
+    NSColor(srgbRed: 0.16, green: 0.49, blue: 0.98, alpha: 1).setFill()
+    NSBezierPath(roundedRect: pillBar, xRadius: 2.5, yRadius: 2.5).fill()
+
+    // Foreground window overlapping bottom-right
+    let winRect = NSRect(x: rect.minX + 16, y: rect.minY - 4, width: rect.width - 14, height: 24)
+    let winPath = NSBezierPath(roundedRect: winRect, xRadius: 5, yRadius: 5)
+    (isDark
+      ? NSColor(srgbRed: 0.13, green: 0.13, blue: 0.15, alpha: 1)
+      : NSColor.white).setFill()
+    winPath.fill()
+
+    (isDark
+      ? NSColor.white.withAlphaComponent(0.14)
+      : NSColor.black.withAlphaComponent(0.08)).setStroke()
+    winPath.lineWidth = 0.75
+    winPath.stroke()
+
+    // Traffic light dots inside foreground window
+    let trafficColors: [NSColor] = [
+      NSColor(srgbRed: 1.0, green: 0.37, blue: 0.34, alpha: 1),
+      NSColor(srgbRed: 1.0, green: 0.74, blue: 0.18, alpha: 1),
+      NSColor(srgbRed: 0.16, green: 0.78, blue: 0.25, alpha: 1),
+    ]
+    for (idx, color) in trafficColors.enumerated() {
+      let tlRect = NSRect(
+        x: winRect.minX + 6 + CGFloat(idx) * 8,
+        y: winRect.maxY - 12,
+        width: 5,
+        height: 5
+      )
+      color.setFill()
+      NSBezierPath(ovalIn: tlRect).fill()
+    }
+  }
+}

@@ -34,22 +34,13 @@ final class DisplaySettingsViewController: SettingsPageViewController {
     let accountSetting = SettingsStore.activeAccountSetting
     let hasActiveAccount = SettingsStore.activeAccount != nil
 
-    let appearanceLabels = AppearanceMode.allCases.map { mode -> String in
-      switch mode {
-      case .unspecified: return L10n.tr("System")
-      case .light: return L10n.tr("Light")
-      case .dark: return L10n.tr("Dark")
-      }
-    }
-    let appearanceRow = makeSegmentedRow(
-      title: L10n.tr("Appearance"),
-      labels: appearanceLabels,
-      selectedIndex: SettingsStore.user.appearanceMode.rawValue
-    ) { index in
-      guard let mode = AppearanceMode(rawValue: index) else { return }
+    let appearancePicker = SettingsAppearancePickerControl(
+      selected: SettingsStore.user.appearanceMode
+    ) { mode in
       SettingsStore.updateUser { $0.appearanceMode = mode }
       SettingsStore.applyAppearance()
     }
+    let appearanceRow = makeRow(title: L10n.tr("Appearance"), control: appearancePicker)
     let glassLabels = GlassStyleMode.allCases.map(\.title)
     let glassRow = makeRow(
       title: L10n.tr("Liquid Glass"),

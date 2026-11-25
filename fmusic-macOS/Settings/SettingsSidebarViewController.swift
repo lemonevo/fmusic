@@ -238,7 +238,7 @@ final class SettingsSidebarViewController: NSViewController {
     Section(title: L10n.tr("Settings"), pages: [.general, .account]),
     Section(title: L10n.tr("Playback"), pages: [.playback, .equalizer]),
     Section(title: L10n.tr("Appearance"), pages: [.lyrics, .displayInteraction]),
-    Section(title: L10n.tr("Library"), pages: [.storage, .library]),
+    Section(title: L10n.tr("Library"), pages: [.library, .storage]),
   ]
 
   /// Flattened table rows: header, pages, then a compact gap before the next group.
@@ -562,7 +562,7 @@ extension SettingsSidebarViewController: NSTableViewDataSource {
     guard row >= 0, row < filteredRows.count else { return nil }
     switch filteredRows[row] {
     case .page, .searchResult:
-      return HoverableSidebarRowView()
+      return SidebarRowView()
     case .header, .spacer:
       return nil
     }
@@ -656,49 +656,6 @@ extension SettingsSidebarViewController: NSSearchFieldDelegate {
       return true
     }
     return false
-  }
-}
-
-// MARK: - HoverableSidebarRowView
-
-@MainActor
-private final class HoverableSidebarRowView: SidebarRowView {
-  private var isHovered = false
-  private var trackingArea: NSTrackingArea?
-
-  override func updateTrackingAreas() {
-    super.updateTrackingAreas()
-    if let trackingArea {
-      removeTrackingArea(trackingArea)
-    }
-    let area = NSTrackingArea(
-      rect: bounds,
-      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
-      owner: self,
-      userInfo: nil
-    )
-    addTrackingArea(area)
-    trackingArea = area
-  }
-
-  override func mouseEntered(with event: NSEvent) {
-    super.mouseEntered(with: event)
-    isHovered = true
-    needsDisplay = true
-  }
-
-  override func mouseExited(with event: NSEvent) {
-    super.mouseExited(with: event)
-    isHovered = false
-    needsDisplay = true
-  }
-
-  override func drawBackground(in dirtyRect: NSRect) {
-    super.drawBackground(in: dirtyRect)
-    guard isHovered, !isSelected else { return }
-    let rect = bounds.insetBy(dx: horizontalInset, dy: 2)
-    MacTheme.sidebarSelectionColor.withAlphaComponent(0.55).setFill()
-    NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
   }
 }
 

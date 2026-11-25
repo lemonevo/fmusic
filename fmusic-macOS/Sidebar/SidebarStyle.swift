@@ -59,8 +59,12 @@ enum SidebarStyle {
 
 /// A row view that keeps the neutral grey capsule and never inverts text/icon
 /// colours to white on selection (Catalyst keeps dark text and a red icon).
+/// Includes subtle hover feedback shared by both the main and settings sidebars.
 @MainActor
 class SidebarRowView: ThemedRowView {
+  private var isHovered = false
+  private var hoverTrackingArea: NSTrackingArea?
+
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     cornerRadius = SidebarStyle.selectionCornerRadius
@@ -75,6 +79,46 @@ class SidebarRowView: ThemedRowView {
   override var isEmphasized: Bool {
     get { false }
     set { super.isEmphasized = false }
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    isHovered = false
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let hoverTrackingArea {
+      removeTrackingArea(hoverTrackingArea)
+    }
+    let area = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(area)
+    hoverTrackingArea = area
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    super.mouseEntered(with: event)
+    isHovered = true
+    needsDisplay = true
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event)
+    isHovered = false
+    needsDisplay = true
+  }
+
+  override func drawBackground(in dirtyRect: NSRect) {
+    super.drawBackground(in: dirtyRect)
+    guard isHovered, !isSelected else { return }
+    let rect = bounds.insetBy(dx: horizontalInset, dy: 2)
+    MacTheme.sidebarHoverColor.setFill()
+    NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
   }
 }
 

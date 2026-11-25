@@ -124,6 +124,20 @@ final class OpenedFileBookmarkStore: @unchecked Sendable {
     save()
   }
 
+  func forget(fileURL: URL) {
+    let path = fileURL.standardizedFileURL.path
+    let removed = lock.withLock { () -> Bool in
+      let hadBookmark = bookmarks.removeValue(forKey: path) != nil
+      if let activeURL = activeURLs.removeValue(forKey: path) {
+        activeURL.stopAccessingSecurityScopedResource()
+      }
+      return hadBookmark
+    }
+    if removed {
+      save()
+    }
+  }
+
   func activateAll() {
     let storedBookmarks = lock.withLock { bookmarks }
     for (path, bookmark) in storedBookmarks {

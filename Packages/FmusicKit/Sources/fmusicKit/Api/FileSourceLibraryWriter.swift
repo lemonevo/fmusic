@@ -235,7 +235,7 @@ enum FileSourceLibraryWriter {
     }
     let artistName = cleaned(override.artist) ?? item.artistName
     let title = cleaned(override.title) ?? item.title
-    let albumKey = "tag:\(artistName.lowercased())\u{1F}\(albumName.lowercased())"
+    let albumKey = Self.albumKey(albumName: albumName, fallbackDirectoryPath: "")
     return ResolvedMetadata(
       title: title,
       artistName: artistName,
@@ -252,8 +252,14 @@ enum FileSourceLibraryWriter {
   ) {
     for song in library.getSongs(for: account) {
       guard let url = song.url, !activeSongPaths.contains(url) else { continue }
-      // Songs opened directly from Finder are not part of the scanned folder.
-      guard !OpenedFileSource.isOpenedFileURL(url) else { continue }
+      // Songs opened directly from Finder are not part of the scanned folder;
+      // keep them while the underlying local file still exists, and prune them once deleted.
+      if let openedFileURL = OpenedFileSource.fileURL(from: url) {
+        if FileManager.default.fileExists(atPath: openedFileURL.path) {
+          continue
+        }
+        OpenedFileBookmarkStore.shared.forget(fileURL: openedFileURL)
+      }
       if let relFilePath = song.relFilePath,
          let absoluteFilePath = cacheFileManager.getAbsolutefmusicPath(relFilePath: relFilePath) {
         try? FileManager.default.removeItem(at: absoluteFilePath)
@@ -306,6 +312,71 @@ enum FileSourceLibraryWriter {
       genre.managedObject.songCount = Int16(clamping: genre.songs.count)
       genre.managedObject.albumCount = Int16(clamping: genre.albums.count)
       genre.managedObject.artistCount = Int16(clamping: genre.artists.count)
+    }
+  }
+
+  /// Normalizes an album name for merging across multiple artists/compilations.
+  /// Returns `nil` for blank or placeholder names so untagged tracks stay grouped by folder.
+  static func normalizedAlbumName(_ name: String?) -> String? {
+    guard let name else { return nil }
+    let collapsed = name
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .split(whereSeparator: \.isWhitespace)
+      .joined(separator: " ")
+      .lowercased()
+    guard !collapsed.isEmpty,
+          collapsed != "unknown album",
+          collapsed != "未知专辑"
+    else { return nil }
+    return collapsed
+  }
+
+  /// Builds a stable album identity key that merges tracks by album name
+  /// (regardless of track artist), falling back to folder path when untagged.
+  static func albumKey(albumName: String?, fallbackDirectoryPath: String) -> String {
+    if let normalized = normalizedAlbumName(albumName) {
+      return "album:\(normalized)"
+    }
+    return "path:\(fallbackDirectoryPath)"
+  }
+
+  /// Merges existing albums in the account that share the same normalized album name
+  /// (e.g. legacy albums previously split by per-track artist), keeping the best
+  /// artwork/metadata and deleting the now-empty duplicates.
+  static func mergeAlbumsByName(account: Account, library: LibraryStorage) {
+    var groups = [String: [Album]]()
+    for album in library.getAlbums(for: account) {
+      guard let key = normalizedAlbumName(album.managedObject.name) else { continue }
+      groups[key, default: []].append(album)
+    }
+
+    for albums in groups.values where albums.count > 1 {
+      let sorted = albums.sorted { lhs, rhs in
+        let lhsHasArt = lhs.artwork?.imagePath != nil
+        let rhsHasArt = rhs.artwork?.imagePath != nil
+        if lhsHasArt != rhsHasArt { return lhsHasArt }
+        if lhs.songs.count != rhs.songs.count { return lhs.songs.count > rhs.songs.count }
+        return lhs.id < rhs.id
+      }
+      guard let primary = sorted.first else { continue }
+      for duplicate in sorted.dropFirst() {
+        for song in duplicate.songs.compactMap(\.asSong) {
+          song.album = primary
+          if song.artwork == nil, let primaryArtwork = primary.artwork {
+            song.artwork = primaryArtwork
+          }
+        }
+        if primary.artwork == nil, let dupArtwork = duplicate.artwork {
+          primary.artwork = dupArtwork
+        }
+        if primary.year == 0, duplicate.year > 0 {
+          primary.year = duplicate.year
+        }
+        if primary.genre == nil, let dupGenre = duplicate.genre {
+          primary.genre = dupGenre
+        }
+        library.deleteAlbum(album: duplicate)
+      }
     }
   }
 

@@ -135,16 +135,10 @@ enum FileSourceMetadataReader {
           : albumFolderURL.lastPathComponent
       )
     let albumFolderKey = relativePath(of: albumFolderURL, rootURL: rootURL)
-    let albumKey: String
-    if let albumTag {
-      let albumArtist = LyricMetadataTags
-        .firstNonEmpty(flacTags?.albumArtist, mp3Tags?.albumArtist) ?? artistName
-      albumKey = "tag:\(albumArtist.lowercased())\u{1F}\(albumTag.lowercased())"
-    } else if let lyricAlbum = lyricTags?.album {
-      albumKey = "tag:\(artistName.lowercased())\u{1F}\(lyricAlbum.lowercased())"
-    } else {
-      albumKey = "path:\(albumFolderKey)"
-    }
+    let albumKey = FileSourceLibraryWriter.albumKey(
+      albumName: albumTag ?? lyricTags?.album,
+      fallbackDirectoryPath: albumFolderKey
+    )
     let mimeType = MimeFileConverter.convertToValidMimeTypeWhenNeccessary(
       mimeType: MimeFileConverter.getMIMEType(filenameExtension: extensionName)
         ?? "application/octet-stream"
@@ -331,6 +325,10 @@ final class LocalLibraryIndexer: LibrarySyncer {
           cacheFileManager: cacheFileManager
         )
       }
+      FileSourceLibraryWriter.mergeAlbumsByName(
+        account: account,
+        library: asyncCompanion.library
+      )
       FileSourceLibraryWriter.updateDenormalizedValues(
         account: account,
         library: asyncCompanion.library

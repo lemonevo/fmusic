@@ -625,8 +625,10 @@ public final class MetadataBackfillService {
     let albumName = match.album.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !albumName.isEmpty else { return false }
 
-    let artistName = song.artist?.name ?? ""
-    let albumKey = "tag:\(artistName.lowercased())\u{1F}\(albumName.lowercased())"
+    let albumKey = FileSourceLibraryWriter.albumKey(
+      albumName: albumName,
+      fallbackDirectoryPath: ""
+    )
     let albumID = FileSourceLibraryWriter.stableID(
       prefix: "\(scope)_album_",
       value: albumKey
