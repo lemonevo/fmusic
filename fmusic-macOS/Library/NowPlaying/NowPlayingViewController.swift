@@ -59,7 +59,12 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let queueButton = NSButton()
   private let moreButton = NSButton()
 
-  private let lyricsPane = LyricsPaneView()
+  private let lyricsController: LyricsSidebarViewController = {
+    let controller = LyricsSidebarViewController()
+    controller.usesTransparentBackground = true
+    controller.compactRows = true
+    return controller
+  }()
 
   private var artworkWidthConstraint: NSLayoutConstraint?
   private var artworkHeightConstraint: NSLayoutConstraint?
@@ -137,8 +142,14 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     }
   }
 
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    lyricsController.setPaneVisible(true)
+  }
+
   override func viewDidDisappear() {
     super.viewDidDisappear()
+    lyricsController.setPaneVisible(false)
     PlaybackClock.shared.unsubscribe(clockToken)
     clockToken = nil
   }
@@ -358,16 +369,18 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func buildLyricsColumn(in root: NSView) {
-    lyricsPane.translatesAutoresizingMaskIntoConstraints = false
-    root.addSubview(lyricsPane)
+    addChild(lyricsController)
+    let lyricsView = lyricsController.view
+    lyricsView.translatesAutoresizingMaskIntoConstraints = false
+    root.addSubview(lyricsView)
     NSLayoutConstraint.activate([
-      lyricsPane.leadingAnchor.constraint(
+      lyricsView.leadingAnchor.constraint(
         equalTo: artworkView.trailingAnchor,
         constant: lyricsGap
       ),
-      lyricsPane.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
-      lyricsPane.topAnchor.constraint(equalTo: root.topAnchor, constant: 108),
-      lyricsPane.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -80),
+      lyricsView.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -64),
+      lyricsView.topAnchor.constraint(equalTo: root.topAnchor, constant: 64),
+      lyricsView.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -56),
     ])
   }
 

@@ -410,7 +410,9 @@ final class SettingsSidebarViewController: NSViewController {
   @objc
   private func themeColorChanged() {
     updateSearchContainerAppearance()
+    isUpdatingSelection = true
     tableView.reloadData()
+    isUpdatingSelection = false
     restorePageSelection()
   }
 
@@ -491,7 +493,9 @@ final class SettingsSidebarViewController: NSViewController {
         filteredRows = rows
       }
     }
+    isUpdatingSelection = true
     tableView.reloadData()
+    isUpdatingSelection = false
     restorePageSelection()
   }
 

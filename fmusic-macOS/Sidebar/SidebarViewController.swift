@@ -306,7 +306,11 @@ final class SidebarViewController: NSViewController, NSTableViewDataSource, NSTa
   @objc
   private func themeColorChanged() {
     updateAccountFooter()
+    let selected = currentSelectedItem()
     tableView.reloadData()
+    if let selected {
+      selectRow(for: selected)
+    }
   }
 
   @objc
