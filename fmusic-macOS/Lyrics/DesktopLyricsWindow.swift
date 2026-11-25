@@ -121,8 +121,8 @@ struct DesktopLyricsHeaderRender {
 enum DesktopLyricsEmphasis {
   static func value(progress: CGFloat, duration: TimeInterval) -> CGFloat {
     guard duration > 0.45, progress > 0, progress < 1 else { return 0 }
-    let sustained = smooth((duration - 0.45) / 1.15)
-    let swell = smoother(progress / 0.42) * (1 - smoother((progress - 0.70) / 0.30))
+    let sustained = smooth((duration - 0.45) / 0.95)
+    let swell = smoother(progress / 0.28) * (1 - smoother((progress - 0.80) / 0.20))
     return sustained * swell
   }
 
@@ -1322,9 +1322,9 @@ final class DesktopLyricsWindowController: NSObject {
       glow.contentsGravity = .resize
       glow.magnificationFilter = .linear
       glow.contentsScale = screenScale
-      glow.shadowColor = NSColor.white.withAlphaComponent(0.82).cgColor
+      glow.shadowColor = NSColor.white.cgColor
       glow.shadowOffset = .zero
-      glow.shadowRadius = min(9, max(3, line.size.height * 0.24)) * 0.72
+      glow.shadowRadius = min(14, max(6, line.size.height * 0.36))
       glow.shadowOpacity = 1
       glow.opacity = 0
       glow.isHidden = true
@@ -2193,8 +2193,8 @@ final class DesktopLyricsWindowController: NSObject {
     let emphasis = DesktopLyricsEmphasis.value(
       progress: motionProgress,
       duration: bundle.groupDuration
-    ) * DesktopLyricsEmphasis.smoother(value)
-    let bloom = Float(emphasis)
+    ) * DesktopLyricsEmphasis.smoother(min(1, value * 1.4))
+    let bloom = Float(min(1, emphasis * 1.35))
     if bundle.glow.opacity != bloom {
       bundle.glow.opacity = bloom
     }

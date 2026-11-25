@@ -617,22 +617,17 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
 @MainActor
 private final class LyricsGlyphView: NSView {
   private let dimLayer = CALayer()
-  private let glowLayer = CALayer()
   private let brightLayer = CALayer()
   let syllableMask = LyricsSyllableMaskLayer()
-  let glowMask = LyricsGlowMaskLayer()
 
   override init(frame frameRect: NSRect) {
     super.init(frame: frameRect)
     wantsLayer = true
     layer?.masksToBounds = false
     dimLayer.contentsGravity = .resize
-    glowLayer.contentsGravity = .resize
-    glowLayer.mask = glowMask
     brightLayer.contentsGravity = .resize
     brightLayer.mask = syllableMask
     layer?.addSublayer(dimLayer)
-    layer?.addSublayer(glowLayer)
     layer?.addSublayer(brightLayer)
   }
 
@@ -645,33 +640,26 @@ private final class LyricsGlyphView: NSView {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     dimLayer.frame = bounds
-    glowLayer.frame = bounds
     brightLayer.frame = bounds
     syllableMask.setFrameWithoutAnimation(CGRect(origin: .zero, size: bounds.size))
-    glowMask.setFrameWithoutAnimation(CGRect(origin: .zero, size: bounds.size))
     let scale = window?.backingScaleFactor ?? 2
     dimLayer.contentsScale = scale
-    glowLayer.contentsScale = scale
     brightLayer.contentsScale = scale
     CATransaction.commit()
   }
 
-  func setImages(dim: CGImage?, bright: CGImage?, glow: CGImage? = nil) {
+  func setImages(dim: CGImage?, bright: CGImage?) {
     dimLayer.contents = dim
-    glowLayer.contents = glow
-    glowLayer.isHidden = glow == nil
     brightLayer.contents = bright
     brightLayer.isHidden = bright == nil
   }
 
   func updateMask(rects: [[CGRect]]) {
     syllableMask.update(rects: rects)
-    glowMask.update(rects: rects)
   }
 
-  func apply(progress: [CGFloat], glowIntensities: [CGFloat] = []) {
+  func apply(progress: [CGFloat]) {
     syllableMask.apply(progress: progress)
-    glowMask.apply(intensities: glowIntensities)
   }
 }
 
@@ -850,29 +838,15 @@ private final class LyricsSidebarCellView: NSTableCellView {
         blurRadius: 0,
         isDark: isDark
       )
-      let hasSustainedNote = syllables.contains { $0.isWordTimed && $0.duration > 0.45 }
-      let glowImage: CGImage? = hasSustainedNote ? Self.raster(
-        text: text,
-        width: width,
-        layout: layout,
-        size: size,
-        scale: scale,
-        color: isDark ? .white : MacTheme.accentColor,
-        blurRadius: 6.5 * scale,
-        isDark: isDark
-      ) : nil
-      glyphView.setImages(dim: dimImage, bright: brightImage, glow: glowImage)
+      glyphView.setImages(dim: dimImage, bright: brightImage)
       glyphView.updateMask(rects: Self.maskRects(
         layout: layout,
         syllables: syllables,
         height: imageHeight
       ))
-      glyphView.apply(
-        progress: syllables.map { $0.progress(at: time) },
-        glowIntensities: syllables.map { $0.glowIntensity(at: time) }
-      )
+      glyphView.apply(progress: syllables.map { $0.progress(at: time) })
     } else {
-      glyphView.setImages(dim: dimImage, bright: nil, glow: nil)
+      glyphView.setImages(dim: dimImage, bright: nil)
       glyphView.updateMask(rects: [])
     }
 
@@ -920,13 +894,10 @@ private final class LyricsSidebarCellView: NSTableCellView {
     }
   }
 
-  /// Called at display rate: only the syllable mask widths and sustained-note glow opacities change.
+  /// Called at display rate: only the syllable mask widths change.
   func updateFill(syllables: [LyricsSyllableTiming], time: TimeInterval) {
     guard isActiveLine else { return }
-    glyphView.apply(
-      progress: syllables.map { $0.progress(at: time) },
-      glowIntensities: syllables.map { $0.glowIntensity(at: time) }
-    )
+    glyphView.apply(progress: syllables.map { $0.progress(at: time) })
   }
 
   private static func raster(
