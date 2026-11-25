@@ -33,6 +33,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   private let backgroundView = PlayerBlurredArtworkBackground()
 
+  private let closePill = NSView()
   private let closeButton = NSButton()
   private let volumePill = NSView()
   private let volumeIcon = NSImageView()
@@ -55,7 +56,7 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   private let nextButton = NSButton()
   private let repeatButton = NSButton()
 
-  private let airplayButton = NSButton()
+  private let bottomPill = NSView()
   private let queueButton = NSButton()
   private let moreButton = NSButton()
 
@@ -172,32 +173,43 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
 
   // MARK: - Build
 
-  private func buildChrome(in root: NSView) {
-    configureRound(closeButton, symbol: "chevron.down", action: #selector(closePressed), size: 15)
-    closeButton.layer?.cornerRadius = 21
-    closeButton.layer?.backgroundColor = NSColor.white.withAlphaComponent(0.16).cgColor
-    closeButton.widthAnchor.constraint(equalToConstant: 42).isActive = true
-    closeButton.heightAnchor.constraint(equalToConstant: 42).isActive = true
-
-    volumePill.wantsLayer = true
-    volumePill.layer?.cornerRadius = 16
-    volumePill.layer?.masksToBounds = true
-    volumePill.translatesAutoresizingMaskIntoConstraints = false
-    let volumeGlass: NSView
+  private func configureGlassPill(_ pill: NSView, cornerRadius: CGFloat = 16) {
+    pill.wantsLayer = true
+    pill.layer?.cornerRadius = cornerRadius
+    pill.layer?.masksToBounds = true
+    pill.translatesAutoresizingMaskIntoConstraints = false
+    let glassView: NSView
     if #available(macOS 26.0, *) {
       let glass = NSGlassEffectView()
       glass.style = .regular
-      glass.cornerRadius = 16
-      volumeGlass = glass
+      glass.cornerRadius = cornerRadius
+      glassView = glass
     } else {
       let effect = NSVisualEffectView()
       effect.material = .popover
       effect.blendingMode = .withinWindow
       effect.state = .active
-      volumeGlass = effect
+      glassView = effect
+      pill.layer?.borderWidth = 0.5
+      pill.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor
     }
-    volumeGlass.translatesAutoresizingMaskIntoConstraints = false
-    volumePill.addSubview(volumeGlass)
+    glassView.translatesAutoresizingMaskIntoConstraints = false
+    pill.addSubview(glassView)
+    NSLayoutConstraint.activate([
+      glassView.topAnchor.constraint(equalTo: pill.topAnchor),
+      glassView.leadingAnchor.constraint(equalTo: pill.leadingAnchor),
+      glassView.trailingAnchor.constraint(equalTo: pill.trailingAnchor),
+      glassView.bottomAnchor.constraint(equalTo: pill.bottomAnchor),
+    ])
+  }
+
+  private func buildChrome(in root: NSView) {
+    configureGlassPill(closePill, cornerRadius: 16)
+    configureRound(closeButton, symbol: "xmark", action: #selector(closePressed), size: 13)
+    closeButton.contentTintColor = .white
+    closePill.addSubview(closeButton)
+
+    configureGlassPill(volumePill, cornerRadius: 16)
 
     volumeIcon.image = NSImage(
       systemSymbolName: "speaker.wave.2.fill",
@@ -215,26 +227,28 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
     volumeSlider.action = #selector(volumeChanged)
     volumeSlider.translatesAutoresizingMaskIntoConstraints = false
 
-    for item in [closeButton, volumePill] {
+    for item in [closePill, volumePill] {
       root.addSubview(item)
     }
     volumePill.addSubview(volumeSlider)
     volumePill.addSubview(volumeIcon)
 
     NSLayoutConstraint.activate([
-      closeButton.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 20),
-      // Clear the traffic lights instead of sitting in the same titlebar band.
-      closeButton.topAnchor.constraint(equalTo: root.topAnchor, constant: 44),
+      // Sit beside the traffic lights on the same horizontal baseline as the volume pill.
+      closePill.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 86),
+      closePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+      closePill.widthAnchor.constraint(equalToConstant: 36),
+      closePill.heightAnchor.constraint(equalToConstant: 32),
+      closeButton.topAnchor.constraint(equalTo: closePill.topAnchor),
+      closeButton.bottomAnchor.constraint(equalTo: closePill.bottomAnchor),
+      closeButton.leadingAnchor.constraint(equalTo: closePill.leadingAnchor),
+      closeButton.trailingAnchor.constraint(equalTo: closePill.trailingAnchor),
 
       volumePill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
       volumePill.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
       volumePill.widthAnchor.constraint(equalToConstant: 200),
       volumePill.heightAnchor.constraint(equalToConstant: 32),
 
-      volumeGlass.topAnchor.constraint(equalTo: volumePill.topAnchor),
-      volumeGlass.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor),
-      volumeGlass.trailingAnchor.constraint(equalTo: volumePill.trailingAnchor),
-      volumeGlass.bottomAnchor.constraint(equalTo: volumePill.bottomAnchor),
       volumeSlider.leadingAnchor.constraint(equalTo: volumePill.leadingAnchor, constant: 12),
       volumeSlider.trailingAnchor.constraint(equalTo: volumeIcon.leadingAnchor, constant: -10),
       volumeSlider.centerYAnchor.constraint(equalTo: volumePill.centerYAnchor),
@@ -385,19 +399,31 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   }
 
   private func buildBottomCluster(in root: NSView) {
-    configureRound(airplayButton, symbol: "airplayaudio", action: #selector(showDeviceMenu), size: 16)
-    configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 16)
-    configureRound(moreButton, symbol: "ellipsis.circle", action: #selector(showPlayerOptionsMenu), size: 16)
-    for button in [airplayButton, queueButton, moreButton] {
-      root.addSubview(button)
-      button.widthAnchor.constraint(equalToConstant: 26).isActive = true
-      button.heightAnchor.constraint(equalToConstant: 26).isActive = true
-      button.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -24).isActive = true
-    }
+    configureGlassPill(bottomPill, cornerRadius: 16)
+    configureRound(queueButton, symbol: "list.bullet", action: #selector(showQueue), size: 14)
+    configureRound(moreButton, symbol: "ellipsis", action: #selector(showPlayerOptionsMenu), size: 14)
+    queueButton.contentTintColor = .white
+    moreButton.contentTintColor = .white
+
+    bottomPill.addSubview(queueButton)
+    bottomPill.addSubview(moreButton)
+    root.addSubview(bottomPill)
+
     NSLayoutConstraint.activate([
-      moreButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -30),
-      queueButton.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -22),
-      airplayButton.trailingAnchor.constraint(equalTo: queueButton.leadingAnchor, constant: -22),
+      bottomPill.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -24),
+      bottomPill.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -20),
+      bottomPill.heightAnchor.constraint(equalToConstant: 32),
+
+      queueButton.leadingAnchor.constraint(equalTo: bottomPill.leadingAnchor, constant: 6),
+      queueButton.centerYAnchor.constraint(equalTo: bottomPill.centerYAnchor),
+      queueButton.widthAnchor.constraint(equalToConstant: 30),
+      queueButton.heightAnchor.constraint(equalToConstant: 26),
+
+      moreButton.leadingAnchor.constraint(equalTo: queueButton.trailingAnchor, constant: 2),
+      moreButton.trailingAnchor.constraint(equalTo: bottomPill.trailingAnchor, constant: -6),
+      moreButton.centerYAnchor.constraint(equalTo: bottomPill.centerYAnchor),
+      moreButton.widthAnchor.constraint(equalToConstant: 30),
+      moreButton.heightAnchor.constraint(equalToConstant: 26),
     ])
   }
 
@@ -854,49 +880,6 @@ final class NowPlayingViewController: NSViewController, MusicPlayable {
   @objc
   private func showQueue() {
     PlayerPageWindowController.presentQueue()
-  }
-
-  @objc
-  private func showDeviceMenu() {
-    let menu = NSMenu()
-    let defaultDevice = AudioOutputDevices.defaultOutputDevice()
-    for device in AudioOutputDevices.outputDevices() {
-      let item = NSMenuItem(
-        title: device.name,
-        action: #selector(selectDevice(_:)),
-        keyEquivalent: ""
-      )
-      item.target = self
-      item.representedObject = device.id
-      item.state = device.id == defaultDevice ? .on : .off
-      menu.addItem(item)
-    }
-    menu.addItem(.separator())
-    let settings = NSMenuItem(
-      title: L10n.tr("Sound Settings…"),
-      action: #selector(openSoundSettings),
-      keyEquivalent: ""
-    )
-    settings.target = self
-    menu.addItem(settings)
-    menu.popUp(
-      positioning: nil,
-      at: NSPoint(x: airplayButton.bounds.midX, y: airplayButton.bounds.minY - 4),
-      in: airplayButton
-    )
-  }
-
-  @objc
-  private func selectDevice(_ sender: NSMenuItem) {
-    guard let id = sender.representedObject as? AudioDeviceID else { return }
-    AudioOutputDevices.setDefaultOutputDevice(id)
-  }
-
-  @objc
-  private func openSoundSettings() {
-    if let url = URL(string: "x-apple.systempreferences:com.apple.Sound-Settings.extension") {
-      NSWorkspace.shared.open(url)
-    }
   }
 
   // MARK: - MusicPlayable
