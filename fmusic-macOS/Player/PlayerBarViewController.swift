@@ -62,6 +62,11 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private weak var glassBackdropView: NSView?
   private let entityActions = PlayerEntityActions()
 
+  private let volumeOverlayPill = VolumeOverlayPillView()
+  private var isVolumeExpanded = false
+  private var lastNonZeroVolume: Float = 0.5
+  nonisolated(unsafe) private var volumeOutsideMonitor: Any?
+
   /// Called when the user toggles the lyrics side pane.
   var onToggleLyricsPane: (() -> Void)?
 
@@ -280,6 +285,24 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     ])
 
     capsule.addSubview(progressTrack, positioned: .above, relativeTo: nil)
+
+    volumeOverlayPill.translatesAutoresizingMaskIntoConstraints = false
+    volumeOverlayPill.isHidden = true
+    volumeOverlayPill.alphaValue = 0
+    volumeOverlayPill.onVolumeChange = { [weak self] value in
+      self?.applyVolume(value)
+    }
+    volumeOverlayPill.onSpeakerClick = { [weak self] in
+      self?.toggleMute()
+    }
+    capsule.addSubview(volumeOverlayPill, positioned: .above, relativeTo: nil)
+    NSLayoutConstraint.activate([
+      volumeOverlayPill.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -5),
+      volumeOverlayPill.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
+      volumeOverlayPill.widthAnchor.constraint(equalToConstant: 174),
+      volumeOverlayPill.heightAnchor.constraint(equalToConstant: 44),
+    ])
+
     applyGlassStyle()
 
     self.view = root
@@ -321,11 +344,15 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   override func viewDidDisappear() {
     super.viewDidDisappear()
+    collapseVolumeOverlay(animated: false)
     PlaybackClock.shared.unsubscribe(clockToken)
     clockToken = nil
   }
 
   deinit {
+    if let volumeOutsideMonitor {
+      NSEvent.removeMonitor(volumeOutsideMonitor)
+    }
     NotificationCenter.default.removeObserver(self)
   }
 
@@ -411,13 +438,13 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     )
     configure(button: queueButton, symbol: "list.bullet", size: 15, action: #selector(showQueue))
 
-    volumeIcon.image = symbolImage("speaker.wave.2.fill", size: 14)
+    volumeIcon.image = symbolImage(Self.volumeSymbolName(for: player.volume), size: 14)
     volumeIcon.isBordered = false
     volumeIcon.bezelStyle = .regularSquare
     volumeIcon.imagePosition = .imageOnly
     volumeIcon.contentTintColor = .labelColor
     volumeIcon.target = self
-    volumeIcon.action = #selector(showVolumePopover)
+    volumeIcon.action = #selector(volumeIconPressed)
     volumeIcon.toolTip = L10n.tr("Volume")
     volumeIcon.translatesAutoresizingMaskIntoConstraints = false
     volumeIcon.widthAnchor.constraint(equalToConstant: 26).isActive = true
@@ -628,7 +655,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       repeatButton.contentTintColor = accent
       repeatButton.image = symbolImage("repeat.1", size: 12)
     }
-    volumeSlider.doubleValue = Double(player.volume)
+    syncVolumeUI(player.volume)
   }
 
   private func updateLyricsButton() {
@@ -684,7 +711,24 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func playbackSettingsChanged() {
-    volumeSlider.doubleValue = Double(FmusicKit.shared.storage.settings.user.playerVolume)
+    syncVolumeUI(FmusicKit.shared.storage.settings.user.playerVolume)
+  }
+
+  private static func volumeSymbolName(for volume: Float) -> String {
+    if volume <= 0.001 { return "speaker.slash.fill" }
+    if volume < 0.34 { return "speaker.wave.1.fill" }
+    if volume < 0.67 { return "speaker.wave.2.fill" }
+    return "speaker.wave.3.fill"
+  }
+
+  private func syncVolumeUI(_ volume: Float) {
+    let clamped = min(max(volume, 0), 1)
+    if clamped > 0.01 {
+      lastNonZeroVolume = clamped
+    }
+    volumeSlider.doubleValue = Double(clamped)
+    volumeIcon.image = symbolImage(Self.volumeSymbolName(for: clamped), size: 14)
+    volumeOverlayPill.setVolume(clamped)
   }
 
   // MARK: - Actions
@@ -851,40 +895,109 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     return .submenu(L10n.tr("Audio Output"), symbol: "airplayaudio", items: items)
   }
 
-  private var volumePopover: NSPopover?
-
   @objc
-  private func showVolumePopover() {
-    if let popover = volumePopover, popover.isShown {
-      popover.performClose(nil)
-      return
+  private func volumeIconPressed() {
+    if isVolumeExpanded {
+      toggleMute()
+    } else {
+      expandVolumeOverlay()
     }
-    let popover = NSPopover()
-    popover.behavior = .transient
-    let controller = NSViewController()
-    let slider = NSSlider(value: Double(player.volume), minValue: 0, maxValue: 1, target: self, action: #selector(volumePopoverChanged(_:)))
-    slider.controlSize = .small
-    slider.isContinuous = true
-    slider.translatesAutoresizingMaskIntoConstraints = false
-    let container = NSView()
-    container.addSubview(slider)
-    NSLayoutConstraint.activate([
-      container.widthAnchor.constraint(equalToConstant: 170),
-      container.heightAnchor.constraint(equalToConstant: 44),
-      slider.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 12),
-      slider.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -12),
-      slider.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-    ])
-    controller.view = container
-    popover.contentViewController = controller
-    popover.show(relativeTo: volumeIcon.bounds, of: volumeIcon, preferredEdge: .maxY)
-    volumePopover = popover
   }
 
-  @objc
-  private func volumePopoverChanged(_ sender: NSSlider) {
-    FmusicKit.shared.player.volume = Float(sender.doubleValue)
-    volumeSlider.doubleValue = sender.doubleValue
+  private func applyVolume(_ value: Float) {
+    let clamped = min(max(value, 0), 1)
+    FmusicKit.shared.player.volume = clamped
+    syncVolumeUI(clamped)
+  }
+
+  private func toggleMute() {
+    if player.volume > 0.001 {
+      lastNonZeroVolume = player.volume
+      applyVolume(0)
+    } else {
+      let restored = lastNonZeroVolume > 0.01 ? lastNonZeroVolume : 0.5
+      applyVolume(restored)
+    }
+  }
+
+  private func expandVolumeOverlay() {
+    guard !isVolumeExpanded else { return }
+    isVolumeExpanded = true
+    syncVolumeUI(player.volume)
+    volumeOverlayPill.isHidden = false
+    installVolumeOutsideMonitor()
+
+    if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      volumeOverlayPill.alphaValue = 0
+      if let layer = volumeOverlayPill.layer {
+        let slide = CABasicAnimation(keyPath: "transform.translation.x")
+        slide.fromValue = 16
+        slide.toValue = 0
+        slide.duration = 0.20
+        slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        layer.add(slide, forKey: "volumeExpandSlide")
+      }
+      NSAnimationContext.runAnimationGroup { context in
+        context.duration = 0.20
+        context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        volumeOverlayPill.animator().alphaValue = 1
+        rightGroupView?.animator().alphaValue = 0
+      }
+    } else {
+      volumeOverlayPill.alphaValue = 1
+      rightGroupView?.alphaValue = 0
+    }
+  }
+
+  private func collapseVolumeOverlay(animated: Bool) {
+    removeVolumeOutsideMonitor()
+    guard isVolumeExpanded else { return }
+    isVolumeExpanded = false
+    if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      NSAnimationContext.runAnimationGroup({ context in
+        context.duration = 0.16
+        context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        volumeOverlayPill.animator().alphaValue = 0
+        rightGroupView?.animator().alphaValue = 1
+      }, completionHandler: { [weak self] in
+        Task { @MainActor [weak self] in
+          guard let self, !self.isVolumeExpanded else { return }
+          self.volumeOverlayPill.isHidden = true
+        }
+      })
+    } else {
+      volumeOverlayPill.alphaValue = 0
+      volumeOverlayPill.isHidden = true
+      rightGroupView?.alphaValue = 1
+    }
+  }
+
+  private func installVolumeOutsideMonitor() {
+    removeVolumeOutsideMonitor()
+    volumeOutsideMonitor = NSEvent.addLocalMonitorForEvents(
+      matching: [.leftMouseDown, .rightMouseDown, .keyDown]
+    ) { [weak self] event in
+      guard let self, self.isVolumeExpanded else { return event }
+      if event.type == .keyDown {
+        if event.keyCode == 53 {
+          self.collapseVolumeOverlay(animated: true)
+          return nil
+        }
+        return event
+      }
+      let location = self.volumeOverlayPill.convert(event.locationInWindow, from: nil)
+      if !self.volumeOverlayPill.bounds.contains(location) {
+        self.collapseVolumeOverlay(animated: true)
+      }
+      return event
+    }
+  }
+
+  private func removeVolumeOutsideMonitor() {
+    if let volumeOutsideMonitor {
+      NSEvent.removeMonitor(volumeOutsideMonitor)
+      self.volumeOutsideMonitor = nil
+    }
   }
 
   @objc
@@ -1115,5 +1228,206 @@ private final class SeekTrackView: NSView {
   override func accessibilityPerformDecrement() -> Bool {
     onStep?(-5)
     return true
+  }
+}
+
+// MARK: - VolumeOverlayPillView
+
+/// Apple Music macOS 26 style inline expanding volume pill: a crisp rounded
+/// capsule overlaying the right side of the player bar with a thumb-less scrub
+/// bar on the left and a dynamic mute/unmute speaker button on the right.
+@MainActor
+private final class VolumeOverlayPillView: NSView {
+  var onVolumeChange: ((Float) -> Void)?
+  var onSpeakerClick: (() -> Void)?
+
+  private let backdropView = NSView()
+  private let scrubBar = VolumeScrubBar()
+  private let speakerButton = NSButton()
+  private var currentVolume: Float = 0.5
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.masksToBounds = false
+    layer?.shadowColor = NSColor.black.cgColor
+    layer?.shadowOpacity = 0.12
+    layer?.shadowRadius = 8
+    layer?.shadowOffset = CGSize(width: 0, height: -1)
+
+    backdropView.wantsLayer = true
+    backdropView.layer?.cornerRadius = 22
+    backdropView.layer?.cornerCurve = .continuous
+    backdropView.layer?.masksToBounds = true
+    backdropView.layer?.borderWidth = 0.5
+    backdropView.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(backdropView)
+
+    scrubBar.translatesAutoresizingMaskIntoConstraints = false
+    scrubBar.onScrub = { [weak self] value in
+      self?.onVolumeChange?(value)
+    }
+    addSubview(scrubBar)
+
+    speakerButton.isBordered = false
+    speakerButton.bezelStyle = .regularSquare
+    speakerButton.imagePosition = .imageOnly
+    speakerButton.contentTintColor = .labelColor
+    speakerButton.target = self
+    speakerButton.action = #selector(speakerPressed)
+    speakerButton.toolTip = L10n.tr("Volume")
+    speakerButton.translatesAutoresizingMaskIntoConstraints = false
+    addSubview(speakerButton)
+
+    NSLayoutConstraint.activate([
+      backdropView.topAnchor.constraint(equalTo: topAnchor),
+      backdropView.leadingAnchor.constraint(equalTo: leadingAnchor),
+      backdropView.trailingAnchor.constraint(equalTo: trailingAnchor),
+      backdropView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+      speakerButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+      speakerButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      speakerButton.widthAnchor.constraint(equalToConstant: 28),
+      speakerButton.heightAnchor.constraint(equalToConstant: 28),
+
+      scrubBar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
+      scrubBar.trailingAnchor.constraint(equalTo: speakerButton.leadingAnchor, constant: -12),
+      scrubBar.centerYAnchor.constraint(equalTo: centerYAnchor),
+      scrubBar.heightAnchor.constraint(equalToConstant: 24),
+    ])
+
+    applyAppearance()
+    setVolume(currentVolume)
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appearanceDidChange),
+      name: .macAppearanceChanged,
+      object: nil
+    )
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  func setVolume(_ volume: Float) {
+    let clamped = min(max(volume, 0), 1)
+    currentVolume = clamped
+    scrubBar.value = CGFloat(clamped)
+    let symbol: String
+    if clamped <= 0.001 {
+      symbol = "speaker.slash.fill"
+    } else if clamped < 0.34 {
+      symbol = "speaker.wave.1.fill"
+    } else if clamped < 0.67 {
+      symbol = "speaker.wave.2.fill"
+    } else {
+      symbol = "speaker.wave.3.fill"
+    }
+    speakerButton.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)?
+      .withSymbolConfiguration(.init(pointSize: 15, weight: .medium))
+  }
+
+  @objc
+  private func speakerPressed() {
+    onSpeakerClick?()
+  }
+
+  @objc
+  private func appearanceDidChange() {
+    applyAppearance()
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    applyAppearance()
+  }
+
+  override func layout() {
+    super.layout()
+    let radius = bounds.height / 2
+    backdropView.layer?.cornerRadius = radius
+    layer?.shadowPath = CGPath(
+      roundedRect: bounds,
+      cornerWidth: radius,
+      cornerHeight: radius,
+      transform: nil
+    )
+  }
+
+  private func applyAppearance() {
+    let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+    backdropView.layer?.backgroundColor = isDark
+      ? NSColor(white: 0.20, alpha: 0.96).cgColor
+      : NSColor(white: 0.99, alpha: 0.96).cgColor
+    backdropView.layer?.borderColor = isDark
+      ? NSColor.white.withAlphaComponent(0.14).cgColor
+      : NSColor.black.withAlphaComponent(0.08).cgColor
+    layer?.shadowOpacity = isDark ? 0.32 : 0.12
+    scrubBar.needsDisplay = true
+  }
+}
+
+private final class VolumeScrubBar: NSView {
+  var onScrub: ((Float) -> Void)?
+  var value: CGFloat = 0.5 {
+    didSet { needsDisplay = true }
+  }
+
+  private let barHeight: CGFloat = 8
+
+  override func resetCursorRects() {
+    addCursorRect(bounds, cursor: .pointingHand)
+  }
+
+  override func draw(_ dirtyRect: NSRect) {
+    let y = (bounds.height - barHeight) / 2
+    let trackRect = NSRect(x: 0, y: y, width: bounds.width, height: barHeight)
+    let radius = barHeight / 2
+    let trackPath = NSBezierPath(roundedRect: trackRect, xRadius: radius, yRadius: radius)
+
+    NSGraphicsContext.saveGraphicsState()
+    trackPath.addClip()
+    NSColor.labelColor.withAlphaComponent(0.18).setFill()
+    trackRect.fill()
+
+    let fillWidth = max(0, min(bounds.width, bounds.width * value))
+    if fillWidth > 0.5 {
+      let fillRect = NSRect(x: 0, y: y, width: fillWidth, height: barHeight)
+      NSColor.labelColor.setFill()
+      fillRect.fill()
+    }
+    NSGraphicsContext.restoreGraphicsState()
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    report(event)
+    while let next = window?.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) {
+      if next.type == .leftMouseDragged {
+        report(next)
+      } else {
+        break
+      }
+    }
+  }
+
+  override func scrollWheel(with event: NSEvent) {
+    let delta = Float(event.scrollingDeltaY) * 0.01
+    guard abs(delta) > 0.0005 else { return }
+    let next = min(max(Float(value) + delta, 0), 1)
+    value = CGFloat(next)
+    onScrub?(next)
+  }
+
+  private func report(_ event: NSEvent) {
+    guard bounds.width > 0 else { return }
+    let x = convert(event.locationInWindow, from: nil).x
+    let fraction = min(max(Float(x / bounds.width), 0), 1)
+    value = CGFloat(fraction)
+    onScrub?(fraction)
   }
 }
