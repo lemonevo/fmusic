@@ -1263,6 +1263,8 @@ private final class VolumeOverlayPillView: NSView {
   var onSpeakerClick: (() -> Void)?
 
   private let backdropView = NSView()
+  private var glassView: NSView?
+  private let tintOverlayLayer = CALayer()
   private let scrubBar = VolumeScrubBar()
   private let speakerButton = NSButton()
   private var scrubBarWidthConstraint: NSLayoutConstraint?
@@ -1284,6 +1286,30 @@ private final class VolumeOverlayPillView: NSView {
     backdropView.layer?.borderWidth = 0.5
     backdropView.translatesAutoresizingMaskIntoConstraints = false
     addSubview(backdropView)
+
+    let glass: NSView
+    if #available(macOS 26.0, *) {
+      let effect = NSGlassEffectView()
+      effect.style = .regular
+      effect.cornerRadius = 22
+      glass = effect
+    } else {
+      let visual = NSVisualEffectView()
+      visual.material = .popover
+      visual.blendingMode = .withinWindow
+      visual.state = .active
+      visual.wantsLayer = true
+      visual.layer?.cornerRadius = 22
+      visual.layer?.masksToBounds = true
+      glass = visual
+    }
+    glass.translatesAutoresizingMaskIntoConstraints = false
+    glassView = glass
+    backdropView.addSubview(glass)
+
+    tintOverlayLayer.cornerRadius = 22
+    tintOverlayLayer.cornerCurve = .continuous
+    backdropView.layer?.addSublayer(tintOverlayLayer)
 
     scrubBar.translatesAutoresizingMaskIntoConstraints = false
     scrubBar.onScrub = { [weak self] value in
@@ -1309,6 +1335,11 @@ private final class VolumeOverlayPillView: NSView {
       backdropView.trailingAnchor.constraint(equalTo: trailingAnchor),
       backdropView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
+      glass.topAnchor.constraint(equalTo: backdropView.topAnchor),
+      glass.leadingAnchor.constraint(equalTo: backdropView.leadingAnchor),
+      glass.trailingAnchor.constraint(equalTo: backdropView.trailingAnchor),
+      glass.bottomAnchor.constraint(equalTo: backdropView.bottomAnchor),
+
       // Center aligns 1:1 with the collapsed volumeIcon inside the player bar.
       speakerButton.trailingAnchor.constraint(equalTo: backdropView.trailingAnchor, constant: -11),
       speakerButton.centerYAnchor.constraint(equalTo: backdropView.centerYAnchor),
@@ -1327,6 +1358,12 @@ private final class VolumeOverlayPillView: NSView {
       self,
       selector: #selector(appearanceDidChange),
       name: .macAppearanceChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(appearanceDidChange),
+      name: .macGlassStyleChanged,
       object: nil
     )
   }
@@ -1391,6 +1428,13 @@ private final class VolumeOverlayPillView: NSView {
     CATransaction.begin()
     CATransaction.setDisableActions(true)
     backdropView.layer?.cornerRadius = radius
+    tintOverlayLayer.frame = backdropView.bounds
+    tintOverlayLayer.cornerRadius = radius
+    if #available(macOS 26.0, *), let glass = glassView as? NSGlassEffectView {
+      glass.cornerRadius = radius
+    } else {
+      glassView?.layer?.cornerRadius = radius
+    }
     layer?.shadowPath = CGPath(
       roundedRect: bounds,
       cornerWidth: radius,
@@ -1402,13 +1446,24 @@ private final class VolumeOverlayPillView: NSView {
 
   private func applyAppearance() {
     let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-    backdropView.layer?.backgroundColor = isDark
-      ? NSColor(white: 0.20, alpha: 0.96).cgColor
-      : NSColor(white: 0.99, alpha: 0.96).cgColor
+    let style = GlassStyleManager.configuration
+    if #available(macOS 26.0, *), let glass = glassView as? NSGlassEffectView {
+      glass.style = style.material == .clear ? .clear : .regular
+      glass.tintColor = isDark
+        ? NSColor.black.withAlphaComponent(0.24)
+        : NSColor.black.withAlphaComponent(0.06)
+    }
+    glassView?.alphaValue = min(1.0, style.glassAlpha + 0.06)
+    // Subtle darker glass tint so the volume pill sits one shade deeper than the
+    // parent Liquid Glass player bar instead of looking flat white or identical.
+    tintOverlayLayer.backgroundColor = isDark
+      ? NSColor.black.withAlphaComponent(0.16).cgColor
+      : NSColor.black.withAlphaComponent(0.055).cgColor
+    backdropView.layer?.backgroundColor = NSColor.clear.cgColor
     backdropView.layer?.borderColor = isDark
       ? NSColor.white.withAlphaComponent(0.14).cgColor
-      : NSColor.black.withAlphaComponent(0.08).cgColor
-    layer?.shadowOpacity = isDark ? 0.32 : 0.12
+      : NSColor.black.withAlphaComponent(0.10).cgColor
+    layer?.shadowOpacity = isDark ? 0.30 : 0.10
     scrubBar.needsDisplay = true
   }
 }

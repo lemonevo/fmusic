@@ -157,6 +157,9 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
   private func makeMenu(for row: Int) -> NSMenu? {
     guard row >= 0, row < playlists.count else { return nil }
     let menu = NSMenu()
+    let playlist = playlists[row]
+    let hasSongs = playlist.songCount > 0
+
     let playItem = NSMenuItem(
       title: L10n.tr("Play"),
       action: #selector(menuPlayPlaylist(_:)),
@@ -164,7 +167,49 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
     )
     playItem.target = self
     playItem.tag = row
+    playItem.isEnabled = hasSongs
     menu.addItem(playItem)
+
+    let shuffleItem = NSMenuItem(
+      title: L10n.tr("Shuffle"),
+      action: #selector(menuShufflePlaylist(_:)),
+      keyEquivalent: ""
+    )
+    shuffleItem.target = self
+    shuffleItem.tag = row
+    shuffleItem.isEnabled = hasSongs
+    menu.addItem(shuffleItem)
+
+    let queueItem = NSMenuItem(
+      title: L10n.tr("Add to Queue"),
+      action: #selector(menuAddPlaylistToQueue(_:)),
+      keyEquivalent: ""
+    )
+    queueItem.target = self
+    queueItem.tag = row
+    queueItem.isEnabled = hasSongs
+    menu.addItem(queueItem)
+
+    menu.addItem(.separator())
+
+    let renameItem = NSMenuItem(
+      title: L10n.tr("Rename"),
+      action: #selector(menuRenamePlaylist(_:)),
+      keyEquivalent: ""
+    )
+    renameItem.target = self
+    renameItem.tag = row
+    menu.addItem(renameItem)
+
+    let deleteItem = NSMenuItem(
+      title: L10n.tr("Delete"),
+      action: #selector(menuDeletePlaylist(_:)),
+      keyEquivalent: ""
+    )
+    deleteItem.target = self
+    deleteItem.tag = row
+    menu.addItem(deleteItem)
+
     return menu
   }
 
@@ -217,6 +262,85 @@ final class PlaylistListViewController: NSViewController, NSTableViewDataSource,
   private func menuPlayPlaylist(_ sender: NSMenuItem) {
     guard sender.tag >= 0, sender.tag < playlists.count else { return }
     LibraryPlayback.play(playlist: playlists[sender.tag])
+  }
+
+  @objc
+  private func menuShufflePlaylist(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playlists.count else { return }
+    let playlist = playlists[sender.tag]
+    let library = FmusicKit.shared.storage.main.library
+    var playables = library.getPlaylistItems(playlist: playlist).compactMap {
+      PlaylistItem(library: library, managedObject: $0).playable
+    }
+    guard !playables.isEmpty else { return }
+    playables.shuffle()
+    FmusicKit.shared.player.play(
+      context: PlayContext(containable: playlist, index: 0, playables: playables)
+    )
+  }
+
+  @objc
+  private func menuAddPlaylistToQueue(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playlists.count else { return }
+    let playlist = playlists[sender.tag]
+    let library = FmusicKit.shared.storage.main.library
+    let playables = library.getPlaylistItems(playlist: playlist).compactMap {
+      PlaylistItem(library: library, managedObject: $0).playable
+    }
+    guard !playables.isEmpty else { return }
+    FmusicKit.shared.player.insertUserQueue(playables: playables)
+  }
+
+  @objc
+  private func menuRenamePlaylist(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playlists.count else { return }
+    let playlist = playlists[sender.tag]
+    let alert = NSAlert()
+    alert.messageText = L10n.tr("Rename")
+    alert.addButton(withTitle: L10n.tr("OK"))
+    alert.addButton(withTitle: L10n.tr("Cancel"))
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+    field.stringValue = playlist.name
+    alert.accessoryView = field
+    alert.window.initialFirstResponder = field
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty, trimmed != playlist.name else { return }
+    playlist.name = trimmed
+    FmusicKit.shared.storage.main.saveContext()
+    if let accountInfo = playlist.account?.info {
+      Task { @MainActor in
+        try? await FmusicKit.shared.getMeta(accountInfo)
+          .librarySyncer.syncUpload(playlistToUpdateName: playlist)
+      }
+    }
+    FmusicKit.shared.notificationHandler.post(name: .librarySongsSynced, object: nil, userInfo: nil)
+    reloadPlaylists()
+  }
+
+  @objc
+  private func menuDeletePlaylist(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playlists.count else { return }
+    let playlist = playlists[sender.tag]
+    let alert = NSAlert()
+    alert.alertStyle = .warning
+    alert.messageText = L10n.tr("Delete") + " “\(playlist.name)”"
+    alert.addButton(withTitle: L10n.tr("Delete"))
+    alert.addButton(withTitle: L10n.tr("Cancel"))
+    guard alert.runModal() == .alertFirstButtonReturn else { return }
+    let playlistID = playlist.id
+    let accountInfo = playlist.account?.info
+    let library = FmusicKit.shared.storage.main.library
+    library.deletePlaylist(playlist)
+    FmusicKit.shared.storage.main.saveContext()
+    if let accountInfo, !playlistID.isEmpty {
+      Task { @MainActor in
+        try? await FmusicKit.shared.getMeta(accountInfo)
+          .librarySyncer.syncUpload(playlistIdToDelete: playlistID)
+      }
+    }
+    FmusicKit.shared.notificationHandler.post(name: .librarySongsSynced, object: nil, userInfo: nil)
+    reloadPlaylists()
   }
 
   // MARK: - NSTableViewDataSource

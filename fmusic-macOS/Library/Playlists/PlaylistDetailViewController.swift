@@ -337,6 +337,15 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
     queueItem.target = self
     queueItem.tag = row
     menu.addItem(queueItem)
+    menu.addItem(.separator())
+    let removeItem = NSMenuItem(
+      title: L10n.tr("Remove"),
+      action: #selector(menuRemoveFromPlaylist(_:)),
+      keyEquivalent: ""
+    )
+    removeItem.target = self
+    removeItem.tag = row
+    menu.addItem(removeItem)
     return menu
   }
 
@@ -359,6 +368,15 @@ final class PlaylistDetailViewController: NSViewController, NSTableViewDataSourc
   private func menuQueue(_ sender: NSMenuItem) {
     guard sender.tag >= 0, sender.tag < playables.count else { return }
     FmusicKit.shared.player.insertUserQueue(playables: [playables[sender.tag]])
+  }
+
+  @objc
+  private func menuRemoveFromPlaylist(_ sender: NSMenuItem) {
+    guard sender.tag >= 0, sender.tag < playables.count else { return }
+    playlist.remove(at: sender.tag)
+    FmusicKit.shared.storage.main.saveContext()
+    FmusicKit.shared.notificationHandler.post(name: .librarySongsSynced, object: nil, userInfo: nil)
+    reloadSongs()
   }
 
   // MARK: - NSTableViewDataSource
