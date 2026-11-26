@@ -63,6 +63,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let entityActions = PlayerEntityActions()
 
   private let volumeOverlayPill = VolumeOverlayPillView()
+  private var volumeOverlayWidthConstraint: NSLayoutConstraint?
   private var isVolumeExpanded = false
   private var lastNonZeroVolume: Float = 0.5
   nonisolated(unsafe) private var volumeOutsideMonitor: Any?
@@ -296,10 +297,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       self?.toggleMute()
     }
     capsule.addSubview(volumeOverlayPill, positioned: .above, relativeTo: nil)
+    let volumeWidth = volumeOverlayPill.widthAnchor.constraint(equalToConstant: 44)
+    volumeOverlayWidthConstraint = volumeWidth
     NSLayoutConstraint.activate([
-      volumeOverlayPill.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -5),
+      volumeOverlayPill.trailingAnchor.constraint(equalTo: capsule.trailingAnchor, constant: -6),
       volumeOverlayPill.centerYAnchor.constraint(equalTo: capsule.centerYAnchor),
-      volumeOverlayPill.widthAnchor.constraint(equalToConstant: 174),
+      volumeWidth,
       volumeOverlayPill.heightAnchor.constraint(equalToConstant: 44),
     ])
 
@@ -920,31 +923,43 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     }
   }
 
+  private func expandedVolumePillWidth() -> CGFloat {
+    // Covers the 4 right-side utility buttons (more / lyrics / queue / volume)
+    // with balanced concentric margins without encroaching on the track info.
+    let rightWidth = rightGroupView?.frame.width ?? 134
+    return max(144, round(rightWidth) + 22)
+  }
+
   private func expandVolumeOverlay() {
     guard !isVolumeExpanded else { return }
     isVolumeExpanded = true
     syncVolumeUI(player.volume)
+    let targetWidth = expandedVolumePillWidth()
+    volumeOverlayPill.setExpandedWidth(targetWidth)
     volumeOverlayPill.isHidden = false
     installVolumeOutsideMonitor()
 
     if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+      // Start as a 44×44 circle centered on the speaker icon, then grow leftwards.
+      volumeOverlayWidthConstraint?.constant = 44
       volumeOverlayPill.alphaValue = 0
-      if let layer = volumeOverlayPill.layer {
-        let slide = CABasicAnimation(keyPath: "transform.translation.x")
-        slide.fromValue = 16
-        slide.toValue = 0
-        slide.duration = 0.20
-        slide.timingFunction = CAMediaTimingFunction(name: .easeOut)
-        layer.add(slide, forKey: "volumeExpandSlide")
-      }
+      volumeOverlayPill.setScrubBarAlpha(0)
+      capsule.layoutSubtreeIfNeeded()
+
       NSAnimationContext.runAnimationGroup { context in
-        context.duration = 0.20
-        context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        context.duration = 0.28
+        context.allowsImplicitAnimation = true
+        context.timingFunction = CAMediaTimingFunction(controlPoints: 0.22, 1.0, 0.36, 1.0)
+        volumeOverlayWidthConstraint?.animator().constant = targetWidth
         volumeOverlayPill.animator().alphaValue = 1
+        volumeOverlayPill.animateScrubBarAlpha(to: 1)
         rightGroupView?.animator().alphaValue = 0
+        capsule.layoutSubtreeIfNeeded()
       }
     } else {
+      volumeOverlayWidthConstraint?.constant = targetWidth
       volumeOverlayPill.alphaValue = 1
+      volumeOverlayPill.setScrubBarAlpha(1)
       rightGroupView?.alphaValue = 0
     }
   }
@@ -955,10 +970,14 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     isVolumeExpanded = false
     if animated, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
       NSAnimationContext.runAnimationGroup({ context in
-        context.duration = 0.16
-        context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+        context.duration = 0.22
+        context.allowsImplicitAnimation = true
+        context.timingFunction = CAMediaTimingFunction(controlPoints: 0.4, 0.0, 0.2, 1.0)
+        volumeOverlayWidthConstraint?.animator().constant = 44
         volumeOverlayPill.animator().alphaValue = 0
+        volumeOverlayPill.animateScrubBarAlpha(to: 0)
         rightGroupView?.animator().alphaValue = 1
+        capsule.layoutSubtreeIfNeeded()
       }, completionHandler: { [weak self] in
         Task { @MainActor [weak self] in
           guard let self, !self.isVolumeExpanded else { return }
@@ -966,7 +985,9 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
         }
       })
     } else {
+      volumeOverlayWidthConstraint?.constant = 44
       volumeOverlayPill.alphaValue = 0
+      volumeOverlayPill.setScrubBarAlpha(0)
       volumeOverlayPill.isHidden = true
       rightGroupView?.alphaValue = 1
     }
@@ -1244,6 +1265,7 @@ private final class VolumeOverlayPillView: NSView {
   private let backdropView = NSView()
   private let scrubBar = VolumeScrubBar()
   private let speakerButton = NSButton()
+  private var scrubBarWidthConstraint: NSLayoutConstraint?
   private var currentVolume: Float = 0.5
 
   override init(frame frameRect: NSRect) {
@@ -1267,7 +1289,7 @@ private final class VolumeOverlayPillView: NSView {
     scrubBar.onScrub = { [weak self] value in
       self?.onVolumeChange?(value)
     }
-    addSubview(scrubBar)
+    backdropView.addSubview(scrubBar)
 
     speakerButton.isBordered = false
     speakerButton.bezelStyle = .regularSquare
@@ -1277,22 +1299,25 @@ private final class VolumeOverlayPillView: NSView {
     speakerButton.action = #selector(speakerPressed)
     speakerButton.toolTip = L10n.tr("Volume")
     speakerButton.translatesAutoresizingMaskIntoConstraints = false
-    addSubview(speakerButton)
+    backdropView.addSubview(speakerButton)
 
+    let scrubWidth = scrubBar.widthAnchor.constraint(equalToConstant: 91)
+    scrubBarWidthConstraint = scrubWidth
     NSLayoutConstraint.activate([
       backdropView.topAnchor.constraint(equalTo: topAnchor),
       backdropView.leadingAnchor.constraint(equalTo: leadingAnchor),
       backdropView.trailingAnchor.constraint(equalTo: trailingAnchor),
       backdropView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-      speakerButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
-      speakerButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      // Center aligns 1:1 with the collapsed volumeIcon inside the player bar.
+      speakerButton.trailingAnchor.constraint(equalTo: backdropView.trailingAnchor, constant: -11),
+      speakerButton.centerYAnchor.constraint(equalTo: backdropView.centerYAnchor),
       speakerButton.widthAnchor.constraint(equalToConstant: 28),
       speakerButton.heightAnchor.constraint(equalToConstant: 28),
 
-      scrubBar.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 18),
-      scrubBar.trailingAnchor.constraint(equalTo: speakerButton.leadingAnchor, constant: -12),
-      scrubBar.centerYAnchor.constraint(equalTo: centerYAnchor),
+      scrubBar.trailingAnchor.constraint(equalTo: speakerButton.leadingAnchor, constant: -10),
+      scrubBar.centerYAnchor.constraint(equalTo: backdropView.centerYAnchor),
+      scrubWidth,
       scrubBar.heightAnchor.constraint(equalToConstant: 24),
     ])
 
@@ -1312,6 +1337,19 @@ private final class VolumeOverlayPillView: NSView {
 
   deinit {
     NotificationCenter.default.removeObserver(self)
+  }
+
+  func setExpandedWidth(_ width: CGFloat) {
+    // Reserve 16 pt left margin, 10 pt gap, 28 pt speaker, 11 pt right margin.
+    scrubBarWidthConstraint?.constant = max(48, width - 65)
+  }
+
+  func setScrubBarAlpha(_ alpha: CGFloat) {
+    scrubBar.alphaValue = alpha
+  }
+
+  func animateScrubBarAlpha(to alpha: CGFloat) {
+    scrubBar.animator().alphaValue = alpha
   }
 
   func setVolume(_ volume: Float) {
@@ -1350,6 +1388,8 @@ private final class VolumeOverlayPillView: NSView {
   override func layout() {
     super.layout()
     let radius = bounds.height / 2
+    CATransaction.begin()
+    CATransaction.setDisableActions(true)
     backdropView.layer?.cornerRadius = radius
     layer?.shadowPath = CGPath(
       roundedRect: bounds,
@@ -1357,6 +1397,7 @@ private final class VolumeOverlayPillView: NSView {
       cornerHeight: radius,
       transform: nil
     )
+    CATransaction.commit()
   }
 
   private func applyAppearance() {
