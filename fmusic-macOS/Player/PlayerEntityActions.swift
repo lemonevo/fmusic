@@ -58,7 +58,7 @@ final class PlayerEntityActions {
   func matchOnlineLyrics() {
     guard let song = currentSong else { return }
     Task { @MainActor in
-      _ = await OnlineLyricsService.shared.matchLyrics(for: song)
+      _ = await OnlineLyricsService.shared.matchLyrics(for: song, force: true)
     }
   }
 

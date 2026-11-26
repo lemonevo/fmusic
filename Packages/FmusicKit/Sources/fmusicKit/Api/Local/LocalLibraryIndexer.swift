@@ -109,7 +109,10 @@ enum FileSourceMetadataReader {
     let bitrate = durationSeconds > 0 ? (size * 8) / durationSeconds : 0
     let addedDate = values?.creationDate ?? values?.contentModificationDate ?? Date()
 
-    let lyrics = sidecarLyrics(for: fileURL) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
+    let lyrics = LyricsTextParser.preferredLocalLyrics(
+      sidecar: sidecarLyrics(for: fileURL),
+      embedded: flacTags?.lyrics ?? mp3Tags?.lyrics
+    )
     let lyricTags = lyrics.map(LyricMetadataTags.parse)
 
     let fileName = fileURL.deletingPathExtension().lastPathComponent

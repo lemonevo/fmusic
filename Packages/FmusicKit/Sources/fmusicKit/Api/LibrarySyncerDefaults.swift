@@ -69,6 +69,14 @@ extension LibrarySyncer {
   }
 }
 
+// MARK: - StructuredLyrics + WordTiming
+
+public extension StructuredLyrics {
+  var isWordTimed: Bool {
+    line.contains { !$0.words.isEmpty }
+  }
+}
+
 // MARK: - LyricsTextParser
 
 enum LyricsTextParser {
@@ -86,6 +94,34 @@ enum LyricsTextParser {
   static func parse(data: Data) -> LyricsList {
     guard let content = LyricsSidecarReader.text(from: data) else { return LyricsList() }
     return parse(content)
+  }
+
+  static func isWordTimed(_ content: String) -> Bool {
+    QRCFileParser.isQRC(content) || KRCFileParser.isKRC(content) || YRCFileParser.isYRC(content)
+  }
+
+  static func isWordTimed(data: Data) -> Bool {
+    guard let content = LyricsSidecarReader.text(from: data) else { return false }
+    return isWordTimed(content)
+  }
+
+  static func isWordTimed(fileURL: URL) -> Bool {
+    guard let data = try? Data(contentsOf: fileURL) else { return false }
+    return isWordTimed(data: data)
+  }
+
+  /// Picks the richer local lyric source: word-timed (YRC/QRC/KRC) always
+  /// beats line-timed LRC, with sidecar winning ties over embedded tags.
+  static func preferredLocalLyrics(sidecar: String?, embedded: String?) -> String? {
+    let cleanSidecar = sidecar?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+      ? sidecar
+      : nil
+    let cleanEmbedded = embedded?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+      ? embedded
+      : nil
+    if let cleanSidecar, isWordTimed(cleanSidecar) { return cleanSidecar }
+    if let cleanEmbedded, isWordTimed(cleanEmbedded) { return cleanEmbedded }
+    return cleanSidecar ?? cleanEmbedded
   }
 }
 

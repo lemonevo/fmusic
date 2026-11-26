@@ -198,6 +198,7 @@ public struct OnlineMetadataMatch: Sendable {
 private struct ChosenLyrics {
   let text: String
   let score: Int
+  let isWordTimed: Bool
 }
 
 // MARK: - OnlineLyricsProvider
@@ -1560,24 +1561,52 @@ public final class OnlineLyricsService {
 
   private init() {}
 
-  /// True when an automatic lookup would actually start, i.e. the song has no lyrics
-  /// file yet and the same metadata has not failed before in this session.
+  /// True when the song's cached lyrics file is already in a word-timed format
+  /// (YRC, QRC, or KRC).
+  public func hasWordTimedLyrics(for song: Song) -> Bool {
+    guard let relFilePath = song.lyricsRelFilePath,
+          let absoluteFilePath = CacheFileManager.shared
+          .getAbsolutefmusicPath(relFilePath: relFilePath)
+    else { return false }
+    return LyricsTextParser.isWordTimed(fileURL: absoluteFilePath)
+  }
+
+  private func hasValidExistingLyrics(for song: Song) -> Bool {
+    guard let relFilePath = song.lyricsRelFilePath,
+          let absoluteFilePath = CacheFileManager.shared
+          .getAbsolutefmusicPath(relFilePath: relFilePath),
+          let data = try? Data(contentsOf: absoluteFilePath),
+          !data.isEmpty
+    else { return false }
+    return true
+  }
+
+  /// True when an automatic lookup would actually start: either the song has no
+  /// lyrics yet, or it only has line-timed LRC that can be upgraded to online
+  /// word-timed lyrics (YRC/QRC/KRC), and the same metadata has not failed
+  /// before in this session.
   public func canMatchLyrics(for song: Song) -> Bool {
     guard FmusicKit.shared.settings.user.isOnlineMode,
-          song.lyricsRelFilePath == nil,
+          !hasWordTimedLyrics(for: song),
           let query = makeQuery(for: song)
     else { return false }
     let key = makeKey(for: song, query: query)
     return !attempted.contains(key)
   }
 
-  /// Looks up lyrics for songs without a lyrics file and stores the result in the
-  /// fmusic cache, so all existing lyrics views pick it up on the next refresh.
+  /// Resolves online lyrics following the priority order:
+  /// 1. Existing local/embedded word-timed lyrics (YRC/QRC/KRC) — kept as-is.
+  /// 2. Online word-timed lyrics (YRC/QRC/KRC) — upgrades missing or LRC-only lyrics.
+  /// 3. Existing local/embedded LRC — preserved when online only has LRC.
+  /// 4. Online LRC — fallback when no local lyrics exist.
   @discardableResult
   public func matchLyrics(for song: Song, force: Bool = false) async -> Bool {
     guard FmusicKit.shared.settings.user.isOnlineMode else { return false }
     guard let query = makeQuery(for: song) else { return false }
-    if !force, song.lyricsRelFilePath != nil { return false }
+    let alreadyWordTimed = hasWordTimedLyrics(for: song)
+    if !force, alreadyWordTimed { return false }
+    let hasExistingLocal = hasValidExistingLyrics(for: song)
+    let requireWordTimed = hasExistingLocal && !alreadyWordTimed
 
     let key = makeKey(for: song, query: query)
     if !force, attempted.contains(key) { return false }
@@ -1587,7 +1616,11 @@ public final class OnlineLyricsService {
 
     let task = Task<Bool, Never> { [weak self] in
       guard let self else { return false }
-      return await performMatch(song: song, query: query)
+      return await performMatch(
+        song: song,
+        query: query,
+        requireWordTimed: requireWordTimed
+      )
     }
     inFlight[key] = task
     let result = await task.value
@@ -2018,14 +2051,20 @@ public final class OnlineLyricsService {
 
   // MARK: Matching
 
-  private func performMatch(song: Song, query: OnlineLyricsQuery) async -> Bool {
+  private func performMatch(
+    song: Song,
+    query: OnlineLyricsQuery,
+    requireWordTimed: Bool
+  ) async
+    -> Bool {
     let scored = await searchCandidates(for: query)
-    guard let best = await chooseLyrics(from: scored) else {
+    guard let best = await chooseLyrics(from: scored, requireWordTimed: requireWordTimed) else {
       os_log(
-        "Online lyrics: no match for %{public}@",
+        "Online lyrics: no match for %{public}@ (requireWordTimed=%d)",
         log: FmusicKit.shared.log,
         type: .info,
-        query.title
+        query.title,
+        requireWordTimed ? 1 : 0
       )
       return false
     }
@@ -2090,7 +2129,11 @@ public final class OnlineLyricsService {
     }
   }
 
-  private func chooseLyrics(from scored: [ScoredCandidate]) async -> ChosenLyrics? {
+  private func chooseLyrics(
+    from scored: [ScoredCandidate],
+    requireWordTimed: Bool
+  ) async
+    -> ChosenLyrics? {
     guard !scored.isEmpty else { return nil }
 
     var inline = [(ScoredCandidate, OnlineLyricsPayload)]()
@@ -2126,16 +2169,26 @@ public final class OnlineLyricsService {
       }
     }
 
+    func isBetter(_ candidate: ChosenLyrics, than current: ChosenLyrics?) -> Bool {
+      guard let current else { return true }
+      if candidate.isWordTimed != current.isWordTimed {
+        return candidate.isWordTimed
+      }
+      return candidate.score > current.score
+    }
+
     var best: ChosenLyrics?
     for (candidate, payload) in inline {
       guard let chosen = evaluate(payload: payload, candidate: candidate) else { continue }
-      if best == nil || chosen.score > best!.score {
+      if requireWordTimed, !chosen.isWordTimed { continue }
+      if isBetter(chosen, than: best) {
         best = chosen
       }
     }
     for (candidate, payload) in fetched {
       guard let chosen = evaluate(payload: payload, candidate: candidate) else { continue }
-      if best == nil || chosen.score > best!.score {
+      if requireWordTimed, !chosen.isWordTimed { continue }
+      if isBetter(chosen, than: best) {
         best = chosen
       }
     }
@@ -2175,7 +2228,7 @@ public final class OnlineLyricsService {
       wordTimed ? 1 : 0,
       translated ? 1 : 0
     )
-    return ChosenLyrics(text: text, score: score)
+    return ChosenLyrics(text: text, score: score, isWordTimed: wordTimed)
   }
 
   private func provider(for source: OnlineLyricsSource) -> (any OnlineLyricsProvider)? {

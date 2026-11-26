@@ -300,6 +300,9 @@ final class LyricsOverlayController: NSObject, MusicPlayable {
       guard let structuredLyrics = lyricsList.getFirstSyncedLyricsOrUnsyncedAsDefault()
       else { return }
       self.tracker.setLyrics(structuredLyrics)
+      if !structuredLyrics.isWordTimed {
+        self.requestOnlineLyricsIfPossible(for: song)
+      }
       guard self.player.currentlyPlaying?.id == songID else { return }
       self.render(at: self.player.elapsedTime)
     }

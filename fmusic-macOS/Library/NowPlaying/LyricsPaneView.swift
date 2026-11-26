@@ -241,6 +241,9 @@ final class LyricsPaneView: NSView {
       }
       self.lyrics = structuredLyrics
       self.renderLyrics()
+      if !structuredLyrics.isWordTimed {
+        self.requestOnlineLyricsIfPossible(for: song)
+      }
     }
   }
 

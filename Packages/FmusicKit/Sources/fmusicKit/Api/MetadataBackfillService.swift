@@ -388,8 +388,9 @@ public final class MetadataBackfillService {
     return BackfillResult(matched: matched, attempted: attempted)
   }
 
-  /// Automatically backfills online lyrics in the background for songs that
-  /// have no local/sidecar lyrics file yet (e.g. newly synced WebDAV tracks).
+  /// Automatically backfills online lyrics in the background: fills songs with
+  /// no lyrics first, then upgrades local line-timed LRC tracks to online
+  /// word-timed lyrics (YRC/QRC/KRC) while preserving local LRC as fallback.
   private func fillMissingLyrics(
     account: Account,
     library: LibraryStorage,
@@ -399,9 +400,10 @@ public final class MetadataBackfillService {
     guard limit > 0 else { return 0 }
     var matched = 0
     var attempted = 0
-    let missingSongs = library.getSongs(for: account)
-      .filter { $0.lyricsRelFilePath == nil && OnlineLyricsService.shared.canMatchLyrics(for: $0) }
-    for song in missingSongs {
+    let candidates = library.getSongs(for: account)
+      .filter { OnlineLyricsService.shared.canMatchLyrics(for: $0) }
+      .sorted { ($0.lyricsRelFilePath == nil) && ($1.lyricsRelFilePath != nil) }
+    for song in candidates {
       if attempted >= limit || Task.isCancelled { break }
       attempted += 1
       if await OnlineLyricsService.shared.matchLyrics(for: song) {
@@ -482,7 +484,7 @@ public final class MetadataBackfillService {
       }
     }
 
-    if song.lyricsRelFilePath == nil {
+    if !OnlineLyricsService.shared.hasWordTimedLyrics(for: song) {
       if await OnlineLyricsService.shared.matchLyrics(for: song, force: true) {
         changed = true
       }

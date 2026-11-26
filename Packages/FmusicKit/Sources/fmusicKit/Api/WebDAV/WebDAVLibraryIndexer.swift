@@ -387,11 +387,15 @@ final class WebDAVLibraryIndexer: LibrarySyncer {
     let fileName = entry.fileNameWithoutExtension
     let (trackFromName, nameWithoutTrack) = trackNumber(from: fileName)
     let nameParts = nameWithoutTrack.components(separatedBy: " - ")
-    let lyrics = await fetchLyrics(
+    let sidecar = await fetchLyrics(
       entry: entry,
       filesByPath: filesByPath,
       client: client
-    ) ?? flacTags?.lyrics ?? mp3Tags?.lyrics
+    )
+    let lyrics = LyricsTextParser.preferredLocalLyrics(
+      sidecar: sidecar,
+      embedded: flacTags?.lyrics ?? mp3Tags?.lyrics
+    )
     let lyricTags = lyrics.map(LyricMetadataTags.parse)
 
     let tagTitle = LyricMetadataTags.firstNonEmpty(flacTags?.title, mp3Tags?.title)

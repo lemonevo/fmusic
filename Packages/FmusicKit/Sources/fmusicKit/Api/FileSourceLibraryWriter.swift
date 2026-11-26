@@ -178,8 +178,18 @@ enum FileSourceLibraryWriter {
          let relFilePath = cacheFileManager.createRelPath(forLyricsOf: song),
          let absoluteFilePath = cacheFileManager
          .getAbsolutefmusicPath(relFilePath: relFilePath) {
-        cacheFileManager.createDirectoryIfNeeded(at: absoluteFilePath.deletingLastPathComponent())
-        try? lyrics.write(to: absoluteFilePath, atomically: true, encoding: .utf8)
+        let shouldWrite: Bool
+        if LyricsTextParser.isWordTimed(lyrics) {
+          shouldWrite = true
+        } else {
+          // Do not downgrade an already cached word-timed lyric (e.g. online YRC/QRC/KRC)
+          // back to a local line-timed LRC during rescan.
+          shouldWrite = !LyricsTextParser.isWordTimed(fileURL: absoluteFilePath)
+        }
+        if shouldWrite {
+          cacheFileManager.createDirectoryIfNeeded(at: absoluteFilePath.deletingLastPathComponent())
+          try? lyrics.write(to: absoluteFilePath, atomically: true, encoding: .utf8)
+        }
         song.lyricsRelFilePath = relFilePath
       }
 

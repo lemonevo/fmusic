@@ -66,9 +66,17 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   /// Called when the user toggles the lyrics side pane.
   var onToggleLyricsPane: (() -> Void)?
 
+  /// Called when the user toggles the queue side pane.
+  var onToggleQueuePane: (() -> Void)?
+
   /// Whether the lyrics pane is currently visible (drives the toggle highlight).
   var isLyricsPaneVisible = false {
     didSet { updateLyricsButton() }
+  }
+
+  /// Whether the queue pane is currently visible (drives the toggle highlight).
+  var isQueuePaneVisible = false {
+    didSet { updateQueueButton() }
   }
 
   private var clockToken: UUID?
@@ -560,6 +568,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     updateProgress()
     updateModeButtons()
     updateLyricsButton()
+    updateQueueButton()
   }
 
   private func refreshInfo() {
@@ -640,6 +649,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       : .labelColor
   }
 
+  private func updateQueueButton() {
+    queueButton.contentTintColor = isQueuePaneVisible
+      ? MacTheme.accentColor
+      : .labelColor
+  }
+
   private func updateProgress() {
     guard !isUpdatingProgress else { return }
     isUpdatingProgress = true
@@ -673,6 +688,7 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func themeColorChanged() {
     updateModeButtons()
     updateLyricsButton()
+    updateQueueButton()
     progressFill.layer?.backgroundColor = MacTheme.accentColor.cgColor
   }
 
@@ -732,13 +748,12 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func toggleLyricsPane() {
-    isLyricsPaneVisible.toggle()
     onToggleLyricsPane?()
   }
 
   @objc
   private func showQueue() {
-    PlayerPageWindowController.presentQueue()
+    onToggleQueuePane?()
   }
 
   @objc

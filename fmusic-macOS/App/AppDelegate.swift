@@ -402,7 +402,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @objc
   func showQueue(_ sender: Any?) {
-    PlayerPageWindowController.presentQueue()
+    showMainWindow(nil)
+    mainWindowController?.mainViewController?.toggleQueuePane()
   }
 
   /// ⌘1…⌘9: jump to the corresponding sidebar entry.

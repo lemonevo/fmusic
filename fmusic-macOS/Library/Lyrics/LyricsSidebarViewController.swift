@@ -348,6 +348,16 @@ final class LyricsSidebarViewController: NSViewController, MusicPlayable,
         return
       }
       self.apply(lyrics: structured)
+      if !structured.isWordTimed {
+        self.requestOnlineWordTimedUpgrade(for: song)
+      }
+    }
+  }
+
+  private func requestOnlineWordTimedUpgrade(for song: Song) {
+    guard OnlineLyricsService.shared.canMatchLyrics(for: song) else { return }
+    Task { @MainActor in
+      _ = await OnlineLyricsService.shared.matchLyrics(for: song)
     }
   }
 
@@ -1263,5 +1273,448 @@ private final class LyricsPaneBackgroundView: NSView {
   override func draw(_ dirtyRect: NSRect) {
     Self.paneColor.setFill()
     dirtyRect.fill()
+  }
+}
+
+// MARK: - QueueSidebarViewController
+
+/// Right-hand Queue inspector pane for the main window, styled after Apple Music's
+/// macOS sidebar Up Next / History column (adapts to Light & Dark modes on the
+/// same `LyricsPaneBackgroundView` surface as the Lyrics sidebar).
+@MainActor
+final class QueueSidebarViewController: NSViewController, NSTableViewDataSource,
+  NSTableViewDelegate, MusicPlayable {
+  private enum Row {
+    case sectionHeader(String)
+    case track(AbstractPlayable, PlayerIndex)
+  }
+
+  private let headerTitleLabel = NSTextField(labelWithString: L10n.tr("Next in Queue"))
+  private let clearButton = NSButton()
+  private let headerDivider = NSView()
+  private let scrollView = NSScrollView()
+  private let tableView = NSTableView()
+  private let emptyLabel = NSTextField(labelWithString: L10n.tr("No items in queue"))
+
+  private var rows: [Row] = []
+  private var isPaneVisible = false
+
+  private let trackCellID = NSUserInterfaceItemIdentifier("sidebarQueueTrackCell")
+  private let headerCellID = NSUserInterfaceItemIdentifier("sidebarQueueHeaderCell")
+  private let columnID = NSUserInterfaceItemIdentifier("sidebarQueueColumn")
+
+  private var player: PlayerFacade { FmusicKit.shared.player }
+  private var storage: PersistentStorage { FmusicKit.shared.storage }
+
+  override func loadView() {
+    let root = LyricsPaneBackgroundView(
+      frame: NSRect(x: 0, y: 0, width: 260, height: 730)
+    )
+
+    headerTitleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+    headerTitleLabel.textColor = .labelColor
+    headerTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    clearButton.title = L10n.tr("Clear")
+    clearButton.isBordered = false
+    clearButton.font = .systemFont(ofSize: 13, weight: .medium)
+    clearButton.contentTintColor = MacTheme.accentColor
+    clearButton.target = self
+    clearButton.action = #selector(clearQueuePressed)
+    clearButton.translatesAutoresizingMaskIntoConstraints = false
+
+    headerDivider.wantsLayer = true
+    headerDivider.layer?.backgroundColor = NSColor.separatorColor.cgColor
+    headerDivider.translatesAutoresizingMaskIntoConstraints = false
+
+    let column = NSTableColumn(identifier: columnID)
+    column.resizingMask = .autoresizingMask
+    tableView.addTableColumn(column)
+    tableView.headerView = nil
+    tableView.backgroundColor = .clear
+    tableView.style = .plain
+    tableView.selectionHighlightStyle = .none
+    tableView.intercellSpacing = .zero
+    tableView.focusRingType = .none
+    tableView.dataSource = self
+    tableView.delegate = self
+    tableView.target = self
+    tableView.action = #selector(rowClicked)
+    tableView.doubleAction = #selector(rowClicked)
+
+    scrollView.documentView = tableView
+    scrollView.drawsBackground = false
+    scrollView.hasVerticalScroller = true
+    scrollView.autohidesScrollers = true
+    scrollView.scrollerStyle = .overlay
+    scrollView.translatesAutoresizingMaskIntoConstraints = false
+
+    emptyLabel.font = .systemFont(ofSize: 13, weight: .medium)
+    emptyLabel.textColor = .secondaryLabelColor
+    emptyLabel.alignment = .center
+    emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    root.addSubview(headerTitleLabel)
+    root.addSubview(clearButton)
+    root.addSubview(headerDivider)
+    root.addSubview(scrollView)
+    root.addSubview(emptyLabel)
+
+    NSLayoutConstraint.activate([
+      headerTitleLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 16),
+      headerTitleLabel.topAnchor.constraint(equalTo: root.topAnchor, constant: 18),
+
+      clearButton.trailingAnchor.constraint(equalTo: root.trailingAnchor, constant: -16),
+      clearButton.centerYAnchor.constraint(equalTo: headerTitleLabel.centerYAnchor),
+
+      headerDivider.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      headerDivider.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      headerDivider.topAnchor.constraint(equalTo: headerTitleLabel.bottomAnchor, constant: 12),
+      headerDivider.heightAnchor.constraint(equalToConstant: 1),
+
+      scrollView.topAnchor.constraint(equalTo: headerDivider.bottomAnchor, constant: 4),
+      scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+      scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+      scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+
+      emptyLabel.centerXAnchor.constraint(equalTo: scrollView.centerXAnchor),
+      emptyLabel.centerYAnchor.constraint(equalTo: scrollView.centerYAnchor),
+    ])
+
+    self.view = root
+  }
+
+  override func viewDidLoad() {
+    super.viewDidLoad()
+    player.addNotifier(notifier: self)
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(themeOrAppearanceChanged),
+      name: .macThemeColorChanged,
+      object: nil
+    )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(themeOrAppearanceChanged),
+      name: .macAppearanceChanged,
+      object: nil
+    )
+    reload()
+  }
+
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
+  func setPaneVisible(_ visible: Bool) {
+    isPaneVisible = visible
+    if visible {
+      reload()
+    }
+  }
+
+  @objc
+  private func themeOrAppearanceChanged() {
+    clearButton.contentTintColor = MacTheme.accentColor
+    headerDivider.layer?.backgroundColor = NSColor.separatorColor.cgColor
+    tableView.reloadData()
+  }
+
+  func reload() {
+    clearButton.contentTintColor = MacTheme.accentColor
+    headerDivider.layer?.backgroundColor = NSColor.separatorColor.cgColor
+
+    var newRows: [Row] = []
+    let userQueue = player.getAllUserQueueItems()
+    let nextQueue = player.getAllNextQueueItems()
+    let prevQueue = player.getAllPrevQueueItems()
+
+    if !userQueue.isEmpty {
+      for (index, playable) in userQueue.enumerated() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .user, index: index)))
+      }
+    }
+    if !nextQueue.isEmpty {
+      if !userQueue.isEmpty {
+        newRows.append(.sectionHeader(L10n.tr("Next from: %@", player.contextName)))
+      }
+      for (index, playable) in nextQueue.enumerated() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .next, index: index)))
+      }
+    }
+    if !prevQueue.isEmpty {
+      if !newRows.isEmpty {
+        newRows.append(.sectionHeader(L10n.tr("Previous")))
+      }
+      for (index, playable) in prevQueue.enumerated().reversed() {
+        newRows.append(.track(playable, PlayerIndex(queueType: .prev, index: index)))
+      }
+    }
+
+    let hasUpNext = !userQueue.isEmpty || !nextQueue.isEmpty
+    headerTitleLabel.stringValue = hasUpNext
+      ? L10n.tr("Next in Queue")
+      : (prevQueue.isEmpty ? L10n.tr("Next in Queue") : L10n.tr("Previous"))
+    clearButton.isHidden = !hasUpNext
+
+    rows = newRows
+    tableView.reloadData()
+    emptyLabel.isHidden = !rows.isEmpty
+    scrollView.isHidden = rows.isEmpty
+  }
+
+  @objc
+  private func clearQueuePressed() {
+    player.clearUserQueue()
+    player.clearContextQueue()
+    reload()
+  }
+
+  @objc
+  private func rowClicked() {
+    let row = tableView.clickedRow
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
+      return
+    }
+    player.play(playerIndex: playerIndex)
+  }
+
+  private func showRowMenu(for row: Int, relativeTo anchor: NSView) {
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else {
+      return
+    }
+    let menu = NSMenu()
+    let playItem = NSMenuItem(
+      title: L10n.tr("Play"),
+      action: #selector(menuPlayRow(_:)),
+      keyEquivalent: ""
+    )
+    playItem.target = self
+    playItem.tag = row
+    menu.addItem(playItem)
+    if playerIndex.queueType != .prev {
+      let removeItem = NSMenuItem(
+        title: L10n.tr("Remove"),
+        action: #selector(menuRemoveRow(_:)),
+        keyEquivalent: ""
+      )
+      removeItem.target = self
+      removeItem.tag = row
+      menu.addItem(removeItem)
+    }
+    menu.popUp(
+      positioning: nil,
+      at: NSPoint(x: anchor.bounds.midX, y: anchor.bounds.minY - 4),
+      in: anchor
+    )
+  }
+
+  @objc
+  private func menuPlayRow(_ sender: NSMenuItem) {
+    let row = sender.tag
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else { return }
+    player.play(playerIndex: playerIndex)
+  }
+
+  @objc
+  private func menuRemoveRow(_ sender: NSMenuItem) {
+    let row = sender.tag
+    guard row >= 0, row < rows.count, case .track(_, let playerIndex) = rows[row] else { return }
+    player.removePlayable(at: playerIndex)
+    reload()
+  }
+
+  // MARK: - NSTableViewDataSource & Delegate
+
+  func numberOfRows(in tableView: NSTableView) -> Int {
+    rows.count
+  }
+
+  func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    guard row < rows.count else { return 54 }
+    if case .sectionHeader = rows[row] { return 32 }
+    return 54
+  }
+
+  func tableView(
+    _ tableView: NSTableView,
+    viewFor tableColumn: NSTableColumn?,
+    row: Int
+  )
+    -> NSView? {
+    guard row < rows.count else { return nil }
+    switch rows[row] {
+    case .sectionHeader(let title):
+      let cell = tableView.makeView(withIdentifier: headerCellID, owner: self) as? NSTableCellView
+        ?? {
+          let view = NSTableCellView()
+          let label = NSTextField(labelWithString: "")
+          label.font = .systemFont(ofSize: 12, weight: .semibold)
+          label.textColor = .secondaryLabelColor
+          label.translatesAutoresizingMaskIntoConstraints = false
+          view.addSubview(label)
+          view.textField = label
+          NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+            label.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
+            label.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -4),
+          ])
+          return view
+        }()
+      cell.identifier = headerCellID
+      cell.textField?.stringValue = title
+      return cell
+
+    case .track(let playable, _):
+      let cell = tableView.makeView(withIdentifier: trackCellID, owner: self)
+        as? QueueSidebarRowView ?? QueueSidebarRowView()
+      cell.identifier = trackCellID
+      let setting = storage.settings.accounts.activeSetting.read
+      let artwork = ArtworkImageLoader.image(
+        for: playable,
+        themePreference: setting.themePreference,
+        artworkDisplayPreference: setting.artworkDisplayPreference,
+        maxPixelSize: 120
+      )
+      let albumName = playable.asSong?.album?.name ?? ""
+      let subtitle = albumName.isEmpty
+        ? playable.creatorName
+        : "\(playable.creatorName) — \(albumName)"
+      cell.configure(artwork: artwork, title: playable.title, subtitle: subtitle)
+      cell.onMore = { [weak self] anchor in
+        self?.showRowMenu(for: row, relativeTo: anchor)
+      }
+      return cell
+    }
+  }
+
+  // MARK: - MusicPlayable
+
+  func didStartPlayingFromBeginning() { if isPaneVisible { reload() } }
+  func didStartPlaying() { if isPaneVisible { reload() } }
+  func didPause() {}
+  func didStopPlaying() { if isPaneVisible { reload() } }
+  func didElapsedTimeChange() {}
+  func didLyricsTimeChange(time: CMTime) {}
+  func didPlaylistChange() { if isPaneVisible { reload() } }
+  func didArtworkChange() { if isPaneVisible { reload() } }
+  func didNowPlayingInfoChange() { if isPaneVisible { reload() } }
+  func didShuffleChange() { if isPaneVisible { reload() } }
+  func didRepeatChange() {}
+  func didPlaybackRateChange() {}
+}
+
+@MainActor
+private final class QueueSidebarRowView: NSTableCellView {
+  var onMore: ((NSView) -> Void)?
+
+  private let artworkView = NSImageView()
+  private let titleLabel = NSTextField(labelWithString: "")
+  private let subtitleLabel = NSTextField(labelWithString: "")
+  private let moreButton = NSButton()
+  private let divider = NSView()
+
+  override init(frame frameRect: NSRect) {
+    super.init(frame: frameRect)
+    wantsLayer = true
+    layer?.cornerRadius = 6
+
+    artworkView.imageScaling = .scaleProportionallyUpOrDown
+    artworkView.wantsLayer = true
+    artworkView.layer?.cornerRadius = 6
+    artworkView.layer?.masksToBounds = true
+    artworkView.translatesAutoresizingMaskIntoConstraints = false
+
+    titleLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+    titleLabel.textColor = .labelColor
+    titleLabel.lineBreakMode = .byTruncatingTail
+    titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    subtitleLabel.font = .systemFont(ofSize: 11.5, weight: .regular)
+    subtitleLabel.textColor = .secondaryLabelColor
+    subtitleLabel.lineBreakMode = .byTruncatingTail
+    subtitleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+    moreButton.image = NSImage(systemSymbolName: "ellipsis", accessibilityDescription: nil)?
+      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12, weight: .medium))
+    moreButton.isBordered = false
+    moreButton.bezelStyle = .regularSquare
+    moreButton.imagePosition = .imageOnly
+    moreButton.contentTintColor = .secondaryLabelColor
+    moreButton.target = self
+    moreButton.action = #selector(morePressed)
+    moreButton.translatesAutoresizingMaskIntoConstraints = false
+
+    divider.wantsLayer = true
+    divider.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.55).cgColor
+    divider.translatesAutoresizingMaskIntoConstraints = false
+
+    addSubview(artworkView)
+    addSubview(titleLabel)
+    addSubview(subtitleLabel)
+    addSubview(moreButton)
+    addSubview(divider)
+
+    NSLayoutConstraint.activate([
+      artworkView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 14),
+      artworkView.centerYAnchor.constraint(equalTo: centerYAnchor),
+      artworkView.widthAnchor.constraint(equalToConstant: 38),
+      artworkView.heightAnchor.constraint(equalToConstant: 38),
+
+      titleLabel.leadingAnchor.constraint(equalTo: artworkView.trailingAnchor, constant: 10),
+      titleLabel.trailingAnchor.constraint(equalTo: moreButton.leadingAnchor, constant: -6),
+      titleLabel.bottomAnchor.constraint(equalTo: centerYAnchor, constant: -1),
+
+      subtitleLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      subtitleLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+      subtitleLabel.topAnchor.constraint(equalTo: centerYAnchor, constant: 2),
+
+      moreButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -10),
+      moreButton.centerYAnchor.constraint(equalTo: centerYAnchor),
+      moreButton.widthAnchor.constraint(equalToConstant: 24),
+      moreButton.heightAnchor.constraint(equalToConstant: 24),
+
+      divider.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+      divider.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+      divider.bottomAnchor.constraint(equalTo: bottomAnchor),
+      divider.heightAnchor.constraint(equalToConstant: 0.5),
+    ])
+  }
+
+  required init?(coder: NSCoder) {
+    nil
+  }
+
+  func configure(artwork: NSImage?, title: String, subtitle: String) {
+    artworkView.image = artwork
+    titleLabel.stringValue = title
+    subtitleLabel.stringValue = subtitle
+    divider.layer?.backgroundColor = NSColor.separatorColor.withAlphaComponent(0.55).cgColor
+  }
+
+  @objc
+  private func morePressed() {
+    onMore?(moreButton)
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    trackingAreas.forEach(removeTrackingArea)
+    addTrackingArea(NSTrackingArea(
+      rect: .zero,
+      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      owner: self,
+      userInfo: nil
+    ))
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.06).cgColor
+    moreButton.contentTintColor = .labelColor
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    layer?.backgroundColor = NSColor.clear.cgColor
+    moreButton.contentTintColor = .secondaryLabelColor
   }
 }

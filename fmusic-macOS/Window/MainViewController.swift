@@ -34,10 +34,17 @@ import fmusicKit
 final class MainViewController: NSViewController {
   static weak var current: MainViewController?
 
+  private enum RightInspectorMode {
+    case lyrics
+    case queue
+  }
+
   private(set) var sidebarViewController = SidebarViewController()
   private(set) var contentContainerViewController = NSViewController()
   private(set) var playerBarViewController = PlayerBarViewController()
   private(set) lazy var lyricsPaneViewController = LyricsSidebarViewController()
+  private(set) lazy var queuePaneViewController = QueueSidebarViewController()
+  private let rightInspectorContainer = NSViewController()
 
   private let splitViewController = NSSplitViewController()
   private let toolbar = ContentToolbarView()
@@ -46,7 +53,10 @@ final class MainViewController: NSViewController {
   private var pageTitles: [String] = []
   private var lyricsPaneItem: NSSplitViewItem?
   private var sidebarItem: NSSplitViewItem?
-  private(set) var isLyricsPaneVisible = false
+  private var rightInspectorMode: RightInspectorMode = .lyrics
+  private(set) var isRightInspectorVisible = false
+  var isLyricsPaneVisible: Bool { isRightInspectorVisible && rightInspectorMode == .lyrics }
+  var isQueuePaneVisible: Bool { isRightInspectorVisible && rightInspectorMode == .queue }
 
   private var didApplyInitialSplitPositions = false
   private var sidebarCollapseObservation: NSKeyValueObservation?
@@ -72,7 +82,29 @@ final class MainViewController: NSViewController {
     contentItem.minimumThickness = 380
     contentItem.holdingPriority = NSLayoutConstraint.Priority(240)
 
-    let lyricsItem = NSSplitViewItem(viewController: lyricsPaneViewController)
+    let inspectorRoot = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 730))
+    inspectorRoot.wantsLayer = true
+    rightInspectorContainer.view = inspectorRoot
+    rightInspectorContainer.addChild(lyricsPaneViewController)
+    rightInspectorContainer.addChild(queuePaneViewController)
+    lyricsPaneViewController.view.translatesAutoresizingMaskIntoConstraints = false
+    queuePaneViewController.view.translatesAutoresizingMaskIntoConstraints = false
+    queuePaneViewController.view.isHidden = true
+    inspectorRoot.addSubview(lyricsPaneViewController.view)
+    inspectorRoot.addSubview(queuePaneViewController.view)
+    NSLayoutConstraint.activate([
+      lyricsPaneViewController.view.topAnchor.constraint(equalTo: inspectorRoot.topAnchor),
+      lyricsPaneViewController.view.leadingAnchor.constraint(equalTo: inspectorRoot.leadingAnchor),
+      lyricsPaneViewController.view.trailingAnchor.constraint(equalTo: inspectorRoot.trailingAnchor),
+      lyricsPaneViewController.view.bottomAnchor.constraint(equalTo: inspectorRoot.bottomAnchor),
+
+      queuePaneViewController.view.topAnchor.constraint(equalTo: inspectorRoot.topAnchor),
+      queuePaneViewController.view.leadingAnchor.constraint(equalTo: inspectorRoot.leadingAnchor),
+      queuePaneViewController.view.trailingAnchor.constraint(equalTo: inspectorRoot.trailingAnchor),
+      queuePaneViewController.view.bottomAnchor.constraint(equalTo: inspectorRoot.bottomAnchor),
+    ])
+
+    let lyricsItem = NSSplitViewItem(viewController: rightInspectorContainer)
     lyricsItem.minimumThickness = 260
     lyricsItem.maximumThickness = 260
     lyricsItem.canCollapse = true
@@ -132,6 +164,9 @@ final class MainViewController: NSViewController {
     }
     playerBarViewController.onToggleLyricsPane = { [weak self] in
       self?.toggleLyricsPane()
+    }
+    playerBarViewController.onToggleQueuePane = { [weak self] in
+      self?.toggleQueuePane()
     }
     sidebarViewController.onToggleSidebar = { [weak self] in
       self?.toggleSidebar()
@@ -255,7 +290,7 @@ final class MainViewController: NSViewController {
     didApplyInitialSplitPositions = true
     let splitView = splitViewController.splitView
     splitView.setPosition(210, ofDividerAt: 0)
-    if isLyricsPaneVisible, splitView.subviews.count > 2 {
+    if isRightInspectorVisible, splitView.subviews.count > 2 {
       splitView.setPosition(splitView.bounds.width - 260, ofDividerAt: 1)
     }
   }
@@ -568,19 +603,58 @@ final class MainViewController: NSViewController {
     (pageStack.last as? ContentSearchable)?.contentSearchDidChange(text: text)
   }
 
-  // MARK: - Lyrics pane
+  // MARK: - Right inspector pane (Lyrics / Queue)
 
   func toggleLyricsPane() {
-    setLyricsPaneVisible(!isLyricsPaneVisible, persist: true)
+    if isRightInspectorVisible, rightInspectorMode == .lyrics {
+      setRightInspectorVisible(false, mode: .lyrics, persistLyrics: true)
+    } else {
+      setRightInspectorVisible(true, mode: .lyrics, persistLyrics: true)
+    }
+  }
+
+  func toggleQueuePane() {
+    if isRightInspectorVisible, rightInspectorMode == .queue {
+      setRightInspectorVisible(false, mode: .queue, persistLyrics: false)
+    } else {
+      setRightInspectorVisible(true, mode: .queue, persistLyrics: false)
+    }
   }
 
   private func setLyricsPaneVisible(_ visible: Bool, persist: Bool) {
+    setRightInspectorVisible(visible, mode: .lyrics, persistLyrics: persist)
+  }
+
+  private func setRightInspectorVisible(
+    _ visible: Bool,
+    mode: RightInspectorMode,
+    persistLyrics: Bool
+  ) {
+    let wasVisible = isRightInspectorVisible
     let window = view.window
     let sizeBeforeToggle = window?.contentLayoutRect.size
-    isLyricsPaneVisible = visible
-    lyricsPaneViewController.setPaneVisible(visible)
+
+    isRightInspectorVisible = visible
+    rightInspectorMode = mode
+
+    let showingLyrics = visible && mode == .lyrics
+    let showingQueue = visible && mode == .queue
+    lyricsPaneViewController.view.isHidden = !showingLyrics
+    queuePaneViewController.view.isHidden = !showingQueue
+    lyricsPaneViewController.setPaneVisible(showingLyrics)
+    queuePaneViewController.setPaneVisible(showingQueue)
+
+    playerBarViewController.isLyricsPaneVisible = showingLyrics
+    playerBarViewController.isQueuePaneVisible = showingQueue
+
+    if persistLyrics {
+      SettingsStore.updateUser { $0.isPlayerLyricsDisplayed = showingLyrics }
+    }
+
+    guard wasVisible != visible else { return }
+
     // Animate the inspector column like UIKit's splitViewController.show(.inspector):
-    // the lyrics pane slides in/out instead of snapping.
+    // the right inspector slides in/out instead of snapping.
     if let item = lyricsPaneItem {
       NSAnimationContext.runAnimationGroup { context in
         context.duration = 0.34
@@ -588,7 +662,6 @@ final class MainViewController: NSViewController {
         item.animator().isCollapsed = !visible
       }
     }
-    playerBarViewController.isLyricsPaneVisible = visible
 
     // Opening/closing the pane changes the middle column width: re-centre the capsule.
     DispatchQueue.main.async { [weak self] in self?.layoutPlayerCapsule() }
@@ -609,9 +682,6 @@ final class MainViewController: NSViewController {
           window.setFrame(frame, display: true)
         }
       }
-    }
-    if persist {
-      SettingsStore.updateUser { $0.isPlayerLyricsDisplayed = visible }
     }
     guard visible else { return }
     let splitView = splitViewController.splitView
