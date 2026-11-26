@@ -34,7 +34,7 @@ final class StorageSettingsViewController: SettingsPageViewController, NSTextFie
   private var clearCacheButton: SettingsButton?
 
   init() {
-    super.init(title: L10n.tr("Storage & Artwork"))
+    super.init(title: L10n.tr("Storage"))
   }
 
   required init?(coder: NSCoder) {

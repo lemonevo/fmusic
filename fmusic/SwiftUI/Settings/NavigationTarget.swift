@@ -103,7 +103,7 @@ enum NavigationTarget: String, CaseIterable, @MainActor Identifiable {
     case .player: L10n.tr("Playback")
     case .audio: L10n.tr("Audio & Effects")
     case .lyrics: L10n.tr("Lyrics")
-    case .storage: L10n.tr("Storage & Artwork")
+    case .storage: L10n.tr("Storage")
     case .advanced: L10n.tr("Advanced")
     case .eventLog: L10n.tr("Event Log")
     case .xcallback: L10n.tr("X-Callback URL")

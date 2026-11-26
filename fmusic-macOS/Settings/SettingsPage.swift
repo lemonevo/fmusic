@@ -42,7 +42,7 @@ enum SettingsPage: Int, CaseIterable, Sendable {
     case .playback: return L10n.tr("Playback")
     case .equalizer: return L10n.tr("Audio & Effects")
     case .library: return L10n.tr("Library")
-    case .storage: return L10n.tr("Storage & Artwork")
+    case .storage: return L10n.tr("Storage")
     case .account: return L10n.tr("Account")
     case .support: return L10n.tr("Support")
     case .developer: return L10n.tr("Developer")

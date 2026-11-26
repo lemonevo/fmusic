@@ -173,7 +173,7 @@ struct StorageSettingsView: View {
         }
       }
     }
-    .navigationTitle(L10n.tr("Storage & Artwork"))
+    .navigationTitle(L10n.tr("Storage"))
     .navigationBarTitleDisplayMode(.inline)
     .navigationDestination(for: Destination.self) { destination in
       switch destination {
