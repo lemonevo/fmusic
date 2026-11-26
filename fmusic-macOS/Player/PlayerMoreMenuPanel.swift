@@ -22,6 +22,29 @@ import AppKit
 /// button with grouped actions, subtle hairlines, and native hover/checkmark feedback.
 @MainActor
 final class PlayerMoreMenuPanel: NSObject {
+  struct SubmenuOption {
+    let title: String
+    let isChecked: Bool
+    let isSeparator: Bool
+    let handler: (() -> Void)?
+
+    init(_ title: String, isChecked: Bool = false, handler: @escaping () -> Void) {
+      self.title = title
+      self.isChecked = isChecked
+      self.isSeparator = false
+      self.handler = handler
+    }
+
+    private init(separator: Bool) {
+      self.title = ""
+      self.isChecked = false
+      self.isSeparator = separator
+      self.handler = nil
+    }
+
+    static var separator: SubmenuOption { SubmenuOption(separator: true) }
+  }
+
   struct Entry {
     enum Kind {
       case item
@@ -36,7 +59,7 @@ final class PlayerMoreMenuPanel: NSObject {
     var isChecked: Bool = false
     var enabled: Bool = true
     var handler: (() -> Void)?
-    var options: [(String, () -> Void)] = []
+    var options: [SubmenuOption] = []
 
     static func item(
       _ title: String,
@@ -68,7 +91,22 @@ final class PlayerMoreMenuPanel: NSObject {
         title: title,
         symbol: symbol,
         enabled: enabled,
-        options: options
+        options: options.map { SubmenuOption($0.0, handler: $0.1) }
+      )
+    }
+
+    static func submenu(
+      _ title: String,
+      symbol: String? = nil,
+      enabled: Bool = true,
+      items: [SubmenuOption]
+    ) -> Entry {
+      Entry(
+        kind: .submenu,
+        title: title,
+        symbol: symbol,
+        enabled: enabled,
+        options: items
       )
     }
 
@@ -196,18 +234,28 @@ final class PlayerMoreMenuPanel: NSObject {
     return stack
   }
 
-  private func showSubmenu(_ options: [(String, () -> Void)], from row: NSView) {
+  private func showSubmenu(_ options: [SubmenuOption], from row: NSView) {
     guard !options.isEmpty else { return }
-    submenuHandlers = options.map(\.1)
+    submenuHandlers.removeAll()
     let menu = NSMenu()
-    for (index, option) in options.enumerated() {
+    for option in options {
+      if option.isSeparator {
+        menu.addItem(.separator())
+        continue
+      }
       let item = NSMenuItem(
-        title: option.0,
-        action: #selector(submenuChosen(_:)),
+        title: option.title,
+        action: option.handler != nil ? #selector(submenuChosen(_:)) : nil,
         keyEquivalent: ""
       )
-      item.target = self
-      item.tag = index
+      item.state = option.isChecked ? .on : .off
+      if let handler = option.handler {
+        item.target = self
+        item.tag = submenuHandlers.count
+        submenuHandlers.append(handler)
+      } else {
+        item.isEnabled = false
+      }
       menu.addItem(item)
     }
     menu.popUp(

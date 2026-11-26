@@ -41,7 +41,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private let lyricsButton = NSButton()
   private let queueButton = NSButton()
   private let moreButton = NSButton()
-  private let outputButton = NSButton()
   private let volumeIcon = NSButton()
   private let volumeSlider = NSSlider()
 
@@ -204,7 +203,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       moreButton,
       lyricsButton,
       queueButton,
-      outputButton,
       volumeIcon,
     ])
     rightGroup.orientation = .horizontal
@@ -394,7 +392,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     moreButton.setAccessibilityLabel(L10n.tr("More"))
     lyricsButton.setAccessibilityLabel(L10n.tr("Lyrics"))
     queueButton.setAccessibilityLabel(L10n.tr("Queue"))
-    outputButton.setAccessibilityLabel(L10n.tr("Audio Output"))
     volumeIcon.setAccessibilityLabel(L10n.tr("Volume"))
     refreshPlaybackState()
   }
@@ -413,12 +410,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
       action: #selector(toggleLyricsPane)
     )
     configure(button: queueButton, symbol: "list.bullet", size: 15, action: #selector(showQueue))
-    configure(
-      button: outputButton,
-      symbol: "airplayaudio",
-      size: 15,
-      action: #selector(showOutputMenu)
-    )
 
     volumeIcon.image = symbolImage("speaker.wave.2.fill", size: 14)
     volumeIcon.isBordered = false
@@ -552,7 +543,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
     infoGroup?.isHidden = width < 470
     volumeSlider.isHidden = width < 640
     volumeIcon.isHidden = width < 380
-    outputButton.isHidden = width < 430
     updateProgressFill()
     compactMode = width < 470
   }
@@ -758,72 +748,107 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
 
   @objc
   private func showMoreMenu() {
-    guard let song = player.currentlyPlaying?.asSong else { return }
+    let audioOutputEntry = makeAudioOutputMenuEntry()
+    var entries: [PlayerMoreMenuPanel.Entry] = []
 
-    let playlistOptions = entityActions.addToPlaylistOptions(for: song)
-    let playlistEntry: PlayerMoreMenuPanel.Entry = playlistOptions.isEmpty
-      ? .item(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", enabled: false) {}
-      : .submenu(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", options: playlistOptions)
+    if let song = player.currentlyPlaying?.asSong {
+      let playlistOptions = entityActions.addToPlaylistOptions(for: song)
+      let playlistEntry: PlayerMoreMenuPanel.Entry = playlistOptions.isEmpty
+        ? .item(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", enabled: false) {}
+        : .submenu(L10n.tr("Add to Playlist"), symbol: "text.badge.plus", options: playlistOptions)
 
-    let entries: [PlayerMoreMenuPanel.Entry] = [
-      // Group 1: Song actions
-      .item(
-        song.isFavorite ? L10n.tr("Unmark favorite") : L10n.tr("Favorite"),
-        symbol: song.isFavorite ? "heart.fill" : "heart",
-        iconTint: song.isFavorite ? MacTheme.accentColor : nil
-      ) { [weak self] in
-        self?.entityActions.toggleFavorite()
-      },
-      playlistEntry,
-      .item(L10n.tr("Instant Mix"), symbol: "sparkles") { [weak self] in
-        self?.entityActions.instantMix()
-      },
-      .separator,
-      // Group 2: Navigation
-      .item(
-        L10n.tr("Show Album"),
-        symbol: "square.stack",
-        enabled: song.album != nil
-      ) { [weak self] in
-        self?.entityActions.showAlbum()
-      },
-      .item(
-        L10n.tr("Show Artist"),
-        symbol: "music.mic",
-        enabled: song.artist != nil
-      ) { [weak self] in
-        self?.entityActions.showArtist()
-      },
-      .separator,
-      // Group 3: Lyrics
-      .item(
-        L10n.tr("Desktop Lyrics"),
-        symbol: "text.bubble",
-        isChecked: storage.settings.user.isDesktopLyricsEnabled
-      ) { [weak self] in
-        self?.entityActions.toggleDesktopLyrics()
-      },
-      .item(L10n.tr("Match Online Lyrics"), symbol: "magnifyingglass") { [weak self] in
-        self?.entityActions.matchOnlineLyrics()
-      },
-      .separator,
-      // Group 4: File & sharing
-      .item(
-        L10n.tr("Download"),
-        symbol: "arrow.down.circle",
-        enabled: entityActions.canDownload(song)
-      ) { [weak self] in
-        self?.entityActions.download(song)
-      },
-      .item(L10n.tr("Share"), symbol: "square.and.arrow.up") { [weak self] in
-        guard let self else { return }
-        self.entityActions.share(song, relativeTo: self.moreButton)
-      },
-    ]
+      entries.append(contentsOf: [
+        // Group 1: Song actions
+        .item(
+          song.isFavorite ? L10n.tr("Unmark favorite") : L10n.tr("Favorite"),
+          symbol: song.isFavorite ? "heart.fill" : "heart",
+          iconTint: song.isFavorite ? MacTheme.accentColor : nil
+        ) { [weak self] in
+          self?.entityActions.toggleFavorite()
+        },
+        playlistEntry,
+        .item(L10n.tr("Instant Mix"), symbol: "sparkles") { [weak self] in
+          self?.entityActions.instantMix()
+        },
+        .separator,
+        // Group 2: Navigation
+        .item(
+          L10n.tr("Show Album"),
+          symbol: "square.stack",
+          enabled: song.album != nil
+        ) { [weak self] in
+          self?.entityActions.showAlbum()
+        },
+        .item(
+          L10n.tr("Show Artist"),
+          symbol: "music.mic",
+          enabled: song.artist != nil
+        ) { [weak self] in
+          self?.entityActions.showArtist()
+        },
+        .separator,
+        // Group 3: Lyrics & Audio Output
+        .item(
+          L10n.tr("Desktop Lyrics"),
+          symbol: "text.bubble",
+          isChecked: storage.settings.user.isDesktopLyricsEnabled
+        ) { [weak self] in
+          self?.entityActions.toggleDesktopLyrics()
+        },
+        .item(L10n.tr("Match Online Lyrics"), symbol: "magnifyingglass") { [weak self] in
+          self?.entityActions.matchOnlineLyrics()
+        },
+        audioOutputEntry,
+        .separator,
+        // Group 4: File & sharing
+        .item(
+          L10n.tr("Download"),
+          symbol: "arrow.down.circle",
+          enabled: entityActions.canDownload(song)
+        ) { [weak self] in
+          self?.entityActions.download(song)
+        },
+        .item(L10n.tr("Share"), symbol: "square.and.arrow.up") { [weak self] in
+          guard let self else { return }
+          self.entityActions.share(song, relativeTo: self.moreButton)
+        },
+      ])
+    } else {
+      entries = [
+        .item(
+          L10n.tr("Desktop Lyrics"),
+          symbol: "text.bubble",
+          isChecked: storage.settings.user.isDesktopLyricsEnabled
+        ) { [weak self] in
+          self?.entityActions.toggleDesktopLyrics()
+        },
+        audioOutputEntry,
+      ]
+    }
 
     let panel = PlayerMoreMenuPanel()
     playerMoreMenuPanel = panel
     panel.present(entries: entries, anchor: moreButton)
+  }
+
+  private func makeAudioOutputMenuEntry() -> PlayerMoreMenuPanel.Entry {
+    let devices = AudioOutputDevices.outputDevices()
+    let current = AudioOutputDevices.defaultOutputDevice()
+    var items: [PlayerMoreMenuPanel.SubmenuOption] = devices.map { device in
+      PlayerMoreMenuPanel.SubmenuOption(
+        device.name,
+        isChecked: device.id == current
+      ) {
+        AudioOutputDevices.setDefaultOutputDevice(device.id)
+      }
+    }
+    if !items.isEmpty {
+      items.append(.separator)
+    }
+    items.append(PlayerMoreMenuPanel.SubmenuOption(L10n.tr("Open System Sound Settings")) { [weak self] in
+      self?.openSoundSettings()
+    })
+    return .submenu(L10n.tr("Audio Output"), symbol: "airplayaudio", items: items)
   }
 
   private var volumePopover: NSPopover?
@@ -860,49 +885,6 @@ final class PlayerBarViewController: NSViewController, MusicPlayable {
   private func volumePopoverChanged(_ sender: NSSlider) {
     FmusicKit.shared.player.volume = Float(sender.doubleValue)
     volumeSlider.doubleValue = sender.doubleValue
-  }
-
-  @objc
-  private func showOutputMenu() {
-    let menu = NSMenu()
-    let devices = AudioOutputDevices.outputDevices()
-    let current = AudioOutputDevices.defaultOutputDevice()
-    if devices.isEmpty {
-      let empty = NSMenuItem(title: L10n.tr("Audio Output"), action: nil, keyEquivalent: "")
-      empty.isEnabled = false
-      menu.addItem(empty)
-    } else {
-      for device in devices {
-        let item = NSMenuItem(
-          title: device.name,
-          action: #selector(selectOutputDevice(_:)),
-          keyEquivalent: ""
-        )
-        item.target = self
-        item.representedObject = device.id
-        item.state = device.id == current ? .on : .off
-        menu.addItem(item)
-      }
-    }
-    menu.addItem(.separator())
-    let settings = NSMenuItem(
-      title: L10n.tr("Open System Sound Settings"),
-      action: #selector(openSoundSettings),
-      keyEquivalent: ""
-    )
-    settings.target = self
-    menu.addItem(settings)
-    menu.popUp(
-      positioning: nil,
-      at: NSPoint(x: outputButton.bounds.midX, y: outputButton.bounds.minY - 4),
-      in: outputButton
-    )
-  }
-
-  @objc
-  private func selectOutputDevice(_ sender: NSMenuItem) {
-    guard let id = sender.representedObject as? AudioDeviceID else { return }
-    AudioOutputDevices.setDefaultOutputDevice(id)
   }
 
   @objc
