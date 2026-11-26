@@ -551,6 +551,15 @@ final class SearchViewController: NSViewController, NSTableViewDataSource,
     return false
   }
 
+  func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+    guard rows.indices.contains(row) else { return nil }
+    if case .header = rows[row] { return nil }
+    let rowView = ThemedRowView()
+    rowView.cornerRadius = 8
+    rowView.horizontalInset = 10
+    return rowView
+  }
+
   func tableView(
     _ tableView: NSTableView,
     viewFor tableColumn: NSTableColumn?,

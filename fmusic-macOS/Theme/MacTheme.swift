@@ -104,6 +104,16 @@ enum MacTheme {
     }
   }
 
+  /// Subtle hover highlight for library/content list rows (softer than selection).
+  static var rowHoverColor: NSColor {
+    NSColor(name: nil) { appearance in
+      let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+      return isDark
+        ? NSColor.white.withAlphaComponent(0.06)
+        : NSColor.black.withAlphaComponent(0.05)
+    }
+  }
+
   /// 1 pt divider between the sidebar and the content column (#E1E1E4 light).
   static var columnDividerColor: NSColor {
     NSColor(name: nil) { appearance in
@@ -179,9 +189,11 @@ extension Notification.Name {
 
 // MARK: - ThemedRowView
 
-/// Table row view with a rounded selection plate. The sidebar and library lists in the
-/// Catalyst app select with a neutral grey (measured 66,64,64 in dark mode), not with
-/// the theme accent, so the plate uses a semantic fill instead of `accentColor`.
+/// Table row view with a rounded selection plate and subtle hover highlight.
+/// The sidebar and library lists in the Catalyst app select with a neutral grey
+/// (measured 66,64,64 in dark mode), not with the theme accent, so the plate uses
+/// a semantic fill instead of `accentColor`.
+@MainActor
 class ThemedRowView: NSTableRowView {
   var cornerRadius: CGFloat = 6
   var horizontalInset: CGFloat = 6
@@ -190,6 +202,69 @@ class ThemedRowView: NSTableRowView {
   /// When set, the selection plate is filled with this solid colour (e.g. the sidebar's
   /// #DCDCE0 pill) instead of the translucent label tint.
   var solidSelectionColor: NSColor?
+  /// Whether hovering the row draws a rounded pill background (matches sidebar hover).
+  var showsHoverHighlight = true
+  /// Optional custom hover fill colour; defaults to `MacTheme.rowHoverColor`.
+  var hoverColor: NSColor?
+
+  private var isHovered = false
+  private var hoverTrackingArea: NSTrackingArea?
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    if isHovered {
+      isHovered = false
+      needsDisplay = true
+    }
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window == nil, isHovered {
+      isHovered = false
+      needsDisplay = true
+    }
+  }
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let hoverTrackingArea {
+      removeTrackingArea(hoverTrackingArea)
+    }
+    let area = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(area)
+    hoverTrackingArea = area
+  }
+
+  override func mouseEntered(with event: NSEvent) {
+    super.mouseEntered(with: event)
+    guard showsHoverHighlight, !isGroupRowStyle else { return }
+    if !isHovered {
+      isHovered = true
+      needsDisplay = true
+    }
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event)
+    if isHovered {
+      isHovered = false
+      needsDisplay = true
+    }
+  }
+
+  override func drawBackground(in dirtyRect: NSRect) {
+    super.drawBackground(in: dirtyRect)
+    guard showsHoverHighlight, isHovered, !isSelected, !isGroupRowStyle else { return }
+    let rect = bounds.insetBy(dx: horizontalInset, dy: 2)
+    (hoverColor ?? MacTheme.rowHoverColor).setFill()
+    NSBezierPath(roundedRect: rect, xRadius: cornerRadius, yRadius: cornerRadius).fill()
+  }
 
   override func drawSelection(in dirtyRect: NSRect) {
     guard selectionHighlightStyle != .none else { return }

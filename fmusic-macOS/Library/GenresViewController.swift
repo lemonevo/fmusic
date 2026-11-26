@@ -75,6 +75,13 @@ final class GenresViewController: NSViewController, NSTableViewDataSource, NSTab
 
   func numberOfRows(in tableView: NSTableView) -> Int { genres.count }
 
+  func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+    let rowView = ThemedRowView()
+    rowView.cornerRadius = 6
+    rowView.horizontalInset = 10
+    return rowView
+  }
+
   func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
     let cell = tableView.makeView(withIdentifier: cellID, owner: self) as? NSTableCellView
       ?? NSTableCellView()

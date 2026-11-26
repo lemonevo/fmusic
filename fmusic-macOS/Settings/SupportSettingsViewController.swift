@@ -326,6 +326,13 @@ extension SupportSettingsViewController: NSTableViewDataSource {
 // MARK: - NSTableViewDelegate
 
 extension SupportSettingsViewController: NSTableViewDelegate {
+  func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
+    let rowView = ThemedRowView()
+    rowView.cornerRadius = 5
+    rowView.horizontalInset = 4
+    return rowView
+  }
+
   func tableView(
     _ tableView: NSTableView,
     viewFor tableColumn: NSTableColumn?,
