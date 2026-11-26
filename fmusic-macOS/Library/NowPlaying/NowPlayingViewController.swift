@@ -1791,27 +1791,64 @@ private final class NowPlayingQueueRowView: NSTableCellView {
     onMore?(moreButton)
   }
 
+  private static weak var activeHoveredRow: NowPlayingQueueRowView?
+
+  private func setHovered(_ hovered: Bool) {
+    if hovered {
+      if let previous = Self.activeHoveredRow, previous !== self {
+        previous.setHovered(false)
+      }
+      Self.activeHoveredRow = self
+    } else if Self.activeHoveredRow === self {
+      Self.activeHoveredRow = nil
+    }
+    guard isHovered != hovered else { return }
+    isHovered = hovered
+    layer?.backgroundColor = hovered
+      ? NSColor.white.withAlphaComponent(0.08).cgColor
+      : NSColor.clear.cgColor
+    moreButton.contentTintColor = hovered ? .white : NSColor.white.withAlphaComponent(0.65)
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    setHovered(false)
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window == nil {
+      setHovered(false)
+    }
+  }
+
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
     trackingAreas.forEach(removeTrackingArea)
     addTrackingArea(NSTrackingArea(
       rect: .zero,
-      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      options: [.activeInKeyWindow, .inVisibleRect, .mouseEnteredAndExited],
       owner: self,
       userInfo: nil
     ))
+    if isHovered {
+      guard let window, window.isKeyWindow else {
+        setHovered(false)
+        return
+      }
+      let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+      if !visibleRect.contains(point) {
+        setHovered(false)
+      }
+    }
   }
 
   override func mouseEntered(with event: NSEvent) {
-    isHovered = true
-    layer?.backgroundColor = NSColor.white.withAlphaComponent(0.08).cgColor
-    moreButton.contentTintColor = .white
+    setHovered(true)
   }
 
   override func mouseExited(with event: NSEvent) {
-    isHovered = false
-    layer?.backgroundColor = NSColor.clear.cgColor
-    moreButton.contentTintColor = NSColor.white.withAlphaComponent(0.65)
+    setHovered(false)
   }
 }
 

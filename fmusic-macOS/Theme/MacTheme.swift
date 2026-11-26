@@ -207,22 +207,46 @@ class ThemedRowView: NSTableRowView {
   /// Optional custom hover fill colour; defaults to `MacTheme.rowHoverColor`.
   var hoverColor: NSColor?
 
+  private static weak var activeHoveredRow: ThemedRowView?
+
   private var isHovered = false
   private var hoverTrackingArea: NSTrackingArea?
 
+  private func setHovered(_ hovered: Bool) {
+    if hovered {
+      if let previous = Self.activeHoveredRow, previous !== self {
+        previous.setHovered(false)
+      }
+      Self.activeHoveredRow = self
+    } else if Self.activeHoveredRow === self {
+      Self.activeHoveredRow = nil
+    }
+    guard isHovered != hovered else { return }
+    isHovered = hovered
+    needsDisplay = true
+  }
+
+  private func clearHoverIfPointerOutside() {
+    guard isHovered else { return }
+    guard let window, window.isKeyWindow else {
+      setHovered(false)
+      return
+    }
+    let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+    if !visibleRect.contains(point) {
+      setHovered(false)
+    }
+  }
+
   override func prepareForReuse() {
     super.prepareForReuse()
-    if isHovered {
-      isHovered = false
-      needsDisplay = true
-    }
+    setHovered(false)
   }
 
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
-    if window == nil, isHovered {
-      isHovered = false
-      needsDisplay = true
+    if window == nil {
+      setHovered(false)
     }
   }
 
@@ -232,30 +256,25 @@ class ThemedRowView: NSTableRowView {
       removeTrackingArea(hoverTrackingArea)
     }
     let area = NSTrackingArea(
-      rect: bounds,
+      rect: .zero,
       options: [.mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect],
       owner: self,
       userInfo: nil
     )
     addTrackingArea(area)
     hoverTrackingArea = area
+    clearHoverIfPointerOutside()
   }
 
   override func mouseEntered(with event: NSEvent) {
     super.mouseEntered(with: event)
     guard showsHoverHighlight, !isGroupRowStyle else { return }
-    if !isHovered {
-      isHovered = true
-      needsDisplay = true
-    }
+    setHovered(true)
   }
 
   override func mouseExited(with event: NSEvent) {
     super.mouseExited(with: event)
-    if isHovered {
-      isHovered = false
-      needsDisplay = true
-    }
+    setHovered(false)
   }
 
   override func drawBackground(in dirtyRect: NSRect) {

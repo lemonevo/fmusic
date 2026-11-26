@@ -1697,24 +1697,64 @@ private final class QueueSidebarRowView: NSTableCellView {
     onMore?(moreButton)
   }
 
+  private static weak var activeHoveredRow: QueueSidebarRowView?
+  private var isHovered = false
+
+  private func setHovered(_ hovered: Bool) {
+    if hovered {
+      if let previous = Self.activeHoveredRow, previous !== self {
+        previous.setHovered(false)
+      }
+      Self.activeHoveredRow = self
+    } else if Self.activeHoveredRow === self {
+      Self.activeHoveredRow = nil
+    }
+    guard isHovered != hovered else { return }
+    isHovered = hovered
+    layer?.backgroundColor = hovered
+      ? NSColor.labelColor.withAlphaComponent(0.06).cgColor
+      : NSColor.clear.cgColor
+    moreButton.contentTintColor = hovered ? .labelColor : .secondaryLabelColor
+  }
+
+  override func prepareForReuse() {
+    super.prepareForReuse()
+    setHovered(false)
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if window == nil {
+      setHovered(false)
+    }
+  }
+
   override func updateTrackingAreas() {
     super.updateTrackingAreas()
     trackingAreas.forEach(removeTrackingArea)
     addTrackingArea(NSTrackingArea(
       rect: .zero,
-      options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited],
+      options: [.activeInKeyWindow, .inVisibleRect, .mouseEnteredAndExited],
       owner: self,
       userInfo: nil
     ))
+    if isHovered {
+      guard let window, window.isKeyWindow else {
+        setHovered(false)
+        return
+      }
+      let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+      if !visibleRect.contains(point) {
+        setHovered(false)
+      }
+    }
   }
 
   override func mouseEntered(with event: NSEvent) {
-    layer?.backgroundColor = NSColor.labelColor.withAlphaComponent(0.06).cgColor
-    moreButton.contentTintColor = .labelColor
+    setHovered(true)
   }
 
   override func mouseExited(with event: NSEvent) {
-    layer?.backgroundColor = NSColor.clear.cgColor
-    moreButton.contentTintColor = .secondaryLabelColor
+    setHovered(false)
   }
 }
